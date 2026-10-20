@@ -1,1 +1,1 @@
-export type { AiAssistantApi, AiAssistantSettings, AiCompletionRequest, AiOperation, AiSchemaColumn, AiSchemaContext, AiSchemaTable, AiSettingsState } from '../../modules/ai-assistant/types.js'
+export type { AiAssistantApi, AiAssistantSettings, AiAssistantStreamEvent, AiCompletionRequest, AiOperation, AiSchemaColumn, AiSchemaContext, AiSchemaTable, AiSettingsState } from '../../modules/ai-assistant/types.js'

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import type { IpcDeps } from './registry.js'
 import { ipcMain } from './registry.js'
-import { callAiProvider, sanitizeSchemaContext, validateAiSettings, AiAssistantSettingsStore, type AiChatMessage, type AiCompletionRequest } from '../../modules/ai-assistant/index.js'
+import { callAiProvider, sanitizeSchemaContext, validateAiSettings, AiAssistantSettingsStore, type AiAssistantStreamEvent, type AiChatMessage, type AiCompletionRequest } from '../../modules/ai-assistant/index.js'
 
 const running = new Map<string, { controller: AbortController; senderId: number }>()
 
@@ -44,15 +44,31 @@ export function registerAiAssistantIpc({ vault, userDataDir }: IpcDeps): void {
   ipcMain.handle('ai-assistant:complete', async (event, value: AiCompletionRequest) => {
     if (!value || typeof value.requestId !== 'string' || value.requestId.length > 100 || !value.requestId.trim()) throw new Error('Invalid AI request id.')
     if (running.has(value.requestId)) throw new Error('AI request id is already active.')
-    const stored = await store.loadStored()
-    const key = stored.credentialRef ? await vault.get(stored.credentialRef) : null
-    const messages: AiChatMessage[] = value.messages
-    if (!Array.isArray(messages) || messages.some((message) => !message || !['user', 'assistant'].includes(message.role) || typeof message.content !== 'string' || message.content.length > 100_000)) throw new Error('Invalid AI conversation.')
-    const schema = value.schema ? sanitizeSchemaContext(value.schema) : undefined
     const controller = new AbortController()
     running.set(value.requestId, { controller, senderId: event.sender.id })
-    try { return { text: await callAiProvider(stored.settings, key, messages, schema, controller.signal), requestId: value.requestId } }
-    finally { running.delete(value.requestId) }
+    const onDestroyed = (): void => controller.abort()
+    event.sender.once('destroyed', onDestroyed)
+    const sendEvent = (payload: AiAssistantStreamEvent): void => {
+      if (event.sender.isDestroyed()) return
+      try { event.sender.send('ai-assistant:event', payload) } catch { controller.abort() }
+    }
+    try {
+      const messages: AiChatMessage[] = value.messages
+      if (!Array.isArray(messages) || messages.some((message) => !message || !['user', 'assistant'].includes(message.role) || typeof message.content !== 'string' || Buffer.byteLength(message.content, 'utf8') > 100_000)) throw new Error('Invalid AI conversation.')
+      const schema = value.schema ? sanitizeSchemaContext(value.schema) : undefined
+      const stored = await store.loadStored()
+      const key = stored.credentialRef ? await vault.get(stored.credentialRef) : null
+      const text = await callAiProvider(stored.settings, key, messages, schema, controller.signal, fetch, (chunk) => sendEvent({ type: 'chunk', requestId: value.requestId, text: chunk }))
+      sendEvent({ type: 'done', requestId: value.requestId })
+      return { text, requestId: value.requestId }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'AI request failed.'
+      sendEvent({ type: 'error', requestId: value.requestId, message })
+      throw error
+    } finally {
+      event.sender.removeListener('destroyed', onDestroyed)
+      running.delete(value.requestId)
+    }
   })
   ipcMain.handle('ai-assistant:cancel', (event, requestId: string) => {
     const job = running.get(requestId)
