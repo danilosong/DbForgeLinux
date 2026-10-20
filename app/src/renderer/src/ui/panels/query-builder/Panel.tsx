@@ -1,0 +1,224 @@
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import Editor from '@monaco-editor/react'
+import type { ConnectionRecord, ConnectionSummary, QueryResult } from '../../../../../shared/contracts.js'
+import type { BuiltQuery, ColumnRef, JoinType, QueryAggregate, QueryBuilderModel, QueryBuilderSchema, QueryCondition, QueryOperator, QuerySelection, QueryTable } from '../../../../../modules/query-builder/types.js'
+import { buildQuery } from '../../../../../modules/query-builder/index.js'
+import { splitSqlStatements } from '../../../../../shared/sqlStatements.js'
+import { usePanelConnection } from '../registry'
+
+type BuilderTab = 'Selection' | 'Where' | 'Group By' | 'Having' | 'Order By'
+type DocView = 'Diagram' | 'Text' | 'Data'
+const blankModel = (): QueryBuilderModel => ({ statement: 'SELECT', tables: [], joins: [], selections: [], conditions: [] })
+const operators: QueryOperator[] = ['=', '<>', '>', '<', '>=', '<=', 'LIKE', 'NOT LIKE', 'IN', 'NOT IN', 'BETWEEN', 'IS NULL', 'IS NOT NULL']
+
+export default function QueryBuilderPanel(): React.JSX.Element {
+  const contextualConnection = usePanelConnection()
+  const [connections, setConnections] = useState<ConnectionRecord[]>([]); const [connectionId, setConnectionId] = useState(contextualConnection?.id ?? '')
+  const [active, setActive] = useState<ConnectionSummary | undefined>(contextualConnection)
+  const [databases, setDatabases] = useState<string[]>([]); const [database, setDatabase] = useState(contextualConnection?.database ?? '')
+  const [schema, setSchema] = useState<QueryBuilderSchema | null>(null); const [model, setModel] = useState<QueryBuilderModel>(blankModel); const [schemaBusy, setSchemaBusy] = useState(false); const [zoom, setZoom] = useState(1)
+  const [addOpen, setAddOpen] = useState(false); const [search, setSearch] = useState(''); const [tab, setTab] = useState<BuilderTab>('Selection'); const [view, setView] = useState<DocView>('Diagram')
+  const [sqlText, setSqlText] = useState(''); const [unparsedSql, setUnparsedSql] = useState(false); const [built, setBuilt] = useState<BuiltQuery | null>(null)
+  const [joinType, setJoinType] = useState<JoinType>('INNER'); const [joinLeft, setJoinLeft] = useState(''); const [joinRight, setJoinRight] = useState(''); const [joinLeftColumn, setJoinLeftColumn] = useState(''); const [joinRightColumn, setJoinRightColumn] = useState('')
+  const [whereTable, setWhereTable] = useState(''); const [whereColumn, setWhereColumn] = useState(''); const [whereOperator, setWhereOperator] = useState<QueryOperator>('='); const [whereValue, setWhereValue] = useState('')
+  const [result, setResult] = useState<QueryResult[]>([]); const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false); const [confirmDestructive, setConfirmDestructive] = useState(false); const [executionId, setExecutionId] = useState(''); const [rawExecution, setRawExecution] = useState(false)
+  const tables = model.tables
+  const filterList = schema?.tables.filter((table) => table.name.toLowerCase().includes(search.toLowerCase())) ?? []
+  const compiled = useMemo(() => { try { return buildQuery(model) } catch (error) { return { error: error instanceof Error ? error.message : 'Could not build query.' } } }, [model])
+  const loadSchema = useCallback(async (): Promise<void> => {
+    if (!active || !database) return
+    setSchemaBusy(true)
+    try { setSchema(await window.dbforge.getQueryBuilderSchema(active.id, database)); setMessage('') }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not load schema.') }
+    finally { setSchemaBusy(false) }
+  }, [active, database])
+
+  useEffect(() => {
+    let cancelled = false
+    void window.dbforge.getConnections().then((items) => {
+      if (cancelled) return
+      setConnections(items)
+      setConnectionId((current) => items.some((item) => item.id === current) ? current : contextualConnection?.id && items.some((item) => item.id === contextualConnection.id) ? contextualConnection.id : items[0]?.id ?? '')
+    }).catch((error: unknown) => { if (!cancelled) setMessage(error instanceof Error ? error.message : 'Could not load connections.') })
+    return () => { cancelled = true }
+  }, [contextualConnection?.id])
+
+  useEffect(() => {
+    let cancelled = false
+    let connectedId = ''
+    setActive(undefined); setDatabases([]); setDatabase(''); setSchema(null); setModel(blankModel())
+    const record = connections.find((item) => item.id === connectionId)
+    if (!record) { setMessage('Select a connection to use Query Builder.'); return }
+    void window.dbforge.connect(record).then(async (connected) => {
+      connectedId = connected.id
+      if (cancelled) { await window.dbforge.disconnect(connected.id); return }
+      setActive(connected)
+      const items = await window.dbforge.listDatabases(connected.id)
+      if (cancelled) { await window.dbforge.disconnect(connected.id); return }
+      setDatabases(items); setDatabase((current) => items.includes(current) ? current : record.database && items.includes(record.database) ? record.database : items[0] ?? '')
+    }).catch((error: unknown) => { if (!cancelled) setMessage(error instanceof Error ? error.message : 'Could not connect to database.') })
+    return () => { cancelled = true; if (connectedId) void window.dbforge.disconnect(connectedId) }
+  }, [connectionId, connections])
+
+  useEffect(() => { if (active && database) void loadSchema() }, [active, database, loadSchema])
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'F5') { event.preventDefault(); void execute() }
+      else if (event.ctrlKey && event.key.toLowerCase() === 't') { event.preventDefault(); setAddOpen(true) }
+      else if (event.ctrlKey && ['1', '2', '3'].includes(event.key)) { event.preventDefault(); setView(event.key === '1' ? 'Diagram' : event.key === '2' ? 'Text' : 'Data') }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  })
+  useEffect(() => {
+    if ('error' in compiled) { setBuilt(null); return }
+    setBuilt(compiled)
+    if (view !== 'Text') setSqlText(compiled.sql)
+  }, [compiled, view])
+
+  function refFor(table: QueryTable): string { return table.alias || table.name }
+  function addTable(source: QueryTable): void {
+    if (tables.some((item) => item.name === source.name)) return
+    const table = { ...source, alias: source.name, x: 40 + (tables.length % 3) * 290, y: 32 + Math.floor(tables.length / 3) * 230 }
+    const selections = [...model.selections, ...table.columns.map((column) => ({ source: { table: table.alias, column: column.name }, included: true } satisfies QuerySelection))]
+    const joins = [...model.joins]
+    for (const fk of table.foreignKeys) {
+      const target = tables.find((item) => item.name === fk.referencedTable)
+      if (target) joins.push({ leftTable: table.alias, rightTable: refFor(target), type: 'INNER', conditions: [{ left: { table: table.alias, column: fk.column }, operator: '=', right: { table: refFor(target), column: fk.referencedColumn } }] })
+    }
+    for (const existing of tables) for (const fk of existing.foreignKeys) if (fk.referencedTable === table.name) joins.push({ leftTable: refFor(existing), rightTable: table.alias, type: 'INNER', conditions: [{ left: { table: refFor(existing), column: fk.column }, operator: '=', right: { table: table.alias, column: fk.referencedColumn } }] })
+    setModel((current) => ({ ...current, tables: [...current.tables, table], selections, joins })); setAddOpen(false); setResult([])
+  }
+
+  function removeTable(name: string): void {
+    const aliases = new Set(tables.filter((item) => item.name === name).map(refFor))
+    setModel((current) => ({ ...current, tables: current.tables.filter((item) => item.name !== name), joins: current.joins.filter((join) => !aliases.has(join.leftTable) && !aliases.has(join.rightTable)), selections: current.selections.filter((selection) => !aliases.has(selection.source.table)), conditions: current.conditions.filter((condition) => !aliases.has(condition.column.table)) }))
+  }
+
+  function renameAlias(tableName: string, alias: string): void {
+    if (!alias.trim()) { setMessage('Alias cannot be empty.'); return }
+    const oldTable = tables.find((item) => item.name === tableName)
+    if (!oldTable) return
+    const old = refFor(oldTable)
+    const replace = (ref: ColumnRef): ColumnRef => ref.table === old ? { ...ref, table: alias } : ref
+    setModel((current) => ({ ...current, tables: current.tables.map((item) => item.name === tableName ? { ...item, alias } : item), joins: current.joins.map((join) => ({ ...join, leftTable: join.leftTable === old ? alias : join.leftTable, rightTable: join.rightTable === old ? alias : join.rightTable, conditions: join.conditions.map((condition) => ({ ...condition, left: replace(condition.left), right: replace(condition.right) })) })), selections: current.selections.map((selection) => ({ ...selection, source: replace(selection.source) })), conditions: current.conditions.map((condition) => ({ ...condition, column: replace(condition.column) })) }))
+  }
+
+  function toggleColumn(table: QueryTable, column: string, included: boolean): void {
+    const source = { table: refFor(table), column }
+    setModel((current) => {
+      const found = current.selections.find((selection) => selection.source.table === source.table && selection.source.column === column)
+      if (!found) return { ...current, selections: [...current.selections, { source, included }] }
+      return { ...current, selections: current.selections.map((selection) => selection === found ? { ...selection, included } : selection) }
+    })
+  }
+
+  function addJoin(): void {
+    if (!joinLeft || !joinRight || !joinLeftColumn || !joinRightColumn || joinLeft === joinRight) { setMessage('Choose two different tables and join columns.'); return }
+    if (model.joins.some((join) => (join.leftTable === joinLeft && join.rightTable === joinRight) || (join.leftTable === joinRight && join.rightTable === joinLeft))) { setMessage('A join with these tables already exists.'); return }
+    setModel((current) => ({ ...current, joins: [...current.joins, { leftTable: joinLeft, rightTable: joinRight, type: joinType, conditions: joinType === 'CROSS' ? [] : [{ left: { table: joinLeft, column: joinLeftColumn }, operator: '=', right: { table: joinRight, column: joinRightColumn } }] }] })); setMessage('')
+  }
+
+  function addCondition(having = false): void {
+    if (!whereTable || !whereColumn) { setMessage('Choose a column for the condition.'); return }
+    const value: unknown = whereOperator === 'IN' || whereOperator === 'NOT IN' ? whereValue.split(',').map((item) => item.trim()) : whereValue
+    const condition: QueryCondition = { column: { table: whereTable, column: whereColumn }, operator: whereOperator, value, connector: model.conditions.filter((item) => Boolean(item.having) === having).length ? 'AND' : undefined, having }
+    setModel((current) => ({ ...current, conditions: [...current.conditions, condition] })); setWhereValue(''); setMessage('')
+  }
+
+  function updateSelection(index: number, update: Partial<QuerySelection>): void {
+    setModel((current) => ({ ...current, selections: current.selections.map((selection, itemIndex) => itemIndex === index ? { ...selection, ...update } : selection) }))
+  }
+
+  function autoLayout(): void {
+    setModel((current) => ({ ...current, tables: current.tables.map((table, index) => ({ ...table, x: 28 + (index % 3) * 290, y: 24 + Math.floor(index / 3) * 225 })) }))
+  }
+
+  function moveTable(name: string, x: number, y: number): void { setModel((current) => ({ ...current, tables: current.tables.map((table) => table.name === name ? { ...table, x, y } : table) })) }
+
+  async function validateSql(): Promise<void> {
+    try {
+      const parsed = await window.dbforge.parseQueryBuilder(sqlText, database)
+      if (parsed.model) { setModel(parsed.model); setUnparsedSql(false); setMessage('SQL represented in the diagram.') }
+      else { setUnparsedSql(true); setMessage(parsed.error ?? 'SQL could not be represented visually.') }
+    } catch (error) { setUnparsedSql(true); setMessage(error instanceof Error ? error.message : 'SQL could not be represented visually.') }
+  }
+
+  async function execute(): Promise<void> {
+    if (!active) { setMessage('Select a connection.'); return }
+    let currentModel = model
+    if (view === 'Text') {
+      const parsed = await window.dbforge.parseQueryBuilder(sqlText, database)
+      if (parsed.model) currentModel = parsed.model
+      else {
+        const statements = splitSqlStatements(sqlText).map((item) => item.sql)
+        if (statements.length !== 1 || !/^(SELECT|INSERT|UPDATE|DELETE)\b/i.test(statements[0]?.trim() ?? '')) { setMessage(parsed.error ?? 'Only SELECT, INSERT, UPDATE or DELETE statement supported in Query Builder.'); return }
+        if (/^(UPDATE|DELETE)\b/i.test(statements[0].trim()) && !/\bWHERE\b/i.test(statements[0]) && !window.confirm('Execute a destructive statement without a WHERE clause?')) return
+        const id = crypto.randomUUID(); setExecutionId(id); setRawExecution(true)
+        setBusy(true); setMessage('Executing query…')
+        try { const output = await window.dbforge.executeSql(active.id, statements[0], id); setResult(output); setView('Data'); setMessage(`${output[0]?.rows.length ?? output[0]?.affectedRows ?? 0} rows · 0.000 s`) }
+        catch (error) { setMessage(error instanceof Error ? error.message : 'Query execution failed.') }
+        finally { setBusy(false); setExecutionId(''); setRawExecution(false) }
+        return
+      }
+    }
+    const destructive = (currentModel.statement === 'UPDATE' || currentModel.statement === 'DELETE') && !currentModel.conditions.some((condition) => !condition.having)
+    if (destructive && !confirmDestructive && !window.confirm(`Execute ${currentModel.statement} without a WHERE clause?`)) return
+    const id = crypto.randomUUID(); setExecutionId(id); setRawExecution(false)
+    setBusy(true); setMessage('Executing query…'); setConfirmDestructive(destructive)
+    try {
+      const output = await window.dbforge.executeQueryBuilder(active.id, currentModel, destructive, id)
+      setSqlText(output.sql); setResult(output.results); setView('Data'); setMessage(`${output.results[0]?.rows.length ?? output.results[0]?.affectedRows ?? 0} rows · ${(output.elapsedMs / 1000).toFixed(3)} s`)
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Query execution failed.') }
+    finally { setBusy(false); setConfirmDestructive(false); setExecutionId(''); setRawExecution(false) }
+  }
+
+  const visibleSelections = model.selections.filter((selection) => tab === 'Selection' || tab === 'Group By' && selection.included || tab === 'Order By' && Boolean(selection.sort))
+  const whereConditions = model.conditions.filter((condition) => !condition.having)
+  const havingConditions = model.conditions.filter((condition) => condition.having)
+  function setAssignment(column: ColumnRef, value: string): void {
+    setModel((current) => ({ ...current, assignments: [...(current.assignments ?? []).filter((item) => item.column.table !== column.table || item.column.column !== column.column), { column, value }] }))
+  }
+
+  return <section className="tool-panel qb-panel">
+    <header className="qb-heading"><div><h2>◇ Query Builder</h2><p>Design, inspect, and run SELECT, INSERT, UPDATE, and DELETE queries.</p></div><div className="qb-connection"><label>Connection <select aria-label="Query Builder connection" value={connectionId} onChange={(event) => setConnectionId(event.target.value)}><option value="">Select a connection</option>{connections.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Database <select aria-label="Query Builder database" value={database} onChange={(event) => { setDatabase(event.target.value); setModel(blankModel()) }} disabled={!active}><option value="">Select database</option>{databases.map((item) => <option key={item}>{item}</option>)}</select></label></div></header>
+    {!active ? <div className="empty-state">Select a connection to use Query Builder.</div> : <>
+      <div className="qb-toolbar"><label>Statement <select aria-label="Statement" value={model.statement} onChange={(event) => setModel((current) => ({ ...current, statement: event.target.value as QueryBuilderModel['statement'] }))}><option>SELECT</option><option>INSERT</option><option>UPDATE</option><option>DELETE</option></select></label><button onClick={() => setAddOpen((open) => !open)}>Add Table…</button><button onClick={autoLayout} disabled={!tables.length}>Auto Layout</button><button onClick={() => setZoom((current) => Math.max(.6, current - .1))}>Zoom −</button><span>{Math.round(zoom * 100)}%</span><button onClick={() => setZoom((current) => Math.min(1.5, current + .1))}>Zoom +</button><button onClick={() => setZoom(1)}>Fit</button><button onClick={() => setSqlText((compiled as BuiltQuery).sql?.replace(/\b(SELECT|FROM|WHERE|GROUP BY|HAVING|ORDER BY|LIMIT|JOIN)\b/gi, '\n$1') ?? '')}>Format</button><button onClick={() => void validateSql()}>Validate</button><button className="button-primary" disabled={busy || !built} onClick={() => void execute()}>{busy ? 'Executing…' : 'Execute (F5)'}</button><button disabled={!busy} onClick={() => { if (!active || !executionId) return; if (rawExecution) void window.dbforge.cancelQuery(active.id, executionId); else void window.dbforge.cancelQueryBuilder(executionId) }}>Stop</button></div>
+      {addOpen && <div className="qb-add-table"><input placeholder="Search tables" value={search} onChange={(event) => setSearch(event.target.value)} autoFocus /><div className="qb-table-list">{schemaBusy ? 'Loading tables…' : filterList.map((table) => <button type="button" key={table.name} disabled={tables.some((item) => item.name === table.name)} onClick={() => addTable(table)}>＋ {table.name}</button>)}</div><button onClick={() => setAddOpen(false)}>Close</button></div>}
+      <div className="qb-main">
+        {view === 'Diagram' && <div className="qb-canvas-wrap"><div className="qb-canvas" style={{ transform: `scale(${zoom})`, transformOrigin: 'top left', width: Math.max(900, ...tables.map((table) => (table.x ?? 0) + 300)), height: Math.max(310, ...tables.map((table) => (table.y ?? 0) + 280)) }}>
+          <svg className="qb-join-lines" aria-label="Table join relationships">{model.joins.map((join, index) => { const left = tables.find((table) => refFor(table) === join.leftTable); const right = tables.find((table) => refFor(table) === join.rightTable); if (!left || !right) return null; const x1 = (left.x ?? 0) + 260; const y1 = (left.y ?? 0) + 38; const x2 = right.x ?? 0; const y2 = (right.y ?? 0) + 38; return <g key={index}><path d={`M ${x1} ${y1} C ${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}`} fill="none" stroke="var(--accent)" strokeWidth="2" /><text x={(x1 + x2) / 2} y={(y1 + y2) / 2 - 5} fill="var(--text-secondary)" fontSize="11">{join.type}</text></g> })}</svg>
+          {model.tables.map((table) => <TableCard key={table.name} table={table} selected={new Set(model.selections.filter((item) => item.included).map((item) => `${item.source.table}.${item.source.column}`))} onToggle={(column, included) => toggleColumn(table, column, included)} onRemove={() => removeTable(table.name)} onAlias={(alias) => renameAlias(table.name, alias)} onMove={(x, y) => moveTable(table.name, x, y)} />)}
+          {!model.tables.length && <div className="empty-state">Drag tables into the diagram or choose <button onClick={() => setAddOpen(true)}>Add Table</button></div>}
+        </div></div>}
+        {view === 'Text' && <div className="qb-editor"><Editor height="300px" language="sql" theme="vs" value={sqlText} onChange={(value) => setSqlText(value ?? '')} options={{ minimap: { enabled: false }, scrollBeyondLastLine: false, fontSize: 13 }} />{unparsedSql && <div className="inline-warning">SQL could not be represented visually. The text can still be edited.</div>}</div>}
+        {view === 'Data' && <div className="qb-data">{result.map((set, setIndex) => <div key={setIndex}><table><thead><tr>{set.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{set.rows.map((row, rowIndex) => <tr key={rowIndex}>{set.columns.map((column) => <td key={column}>{formatCell(row[column])}</td>)}</tr>)}</tbody></table>{!set.rows.length && <p>{set.affectedRows} rows affected · insert id {set.insertId}</p>}</div>)}</div>}
+      </div>
+      <div className="qb-join-tools"><strong>Join</strong><select aria-label="Join type" value={joinType} onChange={(event) => setJoinType(event.target.value as JoinType)}>{(['INNER', 'LEFT', 'RIGHT', 'FULL', 'CROSS'] as JoinType[]).map((type) => <option key={type}>{type}</option>)}</select><select aria-label="Join left table" value={joinLeft} onChange={(event) => setJoinLeft(event.target.value)}><option value="">Table…</option>{tables.map((table) => <option value={refFor(table)} key={table.name}>{table.alias || table.name}</option>)}</select><select aria-label="Join left column" value={joinLeftColumn} onChange={(event) => setJoinLeftColumn(event.target.value)}><option value="">Column…</option>{tables.find((item) => refFor(item) === joinLeft)?.columns.map((column) => <option key={column.name}>{column.name}</option>)}</select><span>→</span><select aria-label="Join right table" value={joinRight} onChange={(event) => setJoinRight(event.target.value)}><option value="">Table…</option>{tables.map((table) => <option value={refFor(table)} key={table.name}>{table.alias || table.name}</option>)}</select><select aria-label="Join right column" value={joinRightColumn} onChange={(event) => setJoinRightColumn(event.target.value)}><option value="">Column…</option>{tables.find((item) => refFor(item) === joinRight)?.columns.map((column) => <option key={column.name}>{column.name}</option>)}</select><button onClick={addJoin}>Add Join Condition</button>{model.joins.map((join, index) => <span className="qb-join-chip" key={`${join.leftTable}-${join.rightTable}-${index}`}>{join.type}: {join.leftTable} {join.conditions[0]?.left.column ?? ''} → {join.rightTable} {join.conditions[0]?.right.column ?? ''}<button aria-label="Drop Join" onClick={() => setModel((current) => ({ ...current, joins: current.joins.filter((_, itemIndex) => itemIndex !== index) }))}>×</button></span>)}</div>
+      <nav className="qb-criteria-tabs" aria-label="Query criteria">{(['Selection', 'Where', 'Group By', 'Having', 'Order By'] as BuilderTab[]).map((item) => <button className={tab === item ? 'active' : ''} key={item} onClick={() => setTab(item)}>{item}</button>)}</nav>
+      <div className="qb-criteria">
+        {(tab === 'Selection' || tab === 'Group By' || tab === 'Order By') && <table><thead><tr><th>Expression / Column</th>{tab === 'Selection' && <><th>Alias</th><th>Aggregate</th></>}<th>{tab === 'Group By' ? 'Group' : 'Sort'}</th>{tab !== 'Group By' && <th>Order</th>}</tr></thead><tbody>{visibleSelections.map((selection) => { const index = model.selections.indexOf(selection); return <tr key={`${selection.source.table}.${selection.source.column}`}><td>{selection.source.table}.{selection.source.column}</td>{tab === 'Selection' && <><td><input aria-label="Column alias" value={selection.alias ?? ''} onChange={(event) => updateSelection(index, { alias: event.target.value })} /></td><td><select aria-label="Aggregate" value={selection.aggregate ?? 'NONE'} onChange={(event) => updateSelection(index, { aggregate: event.target.value as QueryAggregate })}>{['NONE', 'SUM', 'COUNT', 'AVG', 'MIN', 'MAX', 'COUNT DISTINCT'].map((aggregate) => <option key={aggregate}>{aggregate}</option>)}</select></td></>}<td>{tab === 'Group By' ? <input type="checkbox" checked={Boolean(selection.group)} onChange={(event) => updateSelection(index, { group: event.target.checked })} /> : <input type="checkbox" checked={Boolean(selection.sort)} onChange={(event) => updateSelection(index, { sort: event.target.checked ? 'ASC' : undefined })} />}</td>{tab !== 'Group By' && <td><select value={selection.sort ?? 'ASC'} disabled={!selection.sort} onChange={(event) => updateSelection(index, { sort: event.target.value as 'ASC' | 'DESC' })}><option>ASC</option><option>DESC</option></select></td>}</tr> })}</tbody></table>}
+        {(tab === 'Where' || tab === 'Having') && <><div className="qb-condition-form"><select aria-label="Condition table" value={whereTable} onChange={(event) => { setWhereTable(event.target.value); setWhereColumn('') }}><option value="">Table…</option>{tables.map((table) => <option value={refFor(table)} key={table.name}>{table.alias || table.name}</option>)}</select><select aria-label="Condition column" value={whereColumn} onChange={(event) => setWhereColumn(event.target.value)}><option value="">Column…</option>{tables.find((table) => refFor(table) === whereTable)?.columns.map((column) => <option key={column.name}>{column.name}</option>)}</select><select aria-label="Condition operator" value={whereOperator} onChange={(event) => setWhereOperator(event.target.value as QueryOperator)}>{operators.map((operator) => <option key={operator}>{operator}</option>)}</select>{!['IS NULL', 'IS NOT NULL'].includes(whereOperator) && <input aria-label="Condition value" value={whereValue} onChange={(event) => setWhereValue(event.target.value)} placeholder="Criteria:" />}<button onClick={() => addCondition(tab === 'Having')}>＋ Add Condition</button></div><Conditions items={tab === 'Having' ? havingConditions : whereConditions} onDelete={(item) => setModel((current) => ({ ...current, conditions: current.conditions.filter((condition) => condition !== item) }))} /></>}
+        {tab === 'Selection' && model.statement !== 'SELECT' && tables[0] && <div className="qb-condition-form"><strong>{model.statement} values</strong>{tables[0].columns.map((column) => <label key={column.name}>{column.name}<input value={String(model.assignments?.find((item) => item.column.column === column.name)?.value ?? '')} onChange={(event) => setAssignment({ table: refFor(tables[0]), column: column.name }, event.target.value)} placeholder="Value" /></label>)}</div>}
+        <label className="qb-distinct"><input type="checkbox" checked={Boolean(model.distinct)} onChange={(event) => setModel((current) => ({ ...current, distinct: event.target.checked }))} /> Distinct</label>
+        <label>Top / Limit N <input type="number" min="0" value={model.limit ?? ''} onChange={(event) => setModel((current) => ({ ...current, limit: event.target.value === '' ? undefined : Number(event.target.value) }))} /></label>
+      </div>
+      <div className="qb-view-tabs">{(['Diagram', 'Text', 'Data'] as DocView[]).map((item) => <button className={view === item ? 'active' : ''} key={item} onClick={() => { setView(item); if (item === 'Text' && !sqlText && built) setSqlText(built.sql) }}>{item}</button>)}<span>{compiled && 'error' in compiled ? compiled.error : built?.sql}</span></div>
+      {message && <p role="status" className="qb-message">{message}</p>}
+    </>}
+    <style>{`.qb-panel{height:100%;display:flex;flex-direction:column;gap:8px}.qb-heading,.qb-toolbar,.qb-connection,.qb-join-tools,.qb-view-tabs,.qb-criteria-tabs,.qb-condition-form{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.qb-heading{justify-content:space-between}.qb-heading h2{margin-bottom:0}.qb-heading p{margin:2px 0;color:var(--text-secondary)}.qb-connection{justify-content:flex-end}.qb-connection label{display:flex;align-items:center;gap:5px}.qb-toolbar{padding:7px 0;border-block:1px solid var(--border)}.qb-main{min-height:250px;max-height:360px;overflow:auto;position:relative;border:1px solid var(--border);background:var(--bg-surface-alt)}.qb-canvas-wrap{min-width:100%;min-height:310px;overflow:auto}.qb-canvas{position:relative;display:flex;align-content:flex-start;align-items:flex-start;gap:12px;flex-wrap:wrap;min-width:100%;min-height:310px;padding:12px}.qb-table-card{width:260px;max-height:260px;overflow:hidden;background:var(--bg-surface);border:1px solid var(--border);border-radius:5px;box-shadow:0 2px 8px #0002}.qb-table-head{display:flex;align-items:center;gap:5px;padding:5px;background:var(--bg-surface-alt);border-bottom:1px solid var(--border)}.qb-table-head input{min-width:0;width:100px}.qb-table-columns{max-height:205px;overflow:auto}.qb-table-columns label{display:flex;gap:5px;align-items:center;padding:2px 7px}.qb-table-columns label:hover{background:var(--bg-hover)}.qb-table-columns small{margin-left:auto;color:var(--text-secondary)}.qb-join-tools{padding:5px 0;border-bottom:1px solid var(--border)}.qb-join-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 6px;border-radius:10px;background:var(--accent-soft)}.qb-criteria-tabs{border-bottom:1px solid var(--border)}.qb-criteria-tabs button,.qb-view-tabs button{background:transparent;border-color:transparent}.qb-criteria-tabs button.active,.qb-view-tabs button.active{color:var(--accent);border-bottom:2px solid var(--accent)}.qb-criteria{max-height:240px;overflow:auto;padding:6px 0}.qb-criteria table,.qb-data table{width:100%;border-collapse:collapse}.qb-criteria td,.qb-criteria th,.qb-data td,.qb-data th{padding:4px 6px;text-align:left;border-bottom:1px solid var(--border)}.qb-condition-form{padding:6px 0}.qb-condition-form input{width:140px}.qb-distinct{margin-right:12px}.qb-view-tabs{padding-top:5px;border-top:1px solid var(--border)}.qb-view-tabs span{margin-left:auto;color:var(--text-secondary);max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:monospace}.qb-editor{min-height:300px;flex:1;border:1px solid var(--border)}.qb-data{overflow:auto;max-height:350px}.qb-add-table{position:absolute;z-index:5;top:190px;left:32px;padding:10px;width:min(420px,80%);background:var(--bg-surface);border:1px solid var(--border);box-shadow:0 6px 20px #0003}.qb-table-list{max-height:250px;overflow:auto;display:flex;flex-direction:column}.qb-table-list button{text-align:left}.qb-message{color:var(--text-secondary);margin:2px}.qb-condition-form label{display:flex;gap:3px;align-items:center}`}</style>
+  </section>
+}
+
+function TableCard({ table, selected, onToggle, onRemove, onAlias, onMove }: { table: QueryTable; selected: Set<string>; onToggle: (column: string, included: boolean) => void; onRemove: () => void; onAlias: (alias: string) => void; onMove: (x: number, y: number) => void }): React.JSX.Element {
+  const [drag, setDrag] = useState<{ x: number; y: number } | null>(null)
+  return <article className="qb-table-card" style={{ position: 'absolute', left: table.x ?? 16, top: table.y ?? 16 }} tabIndex={0} aria-label={`Table ${table.name}`} onPointerDown={(event) => { if ((event.target as HTMLElement).closest('input,button,label')) return; setDrag({ x: event.clientX, y: event.clientY }); (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId) }} onPointerMove={(event) => { if (!drag) return; onMove(Math.max(0, (table.x ?? 0) + event.clientX - drag.x), Math.max(0, (table.y ?? 0) + event.clientY - drag.y)); setDrag({ x: event.clientX, y: event.clientY }) }} onPointerUp={() => setDrag(null)}>
+    <div className="qb-table-head"><strong>{table.name}</strong><label>Alias <input aria-label={`Alias for ${table.name}`} value={table.alias} onChange={(event) => onAlias(event.target.value)} /></label><button aria-label={`Remove ${table.name}`} onClick={onRemove}>×</button></div><div className="qb-table-columns"><label><input type="checkbox" checked={table.columns.every((column) => selected.has(`${table.alias}.${column.name}`))} onChange={(event) => table.columns.forEach((column) => onToggle(column.name, event.target.checked))} /> *</label>{table.columns.map((column) => <label key={column.name}><input type="checkbox" checked={selected.has(`${table.alias}.${column.name}`)} onChange={(event) => onToggle(column.name, event.target.checked)} /><span>{column.name}</span><small>{column.primaryKey ? '🔑 ' : ''}{column.type}</small></label>)}</div>
+  </article>
+}
+
+function Conditions({ items, onDelete }: { items: QueryCondition[]; onDelete: (item: QueryCondition) => void }): React.JSX.Element {
+  return <div>{items.map((item, index) => <div key={`${item.column.table}-${item.column.column}-${index}`} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '3px 0' }}>{index ? `${item.connector ?? 'AND'} ` : ''}{item.column.table}.{item.column.column} {item.operator} {String(item.value ?? '')}<button onClick={() => onDelete(item)}>×</button></div>)}</div>
+}
+
+function formatCell(value: unknown): string { return value === null ? 'NULL' : value instanceof Date ? value.toISOString() : String(value ?? '') }
