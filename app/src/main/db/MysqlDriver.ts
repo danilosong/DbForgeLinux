@@ -114,6 +114,11 @@ export class MysqlDriver implements DbDriver {
     })
   }
 
+  async queryRows(connectionId: string, sql: string, parameters: unknown[] = []): Promise<Array<Record<string, unknown>>> {
+    const [rows] = await this.requireConnection(connectionId).pool.query<Array<RowDataPacket & Record<string, unknown>>>(sql, parameters)
+    return rows
+  }
+
   private async initializeSession(connection: PoolConnection, config: DriverConnectionConfig): Promise<void> {
     if (config.advanced.readOnly) await connection.query('SET SESSION TRANSACTION READ ONLY')
     if (config.advanced.sqlMode) await connection.query('SET SESSION sql_mode = ?', [config.advanced.sqlMode])
