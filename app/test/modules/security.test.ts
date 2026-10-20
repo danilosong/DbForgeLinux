@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { applySecurityPlan, buildSecurityPlan, getUserSecurityDetails, previewSecurityPlan, securitySql, type SecurityChange } from '../../src/modules/security/index.js'
+import { cloneAccessChanges } from '../../src/modules/security/clone.js'
 import type { SqlClient } from '../../src/modules/sql.js'
 
 function client(overrides: Partial<SqlClient> = {}): SqlClient {
@@ -7,6 +8,21 @@ function client(overrides: Partial<SqlClient> = {}): SqlClient {
 }
 
 describe('security manager backend', () => {
+  it('copies direct grants and default role assignments when cloning access', () => {
+    const changes = cloneAccessChanges({
+      account: { user: 'source', host: '%' }, grants: [], privileges: [
+        { privilege: 'SELECT', databaseName: 'app', tableName: 'users', columnName: 'name', grantable: 'NO' },
+        { privilege: 'UPDATE', databaseName: 'app', tableName: 'users', columnName: 'name', grantable: 'NO' },
+        { privilege: 'PROCESS', grantable: 'YES' }
+      ], grantedRoles: [{ user: 'read_role', host: '%' }], defaultRoles: [{ user: 'read_role', host: '%' }]
+    }, { user: 'clone', host: 'localhost' })
+    expect(changes).toEqual([
+      { kind: 'grant', scope: { kind: 'column', database: 'app', table: 'users', columns: ['name'] }, privileges: ['SELECT', 'UPDATE'], grantOption: false, grantee: { user: 'clone', host: 'localhost' } },
+      { kind: 'grant', scope: { kind: 'global' }, privileges: ['PROCESS'], grantOption: true, grantee: { user: 'clone', host: 'localhost' } },
+      { kind: 'grantRole', role: { user: 'read_role', host: '%' }, grantee: { user: 'clone', host: 'localhost' }, default: true }
+    ])
+  })
+
   it('escapes account identifiers and masks passwords in preview SQL', () => {
     const plan = buildSecurityPlan([{ kind: 'createUser', account: { user: "u'", host: '10.%' }, password: "secret'\\value" }])
     expect(plan.statements[0].sql).toContain("'u'''@'10.%'")

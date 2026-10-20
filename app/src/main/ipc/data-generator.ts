@@ -1,3 +1,10 @@
 import { ipcMain } from 'electron'
+import { generateData, previewData, type GeneratorSpec } from '../../modules/data-generation/index.js'
+import { inspectDatabase } from '../../modules/schema/index.js'
 import type { IpcDeps } from './registry.js'
-export function registerDataGeneratorIpc(deps:IpcDeps):void { void deps; ipcMain.handle('data-generator:initialize',()=>{ throw new Error('not implemented') }) }
+export function registerDataGeneratorIpc({driver}:IpcDeps):void {
+ const inspect=(id:string,database:string)=>inspectDatabase((sql,parameters)=>driver.queryRows(id,sql,parameters),database)
+ ipcMain.handle('data-generator:inspect',(_event,id:string,database:string)=>inspect(id,database))
+ ipcMain.handle('data-generator:preview',async(_event,id:string,database:string,tableName:string,generators:Record<string,GeneratorSpec>,seed?:number|string)=>{const schema=await inspect(id,database);const table=schema.tables.find(item=>item.name===tableName);if(!table)throw new Error('Tabela não encontrada.');return previewData({schema,table,count:20,generators,seed,driver,connectionId:id,database})})
+ ipcMain.handle('data-generator:generate',async(_event,input:{connectionId:string;database:string;tables:string[];rowsPerTable:number;generators:Record<string,GeneratorSpec>;seed?:number|string;confirmed:boolean})=>{if(input.confirmed!==true)throw new Error('Confirme a geração de dados.');const schema=await inspect(input.connectionId,input.database);if(!input.tables.length)throw new Error('Selecione ao menos uma tabela.');return generateData({driver,connectionId:input.connectionId,database:input.database,schema,tables:input.tables,rowsPerTable:input.rowsPerTable,generators:input.generators,seed:input.seed})})
+}

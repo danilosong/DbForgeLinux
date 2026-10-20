@@ -1,5 +1,10 @@
 import type { ConnectionRecord, ConnectionTestResult, ConnectionSummary, QueryResult, DatabaseObject, SqlFile } from './index.js'
-export interface DbForgeApi {
+import type { SecurityApi } from './security.js'
+import type { SessionsApi } from './sessions.js'
+import type { SchemaCompareApi } from './schema-compare.js'
+import type { DataCompareApi } from './data-compare.js'
+import type { ImportExportApi } from './import-export.js'
+export interface DbForgeApi extends SecurityApi, SessionsApi, SchemaCompareApi, DataCompareApi, ImportExportApi {
   getConnections(): Promise<ConnectionRecord[]>
   saveConnection(record: ConnectionRecord): Promise<void>
   deleteConnection(id: string): Promise<void>

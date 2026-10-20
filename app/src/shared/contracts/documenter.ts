@@ -1,0 +1,2 @@
+import type { DocumentFormat, GeneratedDocumentation, WrittenDocumentation } from '../../modules/documenter/index.js'
+declare module './api.js' { interface DbForgeApi { previewDatabaseDocumentation(connectionId:string,database:string,title?:string):Promise<GeneratedDocumentation>; generateDatabaseDocumentation(input:{connectionId:string;database:string;title?:string;descriptions?:Record<string,string>;includeDiagram?:boolean;formats:DocumentFormat[];outputDirectory:string;confirmed:boolean}):Promise<WrittenDocumentation> } }
