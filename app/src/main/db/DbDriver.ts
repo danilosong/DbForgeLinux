@@ -13,4 +13,5 @@ export interface DbDriver {
   listDatabases(connectionId: string): Promise<string[]>
   listTables(connectionId: string, database: string): Promise<string[]>
   executeSql(connectionId: string, sql: string): Promise<QueryResult[]>
+  queryRows(connectionId: string, sql: string, parameters?: unknown[]): Promise<Array<Record<string, unknown>>>
 }
