@@ -1,11 +1,18 @@
 import { afterAll, describe, expect, it } from 'vitest'
+import { createDefaultConnection } from '../src/shared/connectionDefaults.js'
 import { MysqlDriver } from '../src/main/db/MysqlDriver.js'
 
 const enabled = process.env.MYSQL_INTEGRATION === '1'
 describe.skipIf(!enabled)('MysqlDriver integration', () => {
   const driver = new MysqlDriver()
   let id: string
-  const config = { host: process.env.MYSQL_HOST ?? '127.0.0.1', port: Number(process.env.MYSQL_PORT ?? 33067), user: 'root', password: 'integration-only' }
+  const config = {
+    ...createDefaultConnection('integration', 'Integration'),
+    host: process.env.MYSQL_HOST ?? '127.0.0.1',
+    port: Number(process.env.MYSQL_PORT ?? 33067),
+    user: 'root',
+    password: 'integration-only'
+  }
 
   afterAll(async () => { if (id) await driver.disconnect(id) })
 

@@ -1,5 +1,7 @@
 packages: []
 allowBuilds:
+  cpu-features: set this to true or false
   electron: true
   electron-winstaller: true
   esbuild: true
+  ssh2: set this to true or false

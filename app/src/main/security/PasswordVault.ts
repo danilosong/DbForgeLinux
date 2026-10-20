@@ -29,6 +29,14 @@ export class PasswordVault {
     }
   }
 
+  async delete(key: string): Promise<void> {
+    try {
+      await fs.unlink(this.fileFor(key))
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error
+    }
+  }
+
   private fileFor(key: string): string {
     const safeName = Buffer.from(key).toString('hex')
     return join(this.directory, `${safeName}.secret`)

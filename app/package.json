@@ -22,7 +22,8 @@
   "dependencies": {
     "mysql2": "^3.15.3",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "ssh2": "^1.17.0"
   },
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^1.0.1",
@@ -31,6 +32,7 @@
     "@types/node": "^24.8.1",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
+    "@types/ssh2": "^1.15.6",
     "@vitejs/plugin-react": "^5.0.4",
     "electron": "^38.3.0",
     "electron-builder": "^26.0.12",

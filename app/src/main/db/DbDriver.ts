@@ -1,15 +1,13 @@
-import type { QueryResult } from '../../shared/contracts.js'
+import type { ConnectionRecord, ConnectionTestResult, HttpTunnelConfig, QueryResult, SshConfig } from '../../shared/contracts.js'
 
-export interface DriverConnectionConfig {
-  host: string
-  port: number
-  user: string
+export interface DriverConnectionConfig extends ConnectionRecord {
   password?: string
-  database?: string
+  ssh: SshConfig & { password?: string; passphrase?: string; privateKey?: Buffer }
+  http: HttpTunnelConfig & { password?: string; proxyPassword?: string }
 }
 
 export interface DbDriver {
-  testConnection(config: DriverConnectionConfig): Promise<{ serverVersion: string }>
+  testConnection(config: DriverConnectionConfig): Promise<ConnectionTestResult>
   connect(config: DriverConnectionConfig): Promise<string>
   disconnect(connectionId: string): Promise<void>
   listDatabases(connectionId: string): Promise<string[]>

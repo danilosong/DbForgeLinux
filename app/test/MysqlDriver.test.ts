@@ -13,6 +13,7 @@ vi.mock('mysql2/promise', () => ({
 }))
 
 import { MysqlDriver } from '../src/main/db/MysqlDriver.js'
+import { createDefaultConnection } from '../src/shared/connectionDefaults.js'
 
 describe('MysqlDriver.executeSql', () => {
   let driver: MysqlDriver
@@ -27,7 +28,7 @@ describe('MysqlDriver.executeSql', () => {
     })
     mysqlMock.getConnection.mockResolvedValue({ release: mysqlMock.release })
     driver = new MysqlDriver()
-    connectionId = await driver.connect({ host: 'localhost', port: 3306, user: 'test' })
+    connectionId = await driver.connect(createDefaultConnection('mock', 'Mock'))
   })
 
   it('mapeia resultados de SELECT, INSERT e UPDATE em statements múltiplos', async () => {
