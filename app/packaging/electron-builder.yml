@@ -10,11 +10,10 @@ linux:
   icon: packaging/icon.png
   target:
     - deb
-  category: Development
+  category: Development;Database;
   maintainer: dbForgeLinux contributors <noreply@github.com>
   desktop:
     entry:
-      Categories: Development;Database;
       Icon: dbforgelinux
   synopsis: MySQL and MariaDB database client
   description: Desktop database client for MySQL and MariaDB.
