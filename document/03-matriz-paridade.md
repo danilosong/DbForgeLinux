@@ -1,7 +1,7 @@
 # 03 — Matriz de paridade (inicial; nada implementado)
 | ID | Funcionalidade dbForge | Evidência | Comportamento esperado | Estado | Testes | Diferenças |
 |---|---|---|---|---|---|---|
-| F-CON | Gerenciador de conexões MySQL (host/porta/user/senha/schema, SSL, SSH, HTTP tunnel) | Data.MySQL, tunnel.php | Criar/editar/testar/conectar | planejado | — | HTTP tunnel fora do MVP |
+| F-CON | Gerenciador de conexões MySQL (host/porta/user/senha/schema, SSL, SSH, HTTP tunnel) | Data.MySQL, tunnel.php | Criar/editar/testar/conectar | I0: driver+cofre ok; I1 em andamento | unit 6 + integ 1 (I0) | HTTP tunnel fora do MVP |
 | F-EXP | Database Explorer | ObjectExplorer.MySql | Árvore dbs>tabelas/views/rotinas/triggers/events | planejado | — | — |
 | F-SQL | Editor SQL + execução + resultados múltiplos | ScriptSupport, ExecutionHistory | Executar seleção/script, abas de resultado, histórico | planejado | — | — |
 | F-AC | Autocomplete/formatter/snippets | SqlComplete, 35 snippets | Sugestões contextuais | planejado | — | — |
