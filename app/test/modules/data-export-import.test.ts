@@ -1,6 +1,6 @@
 import { PassThrough } from 'node:stream'
 import { describe, expect, it } from 'vitest'
-import { exportData, importData, previewImport } from '../../src/modules/data-export-import/index.js'
+import { exportData, importData, previewExport, previewImport } from '../../src/modules/data-export-import/index.js'
 import type { DbDriver, DbTransaction, SqlValue } from '../../src/main/db/DbDriver.js'
 import type { Row } from '../../src/modules/data-export-import/index.js'
 
@@ -102,6 +102,20 @@ describe('data export/import', () => {
     })
     expect(sqlReport.inserted).toBe(1)
     expect(sql.statements[0].values).toEqual(["O'Brien", Buffer.from([0, 255]), null])
+  })
+
+  it('importa XML em elementos de linha e faz preview de linhas do banco', async () => {
+    const target = fakeDriver()
+    const report = await importData({
+      driver: target.driver, connectionId: 'id', format: 'xml', table: 'items',
+      source: (async function* () { yield Buffer.from('<rows><row><id>7</id><label>A &amp; B</label></row></rows>') })()
+    })
+    expect(report.inserted).toBe(1)
+    expect(target.statements[0].values).toEqual(['7', 'A & B'])
+
+    const source = fakeDriver([{ id: 1 }, { id: 2 }, { id: 3 }])
+    const preview = await previewExport({ driver: source.driver, connectionId: 'id', query: 'SELECT * FROM items' }, 2)
+    expect(preview).toEqual([{ id: 1 }, { id: 2 }])
   })
 
   it('constrói update, delete e upsert com identificadores escapados e parâmetros', async () => {

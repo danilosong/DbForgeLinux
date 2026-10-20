@@ -136,6 +136,31 @@ async function* sqlObjects(job: ImportJob): AsyncIterable<Row> {
   }
 }
 
+function decodeXml(value: string): string {
+  return value.replace(/&#x([\da-f]+);/gi, (_match, code: string) => String.fromCodePoint(parseInt(code, 16)))
+    .replace(/&#(\d+);/g, (_match, code: string) => String.fromCodePoint(Number(code)))
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&')
+}
+
+async function* xmlObjects(job: ImportJob): AsyncIterable<Row> {
+  const xml = (await readAll(job.source)).toString(job.options?.encoding ?? 'utf8').replace(/^\uFEFF/, '')
+  const rowElement = job.options?.rowElement ?? 'row'
+  if (!/^[A-Za-z_][\w.-]*$/.test(rowElement)) throw new Error('Nome do elemento XML inválido.')
+  const rowPattern = new RegExp(`<${rowElement}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${rowElement}\\s*>`, 'g')
+  let found = false
+  for (const rowMatch of xml.matchAll(rowPattern)) {
+    found = true
+    const row: Row = {}
+    const content = rowMatch[1] ?? ''
+    for (const fieldMatch of content.matchAll(/<([A-Za-z_][\w.-]*)(?:\s[^>]*)?>([\s\S]*?)<\/\1\s*>/g)) {
+      const field = fieldMatch[2].replace(/<[^>]+>/g, '').trim()
+      row[fieldMatch[1]] = decodeXml(field)
+    }
+    if (Object.keys(row).length) yield row
+  }
+  if (!found) throw new Error(`Nenhum elemento <${rowElement}> encontrado no XML.`)
+}
+
 async function* sourceRows(job: ImportJob): AsyncIterable<Row> {
   if (job.format === 'csv') { yield* csvObjects(job); return }
   if (job.format === 'json') {
@@ -156,6 +181,7 @@ async function* sourceRows(job: ImportJob): AsyncIterable<Row> {
     for (const row of workbook.rows) yield row
     return
   }
+  if (job.format === 'xml') { yield* xmlObjects(job); return }
   yield* sqlObjects(job)
 }
 
@@ -214,7 +240,7 @@ async function runRows(job: ImportJob, execute: (sql: string, values: readonly S
       report.errors++; report.rowErrors.push({ row: index, message: error instanceof Error ? error.message : 'Erro de linha.' })
       if ((job.options?.onRowError ?? 'abort') === 'abort') throw error
     }
-    if (report.read % 500 === 0) job.onProgress?.({ phase: 'reading', rows: report.read })
+    if (report.read % 100 === 0) job.onProgress?.({ phase: 'reading', rows: report.read })
   }
 }
 

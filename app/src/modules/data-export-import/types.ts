@@ -2,7 +2,7 @@ import type { Writable } from 'node:stream'
 import type { DbDriver } from '../../main/db/DbDriver.js'
 
 export type ExportFormat = 'csv' | 'json' | 'xml' | 'sql' | 'html' | 'xlsx'
-export type ImportFormat = 'csv' | 'json' | 'xlsx' | 'sql'
+export type ImportFormat = 'csv' | 'json' | 'xml' | 'xlsx' | 'sql'
 export type ImportMode = 'append' | 'update' | 'delete' | 'upsert'
 export type Row = Record<string, unknown>
 
@@ -53,6 +53,7 @@ export interface ImportJob {
     onRowError?: 'continue' | 'abort'
     transactional?: boolean
     previewRows?: number
+    rowElement?: string
   }
 }
 

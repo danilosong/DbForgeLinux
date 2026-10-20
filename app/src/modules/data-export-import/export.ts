@@ -77,6 +77,17 @@ export async function exportData(job: ExportJob): Promise<ExportReport> {
   }
 }
 
+export async function previewExport(job: Pick<ExportJob, 'driver' | 'connectionId' | 'query' | 'signal' | 'onProgress'>, count = 20): Promise<Row[]> {
+  const rows: Row[] = []
+  for await (const row of job.driver.streamRows(job.connectionId, job.query, [], job.signal)) {
+    if (job.signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+    rows.push(row)
+    if (rows.length >= Math.max(1, count)) break
+  }
+  job.onProgress?.({ phase: 'preview', rows: rows.length })
+  return rows
+}
+
 function xmlName(value: string): string {
   const name = value.replace(/[^A-Za-z0-9_.-]/g, '_')
   return /^[A-Za-z_]/.test(name) ? name : `_${name}`
