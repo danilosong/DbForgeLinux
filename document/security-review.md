@@ -58,6 +58,15 @@ Revisão independente dos módulos AI Assistant, conexões/cofre, Database Tools
 - **EVIDENCE:** `app/test/windowPolicy.test.ts` testa caminhos autorizados e rejeitados.
 - **SEVERITY:** HIGH — corrigido.
 
+### MEDIUM — IPC confiava apenas no renderer local
+
+- **FINDING:** handlers confiavam nos tipos TypeScript e na origem da janela, sem validar os argumentos em runtime nem rejeitar explicitamente chamadas de subframes.
+- **LOCATION:** `app/src/main/ipc/*.ts`, validação central em `app/src/main/ipc/guard.ts`.
+- **EXPECTED:** validar origem e frame remetente, aplicar schema por canal e limitar payloads e operações perigosas.
+- **ACTUAL:** o registro central envolve cada `ipcMain.handle` antes de registrar os módulos. Os 123 canais têm schemas runtime; valida tipos, enums, tamanhos, caminhos absolutos/relativos confinados e confirmação explícita. Só aceita a janela viva cujo frame principal corresponde ao arquivo do renderer ou à origem loopback de desenvolvimento configurada. Payloads estruturados têm limites de profundidade, itens e 24 MB no total. SQL, Git e operações destrutivas têm limites por remetente/canal.
+- **EVIDENCE:** `app/test/ipc-guard.test.ts` compara todos os canais declarados aos schemas e testa argumentos malformados, caminhos escapados, enum inválido, confirmação ausente, payload excessivo, origem externa, subframe, janela ausente e rate limit.
+- **SEVERITY:** MEDIUM — corrigido; XSS no renderer confiável ainda pode invocar operações válidas dentro desses limites.
+
 ### MEDIUM — Importação permitia consumo descontrolado de memória
 
 - **FINDING:** JSON, XML e XLSX eram lidos integralmente; entradas XLSX comprimidas podiam expandir sem limite. Diagramas e Options também aceitavam arquivos sem limite.
@@ -95,15 +104,6 @@ Revisão independente dos módulos AI Assistant, conexões/cofre, Database Tools
 - **ACTUAL:** transporte remoto exige HTTPS e URLs com credenciais/query secrets são recusadas no SettingsStore, mas endpoints compatíveis permanecem arbitrários para permitir servidores self-hosted.
 - **EVIDENCE:** `normalizeAiEndpoint` valida protocolo e credenciais, mas não resolve/bloqueia IPs privados para domínios HTTPS configurados.
 - **SEVERITY:** MEDIUM — endpoint configurado pelo usuário.
-
-### MEDIUM — IPC confia que o renderer local não foi comprometido
-
-- **FINDING:** argumentos de vários handlers são tipados apenas em TypeScript e não passam por validação de runtime; há superfície poderosa, incluindo execução de SQL, gravação e Git.
-- **LOCATION:** `app/src/main/ipc/*.ts`, por exemplo `app/src/main/ipc/connections.ts` e `app/src/main/ipc/sql.ts`.
-- **EXPECTED:** validar origem do frame e schema por canal no processo principal.
-- **ACTUAL:** janela principal não navega para origem externa, usa preload isolado e CSP; ainda assim handlers não aplicam uma validação de frame/schema uniforme e XSS no renderer confiável herdaria a API exposta.
-- **EVIDENCE:** preload expõe métodos nomeados, mas os handlers registrados consomem valores tipados sem schema comum.
-- **SEVERITY:** MEDIUM — defesa em profundidade pendente.
 
 ### MEDIUM — Restore de rotinas e triggers depende da confiança no arquivo
 
