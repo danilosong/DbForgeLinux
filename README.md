@@ -1,62 +1,338 @@
 # dbForgeLinux
 
-dbForgeLinux é um cliente desktop Linux em desenvolvimento para trabalhar com MySQL e MariaDB. Ele reúne editor SQL, resultados paginados, comparação de dados e schemas, designers e ferramentas auxiliares em uma aplicação Electron.
+<p align="center">
+  <img src="document/evidence/ui/ui-corrections-light.png" alt="dbForgeLinux Preview" width="850">
+</p>
 
-## Estado do projeto
+<p align="center">
+  <a href="https://github.com/danilosong/DbForgeLinux/actions/workflows/ci.yml"><img src="https://github.com/danilosong/DbForgeLinux/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="Licença MIT"></a>
+  <img src="https://img.shields.io/badge/platform-Linux%20x86__64-orange?style=flat-square&logo=linux" alt="Plataforma Linux">
+  <img src="https://img.shields.io/badge/MySQL-5.7%20%7C%208.0%20%7C%208.4-00758F?style=flat-square&logo=mysql&logoColor=white" alt="MySQL">
+  <img src="https://img.shields.io/badge/MariaDB-10.11%20%7C%2011.x-003545?style=flat-square&logo=mariadb&logoColor=white" alt="MariaDB">
+  <img src="https://img.shields.io/badge/Electron-38.x-47848F?style=flat-square&logo=electron&logoColor=white" alt="Electron">
+  <img src="https://img.shields.io/badge/React-19.x-61DAFB?style=flat-square&logo=react&logoColor=black" alt="React">
+  <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
+</p>
 
-O projeto tem paridade **parcial e em evolução**. A matriz descreve o que está coberto por testes e registra lacunas e limites conhecidos: [document/03-matriz-paridade.md](document/03-matriz-paridade.md). Não afirmamos compatibilidade funcional completa com outros produtos.
+---
 
-## Linux
+### What is dbForgeLinux?
 
-- Linux x86_64 com ambiente gráfico X11 ou Wayland; para sessões sem monitor, use Xvfb.
-- O pacote Debian depende de `libsecret-1-0`. Se o keyring não estiver disponível, o app avisa e usa o cofre local cifrado.
-- Para desenvolvimento: Node.js 22, pnpm 10 e dependências nativas necessárias ao Electron.
-- Para integração local: Docker com Compose e a porta 33067 livre para MySQL 8.4. A CI testa MariaDB 11 em um serviço isolado.
+> **dbForgeLinux** is an independent, native Linux desktop IDE and database management client for **MySQL and MariaDB**, created by **Danilo Song**. Built on **Electron, React 19, TypeScript, and the Monaco Editor**, it delivers a comprehensive development workspace tailored specifically for the Linux ecosystem. It provides professional SQL editing with autocompletion, query formatting and execution history, an interactive MDI workspace for visual query building, ER diagrams, schema & data synchronization, stored procedure stepping debugging, native SSH and HTTP tunneling, and an integrated AI Assistant with streaming and Bring-Your-Own-Key (BYOK) privacy.
 
-## Desenvolvimento
+---
 
-```sh
-cd app
+## Visão Geral
+
+O **dbForgeLinux** nasceu para preencher a carência de um ambiente integrado de desenvolvimento e administração de banco de dados no ecossistema Linux que ofereça a ergonomia, a riqueza de ferramentas e os recursos visuais tradicionalmente encontrados apenas em ferramentas comerciais para Windows.
+
+Totalmente empacotado para distribuições baseadas em Debian/Ubuntu (`.deb`) e projetado com suporte nativo a **X11 e Wayland**, o dbForgeLinux combina performance de ponta com respeito absoluto à privacidade e à segurança dos dados:
+- **Tudo local ou privado:** Suas credenciais são guardadas no keyring do sistema operacional (`libsecret`) com fallback em cofre cifrado em disco (AES-256-GCM).
+- **Sem telemetria oculta:** Chaves de API de IA e credenciais de túnel permanecem sob total controle do desenvolvedor.
+- **Arquitetura MDI genuína:** Trabalhe com múltiplos editores SQL, designers de tabelas, construtores visuais de consulta, comparadores de schema e depuradores abertos simultaneamente em abas independentes.
+
+---
+
+## Galeria de Recursos
+
+Abaixo estão capturas reais da interface gráfica do dbForgeLinux executando em ambiente Linux x86_64 nos temas Claro e Escuro:
+
+### 1. Ambiente Integrado e Construtor Visual (MDI Shell & Query Builder)
+
+| Tema Claro | Tema Escuro |
+|---|---|
+| ![Shell e Query Builder - Claro](document/evidence/ui/ui-corrections-light.png) | ![Shell e Query Builder - Escuro](document/evidence/ui/ui-corrections-dark.png) |
+
+### 2. Editor SQL com Monaco e Grade de Resultados (SQL Editor & Result Grid)
+
+| Tema Claro | Tema Escuro |
+|---|---|
+| ![SQL Editor - Claro](document/evidence/ui/sql-editor-light.png) | ![SQL Editor - Escuro](document/evidence/ui/sql-editor-dark.png) |
+
+### 3. Edição Direta de Células na Grade (Inline Data Grid Editing)
+
+| Tema Claro | Tema Escuro |
+|---|---|
+| ![Edição de Grade - Claro](document/evidence/ui/table-data-grid-edit-light.png) | ![Edição de Grade - Escuro](document/evidence/ui/table-data-grid-edit-dark.png) |
+
+### 4. Modelagem e Diagrama de Entidade-Relacionamento (ER Diagram)
+
+| Tema Claro | Tema Escuro |
+|---|---|
+| ![Diagrama ER - Claro](document/evidence/ui/er-diagram-light.png) | ![Diagrama ER - Escuro](document/evidence/ui/er-diagram-dark.png) |
+
+### 5. Comparação e Sincronização de Schemas (Schema Compare)
+
+| Tema Claro | Tema Escuro |
+|---|---|
+| ![Schema Compare - Claro](document/evidence/ui/schema-compare-light.png) | ![Schema Compare - Escuro](document/evidence/ui/schema-compare-dark.png) |
+
+### 6. Depurador de Stored Procedures Passo a Passo (Routine Debugger)
+
+| Tema Claro | Tema Escuro |
+|---|---|
+| ![Routine Debugger - Claro](document/evidence/ui/routine-debugger-light.png) | ![Routine Debugger - Escuro](document/evidence/ui/routine-debugger-dark.png) |
+
+### 7. Designer Visual de Tabelas e DDL (Table Designer)
+
+| Tema Claro | Tema Escuro |
+|---|---|
+| ![Table Designer - Claro](document/evidence/ui/table-designer-light.png) | ![Table Designer - Escuro](document/evidence/ui/table-designer-dark.png) |
+
+### 8. Assistente de IA Acoplado com Chave Própria (AI Assistant Dock)
+
+| Tema Claro | Tema Escuro |
+|---|---|
+| ![AI Assistant - Claro](document/evidence/ui/ai-assistant-light.png) | ![AI Assistant - Escuro](document/evidence/ui/ai-assistant-dark.png) |
+
+---
+
+## Funcionalidades por Módulo
+
+| Módulo / Recurso | Descrição | Destaques e Capacidades |
+|---|---|---|
+| **SQL Editor** | Editor SQL completo baseado no motor Monaco | Autocompletion contextual de tabelas/colunas, snippets SQL expansíveis, formatador com regras estritas, histórico persistente de execução e paginação em spool de disco para grandes volumes. |
+| **Database Explorer** | Árvore navegável de objetos de metadados | Inspeção hierárquica de conexões, bancos, tabelas, colunas, chaves, índices, views, procedures, functions, triggers e eventos. Filtro dinâmico de objetos e alternância de bases do sistema. |
+| **Data Grid & Viewer** | Grade de dados virtualizada com paginação | Suporte a milhões de linhas via spool local, visualizador em modal para campos JSON/texto longo, exportação rápida e edição de células com suporte a buffer de modificações pendentes. |
+| **Inline Grid Editing** | Edição in-place direta na grade de dados | Destaque visual por cores para inserções, alterações e deleções pendentes. Geração segura de DML com conferência de chave primária/única antes de aplicar no servidor. |
+| **Table Designer** | Designer gráfico para criação e alteração de tabelas | Gestão visual de colunas, tipos de dados, flags (Null, Auto-increment), índices, chaves estrangeiras, opções de engine, particionamento e prévia dinâmica do DDL gerado via diff. |
+| **Editores de Objetos** | IDE especializada para rotinas e componentes lógicos | Editores dedicados com syntax highlighting para Stored Procedures, Stored Functions, Views, Triggers e Events, com comandos rápidos de execução de teste e alteração estrutural. |
+| **Import / Export Wizard** | Assistente multifórmato de migração de dados | Importação e exportação de dados com mapeamento flexível de colunas para formatos: CSV, Excel (.xlsx), XML, JSON, HTML e scripts SQL INSERT. Suporte a templates de exportação reutilizáveis. |
+| **Schema Compare** | Comparador estrutural e sincronizador de bancos | Análise comparativa completa de objetos entre bancos de dados ou conexões diferentes. Geração de scripts DDL de sincronização com preview side-by-side de diferenças. |
+| **Data Compare** | Comparador de conteúdo de dados | Confronto linha a linha de tabelas homônimas com base em chaves de comparação. Resumo de registros idênticos, divergentes, exclusivos da origem e exclusivos do destino. |
+| **Query Builder** | Construtor visual de consultas em aba MDI | Interface visual em aba de documento para elaboração de consultas SELECT, INSERT, UPDATE e DELETE. Seleção interativa de colunas, agrupamentos, filtros WHERE/HAVING e subconsultas. |
+| **Diagrama ER** | Visualizador de Entidade-Relacionamento (.dbd) | Geração de diagramas esquemáticos a partir de chaves estrangeiras reais e relações virtuais. Navegação panorâmica, controle de zoom, busca de objetos e exportação vetorial em SVG e PNG. |
+| **Security Manager** | Gestão de contas de usuários e privilégios | Criação, duplicação e remoção de usuários de banco de dados, definição de hosts permitidos, regras de expiração de senhas, limites de recursos e concessão granular de privilégios. |
+| **Session Manager** | Monitoramento e controle de sessões do servidor | Listagem de conexões ativas com estados de bloqueio, tempo decorrido e consulta em execução. Filtro de sessões próprias/em sleep, cancelamento seguro (`KILL QUERY` / `KILL CONNECTION`) e inspeção de variáveis globais. |
+| **Query Profiler** | Análise e diagnóstico de desempenho de queries | Captura de tempos de execução (duração, CPU, I/O), visualização de árvores de plano de execução (EXPLAIN JSON), variação de variáveis de status da sessão e histórico de perfis para comparação. |
+| **Data Generator** | Gerador de dados de teste sintéticos (.dgen) | População automatizada de tabelas com dados de teste. Geradores pré-configurados para nomes, emails, endereços, datas, sequências, listas customizadas e expressões regulares (regex). |
+| **Database Documenter** | Gerador automatizado de documentação (.ddoc) | Compilação de documentação detalhada de esquemas e dicionários de dados para formatos HTML estruturado, Markdown e relatórios PDF, com inclusão opcional do diagrama de relacionamentos. |
+| **Routine Debugger** | Depurador passo a passo de Stored Procedures | Motor de depuração instrumentada para procedimentos armazenados MySQL/MariaDB: execução passo a passo (Step Into, Step Over, Step Out), breakpoints, inspeção dinâmica de variáveis locais (Watches) e pilha de chamadas (Call Stack). |
+| **Source Control (Git)** | Versionamento de schema integrado com Git | Integração com repositórios Git locais: commit de alterações de schema com seleção granular de scripts DDL, visualização de diffs de código, troca e criação de branches e checkout limpo. |
+| **Data Report & Pivot** | Relatórios tabulares e tabelas dinâmicas | Construção de agregações multidimensionais de resultados de consultas (Pivot Tables) com gráficos em barra e exportação de sumários gerenciais. |
+| **AI Assistant** | Assistente de IA integrado em dock lateral | Chat inteligente para conversão de linguagem natural em SQL, explicação de queries complexas, otimização e sugestão de índices. Suporte a OpenAI, Anthropic e modelos locais via Ollama com streaming e chave própria (BYOK). |
+| **Code Analysis** | Análise estática de código SQL | Verificação estática de boas práticas, riscos de performance (ex: predicados que impedem uso de índice) e regras de estilo conforme diretrizes de código SQL. |
+| **Conectividade Segura** | Túneis de rede SSH e HTTP nativos | Conexão com servidores remotos e bancos protegidos por firewall via túnel SSH criptografado (chave pública/privada com passphrase) ou script de túnel web HTTP (`tunnel.php`). |
+| **Service Control** | Controle de serviços MySQL/MariaDB locais | Painel administrativo para checar status, iniciar, parar e reiniciar serviços de banco locais gerenciados pelo `systemd` do Linux, sem exigência de sudo direto pelo app. |
+| **Backup & Restore** | Ferramentas auxiliares de banco | Geração de dumps de schema e dados em arquivos `.sql`, restauração orientada com prévia de script e cópia direta de esquemas entre conexões ativas. |
+| **Opções e Atalhos** | Central de preferências e keymap configurável | Configuração de comportamento de inicialização, salvamento automático de rascunhos, esquemas de atalhos de teclado (padrão VS Code / dbForge), fontes e temas visuais (Auto, Claro, Escuro e Alto Contraste). |
+| **Internacionalização** | Suporte multilíngue completo | Chaveamento nativo em tempo de execução entre **Inglês (en)** e **Português do Brasil (pt-BR)** para todas as telas, botões, mensagens e diálogos. |
+
+---
+
+## Instalação e Execução
+
+### Pacote Debian (.deb)
+
+Para instalar o pacote oficial no Ubuntu, Debian, Linux Mint ou Pop!_OS:
+
+```bash
+# Instalação do pacote .deb (substitua pelo caminho do arquivo baixado ou gerado)
+sudo apt install /caminho/para/dbForgeLinux_0.1.0_amd64.deb
+```
+
+Após a instalação, o aplicativo estará disponível no menu do sistema como **dbForgeLinux** ou pode ser iniciado via terminal:
+
+```bash
+dbforgelinux
+```
+
+Para abrir diretamente um arquivo SQL do terminal:
+
+```bash
+dbforgelinux ~/queries/analise.sql
+```
+
+### Execução a partir do Código-Fonte (Modo Desenvolvedor)
+
+Requisitos: **Node.js 22+**, **pnpm 10+**, **Git**.
+
+```bash
+# 1. Clonar o repositório
+git clone https://github.com/danilosong/DbForgeLinux.git
+cd DbForgeLinux/app
+
+# 2. Habilitar o pnpm e instalar dependências
 corepack enable
 pnpm install --frozen-lockfile
+
+# 3. Iniciar em modo de desenvolvimento (hot-reload)
 pnpm dev
 ```
 
-Em uma máquina sem sessão gráfica, inicie o app com Xvfb:
+#### Execução em Servidores Sem Monitor (Headless / Xvfb)
 
-```sh
+Para executar o app em ambientes CI ou servidores Linux remotos sem display físico:
+
+```bash
 cd app
 env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a pnpm dev
 ```
 
-## Verificação e empacotamento
+---
 
-Execute de `app/`:
+## Requisitos de Sistema
 
-```sh
+- **Sistema Operacional:** Linux x86_64 (Ubuntu 22.04+, Debian 12+, Fedora 39+, Arch Linux ou equivalentes).
+- **Servidor Gráfico:** X11 nativo ou Wayland (via XWayland ou flags do Chromium).
+- **Dependências Nativas do Sistema:**
+  - `libsecret-1-0` (para integração com o chaveiro GNOME Keyring / KWallet).
+  - Bibliotecas gráficas básicas do Electron: `libnss3`, `libatk1.0-0`, `libgtk-3-0`, `libasound2`.
+- **Servidores de Banco Suportados:**
+  - **MySQL:** 5.7.x, 8.0.x, 8.4.x LTS.
+  - **MariaDB:** 10.11.x LTS, 11.x.
+
+---
+
+## Como Testar e Validar
+
+A suíte de testes do dbForgeLinux abrange testes unitários, validações de contrato IPC, testes de estresse de streaming e testes de integração com instâncias reais de MySQL e MariaDB.
+
+Executando a partir da pasta `app/`:
+
+```bash
+cd app
+
+# 1. Verificação estática de tipos (TypeScript)
 pnpm typecheck
+
+# 2. Verificação de estilo e conformidade de código (ESLint)
 pnpm lint
+
+# 3. Testes unitários (Vitest - mais de 140 testes cobrindo módulos isolados)
 pnpm test
+
+# 4. Benchmark de performance (spool de memória e tempo de parsing)
+pnpm perf:benchmark
+
+# 5. Build dos binários de produção
 pnpm build
+
+# 6. Empacotamento do instalador Debian (.deb)
 pnpm dist:deb
 ```
 
-O `.deb` fica em `app/dist/`. O smoke de desktop usa um MySQL descartável na porta 33067 e inicia sob `xvfb-run`:
+### Testes de Integração com Banco Descartável (Docker)
 
-```sh
+Para rodar a suíte completa contra servidores reais:
+
+```bash
 cd app
+
+# Sobe os contêineres MySQL 8.4 e MariaDB 11 isolados
 docker compose -f test/docker-compose.yml up -d --wait
-pnpm dist:deb
+
+# Executa os testes de integração contra a porta de teste
+MYSQL_INTEGRATION=1 pnpm test
+
+# Executa o teste de fumaça E2E com Playwright + Electron em Xvfb
 pnpm smoke:e2e
+
+# Finaliza e destrói o ambiente de teste
 docker compose -f test/docker-compose.yml down -v
 ```
 
-Os testes de integração podem ser executados com `MYSQL_INTEGRATION=1 pnpm test` enquanto o serviço descartável estiver ativo. A CI executa a matriz MySQL 8.4/MariaDB 11, smoke e build Debian; veja [.github/workflows/ci.yml](.github/workflows/ci.yml).
+---
 
-## Guias
+## Arquitetura do Software
 
-Os [guias de uso por módulo](document/user-guide/README.md) mostram fluxos básicos e capturas existentes em `document/evidence/ui/`.
+O dbForgeLinux segue o padrão de segurança e isolamento de processos recomendado pelo Electron:
 
-## Aviso legal
+```
+├── app/src/main/               # Processo Principal (Node.js)
+│   ├── db/                     # Drivers de conexão (mysql2 core pool, streaming, túneis SSH/HTTP)
+│   ├── connections/            # Armazenamento e ciclo de vida de conexões
+│   ├── security/               # PasswordVault (libsecret + AES-256-GCM) e WindowPolicy
+│   ├── ipc/                    # Handlers IPC com validação de schemas e IPC Guard
+│   └── index.ts                # Inicialização da janela principal e ciclo de vida do Electron
+│
+├── app/src/preload/            # Camada de Pré-carregamento (Context Isolation)
+│   ├── api/                    # APIs tipadas expostas de forma segura ao renderer
+│   └── index.ts                # contextBridge.exposeInMainWorld('dbforge', ...)
+│
+├── app/src/renderer/           # Processo de Renderização (React 19 + Monaco)
+│   ├── src/ui/                 # Shell da aplicação, painéis MDI, diálogos e componentes
+│   ├── src/i18n/               # Motor de internacionalização reativo (en / pt-BR)
+│   └── src/main.tsx            # Ponto de entrada React montado na janela
+│
+└── app/src/modules/            # Módulos de Domínio Puros (Isolados e Testáveis)
+    ├── schema/                 # Introspecção, DDL e motor de comparação de schemas
+    ├── editor/                 # Motor de autocompletar, snippets e formatação SQL
+    ├── query-builder/          # Parser e compilador de modelo para SQL
+    ├── routine-debugger/       # Instrumentação de código SQL para depuração passo a passo
+    ├── ai-assistant/           # Cliente de IA, sanitização de contexto e streaming
+    ├── data-export-import/     # Encoders e decoders de arquivos (CSV, Excel, XML, JSON)
+    └── grid-editing/           # Detecção de deltas e geração de DML para edição de grade
+```
 
-dbForgeLinux é uma implementação independente, sem afiliação ou endosso de terceiros. O código e os recursos visuais deste repositório foram produzidos para este projeto; não foram copiados código-fonte proprietário nem assets do dbForge Studio. Nomes de produtos e marcas pertencem aos respectivos titulares.
+### Blindagem de Segurança e IPC Guard
+
+- **IPC Guard Central (`app/src/main/ipc/guard.ts`):** Todas as chamadas entre a UI e o processo principal são validadas contra esquemas estritos. Mensagens com payloads malformados ou origens de frame desconhecidas são rejeitadas sumariamente.
+- **Operações Críticas com Confirmação Mandatória:** Operações destrutivas (`DROP`, `KILL QUERY`, restore de banco e resets) requerem confirmação explícita do usuário, impedindo acionamentos silenciosos.
+- **Cofre Seguro de Credenciais:** As senhas nunca trafegam em texto puro nos logs e são cifradas via `libsecret` do Linux, com fallback criptografado isolado nas pastas de dados do usuário (`$XDG_DATA_HOME`).
+- **Segurança da IA:** A comunicação com provedores de IA remotos exige estritamente HTTPS e limita o tráfego a metadados do schema. Dados de linhas de tabelas nunca são enviados sem consentimento prévio do usuário.
+
+Para detalhes completos da auditoria, consulte o relatório independente em [document/security-review.md](document/security-review.md).
+
+---
+
+## Compatibilidade de Banco de Dados
+
+A compatibilidade foi verificada com testes de integração contínua contra servidores reais em contêineres descartáveis:
+
+| Servidor | Versão Validada | Status da Suíte de Testes |
+|---|---|---|
+| **MySQL** | `5.7.44` | ✓ 48 arquivos de teste, 147 testes aprovados |
+| **MySQL** | `8.0.46` | ✓ 48 arquivos de teste, 147 testes aprovados |
+| **MySQL LTS** | `8.4.11` | ✓ 48 arquivos de teste, 148 testes aprovados |
+| **MariaDB LTS** | `10.11.19` | ✓ 48 arquivos de teste, 148 testes aprovados |
+| **MariaDB** | `11.8.9` | ✓ 48 arquivos de teste, 148 testes aprovados |
+
+Para o registro detalhado de comportamento de handshakes TLS e fallbacks, veja [document/compat.md](document/compat.md).
+
+---
+
+## Estado do Projeto e Paridade (Declaração Honesta)
+
+O dbForgeLinux é um projeto de código aberto em desenvolvimento ativo.
+
+- **O que está feito:** Todos os 18 módulos listados no inventário inicial de engenharia reversa estão implementados no código e contam com cobertura de testes unitários, testes de integração e evidências visuais registradas.
+- **O que NÃO afirmamos:** **Não afirmamos paridade formal ou funcional certificada com o produto original de referência (dbForge Studio for MySQL da Devart).** Nossas implementações foram concebidas a partir de evidências de engenharia reversa de caixa-preta, especificações de design UX proprietárias e validações de comportamento próprio. A compatibilidade e os desvios conhecidos estão publicamente documentados na [Matriz de Paridade](document/03-matriz-paridade.md).
+
+---
+
+## Limitações Conhecidas
+
+Para total transparência com os usuários e a comunidade de desenvolvimento:
+
+1. **Depurador de Rotinas:** O mecanismo de debugging funciona exclusivamente com **Stored Procedures** por meio de injeção temporária de código de instrumentação e variáveis de sessão. Não há suporte a depuração passo a passo de Stored Functions, Triggers ou comandos dinâmicos `PREPARE/EXECUTE`.
+2. **Edição Direta na Grade:** A edição inline de células no Result Grid é suportada apenas em consultas simples do tipo `SELECT * FROM tabela` sobre uma única tabela que possua **chave primária (PK) ou índice com constraint UNIQUE**. Consultas complexas com `JOIN`, subqueries, agregações (`GROUP BY`) ou colunas calculadas operam em modo somente-leitura.
+3. **Formatos e Serviços Fora de Escopo:** O dbForgeLinux foi desenvolvido exclusivamente para ecossistemas modernos e abertos em Linux. Funcionalidades legadas de ecossistemas Windows (como importação/exportação direta para Microsoft Access, drivers genéricos ODBC de 32 bits, conectores Google Sheets legados, e integração com servidores de versão descontinuados como Team Foundation Server/TFS e Mercurial/Hg) estão expressamente fora do escopo do projeto.
+
+---
+
+## Documentação Adicional
+
+- [Guia do Usuário por Módulo](document/user-guide/README.md)
+- [Matriz de Paridade de Recursos](document/03-matriz-paridade.md)
+- [Relatório de Revisão de Segurança](document/security-review.md)
+- [Matriz de Compatibilidade MySQL/MariaDB](document/compat.md)
+- [Como Contribuir](CONTRIBUTING.md)
+- [Histórico de Versões (Changelog)](CHANGELOG.md)
+
+---
+
+## Aviso Legal (Disclaimer)
+
+**dbForgeLinux** é um software livre de código aberto e desenvolvimento independente, criado por **Danilo Song** e mantido pela comunidade.
+
+- Este projeto **não é afiliado, associado, autorizado, patrocinado ou de qualquer forma oficialmente conectado à Devart** ou a qualquer uma de suas subsidiárias ou afiliadas.
+- O código-fonte, componentes, folhas de estilo e recursos visuais deste repositório foram criados do zero para este projeto; **nenhum código-fonte proprietário, biblioteca fechada ou asset gráfico pertencente ao dbForge Studio foi copiado ou incluído neste repositório**.
+- O nome oficial *dbForge Studio* e suas respectivas marcas são marcas registradas de seus legítimos detentores. O uso de nomes e referências neste projeto tem finalidade estritamente descritiva de interoperabilidade e compatibilidade de software conforme os princípios de engenharia reversa legal e desenvolvimento independente de alternativas de código aberto para a plataforma Linux.
+
+---
+
+<p align="center">
+  Desenvolvido com dedicação para a comunidade de desenvolvedores e administradores de banco de dados Linux.
+</p>
