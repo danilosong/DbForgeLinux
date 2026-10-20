@@ -7,8 +7,8 @@
 | F-AC | Autocomplete/formatter/snippets | SqlComplete, 35 snippets | Sugestões contextuais | planejado | — | — |
 | F-GRID | Grid de dados editável | DataEditor | Paginar, ordenar, filtrar, editar, commit | planejado | — | — |
 | F-OBJ | Editores de objetos + DDL | DbEditors.MySql | Criar/alterar tabela etc. com preview DDL | planejado | — | — |
-| F-IMEX | Import/Export | DataExportImport | CSV/JSON/Excel/SQL | planejado | — | — |
-| F-CMP | Schema/Data Compare | Compare.MySql | Diff + script de sync | planejado | — | — |
+| F-IMEX | Import/Export | DataExportImport | CSV/JSON/XML/HTML/XLSX/SQL | motor backend aprovado (c7cbc43), UI pendente | unit+integ docker (100k linhas) | sem UI; Google Sheets/Access/ODBC pendentes |
+| F-CMP | Schema/Data Compare | Compare.MySql | Diff + script de sync | motor de schema/DDL/diff aprovado (858067a); Data Compare e UI pendentes | integ docker (A==B) | — |
 | F-QB / F-ER / F-SEC / F-PRF / F-GEN / F-DOC / F-DBG / F-VCS | demais módulos M10–M19 | ver 01 | — | planejado | — | — |
 
 ## Nível de evidência das UX Specs
