@@ -1,6 +1,6 @@
 import mysql, { type Pool, type PoolConnection, type QueryResult as MysqlQueryResult, type RowDataPacket } from 'mysql2/promise'
 import type { ConnectionTestResult, QueryResult } from '../../shared/contracts.js'
-import type { DbDriver, DriverConnectionConfig } from './DbDriver.js'
+import type { DbDriver, DbTransaction, DriverConnectionConfig, SqlValue } from './DbDriver.js'
 import { buildMysqlOptions } from './connectionOptions.js'
 import { createSshTunnel, type ActiveSshTunnel } from './SshTunnel.js'
 
@@ -117,6 +117,62 @@ export class MysqlDriver implements DbDriver {
   async queryRows(connectionId: string, sql: string, parameters: unknown[] = []): Promise<Array<Record<string, unknown>>> {
     const [rows] = await this.requireConnection(connectionId).pool.query<Array<RowDataPacket & Record<string, unknown>>>(sql, parameters)
     return rows
+  }
+
+  async *streamRows(connectionId: string, sql: string, values: readonly SqlValue[] = [], signal?: AbortSignal): AsyncIterable<Record<string, unknown>> {
+    const pool = this.requireConnection(connectionId).pool
+    if (signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+    const rawPool = pool.pool as unknown as { query(options: unknown): { stream(): NodeJS.ReadableStream } }
+    const stream = rawPool.query({ sql, values: [...values], rowsAsArray: false }).stream() as NodeJS.ReadableStream & AsyncIterable<Record<string, unknown>> & { destroy(error?: Error): void }
+    const abort = (): void => stream.destroy(new DOMException('A operação foi cancelada.', 'AbortError'))
+    signal?.addEventListener('abort', abort, { once: true })
+    try {
+      for await (const row of stream) {
+        if (signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+        yield row
+      }
+    } finally {
+      signal?.removeEventListener('abort', abort)
+      if (signal?.aborted) stream.destroy()
+    }
+  }
+
+
+  async withTransaction<T>(connectionId: string, operation: (transaction: DbTransaction) => Promise<T>, signal?: AbortSignal): Promise<T> {
+    if (signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+    const managed = this.requireConnection(connectionId)
+    if (managed.config.advanced.readOnly) throw new Error('A sessão está marcada como somente leitura.')
+    const connection = await managed.pool.getConnection()
+    try {
+      await connection.beginTransaction()
+      const transaction: DbTransaction = {
+        execute: async (sql, values = []) => {
+          if (signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+          const [result] = await connection.execute(sql, [...values])
+          const header = result as unknown as { affectedRows?: number; insertId?: number }
+          return { affectedRows: header.affectedRows ?? 0, insertId: header.insertId ?? 0 }
+        }
+      }
+      const result = await operation(transaction)
+      if (signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+      await connection.commit()
+      return result
+    } catch (error) {
+      await connection.rollback()
+      throw error
+    } finally {
+      connection.release()
+    }
+  }
+
+
+  async executeParameterized(connectionId: string, sql: string, values: readonly SqlValue[] = [], signal?: AbortSignal): Promise<{ affectedRows: number; insertId: number }> {
+    if (signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+    const managed = this.requireConnection(connectionId)
+    if (managed.config.advanced.readOnly) throw new Error('A sessão está marcada como somente leitura.')
+    const [result] = await managed.pool.execute(sql, [...values])
+    const header = result as unknown as { affectedRows?: number; insertId?: number }
+    return { affectedRows: header.affectedRows ?? 0, insertId: header.insertId ?? 0 }
   }
 
   private async initializeSession(connection: PoolConnection, config: DriverConnectionConfig): Promise<void> {
