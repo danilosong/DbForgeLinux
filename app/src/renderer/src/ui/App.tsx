@@ -23,12 +23,17 @@ export default function App(): React.JSX.Element {
   const [managerOpen, setManagerOpen] = useState(false)
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => (localStorage.getItem('dbforge.theme') as ThemeMode | null) ?? 'auto')
   const [systemDark, setSystemDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches)
-  const [explorerVisible, setExplorerVisible] = useState(true)
-  const [panelVisible, setPanelVisible] = useState(true)
+  const [explorerVisible, setExplorerVisible] = useState(() => localStorage.getItem('dbforge.explorerVisible') !== 'false')
+  const [panelVisible, setPanelVisible] = useState(() => localStorage.getItem('dbforge.panelVisible') !== 'false')
+  const [explorerWidth, setExplorerWidth] = useState(() => Number(localStorage.getItem('dbforge.explorerWidth')) || 280)
+  const [panelHeight, setPanelHeight] = useState(() => Number(localStorage.getItem('dbforge.panelHeight')) || 200)
   const [panelTab, setPanelTab] = useState<'Output' | 'Error List'>('Output')
-  const [documents, setDocuments] = useState<DocumentTab[]>([{ id: 'start', label: 'Start Page', modified: false }])
-  const [selectedDocument, setSelectedDocument] = useState('start')
-  const [sqlByDocument, setSqlByDocument] = useState<Record<string, string>>({})
+  const [documents, setDocuments] = useState<DocumentTab[]>(readStoredDocuments)
+  const [selectedDocument, setSelectedDocument] = useState(() => localStorage.getItem('dbforge.selectedDocument') ?? 'start')
+  const [sqlByDocument, setSqlByDocument] = useState<Record<string, string>>(() => {
+    try { return JSON.parse(localStorage.getItem('dbforge.sqlDrafts') ?? '{}') as Record<string, string> }
+    catch { return {} }
+  })
   const [results, setResults] = useState<QueryResult[]>([])
   const [errors, setErrors] = useState<string[]>([])
   const [status, setStatus] = useState('Ready')
@@ -51,6 +56,14 @@ export default function App(): React.JSX.Element {
     document.documentElement.dataset.theme = theme
     localStorage.setItem('dbforge.theme', themeMode)
   }, [theme, themeMode])
+
+  useEffect(() => { localStorage.setItem('dbforge.explorerVisible', String(explorerVisible)) }, [explorerVisible])
+  useEffect(() => { localStorage.setItem('dbforge.panelVisible', String(panelVisible)) }, [panelVisible])
+  useEffect(() => { localStorage.setItem('dbforge.explorerWidth', String(explorerWidth)) }, [explorerWidth])
+  useEffect(() => { localStorage.setItem('dbforge.panelHeight', String(panelHeight)) }, [panelHeight])
+  useEffect(() => { localStorage.setItem('dbforge.documents', JSON.stringify(documents)) }, [documents])
+  useEffect(() => { localStorage.setItem('dbforge.selectedDocument', selectedDocument) }, [selectedDocument])
+  useEffect(() => { localStorage.setItem('dbforge.sqlDrafts', JSON.stringify(sqlByDocument)) }, [sqlByDocument])
 
   async function loadConnections(): Promise<void> {
     try { setRecords(await window.dbforge.getConnections()); setLoadError('') }
@@ -271,9 +284,10 @@ export default function App(): React.JSX.Element {
       <Button className="icon-button" title="Auto theme" onClick={() => setThemeMode(themeMode === 'dark' ? 'light' : themeMode === 'light' ? 'auto' : 'dark')}>{theme === 'dark' ? '☾' : '☼'}</Button>
     </div>
     {loadError && <div className="storage-error" role="alert">{loadError}<Button onClick={() => void loadConnections()}>Tentar de novo</Button></div>}
-    <div className={`workbench${explorerVisible ? '' : ' explorer-hidden'}${panelVisible ? '' : ' panel-hidden'}`}>
+    <div className={`workbench${explorerVisible ? '' : ' explorer-hidden'}${panelVisible ? '' : ' panel-hidden'}`} style={{ gridTemplateColumns: explorerVisible ? `${explorerWidth}px 5px minmax(0, 1fr)` : 'minmax(0, 1fr)' }}>
       {explorerVisible && <DatabaseExplorer records={records} active={active} databases={databases} tables={tables} connecting={connecting} errors={connectionErrors} onNew={openNewConnection} onManage={() => setManagerOpen(true)} onConnect={(record) => void connectFromExplorer(record)} onDisconnect={(connection) => void disconnect(connection)} onExpand={(record) => void expandRecord(record)} onEdit={openEdit} />}
-      <section className="document-workspace">
+      {explorerVisible && <div className="vertical-splitter" role="separator" aria-orientation="vertical" aria-label="Resize Database Explorer" onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)} onPointerMove={(event) => { if (event.buttons) setExplorerWidth(Math.min(Math.floor(window.innerWidth * 0.5), Math.max(200, event.clientX))) }} />}
+      <section className="document-workspace" style={{ gridTemplateRows: panelVisible ? `30px minmax(0, 1fr) 5px ${panelHeight}px` : '30px minmax(0, 1fr) 0 0' }}>
         <div className="document-tabs" role="tablist" aria-label="Documents">
           {documents.map((tab) => <div key={tab.id} role="tab" aria-selected={selectedDocument === tab.id} className={`document-tab${selectedDocument === tab.id ? ' selected' : ''}`} onClick={() => setSelectedDocument(tab.id)}>
             <button className="tab-label" onClick={() => setSelectedDocument(tab.id)}>{tab.modified ? '• ' : ''}{tab.label}</button>{tab.id !== 'start' && <button className="tab-close" onClick={(event) => { event.stopPropagation(); closeTab(tab.id) }} aria-label={`Fechar ${tab.label}`}>×</button>}
@@ -285,6 +299,7 @@ export default function App(): React.JSX.Element {
           <div className="editor-surface"><Editor height="100%" language="sql" theme={theme === 'dark' ? 'vs-dark' : 'vs'} value={sqlByDocument[selectedDocument] ?? ''} onChange={(value) => { setSqlByDocument((current) => ({ ...current, [selectedDocument]: value ?? '' })); setDocuments((current) => current.map((tab) => tab.id === selectedDocument ? { ...tab, modified: true } : tab)) }} options={{ minimap: { enabled: false }, fontSize: 13, automaticLayout: true, fontLigatures: false, lineNumbers: 'on' }} /></div>
           <div className="result-view">{results.length === 0 ? <p>Execute uma consulta para ver os resultados.</p> : results.map((result, index) => <div className="result-set" key={index}>{result.columns.length ? <table><thead><tr>{result.columns.map((column) => <th key={column}>{column}</th>)}</tr></thead><tbody>{result.rows.map((row, rowIndex) => <tr key={rowIndex}>{result.columns.map((column) => <td key={column}>{formatCell(row[column])}</td>)}</tr>)}</tbody></table> : <p>{result.affectedRows} linha(s) afetada(s) · ID {result.insertId}</p>}</div>)}</div>
         </div>}
+        <div className="horizontal-splitter" role="separator" aria-orientation="horizontal" aria-label="Resize Output panel" onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)} onPointerMove={(event) => { if (event.buttons) setPanelHeight(Math.min(480, Math.max(80, window.innerHeight - event.clientY))) }} />
         <section className="bottom-panel" aria-label="Output and errors">
           <div className="panel-tabs"><button className={panelTab === 'Output' ? 'selected' : ''} onClick={() => setPanelTab('Output')}>Output</button><button className={panelTab === 'Error List' ? 'selected' : ''} onClick={() => setPanelTab('Error List')}>Error List{errors.length ? ` (${errors.length})` : ''}</button><span className="toolbar-spacer" /><Button className="icon-button" onClick={() => setPanelVisible(false)} title="Hide panel">⌄</Button></div>
           {panelTab === 'Output' ? <div className="output-log" aria-live="polite">{output.length ? output.map((entry, index) => <div key={`${entry.timestamp}-${index}`} className={`output-${entry.tone}`}>[{entry.timestamp}] {entry.origin} {entry.message}</div>) : <p>Output de conexões e execução aparecerá aqui. Segredos nunca são registrados.</p>}</div> : <div className="error-list">{errors.length ? <table><thead><tr><th>Severity</th><th>#</th><th>Message</th><th>Document</th><th>Line</th><th>Column</th></tr></thead><tbody>{errors.map((error, index) => <tr key={index}><td className="field-error">● Error</td><td>{index + 1}</td><td>{error}</td><td>{documents.find((tab) => tab.id === selectedDocument)?.label}</td><td>—</td><td>—</td></tr>)}</tbody></table> : <p>Nenhum erro ou aviso.</p>}</div>}
@@ -318,4 +333,15 @@ function formatCell(value: unknown): string {
   if (value instanceof Uint8Array) return Array.from(value, (byte) => byte.toString(16).padStart(2, '0')).join('')
   if (typeof value === 'object') return JSON.stringify(value)
   return String(value)
+}
+
+function readStoredDocuments(): DocumentTab[] {
+  try {
+    const stored: unknown = JSON.parse(localStorage.getItem('dbforge.documents') ?? 'null')
+    if (Array.isArray(stored) && stored.every((item) => item && typeof item.id === 'string' && typeof item.label === 'string' && typeof item.modified === 'boolean')) {
+      const documents = stored as DocumentTab[]
+      return documents.some((item) => item.id === 'start') ? documents : [{ id: 'start', label: 'Start Page', modified: false }, ...documents]
+    }
+  } catch { /* discard malformed renderer state */ }
+  return [{ id: 'start', label: 'Start Page', modified: false }]
 }

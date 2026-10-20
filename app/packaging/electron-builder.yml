@@ -21,3 +21,4 @@ deb:
   depends:
     - libsecret-1-0
 artifactName: dbForgeLinux_${version}_${arch}.${ext}
+npmRebuild: false

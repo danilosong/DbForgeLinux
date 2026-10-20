@@ -125,11 +125,15 @@ textarea { resize: vertical; }
 .empty-state p { margin: 0; }
 .empty-state.compact { min-height: 180px; }
 
-.document-workspace { min-width: 0; min-height: 0; display: grid; grid-template-rows: 30px minmax(100px, 1fr) 200px; background: var(--bg-surface); }
-.panel-hidden .document-workspace { grid-template-rows: 30px minmax(0, 1fr) 0; }
+.document-workspace { min-width: 0; min-height: 0; display: grid; grid-template-rows: 30px minmax(100px, 1fr) 5px 200px; background: var(--bg-surface); }
+.panel-hidden .document-workspace { grid-template-rows: 30px minmax(0, 1fr) 0 0; }
 .panel-hidden .bottom-panel { display: none; }
 .document-main { min-height: 0; display: grid; grid-template-rows: 34px minmax(80px, 1fr) minmax(80px, 28%); }
-.document-workspace:has(.start-page) { grid-template-rows: 30px minmax(0, 1fr) 200px; }
+.document-workspace:has(.start-page) { grid-template-rows: 30px minmax(0, 1fr) 5px 200px; }
+.vertical-splitter, .horizontal-splitter { touch-action: none; background: var(--border); }
+.vertical-splitter { cursor: col-resize; width: 5px; }
+.horizontal-splitter { cursor: row-resize; height: 5px; }
+.vertical-splitter:hover, .horizontal-splitter:hover { background: var(--accent); }
 .document-tabs { display: flex; min-width: 0; overflow-x: auto; align-items: stretch; background: var(--bg-surface-alt); border-bottom: 1px solid var(--border); }
 .document-tab { display: flex; flex: 0 0 auto; align-items: center; max-width: 220px; border-right: 1px solid var(--border); border-top: 2px solid transparent; }
 .document-tab.selected { background: var(--bg-surface); border-top-color: var(--accent); }

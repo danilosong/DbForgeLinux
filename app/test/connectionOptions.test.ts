@@ -34,7 +34,7 @@ describe('connection option builders', () => {
     expect(buildSshOptions({ ...base, authMethod: 'password', password: 'ssh-secret' })).toMatchObject({ host: 'ssh.example', username: 'db-user', password: 'ssh-secret', keepaliveInterval: 30000 })
     expect(buildSshOptions({ ...base, authMethod: 'private-key', privateKey: Buffer.from('key'), passphrase: 'phrase' })).toMatchObject({ privateKey: Buffer.from('key'), passphrase: 'phrase' })
     expect(buildSshOptions({ ...base, authMethod: 'agent' }, '/tmp/ssh-agent.sock')).toMatchObject({ agent: '/tmp/ssh-agent.sock' })
-    expect(() => buildSshOptions({ ...base, authMethod: 'agent' }, undefined)).toThrow('SSH_AUTH_SOCK')
+    expect(() => buildSshOptions({ ...base, authMethod: 'agent' }, '')).toThrow('SSH_AUTH_SOCK')
   })
 
   it('maps connection and advanced settings to mysql2 without returning vault references', async () => {
