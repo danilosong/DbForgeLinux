@@ -56,7 +56,7 @@ Options > AI Assistant: Provedor (OpenAI-compatível / Anthropic / Gemini / **Lo
 | Sucesso | resposta + ações |
 
 ## 7. Atalhos
-Abrir painel Ctrl+Alt+I [I]; Enviar Enter; Nova linha Shift+Enter; Novo chat Ctrl+Shift+N (no painel); Parar Esc; Explicar seleção Ctrl+Alt+E? [conflita com Explorer 01 — usar Ctrl+Shift+E [I]]; Focar caixa Ctrl+L [I].
+Abrir painel Ctrl+Alt+I [I]; Enviar Enter; Nova linha Shift+Enter; Novo chat Ctrl+Shift+N (no painel); Parar Esc; Explicar seleção Ctrl+Shift+E [I] (Ctrl+Alt+E já é Database Explorer em 01); Focar caixa Ctrl+L [I].
 
 ## 8. Temas / acessibilidade
 Tokens 01; bolhas bg.surfaceAlt (assistente) e bg.hover (usuário); blocos de código com theme do Monaco; leitores de tela recebem mensagens por aria-live "polite" ao concluir (não token a token); foco visível; alvo ≥24px.
