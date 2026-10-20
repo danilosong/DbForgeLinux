@@ -1,0 +1,14 @@
+# Paridade — F-IMEX (Import/Export)
+
+Fontes consultadas: inventário REA M8, `document/ux/06-import-export.md`, `document/ux/FIDELIDADE.md` (Parte B) e catálogo interno `re/ui-strings/ui-text.txt`. O catálogo foi consultado para rótulos dos wizards e não foi copiado para esta matriz.
+
+| Comportamento esperado | Estado | Evidência da referência | Prova no clone |
+|---|---|---|---|
+| Export wizard apresenta formatos e escolhe tabela/consulta como origem. | CONFIRMADA | Inventário M8; UX 06 §1–3; nomes do wizard e formato presentes no catálogo REA. | `app/test/modules/data-export-import.test.ts`; screenshot `document/evidence/ui/import-export-light.png`. |
+| Import wizard lê arquivo, apresenta preview e mapeia dados para uma tabela de destino. | CONFIRMADA | Inventário M8; UX 06 §4; strings de importação consultadas no catálogo. | `app/test/modules/data-export-import.test.ts`; `app/test/modules/compare-import-export-ipc.test.ts`. |
+| Exportação CSV/JSON/XML/SQL produz dados escapados e compatíveis com o formato. | CONFIRMADA | Inventário M8 enumera formatos; UX 06 §3; strings de formatos aparecem no catálogo. | `app/test/modules/data-export-import.test.ts`; `app/test/modules/data-export-import.integration.test.ts`. |
+| Importação parametriza valores e executa em transação quando suportado. | CONFIRMADA | UX 06 §4.5–4.7 descreve modos e reversão; importação do módulo é REA-confirmada. | `app/test/modules/data-export-import.test.ts`; integração em MySQL em `data-export-import.integration.test.ts`. |
+| XML não expande entidades externas para ler arquivos locais. | ADAPTADA PARA LINUX | UX 06 §4 e §10; a proteção é requisito de segurança do clone, não comportamento de compatibilidade observado. | `app/test/modules/data-export-import.test.ts` (caso de entidade XML externa). |
+| Exportar e importar preserva texto CSV com unicode/aspas/campo vazio e XLSX com bytes binários. | CONFIRMADA | UX 06 §§3–4; inventário M8 confirma o módulo. | `app/test/modules/data-export-import.test.ts` (novo round-trip CSV e round-trip XLSX). |
+| Stepper detalhado, formatos Markdown/TSV, limites Excel e execução em background são detalhes da UX do clone, não confirmados como equivalentes REA. | INFERIDA | UX 06 §§2–7; FIDELIDADE Parte B lista esses detalhes como inferidos. | `app/test/modules/data-export-import.test.ts` cobre formatos CSV/XLSX; não testa equivalência de passos/limites/background. |
+| O parser SQL importa somente INSERTs de forma parametrizada; execução de qualquer script não é alegada. | DESCONHECIDA | UX 06 §4.2 descreve aviso; fluxo original completo não é verificável pelas evidências disponíveis. | `app/test/modules/data-export-import.test.ts` valida INSERT com parâmetros e rejeita/non-expands comportamentos não suportados; equivalência REA continua desconhecida. |

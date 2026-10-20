@@ -1,35 +1,32 @@
 # 03 — Matriz de paridade funcional
 
-Estado em 2026-10-20. **Nenhuma funcionalidade tem "paridade validada"** (DoD §13): o dbForge original não foi executado lado a lado; a comparação é feita contra a evidência REA (strings/UI text/atalhos/mecanismo) e contra as UX specs. Legenda: `implementado` = código + testes + screenshot; `parcial` = lacunas listadas; `em andamento`; `planejado`.
+Atualizada em 2026-10-20. Esta matriz registra somente comportamentos com teste automatizado identificado. `Unit` significa teste de lógica/contrato; `E2E` significa fluxo exercitado na aplicação com Playwright; `Integração` significa execução contra MySQL descartável. Testes de integração marcados como opt-in não contam como prova executada nesta atualização.
 
-| ID | Funcionalidade dbForge | Evidência | Estado | Testes | Diferenças / lacunas conhecidas |
-|---|---|---|---|---|---|
-| F-CON | Gerenciador de conexões (SSH, SSL, cofre) | Data.MySQL, ui-text | implementado | unit + integ | HTTP tunnel em andamento (I14) |
-| F-EXP | Database Explorer | ObjectExplorer.MySql | implementado | unit | ações Design/Edit via I4 |
-| F-SQL | Editor SQL (Monaco) + execução + resultados | ScriptSupport | implementado | unit + integ | Execute To Cursor / explain a validar |
-| F-AC | Autocomplete / snippets / formatter / Query History | SqlComplete (35 snippets) | implementado | unit | 37 snippets próprios; formatter não comparado com o original |
-| F-GRID | Grid virtual com filtro/export de seleção | DataEditor | parcial | unit | edição inline/commit a validar |
-| F-OBJ | Table Designer + editores View/Proc/Func/Trigger/Event | DbEditors.MySql | implementado | unit + integ | partições básicas; preview DDL por diff |
-| F-IMEX | Import/Export (CSV/JSON/XML/XLSX/SQL/HTML) | DataExportImport | implementado | unit + integ | Google Sheets/Access/ODBC pendentes |
-| F-CMP | Schema Compare + Data Compare | Compare.MySql | implementado | unit + integ | sync destrutivo exige confirmação |
-| F-QB | Query Builder | spec 09 | implementado | unit | parser SQL→modelo só para consultas simples |
-| F-ER | Diagrama ER | spec 10 | implementado | unit | relações virtuais persistidas por conexão/database |
-| F-SEC | Security Manager + Session Manager + Server Variables | spec 08 | implementado | unit + integ | — |
-| F-PRF | Query Profiler | spec 11 | implementado | unit + integ | — |
-| F-GEN | Data Generator | spec 12 | implementado | unit + integ | — |
-| F-DOC | Documenter | spec 13 | implementado | unit | export HTML/PDF/Markdown |
-| F-VCS | Source Control / Projects (Git) | spec 15 | implementado | unit (repo temp) | Hg/TFS fora do escopo |
-| F-RPT | Data Report / Pivot | spec 16 | implementado | unit | export CSV/HTML/PDF |
-| F-AI | AI Assistant | spec 17 | implementado | unit (servidor falso) | **ADAPTADA PARA LINUX:** multi-provedor, chave do usuário no cofre; original é serviço cloud Devart |
-| F-OPT | Options / atalhos | spec 19 | implementado | unit | remapeamento com detecção de conflito |
-| F-TOOLS | SQL Search, Find Invalid Objects, Backup/Restore, Copy Database | spec 18 | implementado | unit | — |
-| F-DBG | Debugger de rotinas | 05-rea-debugger | em andamento | — | triggers/funções limitados por versão (a documentar) |
-| F-TUN | HTTP tunnel, Service Control, Code Analysis | inventário | em andamento | — | — |
-| F-PKG | Empacotamento .deb + smoke e2e | — | em andamento | — | — |
+| ID | Funcionalidade comprovada | Evidência do teste que passou | Cobertura comprovada | Limites conhecidos |
+|---|---|---|---|---|
+| F-CON | Salvar conexão MySQL, executar SELECT e manter o atalho REA no keymap central. | E2E: `app/scripts/smoke-e2e.mjs`; Unit: `keymap-parity.test.ts`, `connections-ipc.test.ts`, `PasswordVault.test.ts`. | Fluxo de conexão pelo formulário/SELECT 1; registry contém Ctrl+D Ctrl+N. | O smoke não simula o chord; outros protocolos/opções não cobertos no E2E. |
+| F-EXP | Inspecionar schemas e comparar modelos MySQL. | Unit: `app/test/modules/schema.test.ts`. | Comparador/DDL e validações unitárias. | Fluxos visuais do Explorer não exercitados pelo smoke. |
+| F-SQL | Criar documento, executar SQL e formatar consulta. | E2E: `app/scripts/smoke-e2e.mjs`; Unit: `app/test/modules/editor.test.ts`, `keymap-parity.test.ts`. | SQL novo, abrir/executar arquivo no MySQL; Ctrl+N/F5/Ctrl+K Ctrl+D constam no registry testado. | Chords não são simulados no smoke; Execute To Cursor/explain não cobertos. |
+| F-AC | Formatter, sugestões de completion e histórico SQL. | Unit: `app/test/modules/editor.test.ts`, `app/test/history.test.ts`, `keymap-parity.test.ts`. | Formatador/completion e binding Ctrl+K Ctrl+D. | Sem prova de catálogo equivalente de snippets nem do mapa completo de atalhos. |
+| F-GRID | Grid recebe resultado SQL e pagina linhas armazenadas em disco. | E2E: `app/scripts/smoke-e2e.mjs`; Unit: `app/test/ResultSpool.test.ts`, `performance-benchmark.test.ts`. | Cabeçalho/célula de SELECT 1, leitura paginada e benchmark de 1.000.000 de linhas. | Edição inline, filtro e export do grid não cobertos por esses testes. |
+| F-OBJ | Validar drafts de tabelas, gerar preview CREATE/ALTER e templates de objetos. | Unit: `app/test/modules/object-editors.test.ts`; Integration opt-in: `object-editors.integration.test.ts` (não contada). | Erros de definição e geração de DDL. | Atalhos de Properties e páginas avançadas sem prova automatizada. |
+| F-IMEX | Exportar/importar e preservar dados em round-trip CSV/XLSX. | Unit: `app/test/modules/data-export-import.test.ts`; E2E: `app/scripts/smoke-e2e.mjs` não cobre wizard. | Round-trip CSV e XLSX, encoding, parâmetros. | Google Sheets/Access/ODBC e passos completos do wizard não cobertos. |
+| F-CMP | Comparar e sincronizar schemas/dados até igualdade. | Integration: `app/test/modules/schema.integration.test.ts` e `data-compare.integration.test.ts` (`MYSQL_INTEGRATION=1`); Unit: `schema.test.ts`, `data-compare.test.ts`. | Schema sync e Data Compare transaction sync, segunda comparação sem diferenças. | Perfis, comparação por hash e escala 1M não comprovados. |
+| F-QB | Gerar SQL seguro com joins/parâmetros e interpretar SELECT simples. | Unit: `app/test/modules/query-builder.test.ts`. | SELECT/UPDATE, parse e metadados FK. | Interações de canvas/diagram não exercitadas. |
+| F-ER | Extrair schema, layout, relações virtuais e persistir modelo. | Unit: `app/test/modules/er-diagram.test.ts`. | Foreign keys, layout cíclico e store local. | Export visual comparado ao original não comprovado. |
+| F-SEC | Criar planos de privilégio e proteger aplicações destrutivas. | Unit: `app/test/modules/security.test.ts`, `security-sessions-ipc.test.ts`; Integration opt-in não contada. | Escopo, limites, preview mascarado e confirmação. | Equivalência de presets e rotulagem do original não provada. |
+| F-PRF | Interpretar EXPLAIN e registrar métricas de execução. | Unit: `app/test/modules/profiler.test.ts`. | Planos JSON/TREE, segurança ANALYZE e histórico. | UI e comparação visual não exercitadas. |
+| F-GEN | Gerar preview/dados determinísticos com FK e constraints. | Unit: `app/test/modules/data-generation.test.ts`. | Seed, FK parent/child, unicidade e abort. | Integração DB foi opt-in e não conta nesta matriz. |
+| F-DOC | Gerar/exportar documentação HTML/Markdown/SVG/PDF. | Unit: `app/test/modules/documenter.test.ts`. | Escape HTML e escrita de artefatos. | Templates e DOCX do produto original não comprovados. |
+| F-VCS | Operar status/diff/commit/branch/log em Git temporário e exportar scripts por objeto. | Unit: `app/test/modules/source-control.test.ts`. | Git CLI, arquivos de projeto e proteção contra symlink/hooks. | Hg/TFS, rebase/cherry-pick não cobertos. |
+| F-RPT | Agregar Pivot, preparar dados de gráfico e exportar CSV/HTML/PDF. | Unit: `app/test/modules/data-report-pivot.test.ts`. | Totais, filtros, chart model e bytes de export. | Renderização visual do designer não testada. |
+| F-AI | Enviar contexto permitido a provider falso e proteger segredo/limites. | Unit: `app/test/modules/ai-assistant.test.ts`. | Provedor compatível/local, timeout, cancelamento e tamanho. | Provider Devart e equivalência funcional deliberadamente não afirmados. |
+| F-OPT | Persistir settings versionados, recuperar JSON inválido e detectar conflitos de atalhos. | Unit: `app/test/modules/options.test.ts`. | Defaults, migração, backup e conflito contextual. | Aplicação visual de cada opção não verificada no E2E. |
+| F-TOOLS | Buscar objetos/definições e validar fluxos de backup/restore. | Unit: `app/test/modules/database-tools.test.ts`, `database-backup.test.ts`; E2E abre painel Database Tools. | Busca/regra de objetos e painel abre sem conexão de dados real. | Cópia MySQL completa e ruleset REA não comprovados pela matriz. |
+| F-DBG | Instrumentar procedures e gerar engine/checkpoints. | Unit: `app/test/modules/routine-debugger.test.ts`. | Parser, fluxo de checkpoints, guards. | Integração MySQL opt-in; debugger só cobre procedures instrumentadas. |
+| F-TUN | Transportar payload binário pelo HTTP tunnel; analisar SQL e controlar serviço Linux. | Unit: `app/test/modules/http-tunnel.test.ts`, `code-analysis.test.ts`, `service-control.test.ts`. | Fake endpoint, regras de análise e execução de comandos simulada. | Não compara mecanismo/regras de serviço com Windows/REA. |
+| F-PKG | Abrir app e painéis principais no smoke de desktop com database descartável. | E2E: `app/scripts/smoke-e2e.mjs`, iniciado com `xvfb-run`. | App, conexão MySQL, SELECT 1, grid, SQL novo e painéis Database Tools, ER Diagram e Options. | Não verifica todos os painéis nem distribuição instalada nesta rodada. |
 
-## Nível de evidência das UX Specs
-Specs 01–19 verificadas contra `ui-text` (REA) em `document/ux/FIDELIDADE.md`; o que segue inferido [I] está listado ali. Screenshots claro/escuro em `document/evidence/ui/`.
+## Relatórios por módulo
 
-## Revisões
-- Commits e263392/59daf88 revisados: HIGH data-compare (ordenação por collation), MEDIUM security (ordem de opções CREATE/ALTER USER) e LOW sessions corrigidos em eb2bf6d; integração MySQL 65/65.
-- Revisão de segurança independente: em andamento (`document/security-review.md`).
+As fontes REA, estados de confiança e limites estão em `document/paridade/F-*.md`. Itens classificados como `DESCONHECIDA` continuam explicitamente sem afirmação de equivalência; a prova citada nesses casos cobre apenas o comportamento próprio do clone descrito na linha.

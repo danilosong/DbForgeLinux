@@ -1,0 +1,14 @@
+# Paridade — F-CMP (Comparação de schema e dados)
+
+Fontes consultadas: inventário REA M9, `document/ux/07-schema-compare.md`, `document/ux/FIDELIDADE.md` (Parte B) e catálogo interno `re/ui-strings/ui-text.txt`. O catálogo foi conferido internamente; seus itens não são copiados.
+
+| Comportamento esperado | Estado | Evidência da referência | Prova no clone |
+|---|---|---|---|
+| Schema Compare seleciona origem/destino e mostra diferenças de objetos. | CONFIRMADA | Inventário M9 e UX 07 §§1–4; recurso Compare.MySql e strings de comparação no catálogo. | `app/test/modules/schema.test.ts`; `app/test/modules/schema.integration.test.ts`; screenshot `schema-compare-light.png`. |
+| Árvore de schema permite filtrar e escolher objetos para sincronização. | INFERIDA | UX 07 §3; inventário confirma módulo Compare, porém detalhe de filtros/seleção é de UX. | `app/test/modules/schema.test.ts`; screenshot `schema-compare-dark.png`. |
+| DDL de origem/destino é comparável e sincronização gera script revisável. | CONFIRMADA | Inventário M9; UX 07 §§4 e 6; referências de compare e script foram consultadas no catálogo. | `app/test/modules/schema.test.ts`; `app/test/modules/compare-import-export-ipc.test.ts` confirma bloqueio destrutivo sem confirmação. |
+| Data Compare compara chaves/colunas e resume diferenças por origem/destino. | CONFIRMADA | Inventário M9; UX 07 §7; recurso Compare.MySql e labels conferidos no catálogo. | `app/test/modules/data-compare.test.ts`; screenshot `data-compare-light.png`. |
+| Sync script de dados parametriza valores e requer confirmação explícita. | ADAPTADA PARA LINUX | UX 07 §7 e regra de proteção do clone; parametrização protege o driver MySQL. | `app/test/modules/data-compare.test.ts`; IPC confirmation assertion em `compare-import-export-ipc.test.ts`. |
+| Schema Compare gera script que sincroniza e uma segunda comparação retorna zero diferenças. | CONFIRMADA | Inventário M9; UX 07 §6; opções exatas de execução seguem inferidas pela FIDELIDADE Parte B. | `app/test/modules/schema.integration.test.ts` — MySQL integration cria dois schemas, aplica script e valida `differences=[]`; executado com `MYSQL_INTEGRATION=1`. |
+| Data Compare gera statements parametrizados, sincroniza em transação e volta a zero diferenças. | ADAPTADA PARA LINUX | UX 07 §7; mecanismo de sync é validação do clone e não confere opções não confirmadas do produto. | `app/test/modules/data-compare.integration.test.ts` (novo) compara, aplica UPDATE/INSERT/DELETE em transação e verifica `same=2`, sem diferenças; executado com `MYSQL_INTEGRATION=1`. |
+| Perfis `.dbcmp`, limite de 1M linhas e comparação por hash são detalhes ainda desconhecidos. | DESCONHECIDA | UX 07 e FIDELIDADE Parte B declaram ausência de evidência para esses detalhes. | `app/test/modules/data-compare.test.ts` cobre comparação em streaming; nenhuma alegação sobre perfil `.dbcmp`/hash. |
