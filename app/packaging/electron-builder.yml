@@ -1,0 +1,19 @@
+appId: com.dbforgelinux.app
+productName: dbForgeLinux
+directories:
+  output: dist
+  buildResources: packaging
+files:
+  - out/**/*
+  - package.json
+linux:
+  target:
+    - deb
+  category: Development
+  maintainer: dbForgeLinux contributors <noreply@github.com>
+  synopsis: MySQL and MariaDB database client
+  description: Desktop database client for MySQL and MariaDB.
+deb:
+  depends:
+    - libsecret-1-0
+artifactName: dbForgeLinux_${version}_${arch}.${ext}

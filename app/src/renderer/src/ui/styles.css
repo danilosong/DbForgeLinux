@@ -1,0 +1,32 @@
+:root { font-family: Inter, system-ui, sans-serif; color: #d7dee8; background: #171b21; font-synthesis: none; }
+* { box-sizing: border-box; }
+body { margin: 0; min-width: 900px; min-height: 600px; }
+button, input { font: inherit; }
+button { background: #273443; color: #e3ebf4; border: 1px solid #3a4b5e; border-radius: 4px; padding: 7px 12px; cursor: pointer; }
+button:hover:not(:disabled) { background: #34485c; }
+button:disabled { opacity: .5; cursor: default; }
+input { width: 100%; margin-top: 5px; color: #e3ebf4; background: #20262e; border: 1px solid #39434e; border-radius: 4px; padding: 7px; }
+.shell { height: 100vh; display: grid; grid-template: 44px 1fr 26px / 270px 1fr; }
+.topbar { grid-column: 1 / -1; background: #20262e; display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid #303943; }
+.status { margin-left: auto; color: #aab7c5; font-size: 12px; }
+.sidebar { overflow: auto; padding: 14px; background: #1d2229; border-right: 1px solid #303943; }
+h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; margin: 8px 0 12px; color: #aebdcc; }
+label { display: block; flex: 1; font-size: 12px; color: #adbac8; margin-bottom: 10px; }
+.row { display: flex; gap: 8px; }
+.actions { margin-bottom: 20px; }
+.actions button { flex: 1; }
+.workspace { display: grid; grid-template-rows: 38px minmax(180px, 1fr) minmax(180px, 42%); min-width: 0; }
+.editor-heading, .results-heading { padding: 8px 12px; background: #20262e; border-bottom: 1px solid #303943; display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+.editor-heading button { padding: 4px 14px; background: #286a52; border-color: #348364; }
+.editor { min-height: 0; }
+.results { min-height: 0; overflow: auto; border-top: 1px solid #3b4651; }
+.results-heading { position: sticky; top: 0; z-index: 1; }
+.results > .muted { padding: 0 12px; }
+table { border-collapse: collapse; width: 100%; font-size: 12px; }
+th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid #303943; border-right: 1px solid #303943; white-space: nowrap; }
+th { position: sticky; top: 35px; background: #252d36; color: #b7c5d3; }
+.result-set p { padding: 0 12px; font-size: 12px; }
+.muted { color: #7f8d9a; font-size: 12px; }
+.tree-item { display: block; border: 0; background: transparent; text-align: left; width: 100%; padding: 5px; }
+.table-item { padding: 4px 0 4px 22px; color: #aab7c5; font-size: 12px; }
+footer { grid-column: 1 / -1; background: #20262e; padding: 5px 12px; color: #8e9ba8; font-size: 11px; display: flex; justify-content: space-between; }

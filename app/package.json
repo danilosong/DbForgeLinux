@@ -1,0 +1,47 @@
+{
+  "name": "dbforge-linux",
+  "version": "0.1.0",
+  "private": true,
+  "description": "dbForgeLinux desktop client",
+  "homepage": "https://github.com/danilosong/DbForgeLinux",
+  "author": {
+    "name": "dbForgeLinux contributors",
+    "email": "noreply@github.com"
+  },
+  "main": "out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
+    "test": "vitest run",
+    "dist:deb": "pnpm build && electron-builder --linux deb --config packaging/electron-builder.yml"
+  },
+  "dependencies": {
+    "mysql2": "^3.15.3",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@electron-toolkit/tsconfig": "^1.0.1",
+    "@eslint/js": "^10.0.1",
+    "@monaco-editor/react": "^4.7.0",
+    "@types/node": "^24.8.1",
+    "@types/react": "^19.2.2",
+    "@types/react-dom": "^19.2.2",
+    "@vitejs/plugin-react": "^5.0.4",
+    "electron": "^38.3.0",
+    "electron-builder": "^26.0.12",
+    "electron-vite": "^5.0.0",
+    "eslint": "^9.38.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.4.0",
+    "monaco-editor": "^0.54.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.1",
+    "vite": "^7.1.12",
+    "vitest": "^3.2.4"
+  }
+}
