@@ -1,4 +1,5 @@
-import type { ComponentType } from 'react'
+import { createContext, useContext, type ComponentType } from 'react'
+import type { ConnectionSummary } from '../../../../shared/contracts.js'
 import SecurityPanel from './security/Panel'
 import SessionsPanel from './sessions/Panel'
 import ProfilerPanel from './profiler/Panel'
@@ -7,6 +8,12 @@ import DatacomparePanel from './data-compare/Panel'
 import DocumenterPanel from './documenter/Panel'
 import SchemacomparePanel from './schema-compare/Panel'
 import ImportexportPanel from './import-export/Panel'
+export const PanelConnectionContext = createContext<ConnectionSummary | undefined>(undefined)
+
+export function usePanelConnection(): ConnectionSummary | undefined {
+ return useContext(PanelConnectionContext)
+}
+
 export interface PanelRegistration{id:string;titleKey:string;icon:string;component:ComponentType}
 export const panelRegistry:PanelRegistration[]=[
  {id:'security',titleKey:'panels.security',icon:'◈',component:SecurityPanel},

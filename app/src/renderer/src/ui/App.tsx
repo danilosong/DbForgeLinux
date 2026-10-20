@@ -9,7 +9,7 @@ import { ConnectionManager } from './components/ConnectionManager'
 import { ConnectionPropertiesDialog, type ConnectionAction, type ConnectionSecrets } from './components/ConnectionPropertiesDialog'
 import { DatabaseExplorer } from './components/DatabaseExplorer'
 import { ResultGrid } from './components/ResultGrid'
-import { panelRegistry } from './panels/registry'
+import { PanelConnectionContext, panelRegistry } from './panels/registry'
 
 type ThemeMode = 'auto' | 'light' | 'dark'
 type DocumentTab = { id: string; label: string; modified: boolean; filePath?: string }
@@ -498,7 +498,7 @@ export default function App(): React.JSX.Element {
     </div>
     <footer className="status-bar"><span>{status}</span><button onClick={() => currentRecord && setManagerOpen(true)}>{activeTitle}</button><span>{currentConnection?.database ?? ''}</span><span>Ln 1, Col 1</span><span>UTF-8</span><span>LF</span><span>{results.length ? `${results.reduce((sum, item) => sum + item.rows.length, 0)} rows` : ''}</span><span className="toolbar-spacer" />{themeMode.toUpperCase()}</footer>
     {dialogRecord && <ConnectionPropertiesDialog initial={dialogRecord} isNew={newDialog} names={records.filter((record) => record.id !== dialogRecord.id).map((record) => record.name)} onAction={runConnectionAction} onTrustHostKey={async (record) => { await window.dbforge.saveConnection(record); upsertRecord(record) }} onCancel={() => setDialogRecord(null)} />}
-    {openPanel && (() => { const entry = panelRegistry.find((item) => item.id === openPanel); if (!entry) return null; const Panel = entry.component; return <div className="tool-panel-backdrop" role="presentation" onClick={() => setOpenPanel(null)}><div className="tool-panel-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><button className="tool-panel-close" onClick={() => setOpenPanel(null)} aria-label="Close">×</button><Panel /></div></div> })()}
+    {openPanel && (() => { const entry = panelRegistry.find((item) => item.id === openPanel); if (!entry) return null; const Panel = entry.component; return <div className="tool-panel-backdrop" role="presentation" onClick={() => setOpenPanel(null)}><div className="tool-panel-dialog" role="dialog" aria-modal="true" onClick={(event) => event.stopPropagation()}><button className="tool-panel-close" onClick={() => setOpenPanel(null)} aria-label="Close">×</button><PanelConnectionContext.Provider value={currentConnection}><Panel /></PanelConnectionContext.Provider></div></div> })()}
     {managerOpen && <ConnectionManager records={records} onNew={() => { setManagerOpen(false); openNewConnection() }} onEdit={(record) => { setManagerOpen(false); openEdit(record) }} onDuplicate={(record) => { setManagerOpen(false); setDialogRecord({ ...structuredClone(record), id: crypto.randomUUID(), name: `${record.name} copy`, lastUsedAt: undefined }); setNewDialog(true) }} onDelete={deleteRecords} onClose={() => setManagerOpen(false)} />}
   </main>
 

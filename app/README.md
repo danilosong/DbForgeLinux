@@ -9,6 +9,12 @@ pnpm install
 pnpm dev
 ```
 
+Em Linux sem display gráfico, inicie o shell com Xvfb:
+
+```sh
+xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE pnpm dev
+```
+
 Preencha host, porta, usuário e senha na barra lateral, conecte e execute SQL no editor. O driver disponibiliza listagem de databases/tabelas e resultados para cada instrução. As senhas persistidas passam por `safeStorage` do Electron.
 
 ## Qualidade e pacote Debian

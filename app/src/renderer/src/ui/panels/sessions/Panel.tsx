@@ -2,14 +2,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import './Panel.css'
 import type { ConnectionRecord, ConnectionSummary } from '../../../../../shared/contracts.js'
 import type { KillMode, SessionDetails, SessionInfo, VariableChange, VariableInfo } from '../../../../../modules/sessions/index.js'
+import { usePanelConnection } from '../registry'
 
 type Tab = 'Sessions' | 'Server Variables' | 'Status'
 const refreshOptions = [0, 2, 5, 10, 30]
 
 export default function Panel(): React.JSX.Element {
+  const activeConnection = usePanelConnection()
   const [records, setRecords] = useState<ConnectionRecord[]>([])
   const [recordId, setRecordId] = useState('')
-  const [connection, setConnection] = useState<ConnectionSummary>()
+  const [connection, setConnection] = useState<ConnectionSummary | undefined>(activeConnection)
   const [tab, setTab] = useState<Tab>('Sessions')
   const [sessions, setSessions] = useState<SessionInfo[]>([])
   const [selectedIds, setSelectedIds] = useState<number[]>([])
@@ -29,8 +31,14 @@ export default function Panel(): React.JSX.Element {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
-  useEffect(() => { void window.dbforge.getConnections().then((items) => { setRecords(items); if (items[0]) setRecordId(items[0].id) }).catch(showError) }, [])
-  useEffect(() => () => { if (connection) void window.dbforge.disconnect(connection.id) }, [connection])
+  useEffect(() => { void window.dbforge.getConnections().then((items) => { setRecords(items); if (!activeConnection?.recordId && items[0]) setRecordId(items[0].id) }).catch(showError) }, [activeConnection?.recordId])
+  useEffect(() => { setConnection(activeConnection) }, [activeConnection])
+  useEffect(() => { if (activeConnection?.recordId) setRecordId(activeConnection.recordId) }, [activeConnection?.recordId])
+  useEffect(() => {
+    const connectionId = connection?.id
+    const shouldDisconnect = Boolean(connectionId && connectionId !== activeConnection?.id)
+    return () => { if (connectionId && shouldDisconnect) void window.dbforge.disconnect(connectionId) }
+  }, [connection?.id, activeConnection?.id])
   const refreshSessions = useCallback(async (showBusy = true): Promise<void> => {
     if (!connection) return
     if (showBusy) setLoading(true)

@@ -3,14 +3,16 @@ import './Panel.css'
 import type { ConnectionRecord, ConnectionSummary } from '../../../../../shared/contracts.js'
 import type { AccountRef, PrivilegeScope, SecurityChange, UserAccount, UserSecurityDetails } from '../../../../../modules/security/index.js'
 import { cloneAccessChanges } from '../../../../../modules/security/clone.js'
+import { usePanelConnection } from '../registry'
 
 type Tab = 'General' | 'Privileges' | 'Roles' | 'Limits' | 'Preview SQL'
 const standardPrivileges = ['SELECT', 'INSERT', 'UPDATE', 'DELETE', 'CREATE', 'ALTER', 'DROP', 'INDEX', 'CREATE VIEW', 'SHOW VIEW', 'EXECUTE', 'TRIGGER', 'EVENT', 'PROCESS', 'RELOAD', 'SUPER', 'CREATE USER', 'SHOW DATABASES']
 
 export default function Panel(): React.JSX.Element {
+  const activeConnection = usePanelConnection()
   const [records, setRecords] = useState<ConnectionRecord[]>([])
   const [recordId, setRecordId] = useState('')
-  const [connection, setConnection] = useState<ConnectionSummary>()
+  const [connection, setConnection] = useState<ConnectionSummary | undefined>(activeConnection)
   const [accounts, setAccounts] = useState<UserAccount[]>([])
   const [databases, setDatabases] = useState<string[]>([])
   const [selected, setSelected] = useState<AccountRef>()
@@ -33,8 +35,14 @@ export default function Panel(): React.JSX.Element {
   const [message, setMessage] = useState('')
   const [preview, setPreview] = useState('')
 
-  useEffect(() => { void window.dbforge.getConnections().then((items) => { setRecords(items); if (items[0]) setRecordId(items[0].id) }).catch(showError) }, [])
-  useEffect(() => () => { if (connection) void window.dbforge.disconnect(connection.id) }, [connection])
+  useEffect(() => { void window.dbforge.getConnections().then((items) => { setRecords(items); if (!activeConnection?.recordId && items[0]) setRecordId(items[0].id) }).catch(showError) }, [activeConnection?.recordId])
+  useEffect(() => { setConnection(activeConnection) }, [activeConnection])
+  useEffect(() => { if (activeConnection?.recordId) setRecordId(activeConnection.recordId) }, [activeConnection?.recordId])
+  useEffect(() => {
+    const connectionId = connection?.id
+    const shouldDisconnect = Boolean(connectionId && connectionId !== activeConnection?.id)
+    return () => { if (connectionId && shouldDisconnect) void window.dbforge.disconnect(connectionId) }
+  }, [connection?.id, activeConnection?.id])
   const refreshAccounts = useCallback(async (): Promise<void> => {
     if (!connection) return
     setLoading(true); setError('')
