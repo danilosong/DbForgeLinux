@@ -1,0 +1,218 @@
+import { BrowserWindow, ipcMain, type IpcMain } from 'electron'
+import { isAbsolute, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+type Kind = 'id' | 'text' | 'identifier' | 'sql' | 'path' | 'relative-path' | 'boolean' | 'true' | 'number' | 'integer' | 'object' | 'nullable-object' | 'array-text' | 'array-int' | 'array-object' | 'string-number' | 'enum'
+interface Spec { kind: Kind; optional?: boolean; values?: readonly string[]; maxItems?: number }
+const s = (kind: Kind, options: Omit<Spec, 'kind'> = {}): Spec => ({ kind, ...options })
+const opt = (spec: Spec): Spec => ({ ...spec, optional: true })
+const id = s('id')
+const text = s('text')
+const ident = s('identifier')
+const sql = s('sql')
+const path = s('path')
+const bool = s('boolean')
+const trueOnly = s('true')
+const integer = s('integer')
+const object = s('object')
+const strings = s('array-text', { maxItems: 10000 })
+const objects = s('array-object', { maxItems: 10000 })
+const intArray = s('array-int', { maxItems: 1000 })
+const enumOf = (...values: string[]): Spec => s('enum', { values })
+const scope = enumOf('GLOBAL', 'SESSION')
+const fileFormat = enumOf('csv', 'json', 'xml', 'sql', 'xlsx')
+const outputFormat = enumOf('csv', 'json', 'xml', 'sql', 'xlsx')
+
+/** Runtime argument contracts for every invoke channel. Structured records are recursively size/type checked below. */
+export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
+  'ai-assistant:settings:load': [], 'ai-assistant:settings:save': [object, opt(s('text'))], 'ai-assistant:settings:test': [object, opt(s('text'))],
+  'ai-assistant:complete': [object], 'ai-assistant:cancel': [id], 'code-analysis:run': [sql],
+  'connections:list': [], 'connections:save': [object], 'connections:delete': [id], 'vault:save': [ident, s('text')], 'vault:delete': [ident], 'vault:status': [],
+  'data-compare:compare': [id, ident, ident, id, ident, ident, strings, opt(strings), opt(bool)],
+  'data-compare:synchronize': [id, ident, ident, id, ident, ident, strings, strings, bool, trueOnly, opt(objects)],
+  'data-generator:inspect': [id, ident], 'data-generator:preview': [id, ident, ident, object, opt(s('string-number'))], 'data-generator:generate': [object],
+  'report-pivot:load': [id, sql], 'report-pivot:build': [id, object], 'report-pivot:export': [object, enumOf('csv', 'xlsx')],
+  'database-tools:search': [id, ident, text, object], 'database-tools:invalid': [id, ident], 'database-tools:backup': [id, ident, bool], 'database-tools:select-backup': [],
+  'database-tools:restore': [id, ident, text, sql, opt(bool)], 'database-tools:copy': [id, ident, id, ident, text, bool],
+  'db:test': [object], 'db:connect': [object], 'db:disconnect': [id], 'db:databases': [id], 'db:execute': [id, sql, opt(id), opt(ident)],
+  'grid-editing:describe': [id, sql, opt(ident)], 'grid-editing:preview': [object, objects], 'grid-editing:apply': [id, object, objects, bool],
+  'db:result-read': [id, integer, integer], 'db:result-dispose': [id], 'db:cancel': [id, id], 'db:transaction-begin': [id], 'db:transaction-commit': [id], 'db:transaction-rollback': [id],
+  'db:tables': [id, ident], 'db:objects': [id, ident], 'db:show-create': [id, ident, object], 'db:set-database': [id, ident],
+  'file:open-sql': [], 'file:open-sql-path': [path], 'file:save-sql': [opt(path), sql],
+  'documenter:preview': [id, ident, opt(text)], 'documenter:generate': [object], 'editor:metadata': [id, ident, opt(bool)], 'editor:invalidate-metadata': [id, opt(ident)],
+  'er-diagram:load': [id, ident, id], 'er-diagram:save-relations': [id, ident, objects], 'er-diagram:save-file': [object], 'er-diagram:open-file': [],
+  'history:list': [opt(object)], 'history:record': [object],
+  'import-export:export': [id, sql, outputFormat, opt(object), opt(id)], 'import-export:select-source': [id, fileFormat, opt(object)], 'import-export:preview-export': [id, sql, id],
+  'import-export:import': [id, ident, fileFormat, enumOf('append', 'upsert', 'update', 'delete'), strings, opt(object), opt(id)], 'import-export:cancel': [id], 'import-export:templates:list': [],
+  'import-export:templates:save': [object], 'import-export:templates:delete': [id],
+  'object-editor:load': [object], 'object-editor:apply-table': [id, ident, s('nullable-object'), object], 'object-editor:apply': [object, sql],
+  'object-editor:mutate': [object, enumOf('drop', 'rename', 'truncate'), opt(ident)],
+  'options:load': [], 'options:save': [object], 'options:reset': [], 'options:export': [object], 'options:import': [],
+  'profiler:profile': [id, sql], 'profiler:explain': [id, sql], 'profiler:history': [id], 'profiler:clear-history': [id, trueOnly], 'profiler:status': [id],
+  'query-builder:schema': [id, ident], 'query-builder:build': [object], 'query-builder:parse': [sql, opt(ident)], 'query-builder:execute': [id, object, opt(bool), opt(id)], 'query-builder:cancel': [id],
+  'routine-debugger:engine:inspect': [id], 'routine-debugger:engine:deploy': [id, trueOnly], 'routine-debugger:engine:remove': [id, trueOnly], 'routine-debugger:compile': [object],
+  'routine-debugger:start': [object, strings, objects, bool, bool], 'routine-debugger:command': [id, enumOf('into', 'over', 'out', 'continue', 'stop'), opt(integer)],
+  'routine-debugger:breakpoints': [id, objects], 'routine-debugger:watches': [id, strings], 'routine-debugger:snapshot': [id],
+  'schema-compare:compare': [id, ident, id, ident, opt(bool)], 'schema-compare:synchronize': [id, ident, sql, trueOnly],
+  'security:accounts': [id], 'security:details': [id, object], 'security:preview': [id, objects], 'security:apply': [id, objects, trueOnly],
+  'service-control:list': [], 'service-control:action': [ident, enumOf('start', 'stop', 'restart')],
+  'sessions:list': [id, opt(object)], 'sessions:details': [id, integer], 'sessions:kill': [id, intArray, enumOf('connection', 'query'), trueOnly],
+  'sessions:variables': [id, opt(scope)], 'sessions:status': [id, opt(scope)], 'sessions:set-variable': [id, object, object],
+  'source-control:choose-repository': [], 'source-control:status': [path], 'source-control:init': [path], 'source-control:diff': [path, opt(s('relative-path')), opt(bool)],
+  'source-control:commit': [path, text, strings], 'source-control:branches': [path], 'source-control:create-branch': [path, ident], 'source-control:checkout-branch': [path, ident],
+  'source-control:delete-branch': [path, ident, trueOnly], 'source-control:fetch': [path], 'source-control:pull': [path], 'source-control:push': [path],
+  'source-control:log': [path, opt(integer)], 'source-control:commit-diff': [path, ident, opt(s('relative-path'))], 'source-control:create-project': [text],
+  'source-control:open-project': [], 'source-control:add-file': [path], 'source-control:write-script': [path, s('relative-path'), sql], 'source-control:export-schema': [id, ident, opt(path)]
+}
+
+export interface TrustedRendererConfig { rendererFile: string; rendererUrl?: string }
+export interface GuardEvent { sender: { id: number; mainFrame: { url: string } }; senderFrame: { url: string } | null }
+export type GuardListener = (event: GuardEvent, ...args: unknown[]) => unknown
+const WINDOW_MS = 60_000
+const rateHistory = new Map<string, number[]>()
+const guardedIpcInstances = new WeakSet<object>()
+
+function fail(message: string): never { throw new TypeError(`IPC payload rejected: ${message}`) }
+
+function assertStructured(value: unknown, state: { bytes: number; nodes: number }, depth = 0): void {
+  state.nodes++
+  if (state.nodes > 50_000 || depth > 20) fail('payload nesting or item budget exceeded')
+  if (value === null || typeof value === 'boolean' || typeof value === 'undefined') { state.bytes += 4; return }
+  if (typeof value === 'number') { if (!Number.isFinite(value)) fail('non-finite number'); state.bytes += 8; return }
+  if (typeof value === 'string') { if (value.length > 1_000_000) fail('string too long'); state.bytes += value.length * 2; return }
+  if (Array.isArray(value)) {
+    if (value.length > 10_000) fail('array too large')
+    for (const child of value) assertStructured(child, state, depth + 1)
+    return
+  }
+  if (typeof value === 'object') {
+    const prototype = Object.getPrototypeOf(value)
+    if (prototype !== Object.prototype && prototype !== null) fail('value must be structured-clone data')
+    const entries = Object.entries(value as Record<string, unknown>)
+    if (entries.length > 1_000) fail('object has too many properties')
+    for (const [key, child] of entries) {
+      if (key.length > 256 || key.includes('\0')) fail('invalid property name')
+      if (typeof child === 'string' && /(?:path|directory|folder)$/i.test(key) && child && !isAbsolute(child)) fail(`${key} must be an absolute path`)
+      state.bytes += key.length * 2
+      assertStructured(child, state, depth + 1)
+    }
+    return
+  }
+  fail('unsupported payload value')
+}
+
+function assertSpec(value: unknown, spec: Spec, label: string): void {
+  if (value === undefined && spec.optional) return
+  if (value === undefined) fail(`${label} is required`)
+  const stringValue = (): string => {
+    if (typeof value !== 'string' || value.includes('\0')) fail(`${label} must be a string`)
+    return value
+  }
+  switch (spec.kind) {
+    case 'id': { const v = stringValue(); if (!v || v.length > 128) fail(`${label} has invalid id length`); break }
+    case 'text': { const v = stringValue(); if (v.length > 8_192) fail(`${label} is too long`); break }
+    case 'identifier': { const v = stringValue(); if (!v || v.length > 256) fail(`${label} has invalid identifier length`); break }
+    case 'sql': { const v = stringValue(); if (v.length > 20 * 1024 * 1024) fail(`${label} exceeds SQL size limit`); break }
+    case 'path': { const v = stringValue(); if (!v || v.length > 4_096 || !isAbsolute(v)) fail(`${label} must be an absolute path`); break }
+    case 'relative-path': {
+      const v = stringValue()
+      if (!v || v.length > 1_024 || isAbsolute(v) || v.split(/[\\/]/).includes('..')) fail(`${label} must be a confined relative path`)
+      break
+    }
+    case 'boolean': if (typeof value !== 'boolean') fail(`${label} must be boolean`); break
+    case 'true': if (value !== true) fail(`${label} requires explicit confirmation`); break
+    case 'number': if (typeof value !== 'number' || !Number.isFinite(value)) fail(`${label} must be finite number`); break
+    case 'integer': if (!Number.isSafeInteger(value) || Number(value) < 0) fail(`${label} must be a non-negative integer`); break
+    case 'object':
+      if (!value || typeof value !== 'object' || Array.isArray(value)) fail(`${label} must be an object`)
+      break
+    case 'nullable-object': if (value !== null) assertSpec(value, { ...spec, kind: 'object' }, label); break
+    case 'array-text': case 'array-int': case 'array-object': {
+      if (!Array.isArray(value) || value.length > (spec.maxItems ?? 1_000)) fail(`${label} must be a bounded array`)
+      const item = spec.kind === 'array-text' ? text : spec.kind === 'array-int' ? integer : object
+      for (let index = 0; index < value.length; index++) assertSpec(value[index], item, `${label}[${index}]`)
+      break
+    }
+    case 'string-number': if (!(typeof value === 'string' && value.length <= 128) && !(typeof value === 'number' && Number.isFinite(value))) fail(`${label} must be string or finite number`); break
+    case 'enum': if (typeof value !== 'string' || !spec.values?.includes(value)) fail(`${label} is not an allowed value`); break
+  }
+}
+
+export function validateIpcArguments(channel: string, args: readonly unknown[]): void {
+  const schema = IPC_CHANNEL_SCHEMAS[channel]
+  if (!schema) fail(`channel ${channel} has no runtime schema`)
+  const requiredLength = schema.findIndex(spec => spec.optional)
+  const minimumLength = requiredLength < 0 ? schema.length : requiredLength
+  if (args.length < minimumLength || args.length > schema.length) fail(`${channel} expects ${minimumLength} to ${schema.length} arguments, got ${args.length}`)
+  const budget = { bytes: 0, nodes: 0 }
+  schema.forEach((spec, index) => {
+    const arg = args[index]
+    assertSpec(arg, spec, `${channel} argument ${index + 1}`)
+    if (arg === undefined) return
+    if (typeof arg === 'string') { budget.nodes++; budget.bytes += arg.length * 2 }
+    else assertStructured(arg, budget)
+  })
+  if (budget.bytes > 24 * 1024 * 1024) fail(`${channel} payload exceeds 24 MB`)
+}
+
+export function isTrustedIpcFrame(event: GuardEvent, config: TrustedRendererConfig): boolean {
+  if (!event.senderFrame || event.senderFrame !== event.sender.mainFrame) return false
+  const window = BrowserWindow.getAllWindows().find(candidate => candidate.webContents.id === event.sender.id)
+  if (!window || window.isDestroyed()) return false
+  const frameUrl = event.senderFrame.url
+  if (config.rendererUrl) {
+    try {
+      const expected = new URL(config.rendererUrl)
+      const actual = new URL(frameUrl)
+      if (expected.origin === actual.origin && ['http:', 'https:'].includes(actual.protocol)) return true
+    } catch { /* invalid renderer URL cannot authorize a frame */ }
+  }
+  try {
+    const actual = new URL(frameUrl)
+    return actual.protocol === 'file:' && resolve(fileURLToPath(actual)) === resolve(config.rendererFile)
+  } catch { return false }
+}
+
+function rateLimit(channel: string, senderId: number, args: readonly unknown[], now = Date.now()): void {
+  const mutatingSql = channel === 'db:execute' && typeof args[1] === 'string' && /\b(drop|truncate|alter|create|grant|revoke|insert|update|delete|replace)\b/i.test(args[1])
+  const queryBuilderMutation = channel === 'query-builder:execute' && typeof args[1] === 'object' && args[1] !== null && ['INSERT', 'UPDATE', 'DELETE'].includes(String((args[1] as Record<string, unknown>).statement))
+  const destructive = mutatingSql || queryBuilderMutation || /^(grid-editing:apply|security:apply|sessions:kill|database-tools:(restore|copy)|object-editor:(apply|apply-table|mutate)|schema-compare:synchronize|import-export:import|data-generator:generate|routine-debugger:(engine:(deploy|remove)|start)|service-control:action|source-control:(commit|init|checkout-branch|delete-branch|fetch|pull|push))$/.test(channel)
+  const git = channel.startsWith('source-control:')
+  const limit = destructive ? 8 : git ? 30 : channel === 'db:execute' ? 60 : 120
+  const key = `${senderId}:${channel}`
+  const current = (rateHistory.get(key) ?? []).filter(time => now - time < WINDOW_MS)
+  if (current.length >= limit) fail(`${channel} rate limit exceeded`)
+  current.push(now)
+  rateHistory.set(key, current)
+}
+
+export function wrapIpcHandler(
+  channel: string,
+  listener: GuardListener,
+  config: TrustedRendererConfig,
+  authorize: (event: GuardEvent, config: TrustedRendererConfig) => boolean = isTrustedIpcFrame
+): GuardListener {
+  if (!IPC_CHANNEL_SCHEMAS[channel]) fail(`channel ${channel} has no runtime schema`)
+  return ((event: GuardEvent, ...args: unknown[]) => {
+    if (!authorize(event, config)) fail('untrusted renderer or frame')
+    validateIpcArguments(channel, args)
+    rateLimit(channel, event.sender.id, args)
+    return listener(event, ...args)
+  })
+}
+
+export function installIpcSecurity(config: TrustedRendererConfig, target: IpcMain = ipcMain): void {
+  if (guardedIpcInstances.has(target)) return
+  const ipc = target as IpcMain & { handle: IpcMain['handle'] }
+  const originalHandle = target.handle.bind(target)
+  ipc.handle = ((channel: string, listener: Parameters<IpcMain['handle']>[1]) => {
+    const wrapped = wrapIpcHandler(channel, listener as unknown as GuardListener, config) as unknown as Parameters<IpcMain['handle']>[1]
+    return originalHandle(channel, wrapped)
+  }) as IpcMain['handle']
+  guardedIpcInstances.add(target)
+}
+
+export function defaultTrustedRendererConfig(rendererFile: string, rendererUrl = process.env.ELECTRON_RENDERER_URL): TrustedRendererConfig {
+  return { rendererFile: resolve(rendererFile), rendererUrl: rendererUrl && /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:\/|$)/i.test(rendererUrl) ? rendererUrl : undefined }
+}
+
