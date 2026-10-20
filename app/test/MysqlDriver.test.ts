@@ -2,15 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { Readable } from 'node:stream'
 
 const mysqlMock = vi.hoisted(() => ({
+  createCorePool: vi.fn(),
   createPool: vi.fn(),
   query: vi.fn(),
   getConnection: vi.fn(),
+  getCoreConnection: vi.fn(),
   end: vi.fn(),
   release: vi.fn()
 }))
 
+vi.mock('mysql2', () => ({ createPool: mysqlMock.createCorePool }))
 vi.mock('mysql2/promise', () => ({
-  default: { createPool: mysqlMock.createPool }
+  default: { createConnection: vi.fn(), createPool: mysqlMock.createPool }
 }))
 
 import { MysqlDriver } from '../src/main/db/MysqlDriver.js'
@@ -22,13 +25,21 @@ describe('MysqlDriver.executeSql', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks()
-    mysqlMock.createPool.mockReturnValue({
-      query: mysqlMock.query,
-      getConnection: mysqlMock.getConnection,
-      end: mysqlMock.end,
-      pool: { query: vi.fn(() => ({ stream: () => Readable.from([{ id: 1 }, { id: 2 }, { id: 3 }]) })) }
+    mysqlMock.createCorePool.mockReturnValue({
+      promise: () => ({
+        query: mysqlMock.query,
+        getConnection: mysqlMock.getConnection,
+        end: mysqlMock.end,
+        execute: vi.fn()
+      }),
+      getConnection: mysqlMock.getCoreConnection
     })
     mysqlMock.getConnection.mockResolvedValue({ release: mysqlMock.release })
+    mysqlMock.getCoreConnection.mockImplementation((callback: (error: Error | null, connection: unknown) => void) => callback(null, {
+      threadId: 77,
+      query: vi.fn(() => ({ stream: () => Readable.from([{ id: 1 }, { id: 2 }, { id: 3 }]) })),
+      release: mysqlMock.release
+    }))
     driver = new MysqlDriver()
     connectionId = await driver.connect(createDefaultConnection('mock', 'Mock'))
   })
@@ -83,5 +94,14 @@ describe('MysqlDriver.executeSql', () => {
     await expect(iterator.next()).resolves.toMatchObject({ value: { id: 1 }, done: false })
     controller.abort()
     await expect(iterator.next()).rejects.toMatchObject({ name: 'AbortError' })
+  })
+
+  it('cancela a consulta no servidor quando um stream é abortado', async () => {
+    const controller = new AbortController()
+    const iterator = driver.streamRows(connectionId, 'SELECT id FROM t', [], controller.signal, undefined, 'stream-execution')[Symbol.asyncIterator]()
+    await expect(iterator.next()).resolves.toMatchObject({ value: { id: 1 }, done: false })
+    controller.abort()
+    await expect(iterator.next()).rejects.toMatchObject({ name: 'AbortError' })
+    await vi.waitFor(() => expect(mysqlMock.query).toHaveBeenCalledWith('KILL QUERY 77'))
   })
 })

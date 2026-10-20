@@ -1,4 +1,6 @@
 import mysql, { type Pool, type PoolConnection, type QueryResult as MysqlQueryResult, type RowDataPacket } from 'mysql2/promise'
+import * as mysqlCore from 'mysql2'
+import type { Pool as CorePool, PoolConnection as CorePoolConnection } from 'mysql2'
 import type { ConnectionTestResult, DatabaseObject, QueryResult } from '../../shared/contracts.js'
 import type { DbDriver, DbTransaction, DriverConnectionConfig, SqlValue } from './DbDriver.js'
 import { buildMysqlOptions } from './connectionOptions.js'
@@ -8,6 +10,7 @@ import { splitSqlStatements } from '../../shared/sqlStatements.js'
 
 interface ManagedConnection {
   pool: Pool
+  corePool: CorePool
   tunnel?: ActiveSshTunnel
   httpTunnel?: ActiveHttpTunnel
   config: DriverConnectionConfig
@@ -22,6 +25,26 @@ export interface DedicatedMysqlSession {
   cancel(): void
 }
 
+function isOptionalTlsUnsupported(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === 'HANDSHAKE_NO_SSL_SUPPORT'
+}
+
+function withoutPreferredTls(config: DriverConnectionConfig): DriverConnectionConfig {
+  return { ...config, ssl: { ...config.ssl, mode: 'disabled' } }
+}
+
+function getCoreConnection(pool: CorePool): Promise<CorePoolConnection> {
+  return new Promise((resolve, reject) => {
+    pool.getConnection((error, connection) => error ? reject(error) : resolve(connection))
+  })
+}
+
+function runCoreQuery(connection: CorePoolConnection, sql: string, values: readonly unknown[] = []): Promise<void> {
+  return new Promise((resolve, reject) => {
+    connection.query(sql, [...values], (error) => error ? reject(error) : resolve())
+  })
+}
+
 export class MysqlDriver implements DbDriver {
   private readonly pools = new Map<string, ManagedConnection>()
   private readonly executions = new Map<string, { connectionId: string; threadId: number }>()
@@ -34,8 +57,14 @@ export class MysqlDriver implements DbDriver {
     try {
       tunnel = config.ssh.enabled ? await createSshTunnel(config.ssh) : undefined
       httpTunnel = config.http.enabled ? await createHttpTunnel(config.http, config.host, config.port) : undefined
-      const options = await buildMysqlOptions(config, tunnel ?? httpTunnel)
-      connection = await mysql.createConnection(options)
+      let options = await buildMysqlOptions(config, tunnel ?? httpTunnel)
+      try {
+        connection = await mysql.createConnection(options)
+      } catch (error) {
+        if (config.ssl.mode !== 'preferred' || !isOptionalTlsUnsupported(error)) throw error
+        options = await buildMysqlOptions(withoutPreferredTls(config), tunnel ?? httpTunnel)
+        connection = await mysql.createConnection(options)
+      }
       const [rows] = await connection.query<Array<RowDataPacket & { version: string }>>('SELECT VERSION() AS version')
       const [tlsRows] = await connection.query<Array<RowDataPacket & { Value: string }>>("SHOW STATUS LIKE 'Ssl_version'")
       return {
@@ -56,23 +85,41 @@ export class MysqlDriver implements DbDriver {
     let tunnel: ActiveSshTunnel | undefined
     let httpTunnel: ActiveHttpTunnel | undefined
     let pool: Pool | undefined
+    let corePool: CorePool | undefined
     try {
       tunnel = config.ssh.enabled ? await createSshTunnel(config.ssh) : undefined
       httpTunnel = config.http.enabled ? await createHttpTunnel(config.http, config.host, config.port) : undefined
-      const options = await buildMysqlOptions(config, tunnel ?? httpTunnel)
-      pool = mysql.createPool({
-        ...options,
-        waitForConnections: true,
-        connectionLimit: 5
-      })
-      const connection = await pool.getConnection()
+      let options = await buildMysqlOptions(config, tunnel ?? httpTunnel)
+      const createPool = (): { core: CorePool; promise: Pool } => {
+        const core = mysqlCore.createPool({
+          ...options,
+          waitForConnections: true,
+          connectionLimit: 5
+        })
+        return { core, promise: core.promise() }
+      }
+      let pools = createPool()
+      corePool = pools.core
+      pool = pools.promise
+      let connection: PoolConnection
+      try {
+        connection = await pool.getConnection()
+      } catch (error) {
+        if (config.ssl.mode !== 'preferred' || !isOptionalTlsUnsupported(error)) throw error
+        await pool.end()
+        options = await buildMysqlOptions(withoutPreferredTls(config), tunnel ?? httpTunnel)
+        pools = createPool()
+        corePool = pools.core
+        pool = pools.promise
+        connection = await pool.getConnection()
+      }
       try {
         await this.initializeSession(connection, config)
       } finally {
         connection.release()
       }
       const id = crypto.randomUUID()
-      this.pools.set(id, { pool, tunnel, httpTunnel, config, currentDatabase: config.database })
+      this.pools.set(id, { pool, corePool, tunnel, httpTunnel, config, currentDatabase: config.database })
       return id
     } catch (error) {
       if (pool) await pool.end()
@@ -256,17 +303,34 @@ export class MysqlDriver implements DbDriver {
     return rows
   }
 
-  async *streamRows(connectionId: string, sql: string, values: readonly SqlValue[] = [], signal?: AbortSignal, timeoutSeconds?: number): AsyncIterable<Record<string, unknown>> {
+  async *streamRows(connectionId: string, sql: string, values: readonly SqlValue[] = [], signal?: AbortSignal, timeoutSeconds?: number, executionId?: string): AsyncIterable<Record<string, unknown>> {
     const managed = this.requireConnection(connectionId)
-    const pool = managed.pool
     if (signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
-    const rawPool = pool.pool as unknown as { query(options: unknown): { stream(): NodeJS.ReadableStream } }
-    const stream = rawPool.query({ sql, values: [...values], rowsAsArray: false }).stream() as NodeJS.ReadableStream & AsyncIterable<Record<string, unknown>> & { destroy(error?: Error): void }
-    const abort = (): void => stream.destroy(new DOMException('A operação foi cancelada.', 'AbortError'))
     const commandTimeout = timeoutSeconds ?? managed.config.advanced.commandTimeoutSeconds
-    const timeout = commandTimeout > 0 ? setTimeout(() => stream.destroy(Object.assign(new Error('A consulta excedeu o tempo limite configurado.'), { code: 'ETIMEDOUT' })), commandTimeout * 1000) : undefined
+    const transactionConnection = managed.transactionConnection
+    const connection = transactionConnection
+      ? transactionConnection.connection as unknown as CorePoolConnection
+      : await getCoreConnection(managed.corePool)
+    const ownsConnection = !transactionConnection
+    if (signal?.aborted) {
+      if (ownsConnection) connection.release()
+      throw new DOMException('A operação foi cancelada.', 'AbortError')
+    }
+    const activeExecutionId = executionId ?? crypto.randomUUID()
+    let stream: (NodeJS.ReadableStream & AsyncIterable<Record<string, unknown>> & { destroy(error?: Error): void }) | undefined
+    this.executions.set(activeExecutionId, { connectionId, threadId: connection.threadId })
+    const abort = (): void => {
+      void this.cancelQuery(connectionId, activeExecutionId).catch(() => undefined).finally(() => stream?.destroy(new DOMException('A operação foi cancelada.', 'AbortError')))
+    }
+    const timeout = commandTimeout > 0 ? setTimeout(() => {
+      void this.cancelQuery(connectionId, activeExecutionId).catch(() => undefined).finally(() => stream?.destroy(Object.assign(new Error('A consulta excedeu o tempo limite configurado.'), { code: 'ETIMEDOUT' })))
+    }, commandTimeout * 1000) : undefined
     signal?.addEventListener('abort', abort, { once: true })
     try {
+      await this.initializeCoreSession(connection, managed.config)
+      if (managed.currentDatabase) await runCoreQuery(connection, `USE ${quoteIdentifier(managed.currentDatabase)}`)
+      const query = connection.query({ sql, values: [...values], rowsAsArray: false }) as unknown as { stream(): NodeJS.ReadableStream }
+      stream = query.stream() as NodeJS.ReadableStream & AsyncIterable<Record<string, unknown>> & { destroy(error?: Error): void }
       for await (const row of stream) {
         if (signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
         yield row
@@ -274,7 +338,9 @@ export class MysqlDriver implements DbDriver {
     } finally {
       signal?.removeEventListener('abort', abort)
       if (timeout) clearTimeout(timeout)
-      if (signal?.aborted) stream.destroy()
+      this.executions.delete(activeExecutionId)
+      if (signal?.aborted) stream?.destroy()
+      if (ownsConnection) connection.release()
     }
   }
 
@@ -305,11 +371,27 @@ export class MysqlDriver implements DbDriver {
     }
   }
 
+  async withSavepoint<T>(connectionId: string, operation: () => Promise<T>): Promise<T> {
+    const connection = this.requireConnection(connectionId).transactionConnection
+    if (!connection) throw new Error('A document transaction is required for a grid batch savepoint.')
+    await connection.query('SAVEPOINT dbforge_grid_edit_batch')
+    try {
+      const result = await operation()
+      await connection.query('RELEASE SAVEPOINT dbforge_grid_edit_batch')
+      return result
+    } catch (error) {
+      try { await connection.query('ROLLBACK TO SAVEPOINT dbforge_grid_edit_batch') } finally { await connection.query('RELEASE SAVEPOINT dbforge_grid_edit_batch') }
+      throw error
+    }
+  }
+
   async executeParameterized(connectionId: string, sql: string, values: readonly SqlValue[] = [], signal?: AbortSignal): Promise<{ affectedRows: number; insertId: number }> {
     if (signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
     const managed = this.requireConnection(connectionId)
     if (managed.config.advanced.readOnly) throw new Error('A sessão está marcada como somente leitura.')
-    const [result] = await managed.pool.execute(sql, [...values])
+    const [result] = managed.transactionConnection
+      ? await managed.transactionConnection.execute(sql, [...values])
+      : await managed.pool.execute(sql, [...values])
     const header = result as unknown as { affectedRows?: number; insertId?: number }
     return { affectedRows: header.affectedRows ?? 0, insertId: header.insertId ?? 0 }
   }
@@ -323,6 +405,18 @@ export class MysqlDriver implements DbDriver {
     }
     for (const command of config.advanced.initCommands.split(';').map((item) => item.trim()).filter(Boolean)) {
       await connection.query(command)
+    }
+  }
+
+  private async initializeCoreSession(connection: CorePoolConnection, config: DriverConnectionConfig): Promise<void> {
+    if (config.advanced.readOnly) await runCoreQuery(connection, 'SET SESSION TRANSACTION READ ONLY')
+    if (config.advanced.sqlMode) await runCoreQuery(connection, 'SET SESSION sql_mode = ?', [config.advanced.sqlMode])
+    if (config.advanced.collation) {
+      if (!/^[a-zA-Z0-9_]+$/.test(config.advanced.collation)) throw new Error('Collation inválida.')
+      await runCoreQuery(connection, `SET collation_connection = '${config.advanced.collation}'`)
+    }
+    for (const command of config.advanced.initCommands.split(';').map((item) => item.trim()).filter(Boolean)) {
+      await runCoreQuery(connection, command)
     }
   }
 

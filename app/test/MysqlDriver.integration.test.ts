@@ -17,7 +17,12 @@ describe.skipIf(!enabled)('MysqlDriver integration', () => {
   afterAll(async () => { if (id) await driver.disconnect(id) })
 
   it('testa conexão, lista databases/tabelas e retorna resultados múltiplos', async () => {
-    await expect(driver.testConnection(config)).resolves.toHaveProperty('serverVersion')
+    const connectionTest = await driver.testConnection(config)
+    expect(connectionTest.serverVersion).toBeTruthy()
+    if (process.env.MYSQL_EXPECT_TLS_FALLBACK === '1') {
+      expect(connectionTest.serverVersion).toMatch(/mariadb/i)
+      expect(connectionTest.tlsVersion).toBeUndefined()
+    }
     id = await driver.connect(config)
     expect(await driver.listDatabases(id)).toContain('sample')
     await driver.executeSql(id, 'CREATE TABLE IF NOT EXISTS sample.items (id INT PRIMARY KEY, name VARCHAR(40)); INSERT INTO sample.items VALUES (1, \'one\') ON DUPLICATE KEY UPDATE name=VALUES(name);')
@@ -37,5 +42,20 @@ describe.skipIf(!enabled)('MysqlDriver integration', () => {
     await driver.executeSql(id, 'INSERT INTO transaction_probe (id) VALUES (1)')
     await driver.rollbackTransaction(id)
     expect((await driver.executeSql(id, 'SELECT COUNT(*) AS total FROM sample.transaction_probe'))[0].rows[0]).toMatchObject({ total: 0 })
+
+    const streamIterations = Number(process.env.MYSQL_STREAM_STRESS ?? 1)
+    for (let iteration = 0; iteration < streamIterations; iteration++) {
+      const streamed: Array<Record<string, unknown>> = []
+      for await (const row of driver.streamRows(id, 'SELECT ? AS iteration', [iteration])) streamed.push(row)
+      expect(streamed).toEqual([{ iteration }])
+    }
+
+    const previousConnectionId = id
+    id = ''
+    await driver.disconnect(previousConnectionId)
+    id = await driver.connect(config)
+    const afterReconnect: Array<Record<string, unknown>> = []
+    for await (const row of driver.streamRows(id, 'SELECT 1 AS reconnected')) afterReconnect.push(row)
+    expect(afterReconnect).toEqual([{ reconnected: 1 }])
   })
 })

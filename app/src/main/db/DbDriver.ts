@@ -28,6 +28,7 @@ export interface DbDriver {
   commitTransaction(connectionId: string): Promise<void>
   rollbackTransaction(connectionId: string): Promise<void>
   executeParameterized(connectionId: string, sql: string, values: readonly SqlValue[], signal?: AbortSignal): Promise<{ affectedRows: number; insertId: number }>
-  streamRows(connectionId: string, sql: string, values?: readonly SqlValue[], signal?: AbortSignal): AsyncIterable<Record<string, unknown>>
+  streamRows(connectionId: string, sql: string, values?: readonly SqlValue[], signal?: AbortSignal, timeoutSeconds?: number, executionId?: string): AsyncIterable<Record<string, unknown>>
   withTransaction<T>(connectionId: string, operation: (transaction: DbTransaction) => Promise<T>, signal?: AbortSignal): Promise<T>
+  withSavepoint<T>(connectionId: string, operation: () => Promise<T>): Promise<T>
 }
