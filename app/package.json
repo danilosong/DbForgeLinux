@@ -4,6 +4,7 @@
   "private": true,
   "description": "dbForgeLinux desktop client",
   "homepage": "https://github.com/danilosong/DbForgeLinux",
+  "license": "MIT",
   "author": {
     "name": "dbForgeLinux contributors",
     "email": "noreply@github.com"
