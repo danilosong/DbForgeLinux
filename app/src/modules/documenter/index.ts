@@ -1,0 +1,108 @@
+import { mkdir, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
+import type { DatabaseModel, TableModel } from '../schema/model.js'
+
+export type DocumentFormat = 'html' | 'markdown' | 'pdf'
+export interface PdfPrintToPdf { printToPDF(html: string, options?: { printBackground?: boolean; pageSize?: 'A4' | 'Letter' }): Promise<Buffer> }
+export interface DocumenterOptions {
+  title?: string
+  descriptions?: Record<string, string>
+  includeDiagram?: boolean
+  formats?: DocumentFormat[]
+  outputDirectory?: string
+  pdfPrinter?: PdfPrintToPdf
+}
+export interface GeneratedDocumentation { html: string; markdown: string; diagramSvg?: string }
+export interface WrittenDocumentation { html?: string; markdown?: string; pdf?: string; diagram?: string }
+
+export type { DatabaseModel, TableModel }
+
+function escapeHtml(value: unknown): string {
+  return String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+}
+function escapeMarkdown(value: unknown): string { return String(value ?? '').replace(/\\/g, '\\\\').replace(/\|/g, '\\|').replace(/\r?\n/g, '<br>') }
+function slug(value: string): string { return value.toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-|-$/g, '') || 'schema' }
+function description(options: DocumenterOptions, key: string): string { return options.descriptions?.[key] ?? '' }
+
+function viewDependencies(model: DatabaseModel, definition: string): string[] {
+  return objectDependencies(model, definition)
+}
+
+function objectDependencies(model: DatabaseModel, definition: string): string[] {
+  const names = new Set(model.tables.map((table) => table.name))
+  const found = new Set<string>()
+  for (const match of definition.matchAll(/\b(?:FROM|JOIN)\s+(?:`?([\w$]+)`?\.)?`?([\w$]+)`?/gi)) {
+    const name = match[2]
+    if (names.has(name)) found.add(name)
+  }
+  return [...found].sort()
+}
+
+function diagram(model: DatabaseModel): string {
+  const width = 960
+  const boxWidth = 220
+  const boxHeight = Math.max(90, ...model.tables.map((table) => 46 + Math.min(table.columns.length, 7) * 20))
+  const columns = Math.max(1, Math.ceil(Math.sqrt(model.tables.length)))
+  const rows = Math.max(1, Math.ceil(model.tables.length / columns))
+  const height = rows * (boxHeight + 60) + 30
+  const position = new Map(model.tables.map((table, index) => [table.name, { x: 20 + index % columns * (boxWidth + 70), y: 20 + Math.floor(index / columns) * (boxHeight + 60) }]))
+  const edges = model.tables.flatMap((table) => table.foreignKeys.map((fk) => {
+    const source = position.get(table.name); const target = position.get(fk.referencedTable)
+    if (!source || !target) return ''
+    const x1 = source.x + boxWidth / 2; const y1 = source.y + 38
+    const x2 = target.x + boxWidth / 2; const y2 = target.y + 38
+    return `<path d="M ${x1} ${y1} C ${x1} ${y1 - 30}, ${x2} ${y2 - 30}, ${x2} ${y2}" fill="none" stroke="#64748b" stroke-width="1.5" marker-end="url(#arrow)"/>`
+  })).join('')
+  const boxes = model.tables.map((table) => {
+    const { x, y } = position.get(table.name)!
+    const columnsText = table.columns.slice(0, 7).map((column, index) => `<text x="${x + 12}" y="${y + 64 + index * 18}" class="col">${escapeHtml(column.name)}: ${escapeHtml(column.type)}</text>`).join('')
+    return `<g><rect x="${x}" y="${y}" width="${boxWidth}" height="${boxHeight}" rx="7" class="box"/><text x="${x + 12}" y="${y + 25}" class="title">${escapeHtml(table.name)}</text>${columnsText}</g>`
+  }).join('')
+  return `<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Diagrama de tabelas" viewBox="0 0 ${width} ${height}"><defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="#64748b"/></marker></defs><style>.box{fill:#f8fafc;stroke:#334155}.title{font:bold 14px sans-serif;fill:#0f172a}.col{font:11px monospace;fill:#334155}</style>${edges}${boxes}</svg>`
+}
+
+function htmlTable(table: TableModel, options: DocumenterOptions): string {
+  const anchor = `table-${slug(table.name)}`
+  const columns = table.columns.map((column) => `<tr><td>${escapeHtml(column.name)}</td><td><code>${escapeHtml(column.type)}</code></td><td>${column.nullable ? 'Yes' : 'No'}</td><td>${escapeHtml(column.default ?? '')}</td><td>${column.autoIncrement ? 'AUTO_INCREMENT' : ''}</td><td>${escapeHtml(column.comment ?? '')}</td></tr>`).join('')
+  const indexes = table.indexes.map((index) => `<li><strong>${escapeHtml(index.name)}</strong> (${escapeHtml(index.kind)}): ${index.columns.map((column) => escapeHtml(column.name)).join(', ')}</li>`).join('') || '<li>None</li>'
+  const fks = table.foreignKeys.map((fk) => `<li>${escapeHtml(fk.name)}: (${fk.columns.map(escapeHtml).join(', ')}) → ${escapeHtml(fk.referencedDatabase ?? '')}.${escapeHtml(fk.referencedTable)} (${fk.referencedColumns.map(escapeHtml).join(', ')})</li>`).join('') || '<li>None</li>'
+  const checks = table.checks.map((check) => `<li>${escapeHtml(check.name)}: <code>${escapeHtml(check.expression)}</code></li>`).join('') || '<li>None</li>'
+  return `<section id="${anchor}"><h3>Table: ${escapeHtml(table.name)}</h3><p>${escapeHtml(description(options, `table.${table.name}`))}</p><p>${escapeHtml(table.engine ?? '')} ${escapeHtml(table.charset ?? '')} ${escapeHtml(table.collation ?? '')}</p><table><thead><tr><th>Column</th><th>Type</th><th>Nullable</th><th>Default</th><th>Flags</th><th>Comment</th></tr></thead><tbody>${columns}</tbody></table><h4>Indexes</h4><ul>${indexes}</ul><h4>Foreign keys</h4><ul>${fks}</ul><h4>Checks</h4><ul>${checks}</ul></section>`
+}
+
+function markdownTable(table: TableModel, options: DocumenterOptions): string {
+  const lines = [`### Table: ${escapeMarkdown(table.name)}`, '', escapeMarkdown(description(options, `table.${table.name}`)), '', '| Column | Type | Nullable | Default | Comment |', '| --- | --- | --- | --- | --- |']
+  for (const column of table.columns) lines.push(`| ${escapeMarkdown(column.name)} | ${escapeMarkdown(column.type)} | ${column.nullable ? 'Yes' : 'No'} | ${escapeMarkdown(column.default ?? '')} | ${escapeMarkdown(column.comment ?? '')} |`)
+  lines.push('', 'Indexes:', ...table.indexes.map((index) => `- ${escapeMarkdown(index.name)} (${index.kind}): ${index.columns.map((column) => escapeMarkdown(column.name)).join(', ')}`), '', 'Foreign keys:', ...table.foreignKeys.map((fk) => `- ${escapeMarkdown(fk.name)}: ${fk.columns.map(escapeMarkdown).join(', ')} → ${escapeMarkdown(fk.referencedDatabase ?? '')}.${escapeMarkdown(fk.referencedTable)} (${fk.referencedColumns.map(escapeMarkdown).join(', ')})`), '', 'Checks:', ...table.checks.map((check) => `- ${escapeMarkdown(check.name)}: \`${escapeMarkdown(check.expression)}\``), '')
+  return lines.join('\n')
+}
+
+export function generateDocumentation(model: DatabaseModel, options: DocumenterOptions = {}): GeneratedDocumentation {
+  const title = options.title ?? `Database documentation: ${model.name}`
+  const tables = model.tables.map((table) => htmlTable(table, options)).join('\n')
+  const views = model.views.map((view) => `<section id="view-${slug(view.name)}"><h3>View: ${escapeHtml(view.name)}</h3><p>${escapeHtml(description(options, `view.${view.name}`))}</p><p>Dependencies: ${viewDependencies(model, view.definition).map(escapeHtml).join(', ') || 'None'}</p><pre><code>${escapeHtml(view.definition)}</code></pre></section>`).join('\n')
+  const routines = [...model.procedures, ...model.functions].map((routine) => `<section id="routine-${slug(routine.name)}"><h3>${escapeHtml(routine.kind)}: ${escapeHtml(routine.name)}</h3><p>${escapeHtml(description(options, `routine.${routine.name}`) || routine.comment)}</p><p>Parameters: ${escapeHtml(routine.parameters?.join(', ') ?? '')}${routine.returnType ? `; Return: ${escapeHtml(routine.returnType)}` : ''}</p><p>Dependencies: ${objectDependencies(model, routine.definition).map(escapeHtml).join(', ') || 'None'}</p><pre><code>${escapeHtml(routine.definition)}</code></pre></section>`).join('\n')
+  const triggers = model.triggers.map((trigger) => `<li>${escapeHtml(trigger.name)} — ${escapeHtml(trigger.timing)} ${escapeHtml(trigger.event)} ON ${escapeHtml(trigger.table)}; dependencies: ${escapeHtml(trigger.table)}. ${escapeHtml(description(options, `trigger.${trigger.name}`))}: <code>${escapeHtml(trigger.definition)}</code></li>`).join('')
+  const events = model.events.map((event) => `<li>${escapeHtml(event.name)} (${escapeHtml(event.status)}; ${escapeHtml(event.schedule)}); dependencies: ${objectDependencies(model, event.definition).map(escapeHtml).join(', ') || 'None'}; ${escapeHtml(description(options, `event.${event.name}`))}: <code>${escapeHtml(event.definition)}</code></li>`).join('')
+  const tableIndex = model.tables.map((table) => `<li><a href="#table-${slug(table.name)}">${escapeHtml(table.name)}</a></li>`).join('')
+  const viewIndex = model.views.map((view) => `<li><a href="#view-${slug(view.name)}">${escapeHtml(view.name)}</a></li>`).join('')
+  const routineIndex = [...model.procedures, ...model.functions].map((routine) => `<li><a href="#routine-${slug(routine.name)}">${escapeHtml(routine.kind)} ${escapeHtml(routine.name)}</a></li>`).join('')
+  const svg = options.includeDiagram ? diagram(model) : undefined
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(title)}</title><style>body{font:14px sans-serif;max-width:1100px;margin:2rem auto;padding:0 1rem;color:#172033}table{border-collapse:collapse;width:100%;margin:1rem 0}td,th{border:1px solid #cbd5e1;padding:.4rem;text-align:left}th{background:#e2e8f0}section{border-top:1px solid #cbd5e1;padding:1rem 0}pre{white-space:pre-wrap;background:#f1f5f9;padding:1rem}svg{width:100%;height:auto}</style></head><body><h1>${escapeHtml(title)}</h1><p>Database: <strong>${escapeHtml(model.name)}</strong>; charset ${escapeHtml(model.charset)}; collation ${escapeHtml(model.collation)}</p><nav><h2>Index</h2><h3>Tables</h3><ul>${tableIndex}</ul><h3>Views</h3><ul>${viewIndex}</ul><h3>Routines</h3><ul>${routineIndex}</ul></nav>${svg ? `<h2>Diagram</h2>${svg}` : ''}<h2>Tables</h2>${tables}<h2>Views</h2>${views}<h2>Routines</h2>${routines}<h2>Triggers</h2><ul>${triggers}</ul><h2>Events</h2><ul>${events}</ul></body></html>`
+  const md = [`# ${escapeMarkdown(title)}`, '', `Database: **${escapeMarkdown(model.name)}**  `, `Charset: ${escapeMarkdown(model.charset ?? '')}; Collation: ${escapeMarkdown(model.collation ?? '')}`, '', '## Index', '', '### Tables', ...model.tables.map((table) => `- [${escapeMarkdown(table.name)}](#table-${slug(table.name)})`), '', '### Views', ...model.views.map((view) => `- [${escapeMarkdown(view.name)}](#view-${slug(view.name)})`), '', '## Tables', '', ...model.tables.map((table) => markdownTable(table, options)), '## Views', '', ...model.views.map((view) => `### View: ${escapeMarkdown(view.name)}\n\n${escapeMarkdown(description(options, `view.${view.name}`))}\n\nDependencies: ${viewDependencies(model, view.definition).map(escapeMarkdown).join(', ')}\n\n\`\`\`sql\n${view.definition}\n\`\`\``), '## Routines', '', ...[...model.procedures, ...model.functions].map((routine) => `### ${routine.kind}: ${escapeMarkdown(routine.name)}\n\n${escapeMarkdown(description(options, `routine.${routine.name}`) || routine.comment)}\n\nDependencies: ${objectDependencies(model, routine.definition).map(escapeMarkdown).join(', ')}\n\n\`\`\`sql\n${routine.definition}\n\`\`\``), '## Triggers', '', ...model.triggers.map((trigger) => `- ${escapeMarkdown(trigger.name)} (${trigger.timing} ${trigger.event} on ${escapeMarkdown(trigger.table)}); dependency: ${escapeMarkdown(trigger.table)}. ${escapeMarkdown(description(options, `trigger.${trigger.name}`))}: ${escapeMarkdown(trigger.definition)}`), '', '## Events', '', ...model.events.map((event) => `- ${escapeMarkdown(event.name)} (${escapeMarkdown(event.status)}; ${escapeMarkdown(event.schedule)}); dependencies: ${objectDependencies(model, event.definition).map(escapeMarkdown).join(', ')}; ${escapeMarkdown(description(options, `event.${event.name}`))}: ${escapeMarkdown(event.definition)}`), ''].join('\n')
+  return { html, markdown: md, ...(svg ? { diagramSvg: svg } : {}) }
+}
+
+export async function writeDocumentation(model: DatabaseModel, options: DocumenterOptions & { outputDirectory: string }): Promise<WrittenDocumentation> {
+  const formats = options.formats ?? ['html', 'markdown']
+  if (formats.includes('pdf') && !options.pdfPrinter) throw new Error('Geração PDF exige um PdfPrintToPdf injetado.')
+  const generated = generateDocumentation(model, options)
+  await mkdir(options.outputDirectory, { recursive: true })
+  const base = slug(model.name)
+  const output: WrittenDocumentation = {}
+  if (formats.includes('html')) { output.html = join(options.outputDirectory, `${base}.html`); await writeFile(output.html, generated.html, 'utf8') }
+  if (formats.includes('markdown')) { output.markdown = join(options.outputDirectory, `${base}.md`); await writeFile(output.markdown, generated.markdown, 'utf8') }
+  if (formats.includes('pdf')) { output.pdf = join(options.outputDirectory, `${base}.pdf`); await writeFile(output.pdf, await options.pdfPrinter!.printToPDF(generated.html, { printBackground: true, pageSize: 'A4' })) }
+  if (options.includeDiagram && generated.diagramSvg) { output.diagram = join(options.outputDirectory, `${base}.svg`); await writeFile(output.diagram, generated.diagramSvg, 'utf8') }
+  return output
+}
