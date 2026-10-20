@@ -4,12 +4,14 @@ import type { ConnectionRecord } from '../../../../../shared/contracts.js'
 import type { SchemaCompareResult } from '../../../../../shared/contracts/schema-compare.js'
 import type { SchemaDifference } from '../../../../../modules/schema/model.js'
 import { createTable } from '../../../../../modules/schema/ddl.js'
+import { usePanelConnection } from '../registry'
 
 type Filter = 'all' | 'different' | 'added' | 'removed'
 const keyOf = (item: SchemaDifference): string => `${item.kind}:${item.object}:${item.change}`
 const splitSql = (script: string): string[] => script.split(/;\s*(?:\r?\n|$)/).map((part) => part.trim()).filter(Boolean).map((part) => `${part};`)
 
 export default function Panel(): React.JSX.Element {
+  const activeConnection = usePanelConnection()
   const [records, setRecords] = useState<ConnectionRecord[]>([])
   const [source, setSource] = useState(''); const [target, setTarget] = useState('')
   const [sourceDb, setSourceDb] = useState(''); const [targetDb, setTargetDb] = useState('')
@@ -34,7 +36,7 @@ export default function Panel(): React.JSX.Element {
     return stateMatch && item.object.toLowerCase().includes(search.toLowerCase())
   }) ?? [], [result, filter, search])
 
-  useEffect(() => { void window.dbforge.getConnections().then((items) => { setRecords(items); setSource(items[0]?.id ?? ''); setTarget(items[1]?.id ?? items[0]?.id ?? '') }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar conexões.')) }, [])
+  useEffect(() => { void window.dbforge.getConnections().then((items) => { const selected = items.find((item) => item.id === activeConnection?.recordId || item.name === activeConnection?.name)?.id ?? items[0]?.id ?? ''; setRecords(items); setSource(selected); setTarget(selected) }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar conexões.')) }, [activeConnection?.name, activeConnection?.recordId])
   function invalidate(): void { if (result) { setResult(null); setMessage('Resultados desatualizados — Compare novamente.') } }
   const label = (id: string): string => records.find((record) => record.id === id)?.name ?? id
   function markDefaults(next: SchemaCompareResult): void { setSelected(new Set(next.differences.filter((item) => includeDrops || item.change !== 'removed').map(keyOf))) }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ConnectionRecord } from '../../../../../shared/contracts.js'
 import type { ExportFormat, ImportFormat, ImportMode } from '../../../../../modules/data-export-import/types.js'
 import type { ImportExportTemplate } from '../../../../../shared/contracts/import-export.js'
+import { usePanelConnection } from '../registry'
 
 type Direction = 'export' | 'import'
 const exportFormats: Array<{ id: ExportFormat; title: string; description: string }> = [
@@ -24,6 +25,7 @@ const exportSteps = ['Format', 'Source', 'Options', 'Columns', 'Destination & pr
 const importSteps = ['Source', 'Format & options', 'Destination', 'Mapping', 'Mode & options', 'Preview & validation', 'Run', 'Report']
 
 export default function Panel(): React.JSX.Element {
+  const activeConnection = usePanelConnection()
   const [records, setRecords] = useState<ConnectionRecord[]>([]); const [connection, setConnection] = useState('')
   const [direction, setDirection] = useState<Direction>('export'); const [exportFormat, setExportFormat] = useState<ExportFormat>('csv'); const [importFormat, setImportFormat] = useState<ImportFormat>('csv')
   const [query, setQuery] = useState('SELECT * FROM `table_name` LIMIT 1000'); const [table, setTable] = useState('')
@@ -42,7 +44,7 @@ export default function Panel(): React.JSX.Element {
     if (step === 4) return mode === 'append' || Boolean(keys.trim())
     return true
   }, [direction, step, query, sourceFile, table, mapping, mode, keys])
-  useEffect(() => { void window.dbforge.getConnections().then((items) => { setRecords(items); setConnection(items[0]?.id ?? '') }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar conexões.')); void window.dbforge.listImportExportTemplates().then(setTemplates).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar templates.')) }, [])
+  useEffect(() => { void window.dbforge.getConnections().then((items) => { const selected = items.find((item) => item.id === activeConnection?.recordId || item.name === activeConnection?.name)?.id ?? items[0]?.id ?? ''; setRecords(items); setConnection(selected) }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar conexões.')); void window.dbforge.listImportExportTemplates().then(setTemplates).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar templates.')) }, [activeConnection?.name, activeConnection?.recordId])
   useEffect(() => window.dbforge.onImportExportProgress(jobId, setProgress), [jobId])
 
   async function chooseSource(): Promise<void> {

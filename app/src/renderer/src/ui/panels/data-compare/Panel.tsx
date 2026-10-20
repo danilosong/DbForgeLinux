@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ConnectionRecord } from '../../../../../shared/contracts.js'
 import type { DataCompareResult } from '../../../../../shared/contracts/data-compare.js'
 import type { DataCompareDifference } from '../../../../../modules/data-compare/types.js'
+import { usePanelConnection } from '../registry'
 
 type Filter = 'all' | 'different' | 'source-only' | 'target-only'
 const keyOf = (row: DataCompareDifference): string => JSON.stringify(row.key)
@@ -12,6 +13,7 @@ const statementFor = (row: DataCompareDifference, result: DataCompareResult): st
 }
 
 export default function Panel(): React.JSX.Element {
+  const activeConnection = usePanelConnection()
   const [records, setRecords] = useState<ConnectionRecord[]>([]); const [source, setSource] = useState(''); const [target, setTarget] = useState('')
   const [sourceDb, setSourceDb] = useState(''); const [targetDb, setTargetDb] = useState(''); const [sourceTable, setSourceTable] = useState(''); const [targetTable, setTargetTable] = useState('')
   const [keys, setKeys] = useState('id'); const [columns, setColumns] = useState(''); const [allowDeletes, setAllowDeletes] = useState(false)
@@ -24,7 +26,7 @@ export default function Panel(): React.JSX.Element {
   const selectedStatements = useMemo(() => selectedRows.flatMap((row) => { const statement = result ? statementFor(row, result) : undefined; return statement ? [statement] : [] }).join('\n\n'), [selectedRows, result])
   const destructive = selectedRows.some((row) => row.kind === 'target-only')
 
-  useEffect(() => { void window.dbforge.getConnections().then((items) => { setRecords(items); setSource(items[0]?.id ?? ''); setTarget(items[1]?.id ?? items[0]?.id ?? '') }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar conexões.')) }, [])
+  useEffect(() => { void window.dbforge.getConnections().then((items) => { const selected = items.find((item) => item.id === activeConnection?.recordId || item.name === activeConnection?.name)?.id ?? items[0]?.id ?? ''; setRecords(items); setSource(selected); setTarget(selected) }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar conexões.')) }, [activeConnection?.name, activeConnection?.recordId])
   function invalidate(): void { if (result) { setResult(null); setSelected(new Set()); setMessage('Resultados desatualizados — Compare novamente.') } }
   async function operate(sync: boolean): Promise<void> {
     const keyNames = keys.split(',').map((part) => part.trim()).filter(Boolean); const columnNames = columns.split(',').map((part) => part.trim()).filter(Boolean)

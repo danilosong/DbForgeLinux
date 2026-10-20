@@ -23,6 +23,12 @@
   --code-comment: #8c8c8c;
   --code-function: #7a3e9d;
   --grid-null: #8a909a;
+  --surface: var(--bg-surface);
+  --surface-secondary: var(--bg-surface-alt);
+  --surface-raised: var(--bg-surface-alt);
+  --muted: var(--text-secondary);
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, var(--bg-surface));
+  --status-error: var(--error);
   font-family: system-ui, Cantarell, 'Noto Sans', Ubuntu, sans-serif;
   font-size: 13px;
   line-height: 18px;
@@ -244,4 +250,13 @@ th { position: sticky; top: 0; background: var(--bg-surface-alt); }
   .connection-page-content { padding: 10px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
-.tool-panel-backdrop{position:fixed;inset:0;z-index:20;background:#0008;display:grid;place-items:center}.tool-panel-dialog{position:relative;width:min(720px,80vw);min-height:280px;padding:28px;background:var(--surface,#fff);border:1px solid var(--border,#888);border-radius:8px;box-shadow:0 18px 60px #0005}.tool-panel-close{position:absolute;right:12px;top:10px;border:0;background:transparent;font-size:24px;cursor:pointer}.tool-panel h2{margin-top:0}
+.panel-dialog-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 24px; background: rgb(0 0 0 / .34); }
+:root[data-theme='dark'] .panel-dialog-backdrop { background: rgb(0 0 0 / .58); }
+.panel-dialog { position: relative; display: flex; width: min(960px, calc(100vw - 48px)); max-height: min(800px, calc(100vh - 48px)); min-height: min(280px, calc(100vh - 48px)); overflow: hidden; flex-direction: column; color: var(--text); background: var(--bg-surface); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 8px 24px rgb(0 0 0 / .25); }
+:root[data-theme='dark'] .panel-dialog { box-shadow: 0 8px 24px rgb(0 0 0 / .5); }
+.panel-dialog:focus { outline: none; }
+.panel-dialog > .tool-panel { min-height: 0; flex: 1; overflow: auto; padding: 24px; color: var(--text); background: var(--bg-surface); }
+.panel-dialog-close { position: absolute; z-index: 2; top: 8px; right: 8px; display: grid; width: 28px; min-width: 28px; height: 28px; place-items: center; padding: 0; color: var(--text-secondary); background: transparent; border-color: transparent; font-size: 20px; line-height: 1; }
+.panel-dialog-close:hover:not(:disabled) { color: var(--text); background: var(--bg-hover); }
+.panel-dialog-close:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 1px; }
+.tool-panel h2 { margin-top: 0; padding-right: 30px; color: var(--text); }
