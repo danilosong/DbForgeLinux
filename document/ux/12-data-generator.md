@@ -2,10 +2,10 @@
 
 Reusa `01-shell.md`, `06` (WizardDialog, ProgressList, ReportView), `04` (EditableGrid). **[C]** CONFIRMADO / **[I]** INFERIDO.
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Data Generator) e https://www.devart.com/dbforge/mysql/data-generator/. Citações por redirecionamento; páginas individuais não abertas.
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Data Generator) e https://www.devart.com/dbforge/mysql/data-generator/. Citações por redirecionamento; páginas individuais não abertas. Fidelidade REA: rótulos conferidos contra REA ui-text.
 
 ## 1. Entrada
-Explorer > database/tabela > **Generate Test Data…** (menu Tools > New Data Generation [I]). Abre documento em aba "Data Generator" (não modal), com assistente inicial de seleção.
+Explorer > database/tabela > **Generate Test Data…** (comandos New Data Generation... / Open Data Generation..., projeto `*.dgen` [C: REA ui-text]). Abre documento em aba "Data Generator" (não modal), com assistente inicial de seleção.
 
 ## 2. Layout do documento
 ```
@@ -56,3 +56,28 @@ EditableGrid, TableCheckTree, GeneratorPicker, GeneratorParamsDialog (com previe
 - Gerar 10k linhas em 3 tabelas relacionadas respeitando FK, unique e null %, em banco ou script.
 - Preview reflete mudanças; configuração salvável e reaplicável; estados e confirmação em Prod.
 - Claro/escuro e teclado completos.
+
+## Textos de interface (referência)
+Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).
+
+| Rótulo/mensagem real | Onde usa | Chave i18n sugerida |
+|---|---|---|
+| Data Generator | Título do documento | `dg.title` |
+| New Data Generation... / Open Data Generation... | Comandos de projeto (`*.dgen`) | `dg.cmd.new` / `dg.cmd.open` |
+| Choose connection and database for data generation. | Passo de origem | `dg.step.source` |
+| Truncate table data before the data generation process. | Opção de modo | `dg.opt.truncate` |
+| Generate test data and instantly populate your database | Destino: gravar no banco | `dg.out.populate` |
+| Open the data population script in the internal editor | Destino: script no editor | `dg.out.script` |
+| Data Generation. Populating ({0}%): writing changes to {1}. | Progresso | `dg.progress.populate` |
+| Data Generation. Generating script ({0}%): writing changes to {1}. | Progresso | `dg.progress.script` |
+| Data population {0} done. | Log de conclusão | `dg.log.done` |
+| An error occurred during the data generation process: '{0}' | Erro | `dg.err.generic` |
+| Column '{0}' excluded from data generation. | Aviso por coluna | `dg.warn.colExcluded` |
+| Data Generator cannot be created for the '{0}' foreign key column. | Erro de FK | `dg.err.fk` |
+| The '{0}' column of the '{1}' table does not contain a data generator. | Erro de coluna sem generator | `dg.err.noGenerator` |
+| The {0} table has circular foreign key self-references... cannot resolve. | Erro de ciclo | `dg.err.circular` |
+| A circular dependency has been detected. To populate data, enable the 'Disable foreign keys' option. | Dica de ciclo | `dg.hint.disableFk` |
+| The generator selected may generate improper values due to the CHECK constraint. | Aviso de CHECK | `dg.warn.check` |
+| The specified number of rows requires a significant amount of disk space. | Aviso de espaço | `dg.warn.disk` |
+| Selected tables have errors and data generation may fail. Check settings. | Aviso antes de gerar | `dg.warn.tables` |
+| Save Generator As... / Insert data generator | Gerador customizado | `dg.cmd.saveGen` |

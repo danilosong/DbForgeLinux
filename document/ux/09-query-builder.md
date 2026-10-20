@@ -1,5 +1,7 @@
 # UX 09 — Query Builder
 
+> Fidelidade REA: rótulos conferidos contra REA ui-text (menus, joins, subqueries, mensagens).
+
 Reusa `01-shell.md` (tokens/componentes), `03` (DataGrid, CodeEditor). Legenda: **[C]** CONFIRMADO em doc pública; **[I]** INFERIDO.
 
 **Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (seção SQL Development > Query Builder) e https://www.devart.com/dbforge/mysql/studio/query-builder.html. Nota: a busca web retornou resumos com citações via redirecionamento; as páginas exatas não foram abertas uma a uma. Itens marcados [C] constam dos resumos; o restante é [I] e deve ser conferido contra o produto.
@@ -34,8 +36,8 @@ Três visões: **Diagram**, **Text** (SQL gerado, editável — edição manual 
 ## 4. Abas inferiores
 - **Selection:** grid (✓ | Expression/Column | Alias | Aggregate (None/SUM/COUNT/AVG/MIN/MAX/COUNT DISTINCT) | Sort | Sort order | Group) [C agregados]. Reordenar por arrastar; "Distinct" e "Top/Limit N" como controles acima.
 - **Where / Having:** lista de condições com botão **+** verde [C]: Coluna | Operador (=, <>, >, <, >=, <=, LIKE, IN, BETWEEN, IS NULL, NOT…) | Valor (literal, parâmetro `?`/`@var`, outra coluna) | conector AND/OR; grupos com parênteses (recuo por arrastar) [I]. Árvore de condições alternativa em modo avançado [I].
-- **Group By / Order By:** grids simples [I].
-- **Subqueries:** subconsulta como tabela derivada ou em condição [C]: botão "Add Subquery" abre sub-canvas em aba aninhada com breadcrumb `Main > Sub1`; CTE (MySQL 8+) [I].
+- **Group By / Order By:** grids simples; "Group By", "Distinct" e "Aggregate" existem como rótulos reais [C: REA ui-text]; Order By como aba [I].
+- **Subqueries:** subconsulta como tabela derivada ou em condição [C]: botão "Create Subquery" (rótulos reais "Create Subquery"/"Edit SubQuery") [C: REA ui-text] abre sub-canvas em aba aninhada com breadcrumb `Main > Sub1`; CTE (MySQL 8+) [I].
 - **INSERT/UPDATE/DELETE:** modo selecionado em [Statement ▾]; UPDATE: grid de SET (coluna = valor); INSERT: valores/ SELECT; DELETE: só WHERE. Execução destrutiva sem WHERE exige confirmação (regra 02/03).
 
 ## 5. Estados
@@ -62,3 +64,30 @@ Canvas (pan/zoom/seleção), TableCard, JoinLine/JoinDialog, ConditionRow/Condit
 - Edição no texto sincroniza com o diagrama (ou avisa).
 - Execução mostra dados na visão Data; INSERT/UPDATE/DELETE gerados e protegidos.
 - Claro/escuro, teclado, estados loading/erro/sucesso.
+
+## Textos de interface (referência)
+Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).
+
+| Rótulo/mensagem real | Onde usa | Chave i18n sugerida |
+|---|---|---|
+| Query Builder | Título da aba/janela | `qb.title` |
+| Design Query | Comando de abertura do builder | `qb.designQuery` |
+| Add Tables/Views / Add Table | Toolbar/Add Table | `qb.addTables / qb.addTable` |
+| Add Output Column / Delete Output Column | Aba Selection | `qb.selection.add / qb.selection.delete` |
+| Aggregate / Aggregate functions | Coluna da grid Selection | `qb.selection.aggregate` |
+| Distinct | Controle Selection | `qb.selection.distinct` |
+| Group By | Aba Group By | `qb.groupBy` |
+| Add Condition | Botão +, Where/Having | `qb.cond.add` |
+| Criteria: | Grid de condições | `qb.cond.criteria` |
+| Add Join Condition / Drop Join Condition | Menu da linha de join | `qb.join.addCond / qb.join.dropCond` |
+| Change Join Type / Drop Join | Menu da linha de join | `qb.join.changeType / qb.join.drop` |
+| A join with these tables already exists | Erro ao criar join duplicado | `qb.err.joinExists` |
+| Can not add condition to natural join | Erro de condição | `qb.err.naturalJoinCond` |
+| Create Subquery / Edit SubQuery | Menu de subconsulta | `qb.sub.create / qb.sub.edit` |
+| Click to open subquery | Tooltip no cartão derivado | `qb.sub.open` |
+| Asterisk cannot be used in subqueries without a function. | Erro de validação | `qb.err.asteriskSubquery` |
+| Alias cannot be empty | Erro de alias | `qb.err.aliasEmpty` |
+| Only SELECT, INSERT, UPDATE or DELETE statement supported in Query Builder. | Banner ao abrir SQL não suportado | `qb.err.stmtUnsupported` |
+| Query Builder doesn't support building more than one statement in a script. | Banner ao abrir script | `qb.err.multiStmt` |
+| It is impossible to open Query Builder because the query text is invalid (or edition limited). | Banner de SQL inválido | `qb.err.cannotOpen` |
+| Qualify column name using table alias | Opção de geração de SQL | `qb.opt.qualifyAlias` |

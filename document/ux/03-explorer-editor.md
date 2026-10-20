@@ -1,5 +1,8 @@
 # UX 03 — Database Explorer, Editor SQL e Grid de resultados
 
+**Fidelidade REA:** rótulos conferidos contra REA ui-text. **[C]** (REA ui-text): Database Explorer, SQL Editor, New SQL, Output, Error List, Document Outline, Comment Selection, Find, Filter..., Refresh, Rename..., Properties..., Fetch Limit:, Fetching data..., "{0} records fetched". Atalhos **[C] (REA shortcuts)**: Execute = F5/F9/Ctrl+F5/Ctrl+E; Execute Current = F8/F4/Alt+F9; Format Document = Ctrl+K Ctrl+D; Comment = Ctrl+/ e Ctrl+K C; Go to line = Ctrl+G; Find = Ctrl+F; Complete = Ctrl+Space; Go to Definition = F12; New SQL = Ctrl+N. Atalhos de Ctrl+Shift+Enter, Shift+F5, Ctrl+Alt+PgDn etc. são **[I]** do clone.
+
+
 Depende de `01-shell.md` (tokens/componentes) e `02-conexoes.md` (estados de conexão).
 
 ## 1. Database Explorer
@@ -160,3 +163,34 @@ TreeView (virtualizado, lazy, type-ahead), TreeNodeStatus, ContextMenu, CodeEdit
 - Grid exibe todos os tipos da §4.2, ordena, copia em TSV/CSV/JSON, e lida com 100k linhas sem congelar.
 - Erros de SQL levam o cursor à linha/coluna e aparecem em Messages e Error List.
 - Claro/escuro idênticos em funcionalidade; navegação completa por teclado.
+
+## Textos de interface (referência)
+Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).
+
+| Rótulo/mensagem real | Onde usa | Chave i18n sugerida |
+|---|---|---|
+| Database Explorer | Título do painel da árvore | `explorer.title` |
+| SQL Editor | Título/tipo do documento | `editor.title` |
+| New SQL | Botão/menu | `editor.newSql` |
+| Execute | Botão/menu do editor | `editor.execute` |
+| Stop | Botão (cancelar execução) | `editor.stop` |
+| Format | Comando de formatação | `editor.format` |
+| Comment Selection | Comando do editor | `editor.commentSelection` |
+| Find / Find in Database Explorer | Busca no editor/Explorer | `explorer.find` |
+| Filter... | Menu do Explorer | `explorer.filter` |
+| Refresh | Menu/Toolbar | `common.refresh` |
+| Rename... / Properties... | Menu de contexto do Explorer | `explorer.ctx.rename` |
+| Output | Aba/painel de saída | `editor.output` |
+| Error List | Painel de erros | `editor.errorList` |
+| Document Outline | Painel de estrutura | `editor.outline` |
+| Fetching data... | Estado loading do grid | `grid.state.fetching` |
+| {0} records fetched | Rodapé do grid | `grid.footer.fetched` |
+| Fetch Limit: | Controle de limite | `grid.fetchLimit` |
+| in {0:0.000}s [{1:0.000}s exec, {2:0.000}s fetch] | Rodapé: tempos | `grid.footer.timing` |
+| The result set has exceeded the maximum allowed number of {0} rows. Some records won't be displayed | Aviso de resultado muito grande | `grid.warn.tooLarge` |
+| Cannot generate execution plan for current statement. | Erro de plano | `editor.plan.error` |
+| Do you want to stop executing? | Confirmação de parada | `editor.confirm.stop` |
+| The source has been modified. Do you want to save before execution? | Confirmação antes de executar | `editor.confirm.saveBeforeRun` |
+| Do you want to stop batch execution or ignore the error and continue? | Erro em lote | `editor.batch.errorChoice` |
+| Another refresh operation is in progress. Please try later. | Refresh concorrente | `explorer.refresh.busy` |
+| Copy / Paste / Select All | Menu de contexto do grid/editor | `common.copy / common.paste / common.selectAll` |

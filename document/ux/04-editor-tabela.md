@@ -1,5 +1,8 @@
 # UX 04 — Table Editor
 
+**Fidelidade REA:** rótulos conferidos contra REA ui-text. **[C]** (REA ui-text): Edit Table, Columns, Foreign Keys, Check Constraints, Triggers, Options:, Engine:, Character set:, Collation:, Allow Nulls, Auto Increment, Add Column, Add Primary Key/Foreign Key/Check Constraint/Unique Key, Referenced Table:, Referenced Columns:, Apply Changes, Discard Changes. Validação "A column name field cannot be empty." **[C]**. Atalho Properties = F4 **[C] (REA shortcuts)**; DeleteColumn = Delete **[C]**. Nomes de páginas Indexes/Partitions/DDL, Preview DDL e atalhos Ctrl+Alt+D permanecem **[I]** (ver `fidelidade-parts/A.md`).
+
+
 Reusa tokens/componentes de `01-shell.md`; abre como documento em aba (ícone tabela). Entrada: Explorer > Tabela > "Edit Table" (Enter/F4 com foco na tabela) ou Create > Table (modo novo).
 
 ## 1. Layout
@@ -115,3 +118,34 @@ SideNavTabs, EditableGrid (com validação por célula), MasterDetailList (lista
 - Validações listadas bloqueiam o Apply com mensagem inline.
 - Apply mostra SQL, avisos destrutivos e tem estados loading/sucesso/erro; falha não perde pendências.
 - Funciona em claro/escuro e 100% por teclado.
+
+## Textos de interface (referência)
+Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).
+
+| Rótulo/mensagem real | Onde usa | Chave i18n sugerida |
+|---|---|---|
+| Edit Table | Menu/título da aba | `tbl.edit` |
+| Add Column | Toolbar/menu | `tbl.col.add` |
+| Columns | Página | `tbl.page.columns` |
+| Foreign Keys | Página | `tbl.page.fks` |
+| Check Constraints | Página | `tbl.page.checks` |
+| Triggers | Página | `tbl.page.triggers` |
+| Engine: | Campo/Options | `tbl.field.engine` |
+| Character set: / Collation: | Campos de coluna/tabela | `tbl.field.charset` |
+| Allow Nulls | Coluna da grade | `tbl.col.allowNull` |
+| Auto Increment | Coluna da grade | `tbl.col.autoInc` |
+| Add Primary Key | Ação | `tbl.pk.add` |
+| Add Foreign Key | Ação | `tbl.fk.add` |
+| Add Check Constraint | Ação | `tbl.check.add` |
+| Add Unique Key | Ação | `tbl.unique.add` |
+| Referenced Table: / Referenced Columns: | Detalhe de FK | `tbl.fk.refTable` |
+| Apply Changes | Botão da toolbar | `tbl.apply` |
+| Discard Changes | Botão da toolbar | `tbl.discard` |
+| A column name field cannot be empty. | Validação de coluna | `tbl.error.colNameEmpty` |
+| Do you want to drop column '{0}'? | Confirmação de exclusão | `tbl.confirm.dropColumn` |
+| Do you want to drop index '{0}'? | Confirmação de exclusão | `tbl.confirm.dropIndex` |
+| Do you want to drop constraint '{0}'? | Confirmação de exclusão | `tbl.confirm.dropConstraint` |
+| {1} table engine does not support foreign keys. | Aviso de engine | `tbl.warn.fkEngine` |
+| A reference table is not found for the [{0}] foreign key. | Erro de FK | `tbl.error.fkRefMissing` |
+| Document '{0}' was modified. Do you want to save changes? | Fechar com pendências | `tbl.confirm.closeDirty` |
+| Cannot currently modify this text in the editor. It is read-only. | Estado somente leitura | `common.readOnly` |

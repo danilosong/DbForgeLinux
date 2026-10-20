@@ -1,5 +1,7 @@
 # UX 07 — Schema Compare e Data Compare
 
+> Fidelidade REA: rótulos conferidos contra REA ui-text (estados Only in Source/Target, Different, Identical, avisos de risco). Os nomes do diálogo de confirmação em 3 blocos e as opções de script são decisões de UX; ver `fidelidade-parts/B.md`.
+
 Reusa `01-shell.md`, `03` (CodeEditor, TreeView, DataGrid) e `06` (WizardDialog, ProgressList). Entrada: menu Tools > New Schema Comparison / New Data Comparison; Explorer > database > Compare With…. Abre documento em aba ("Schema Comparison 1").
 
 ## 1. Documento Schema Compare
@@ -99,3 +101,37 @@ ConnectionDbPicker, DiffTree (checkbox tri-state, filtros por chip), SideBySideD
 - Synchronize só executa após confirmação com resumo e riscos; backup padrão; falha parcial é reportada com o estado exato.
 - Data Compare exige chave, mostra diferenças por linha e sincroniza em transação.
 - Estados loading/erro/sucesso/obsoleto cobertos; claro/escuro; teclado completo.
+
+## Textos de interface (referência)
+Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).
+
+| Rótulo/mensagem real | Onde usa | Chave i18n sugerida |
+|---|---|---|
+| New Schema Comparison... / New Data Comparison... | Menu Compare | `cmp.menu.newSchema / cmp.menu.newData` |
+| Compare | Botão da toolbar | `cmp.compare` |
+| Generate Script | Botão da toolbar | `cmp.generateScript` |
+| Data Synchronization / Synchronize | Ação de sincronização | `cmp.sync` |
+| Only in Source / Only in Target | Filtros/contadores de estado | `cmp.state.onlySource / cmp.state.onlyTarget` |
+| Different / Identical | Filtros/contadores de estado | `cmp.state.different / cmp.state.identical` |
+| Different records / Identical records | Contadores no Data Compare | `cmp.data.different / cmp.data.identical` |
+| Only in source records / Only in target records | Contadores no Data Compare | `cmp.data.onlySource / cmp.data.onlyTarget` |
+| Source / Destination connection: ; Destination database: | Seleção de origem/destino | `cmp.dest.connection / cmp.dest.database` |
+| Ignore case / Ignore whitespaces | Options > Comparison | `cmp.opt.ignoreCase / cmp.opt.ignoreWhitespaces` |
+| Include in Synchronization | Coluna de checkbox | `cmp.include` |
+| Change Synchronization Direction | Ação por linha/objeto | `cmp.direction` |
+| {0} of {1} objects included in synchronization | Contador no rodapé | `cmp.summary.included` |
+| No objects selected to synchronize. | Erro de validação | `cmp.err.noneSelected` |
+| Comparison failed. | Banner de erro | `cmp.err.failed` |
+| Cannot compare {0} with {1} on {2}. | Erro de objetos incompatíveis | `cmp.err.cannotCompare` |
+| Dropping columns can lead to data loss. Do you wish to continue? | Confirmação de risco | `cmp.risk.dropColumns` |
+| Possible data loss in the column "{0}" when converting from type "{1}" to "{2}". | Lista de riscos | `cmp.risk.typeConversion` |
+| A foreign key might not recover after synchronization. | Aviso de risco | `cmp.risk.fk` |
+| Please backup your target database before running this script | Aviso no script gerado | `cmp.warn.backupBeforeRun` |
+| Backup the target database | Opção do diálogo de sync | `cmp.opt.backupTarget` |
+| Synchronization complete: {0} succeeded, {1} failed | Resultado/Output | `cmp.result.summary` |
+| Refresh comparison results after successful synchronization | Opção (re-compare) | `cmp.opt.refreshAfterSync` |
+| Received data is outdated and cannot be synchronized. Refresh the document. | Banner de resultado obsoleto | `cmp.stale` |
+| Go to next difference / Go to previous difference | Toolbar/atalhos | `cmp.nextDiff / cmp.prevDiff` |
+| Comparison Key; Columns in Comparison | Mapeamento do Data Compare | `cmp.data.key / cmp.data.columns` |
+| {0} rows compared | Progresso do Data Compare | `cmp.data.progress` |
+| Generate script without updating database | Opção de saída | `cmp.out.scriptOnly` |

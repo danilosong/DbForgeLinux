@@ -2,10 +2,10 @@
 
 Reusa `01-shell.md` (tokens, Dialog, FormField, SideNavTabs) e `02`. **[C]** CONFIRMADO / **[I]** INFERIDO.
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Tools > Options: Environment, Text Editor, SQL Formatting, Keyboard, Fonts and Colors, Code Completion) e https://www.devart.com/dbforge/mysql/studio/. Citação da busca (resumo): Options é acessível em **Tools > Options** [C] e configura formatação de código, comportamento do ambiente, atalhos, fontes/cores, autocomplete e timeouts [C]. Detalhes por página abaixo são [I] salvo indicação. Páginas individuais não abertas.
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Tools > Options: Environment, Text Editor, SQL Formatting, Keyboard, Fonts and Colors, Code Completion) e https://www.devart.com/dbforge/mysql/studio/. Citação da busca (resumo): Options é acessível em **Tools > Options** [C] e configura formatação de código, comportamento do ambiente, atalhos, fontes/cores, autocomplete e timeouts [C]. Detalhes por página abaixo são [I] salvo indicação. Páginas individuais não abertas. Fidelidade REA: rótulos conferidos contra REA ui-text.
 
 ## 1. Diálogo Options
-Entrada: Tools > Options… (**Ctrl+,**) [C menu; atalho I]. Modal 860x600 (min 760x520), redimensionável. Layout: **árvore de categorias** à esquerda (220px) + busca no topo da árvore ("Buscar opções…" filtra e destaca páginas/campos; sem resultados: "Nada encontrado") + painel de página à direita; rodapé: [Restore Defaults (página)] à esquerda, [OK] [Cancel] [Apply] à direita. Alterações aplicam ao [Apply]/[OK]; **pré-visualização ao vivo** para tema, fonte e formatação (painel de amostra). Marca "•" na categoria com alterações pendentes. Cancelar com alterações → confirma. Indicador "modificado" (ponto âmbar) ao lado do campo diferente do padrão com botão ↺ por campo. Configurações em JSON em `$XDG_CONFIG_HOME/dbforgelinux/settings.json`; botões [Import…] [Export…] [Open settings file].
+Entrada: Tools > Options… (**Ctrl+,**) [C menu; atalho I]; categorias "Environment", "Text Editor", "Data Editor" [C REA ui-text]. Modal 860x600 (min 760x520), redimensionável. Layout: **árvore de categorias** à esquerda (220px) + busca no topo da árvore ("Buscar opções…" filtra e destaca páginas/campos; sem resultados: "Nada encontrado") + painel de página à direita; rodapé: [Restore Defaults (página)] à esquerda, [OK] [Cancel] [Apply] à direita. Alterações aplicam ao [Apply]/[OK]; **pré-visualização ao vivo** para tema, fonte e formatação (painel de amostra). Marca "•" na categoria com alterações pendentes. Cancelar com alterações → confirma. Indicador "modificado" (ponto âmbar) ao lado do campo diferente do padrão com botão ↺ por campo. Configurações em JSON em `$XDG_CONFIG_HOME/dbforgelinux/settings.json`; botões [Import…] [Export…] [Open settings file].
 
 Árvore:
 ```
@@ -36,7 +36,7 @@ Idioma da UI: Auto, English, Português (Brasil), Español… (carregado de cat�
 Padrão de docks, auto-ocultar, restaurar layout padrão [Reset Layout]; posição do painel de resultados (abaixo/direita); abas: posição (topo/baixo), mostrar ícones/fechar, limite de abas antes de overflow, abrir novo documento ao lado.
 ### Startup / Files & Backups
 Abrir último workspace/Start Page/vazio; pasta padrão de scripts (`~/Documents/dbForgeLinux`); auto-save e backup de rascunhos; encoding padrão (UTF-8), fim de linha (LF); preservar BOM.
-### Text Editor > General / Fonts / Syntax Colors [C fonts/colors]
+### Text Editor > General / Fonts / Syntax Colors [C fonts/colors; "Text Editor" e campos "Font Name"/"Font Size" REA ui-text]
 General: números de linha, folding, minimap, guias de indentação, destaque da linha atual, whitespace visível (None/Selection/All), quebra de linha, tab size (4)/inserir espaços, trim trailing whitespace ao salvar, bracket matching/auto-close, multicursor Alt+clique, scroll beyond last line, colar com PRIMARY (Linux) [I].
 Fonts: família monoespaçada (lista do sistema com preview e busca), tamanho (8–32), altura de linha, ligaduras (off), peso. Amostra ao vivo.
 Syntax Colors: tabela de tokens (keyword, string, number, comment, function, identifier, operator, error…) com cor claro/escuro editáveis (color picker + hex), [Reset], importar/exportar esquema; mostra contraste AA e amostra SQL.
@@ -48,12 +48,12 @@ Executar: Seleção ou tudo; comportamento ao erro (Parar/Perguntar/Continuar); 
 Altura de linha; zebra; grade; alinhar números; formato de NULL (texto/cor), data/hora, BLOB, booleano; largura máx. de coluna; auto-fit na carga; fonte do grid; copiar com cabeçalhos por padrão; truncar texto longo em N chars.
 ### SQL > History [C: retenção]
 Registrar histórico (on); **retenção 60 dias (padrão), até 365** [C]; limite de tamanho; ignorar Prod; mascarar IDENTIFIED BY; [Clear history…] (confirma); local do armazenamento (leitura).
-### SQL > Formatting [C: regras de formatação]
+### SQL > Formatting [C: regras de formatação; "Formatting Profiles", "Formatting mode" REA ui-text; atalhos Format* REA shortcuts]
 Painel com **sub-árvore**: General (indentação, largura de linha, quebra), Case (keywords/functions/types/identificadores: Upper/Lower/Keep), Lists (SELECT/columns, uma por linha, vírgula antes/depois), Joins/FROM/WHERE (quebra e alinhamento de AND/OR, ON), Subqueries/CTEs, DML/DDL (INSERT, CREATE TABLE com colunas alinhadas), Comments, Procedures (BEGIN/END, IF/CASE). **Preview ao vivo** de amostra SQL (esq. entrada, dir. formatado), [Perfis]: Padrão, Compacto, Estilo "Expandido"; salvar/importar/exportar perfil JSON; formatar ao colar (opcional); atalho Ctrl+K Ctrl+D (01).
-### SQL > Code Analysis (ver 18 §3): regras e severidade.
+### SQL > Code Analysis (ver 18 §3; "Code Analysis Profiles" [C REA ui-text]): regras e severidade.
 ### Connections > General/Security/Timeouts
 General: conexão padrão para novos documentos; abrir SQL ao conectar; reconectar automaticamente; SSL padrão (Preferred). Security: armazenar senhas no cofre do SO (on); se indisponível: perguntar; limpar clipboard após copiar senha (30s); bloquear exportação de senhas; mostrar fingerprint SSH. Timeouts: conexão (15s), comando, keep-alive, SSH keepalive (alinha com 02 §2.5).
-### Keyboard [C: atalhos configuráveis]
+### Keyboard [C: atalhos configuráveis; "Reset Mapping" e confirmação de reset REA ui-text]
 Tabela: Comando | Atalho(s) | Contexto (Global/Editor/Grid/Explorer…) | Fonte (Padrão/Usuário). Busca por comando ou por tecla (campo "Pressione teclas…"). Editar: duplo clique → captura tecla (Esc cancela, Backspace limpa); detecção de **conflitos** (lista dos comandos conflitantes, opções: Reatribuir/Cancelar); [Reset] por linha e geral; esquemas predefinidos: Padrão, **DBeaver-like**, **SSMS-like**, **VS Code-like** [I]; import/export JSON. Avisos de combinações reservadas por DE/WM (ver 01 §10).
 ### Tools > AI Assistant / Debugger / Profiler / Source Control / Data Tools
 AI: ver 17 §4 (provedor, privacidade, redação). Debugger: rollback após depurar (on), confirmar execução real. Profiler: modo padrão, usar Performance Schema, avisos DML. Source Control: nome/email Git, rebase vs merge no pull, chave SSH padrão. Data Tools: delimitador CSV padrão, encoding, pasta de export, tamanho de lote.
@@ -83,3 +83,34 @@ OptionsDialog (árvore + busca), SideTree, FormField, Toggle, Select, Slider, Co
 - Todas as categorias acima abrem, validam e persistem em settings.json; busca localiza campos; defaults por campo/página restauráveis.
 - Tema Auto/Claro/Escuro, fonte, formatação SQL e atalhos têm efeito imediato com preview; conflitos de atalho detectados.
 - Estados de erro/sucesso cobertos; teclado completo.
+
+## Textos de interface (referência)
+Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).
+
+| Rótulo/mensagem real | Onde usa | Chave i18n sugerida |
+|---|---|---|
+| Options... / Tools/Options | Menu e diálogo | `opt.title` |
+| Environment Settings / Environment Categories | Página/árvore | `opt.env` |
+| Environment startup settings and active keyboard mapping scheme. | Descrição da página Environment | `opt.env.desc` |
+| Text editor General settings, Tabs settings and Font Color settings. | Descrição Text Editor | `opt.editor.desc` |
+| Data Editor | Categoria | `opt.dataEditor` |
+| Activate Data editor after query execution | Checkbox | `opt.dataEditor.activate` |
+| Show datatype in data editor column header | Checkbox | `opt.dataEditor.showType` |
+| Check for updates on startup once a week | Checkbox (clone: off por padrão) | `opt.updates.weekly` |
+| Font Name / Font Size / Font Scale | Campos de fonte | `opt.font.name / .size / .scale` |
+| Large Font | Opção de acessibilidade | `opt.font.large` |
+| Keyboard Interactive Mode | Opção de teclado | `opt.kbd.interactive` |
+| Apply the following additional keyboard mapping scheme: | Esquema adicional | `opt.kbd.scheme` |
+| Keyboard mappings will reset to their default values. Continue? | Confirmação de reset | `opt.kbd.resetConfirm` |
+| Reset Mapping / Reset to Default / Restore Defaults | Botões | `opt.reset` |
+| Reset all settings | Ação | `opt.resetAll` |
+| Import and Export Settings... / Wizard | Menu e wizard | `opt.importExport` |
+| Formatting Profiles / Formatting mode / General formatting settings. | Página de formatação | `opt.fmt.*` |
+| Formatter has found some syntax errors in the text. The statements that contain errors are not formatted. | Aviso do formatador | `opt.fmt.syntaxErr` |
+| Formatting canceled. | Estado | `opt.fmt.canceled` |
+| Keep modified files open after formatting | Checkbox (formatação em lote) | `opt.fmt.keepOpen` |
+| Language | Página | `opt.language` |
+| items in recently used list | Campo de recentes | `opt.recent.count` |
+| Move the mouse cursor to the option to obtain its detailed description. | Dica do rodapé | `opt.hoverHint` |
+| Restore Documents / Restore Last Closed Document | Restauração de sessão | `opt.restore.*` |
+| Settings for restore open documents functionality. | Descrição | `opt.restore.desc` |

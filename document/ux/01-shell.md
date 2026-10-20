@@ -2,6 +2,8 @@
 
 Stack alvo (ADR-001): Electron + React + Monaco. Esta spec descreve comportamento/visual; sem código. Visual inspirado no dbForge (DevartBlue), apenas descrito, sem reutilizar assets protegidos (ícones/skins `.vsf` não são copiados).
 
+Legenda: **[C]** = confirmado por evidência REA (`re/ui-strings/ui-text.txt`, mapa de atalhos `REA shortcuts`); **[I]** = inferido/decisão de design sem evidência. Itens sem marca nas seções abaixo seguem como [I] salvo indicação; os confirmados aparecem em "Textos de interface (referência)" e nas notas **[C]** inline.
+
 ## 1. Layout geral (janela principal, mín. 1024x640, padrão 1440x900)
 
 ```
@@ -30,15 +32,15 @@ Regiões: MenuBar, ToolBars, DockLeft (Database Explorer; também Properties/Pro
 
 | Menu | Itens (atalho) |
 |---|---|
-| File | New > SQL Document (Ctrl+N) / Database Connection (Ctrl+Shift+N); Open File… (Ctrl+O); Recent Files >; Save (Ctrl+S); Save As…; Save All (Ctrl+Shift+S); Close (Ctrl+W); Close All; Exit (Ctrl+Q) |
-| Edit | Undo (Ctrl+Z), Redo (Ctrl+Y / Ctrl+Shift+Z), Cut/Copy/Paste, Select All (Ctrl+A), Find (Ctrl+F), Replace (Ctrl+H), Find in Files (Ctrl+Shift+F), Go To Line (Ctrl+G), Comment (Ctrl+/), Uncomment, Format SQL (Ctrl+K Ctrl+D) |
-| View | Database Explorer (Ctrl+Alt+E), Output (Ctrl+Alt+O), Error List (Ctrl+Alt+R), Properties (F4), Full Screen (F11), Theme > Auto/Light/Dark, Zoom In/Out/Reset (Ctrl+= / Ctrl+- / Ctrl+0), Reset Layout |
+| File | New > SQL Document (Ctrl+N) / Database Connection (REA shortcuts: Ctrl+D, N [C]; Ctrl+Shift+N = New Project no original, aqui mantido para conexão [I]); Open File… (Ctrl+O); Recent Files >; Save (Ctrl+S); Save As…; Save All (Ctrl+Shift+S); Close (Ctrl+W); Close All Documents [C]; Close All But This [C]; Close All Unmodified [C]; Recently Closed Documents [C]; Exit (Ctrl+Q) |
+| Edit | Undo (Ctrl+Z), Redo (Ctrl+Y / Ctrl+Shift+Z), Cut/Copy/Paste, Select All (Ctrl+A), Find (Ctrl+F), Replace (Ctrl+H), Find in Files (Ctrl+Shift+F), Go To Line (Ctrl+G [C]), Comment (Ctrl+/), Uncomment, Format Document (Ctrl+K, Ctrl+D [C]) / Format Selection (Ctrl+K, Ctrl+F [C]) / Format Current Statement (Ctrl+K, Ctrl+S [C]) |
+| View | Database Explorer (REA shortcuts: Ctrl+Alt+L [C]), Output (Ctrl+Alt+O [C]), Error List (REA shortcuts: Ctrl+Alt+E [C]), Properties (F4 [C]), Full Screen (F11), Theme > Auto/Light/Dark, Zoom In/Out/Reset (Ctrl+= / Ctrl+- / Ctrl+0), Reset Layout |
 | Database | New Connection…, Connect, Disconnect, Edit Connection (F2 na árvore), Refresh (F5), Set as Active Database |
-| SQL | New SQL (Ctrl+N), Execute (F5 / Ctrl+Enter), Execute Current Statement (Ctrl+Shift+Enter), Execute Selection, Cancel (Shift+F5 / Esc em execução), Explain Plan (Ctrl+E), Toggle Results (Ctrl+Alt+Down) |
+| SQL | New SQL (Ctrl+N), Execute (F5 / Ctrl+Enter), Execute Current Statement [C] (REA shortcuts: F8/F4/Alt+F9 conforme esquema; adotado F8), Execute Selection [C] (Ctrl+F8), Execute To Cursor [C] (Ctrl+Shift+F10), Stop/Cancel (REA shortcuts: Alt+Pause; Shift+F5 e Esc em execução [I]), Explain Plan (REA shortcuts: Ctrl+L / Alt+F9; rótulo real "Display Estimated Execution Plan" [C]), Toggle Results (Ctrl+Alt+Down) |
 | Data | Export Data… (P1), Import Data… (P1), Refresh Result (F5 no grid), Copy As > CSV/JSON/SQL INSERT |
 | Tools | Options… (Ctrl+,), Connection Manager… |
 | Window | Next Tab (Ctrl+Tab / Ctrl+PgDn), Previous Tab (Ctrl+Shift+Tab / Ctrl+PgUp), Close Others, Windows… |
-| Help | Documentation (F1), Keyboard Shortcuts (Ctrl+K Ctrl+S), About |
+| Help | Documentation (F1 [C], "ShowContents"), Keyboard Shortcuts (Ctrl+K Ctrl+S), About |
 
 Itens indisponíveis ficam **desabilitados** (nunca ocultos) com tooltip do motivo ("Requer conexão ativa"). Itens futuros (Schema Compare, Diagram…) aparecem desabilitados com marca "Em breve" apenas se a matriz de paridade os listar; caso contrário omitidos.
 
@@ -153,12 +155,12 @@ Contraste mínimo WCAG AA (4.5:1 texto, 3:1 componentes). Sombras: diálogo 0 8p
 | Ação | Atalho |
 |---|---|
 | Novo SQL | Ctrl+N |
-| Nova conexão | Ctrl+Shift+N |
+| Nova conexão | Ctrl+D, N [C]; Ctrl+Shift+N [I] |
 | Abrir / Salvar / Salvar tudo | Ctrl+O / Ctrl+S / Ctrl+Shift+S |
 | Executar | F5 ou Ctrl+Enter |
-| Executar seleção/atual | Ctrl+Shift+Enter |
-| Parar | Shift+F5 |
-| Alternar Explorer / Painel inferior | Ctrl+Alt+E / Ctrl+J |
+| Executar seleção / atual | Ctrl+F8 [C] / F8 [C] (Ctrl+Shift+Enter [I] alternativo) |
+| Parar | Alt+Pause [C]; Shift+F5 [I] alternativo |
+| Alternar Explorer / Painel inferior | Ctrl+Alt+L [C REA shortcuts] / Ctrl+J [I] |
 | Paleta de comandos | Ctrl+Shift+P |
 | Fechar aba / próxima / anterior | Ctrl+W / Ctrl+Tab / Ctrl+Shift+Tab |
 | Opções | Ctrl+, |
@@ -179,3 +181,47 @@ Button (primary/secondary/ghost/danger; estados default/hover/active/focus/disab
 - Layout (larguras, painéis, abas abertas, tema) persiste entre sessões; "Reset Layout" restaura padrão.
 - Todos os itens de menu têm estado habilitado/desabilitado definido pelo contexto (conexão ativa, documento ativo, execução em curso).
 - Troca de tema não exige reinício e atinge editor, grid e diálogos.
+
+
+## Textos de interface (referência)
+
+Fonte: REA ui-text [C]. Sem `&`; frases longas parafraseadas; `{0}` mantido.
+
+| Rótulo/mensagem real | Onde usa | Chave i18n sugerida |
+|---|---|---|
+| File / Edit / Data / Debug / Help | Menu bar | menu.file / menu.edit / menu.data / menu.debug / menu.help |
+| New SQL; New Query; New SQL document | File > New, toolbar | cmd.newSql |
+| Open File... | File > Open | cmd.openFile |
+| Save; Save As...; Save All | File | cmd.save / cmd.saveAs / cmd.saveAll |
+| Exit | File | cmd.exit |
+| Recent Files; Recently Closed Documents | File, Start Page | menu.recentFiles / menu.recentClosed |
+| Close All Documents; Close All But This; Close All Unmodified | Menu de contexto da aba | tab.closeAll / tab.closeOthers / tab.closeUnmodified |
+| Pin Document | Menu da aba | tab.pin |
+| Copy Full Path; Open File Location | Menu da aba | tab.copyPath / tab.revealInFm |
+| Database Explorer | Dock esquerdo, View | panel.explorer.title |
+| Error List; Find Results; Output; Document Outline | Painéis | panel.errorList / panel.findResults / panel.output / panel.outline |
+| Reset Window Layout; Reset Toolbar Layout | View | cmd.resetLayout / cmd.resetToolbars |
+| Execute; Execute Current Statement; Execute Selection; Execute To Cursor | SQL / toolbar | cmd.execute / cmd.executeCurrent / cmd.executeSelection / cmd.executeToCursor |
+| Display Estimated Execution Plan | Explain | cmd.explain |
+| Format Document; Format Selection; Format Current Statement | Edit / toolbar | cmd.formatDoc / cmd.formatSel / cmd.formatStmt |
+| Find; Find Next; Find Previous; Find in Files; Go To Line | Edit | cmd.find / cmd.findNext / cmd.findPrev / cmd.findInFiles / cmd.gotoLine |
+| Document '{0}' was modified. Do you want to save changes? | Fechar aba suja | dlg.saveChanges.msg |
+| Save Changes; Discard; Cancel | Botões do diálogo | dlg.save / dlg.discard / dlg.cancel |
+| Executing query... ; Executing script... | Status bar / Output | status.executingQuery / status.executingScript |
+| Execution Completed Successfully. | Output | output.exec.success |
+| Execution was canceled by user. ; Query canceled. | Output | output.exec.canceled |
+| Query completed with errors. ; Query completed with warnings. | Output | output.exec.errors / output.exec.warnings |
+| Do you want to stop executing? | Confirmar parar | dlg.stopExec.msg |
+| Ln {0}    Col {1}    Ch {2} | Status bar posição | status.position |
+| Elapsed Time; Execution Time | Status bar | status.elapsed |
+| Check for Updates... | Help | cmd.checkUpdates |
+| Customize...; Options... | Tools/Toolbar | cmd.customize / cmd.options |
+| Connection Manager... | Tools/Database | cmd.connManager |
+
+## Pendências [I]
+
+- Nomes dos menus View, Tools, Window, SQL: não achados como rótulos isolados no ui-text; permanecem [I].
+- Atalhos globais de design (Ctrl+J, Ctrl+Shift+P paleta de comandos, Ctrl+Enter, Ctrl+Q, Ctrl+, , F6 regiões): sem equivalente no mapa REA.
+- Status bar (segmentos UTF-8/LF/tempo/linhas): só "Ln/Col/Ch" e "Elapsed Time" confirmados.
+- Overflow "»", badge de contagem, Toasts, tema Auto/Light/Dark, drafts XDG: decisões de design.
+- Mnemônicos específicos por menu (letras com `&`) não copiados; atribuição [I].

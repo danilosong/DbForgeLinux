@@ -2,10 +2,10 @@
 
 Reusa `01-shell.md`, `06` (WizardDialog, ProgressList, ReportView), `10` (diagrama). **[C]** CONFIRMADO / **[I]** INFERIDO.
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Database Documenter) e https://www.devart.com/dbforge/mysql/documenter/. Citações por redirecionamento; páginas individuais não abertas.
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Database Documenter) e https://www.devart.com/dbforge/mysql/documenter/. Citações por redirecionamento; páginas individuais não abertas. Fidelidade REA: rótulos conferidos contra REA ui-text.
 
 ## 1. Entrada
-Explorer > database > **Generate Documentation…**; Tools > New Documentation [I]. Wizard modal (padrão 06) ou documento "Documentation 1" com árvore de objetos; v1: **wizard**.
+Explorer > database > **Generate Documentation…**; comandos Generate Documentation / New Documentation... / Open Documentation..., projeto `*.ddoc` [C: REA ui-text]. Wizard modal (padrão 06) ou documento "Documentation 1" com árvore de objetos; v1: **wizard**.
 
 ## 2. Passos do wizard
 **1 Origem → 2 Objetos → 3 Conteúdo → 4 Modelo/Estilo → 5 Saída → 6 Execução → 7 Relatório**.
@@ -48,3 +48,19 @@ WizardDialog, CheckTree, TemplateGallery (cartões com miniatura), OptionsForm, 
 - Gera documentação HTML, PDF e Markdown de um database com tabelas, views, rotinas e relações (incluindo virtuais), escolhendo seções e modelo.
 - HTML navegável offline com busca; abrir ao final; relatório com avisos.
 - Estados, temas e teclado cobertos.
+
+## Textos de interface (referência)
+Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).
+
+| Rótulo/mensagem real | Onde usa | Chave i18n sugerida |
+|---|---|---|
+| Generate Documentation | Comando/ação principal | `doc.cmd.generate` |
+| New Documentation... / Open Documentation... | Comandos de projeto (`*.ddoc`) | `doc.cmd.new` / `doc.cmd.open` |
+| Generate database documentation in HTML, PDF or Markdown file format | Descrição do comando | `doc.cmd.hint` |
+| Choose objects for documentation | Passo Objetos | `doc.step.objects` |
+| Documentation Generation | Título do assistente | `doc.wizard.title` |
+| Generating documentation... | Progresso | `doc.progress` |
+| Open documentation after generation | Checkbox final | `doc.opt.openAfter` |
+| Documentation has not been saved. The path is invalid. | Erro de caminho | `doc.err.path` |
+| Documentation is not available. | Estado vazio | `doc.empty` |
+| Documenter Project Properties | Propriedades do projeto | `doc.project.props` |

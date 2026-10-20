@@ -1,5 +1,7 @@
 # UX 06 — Wizards de Import/Export de dados
 
+> Fidelidade REA: rótulos conferidos contra REA ui-text (Data Export/Import Wizard, modos Append/Update/Append-Update/Delete, Errors handling, templates .det/.dit). Termos do corpo sem tag não-REA permanecem decisões de UX Linux; ver `fidelidade-parts/B.md`.
+
 Reusa `01-shell.md` (Dialog, FormField, Banner, ProgressBar) e `02` (FilePicker). Formatos v1: CSV, TSV, JSON, XML, SQL (INSERT), Excel (XLSX), HTML, Markdown (export); import: CSV, TSV, JSON, XML, XLSX, SQL. Google Sheets: P3 (fora, só desabilitado/oculto).
 
 ## 1. Entradas
@@ -99,3 +101,38 @@ WizardDialog (stepper + rodapé), FormatCard, CheckTree, ColumnMappingGrid, Opti
 - Import permite mapeamento, validação dry-run e todos os modos; erros geram arquivo de rejeitados.
 - Execução cancelável com semântica de reversão clara; relatório sempre exibido.
 - Claro/escuro e teclado completos; templates salvos e recarregados.
+
+## Textos de interface (referência)
+Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).
+
+| Rótulo/mensagem real | Onde usa | Chave i18n sugerida |
+|---|---|---|
+| Data Export Wizard / Data Import from | Título do diálogo | `io.export.title / io.import.title` |
+| Export Data... | Menu Data, Explorer | `io.export.menu` |
+| Export format | Passo Formato (Export) | `io.export.format` |
+| Export data into single file / Export data into separated files | Modo de destino | `io.export.mode.single / io.export.mode.separate` |
+| Choose a source table for export. | Dica do passo Origem | `io.export.source.hint` |
+| Choose a destination table for import. | Dica do passo Destino (Import) | `io.import.target.hint` |
+| Choose an import mode. | Dica do passo Modo | `io.import.mode.hint` |
+| Append / Update / Append/Update / Delete | Modos de importação | `io.import.mode.*` |
+| Delimiter; Encoding:; Null String:; Include column header | Opções CSV/TXT | `io.opt.delimiter / encoding / nullString / header` |
+| Errors handling | Seção de tratamento de erros | `io.errors.title` |
+| Abort at the first error; Ignore all errors | Opções de erro | `io.errors.abort / io.errors.ignore` |
+| Check "Open folder" to open a folder that contains a result file after the wizard is closed. | Tooltip da opção Open folder | `io.dest.openFolder.hint` |
+| Exported files preview: | Preview de arquivos exportados | `io.export.preview` |
+| Exporting: {0}{1} / Exporting ({2,2}%): {0}{1} | Execução (progresso) | `io.export.progress` |
+| Importing data from {0} to table {1} | Execução (progresso) | `io.import.progress` |
+| {0} rows imported, {1}% | Execução (contador) | `io.import.rowsPct` |
+| Exported {0} of {1} rows. | Relatório | `io.export.rowsOfTotal` |
+| Are you sure you want to stop exporting data? | Confirmação ao cancelar | `io.export.cancelConfirm` |
+| Do you want to continue data exporting? | Pergunta após erro em objeto | `io.export.continueAfterError` |
+| Data Export finished successfully. | Relatório (sucesso) | `io.export.done` |
+| Data Export finished with errors. | Relatório (com erros) | `io.export.doneWithErrors` |
+| Data export failed. / Data Import failed. | Relatório (falha) | `io.export.failed / io.import.failed` |
+| Data Import aborted by a user. | Relatório (cancelado) | `io.import.aborted` |
+| Data, selected for import, has NULL values for not nullable columns. | Validação de mapeamento (Import) | `io.import.nullViolation` |
+| Option {0} is not supported by the import format | Validação de opções | `io.import.optionUnsupported` |
+| Open File / Open Containing Folder | Ações do relatório | `io.report.openFile / io.report.openFolder` |
+| Data Export Template files (*.det) / Data Import Template files (*.dit) | Filtros de arquivo de template | `io.template.filter` |
+| Load Template... | Rodapé do wizard | `io.template.load` |
+| Export to Google Sheets / Import from Google Sheets | Formato (P3, oculto) | `io.format.googleSheets` |

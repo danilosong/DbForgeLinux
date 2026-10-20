@@ -1,5 +1,8 @@
 # UX 05 — Editores de objetos: View, Procedure, Function, Trigger, Event
 
+**Fidelidade REA:** rótulos conferidos contra REA ui-text. **[C]** (REA ui-text): Definer, Deterministic, Check Option, Parameters, Event, Status:, ON COMPLETION, Order, Expression, Table:, Add Parameter, Edit Parameters, Alter event, Create/Drop procedure {0}, Drop Trigger, "Do you want to drop procedure '{0}'?". Atalhos **[C] (REA shortcuts)**: Execute F5/F9, Format Document Ctrl+K Ctrl+D, Properties F4. Demais rótulos (Algorithm, SQL Security, Data access, Returns, Starts/Ends, Preview Data) permanecem **[I]** (ver `fidelidade-parts/A.md`).
+
+
 Reusa `01-shell.md` e o CodeEditor de `03`. Abertos em aba (ícone do tipo). Entradas: Explorer > objeto > "Edit"/Enter, ou Create > <tipo> (modo novo).
 
 ## 1. Padrão comum
@@ -98,3 +101,36 @@ CodeEditor, PropertiesPanel (FormField set), ParametersGrid, ExecuteDialog (camp
 - Apply de objeto existente nunca deixa o banco sem o objeto original em caso de erro (restauração ou DDL exposto).
 - Execute/Test de procedure/function pede parâmetros e exibe resultados/OUT/retorno.
 - Estados loading/erro/sucesso, claro/escuro e teclado completos.
+
+## Textos de interface (referência)
+Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).
+
+| Rótulo/mensagem real | Onde usa | Chave i18n sugerida |
+|---|---|---|
+| Definer | Propriedade (todos os tipos) | `obj.prop.definer` |
+| Deterministic | Propriedade de procedure/function | `obj.prop.deterministic` |
+| Check Option | Propriedade de view | `obj.view.checkOption` |
+| Parameters | Aba de procedure/function | `obj.params.title` |
+| Add Parameter | Ação na grade de parâmetros | `obj.params.add` |
+| Edit Parameters | Ação/menu | `obj.params.edit` |
+| Event | Tipo de objeto / propriedade de trigger | `obj.event.title` |
+| Status: | Propriedade de event | `obj.event.status` |
+| ON COMPLETION | Propriedade de event | `obj.event.onCompletion` |
+| Order | Propriedade de trigger | `obj.trigger.order` |
+| Table: | Propriedade de trigger | `obj.trigger.table` |
+| Expression | Coluna/campo | `obj.field.expression` |
+| Create procedure {0} / Alter procedure {0} | Título/DDL gerado | `obj.proc.createAlter` |
+| Alter event | Ação/título | `obj.event.alter` |
+| CREATE/ALTER VIEW | Template de script | `obj.view.template` |
+| CREATE TRIGGER | Template de script | `obj.trigger.template` |
+| CREATE PROCEDURE/FUNCTION | Template de script | `obj.routine.template` |
+| CREATE/ALTER EVENT | Template de script | `obj.event.template` |
+| Debug Stored Procedure... | Menu (fora de escopo nesta fase) | `obj.proc.debug` |
+| Do you want to drop procedure '{0}'? | Confirmação de exclusão | `obj.confirm.dropProc` |
+| Do you want to drop function '{0}'? | Confirmação de exclusão | `obj.confirm.dropFunc` |
+| Drop Trigger | Menu/ação | `obj.trigger.drop` |
+| Cannot execute procedure because of internal server error | Erro de execução | `obj.exec.error` |
+| Another procedure is being executed. | Execução concorrente | `obj.exec.busy` |
+| {0} '{1}' has been compiled with warnings. | Resultado de Apply com avisos | `obj.apply.warnings` |
+| Component was modified. Do you want to reload the editor? | Banner definição mudou | `obj.confirm.reload` |
+| The '{0}' document has been modified. Apply changes to '{1}' query? | Fechar com pendências | `obj.confirm.applyChanges` |

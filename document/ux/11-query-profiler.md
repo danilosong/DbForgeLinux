@@ -2,12 +2,12 @@
 
 Reusa `01-shell.md`, `03` (editor/grid/resultados). **[C]** CONFIRMADO / **[I]** INFERIDO.
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Query Profiler; SQL Query History) e https://www.devart.com/dbforge/mysql/studio/query-profiler.html. Citações da busca vieram por redirecionamento; páginas individuais não abertas.
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Query Profiler; SQL Query History) e https://www.devart.com/dbforge/mysql/studio/query-profiler.html. Citações da busca vieram por redirecionamento; páginas individuais não abertas. Fidelidade REA: rótulos conferidos contra REA ui-text.
 
 ## 1. Query Profiler
 
 ### 1.1 Entrada [C]
-No documento SQL: botão **Query Profiling Mode** (toggle na toolbar SQL) → **Execute** → abre o documento/aba **Query Profiler** [C]. Atalho sugerido do toggle: Ctrl+Alt+P [I]. Também menu SQL > Query Profiling Mode.
+No documento SQL: botão **Query Profiling Mode** (toggle na toolbar SQL) → **Execute** → abre o documento/aba **Query Profiler** [C]. Atalho sugerido do toggle: Ctrl+Alt+P [I]. Também menu SQL > Query Profiling Mode. Estado vazio original: "Turn on Query Profiling Mode and execute the current query" ou botão **Get New Results** [C: REA ui-text].
 
 ### 1.2 Layout
 ```
@@ -74,3 +74,29 @@ ResultTabs, DataGrid, BarCell (barra proporcional), CompareView, PlanTree, PlanD
 - Histórico registra, filtra e reabre consultas; retenção configurável.
 - Plano visual em árvore e diagrama destaca gargalos; DML perfilado exige confirmação.
 - Estados, temas e teclado cobertos.
+
+## Textos de interface (referência)
+Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).
+
+| Rótulo/mensagem real | Onde usa | Chave i18n sugerida |
+|---|---|---|
+| Query Profiling Mode | Toggle na toolbar SQL | `prof.mode` |
+| Turn on "Query Profiling Mode" and execute the current query | Estado vazio do Profiler | `prof.empty` |
+| Get New Results | Botão de reexecutar/atualizar | `prof.getResults` |
+| Get new results for current element | Tooltip | `prof.getResultsHint` |
+| Profile a query without caching (use SQL_NO_CACHE option) | Opção de perfilamento | `prof.noCache` |
+| Duration of statement execution, sec. | Cabeçalho/tooltip de coluna | `prof.col.duration` |
+| Date of receiving profiling results | Cabeçalho de coluna de histórico | `prof.col.date` |
+| Compare changes of STATUS VARIABLES | Opção/aba de comparação | `prof.statusVars` |
+| Several queries cannot be profiled at the same time. | Erro de múltiplas consultas | `prof.err.multi` |
+| Are you sure you want to clear profiling history? | Confirmação | `prof.clearConfirm` |
+| Do you want to remove selected profiling results? | Confirmação | `prof.removeConfirm` |
+| General Query profiler options. | Descrição das opções | `prof.options.desc` |
+| Cannot generate Execution Plan | Título de erro do plano | `prof.err.planTitle` |
+| Cannot generate execution plan for current statement. | Erro do plano | `prof.err.plan` |
+| Display Estimated Execution Plan | Comando Explain | `prof.cmd.explain` |
+| Query History / Show Query History | Janela/comando de histórico | `hist.title` |
+| Clear Query History | Comando | `hist.clear` |
+| You are about to delete all records in your query history. Are you sure you want to continue? | Confirmação | `hist.clearConfirm` |
+| Store query history | Opção de retenção | `hist.store` |
+| Query history storage file was corrupted... a new one was created. | Aviso de recuperação | `hist.warn.corrupt` |

@@ -1,5 +1,7 @@
 # UX 08 — Security Manager, Session Manager e Server Variables
 
+> Fidelidade REA: rótulos conferidos contra REA ui-text (Security Manager, Session Manager, Server Variables, Kill*, privilégios). Detalhes de layout, presets e mascaramento de senha são decisões de UX; ver `fidelidade-parts/B.md`.
+
 Reusa `01-shell.md`, `03` (DataGrid, TreeView), `04` (MasterDetailList, EditableGrid) e `07` (SyncConfirmDialog padrão de confirmação). Todos abrem como documentos em aba ligados a **uma conexão** (nome da conexão e faixa de ambiente no cabeçalho). Entradas: Tools > Security Manager / Session Manager / Server Variables; Explorer > conexão > mesmo menu. Requerem privilégios; sem eles, ver §6.
 
 ## 1. Security Manager
@@ -121,3 +123,34 @@ MasterDetailList, PrivilegeMatrix (checkbox tri-state por grupos + herança), Sc
 - Session Manager lista, filtra, atualiza automaticamente, e mata query/sessão com confirmação, protegendo a própria sessão.
 - Server Variables edita só variáveis dinâmicas, distingue Session/Global, explica persistência e aplica com resultado por item.
 - Estados loading/erro/sucesso e falta de permissão cobertos; claro/escuro; teclado completo.
+
+## Textos de interface (referência)
+Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).
+
+| Rótulo/mensagem real | Onde usa | Chave i18n sugerida |
+|---|---|---|
+| Security Manager | Menu Tools, título da aba | `sec.title` |
+| Session Manager | Menu Tools, título da aba | `sess.title` |
+| Server Variables | Menu Tools, título da aba | `vars.title` |
+| Privileges / Global Privileges | Aba/escopo global | `sec.privileges / sec.privileges.global` |
+| Database Privileges / Object Privileges | Escopos de privilégio | `sec.priv.database / sec.priv.object` |
+| Available Privileges: | Lista de privilégios | `sec.priv.available` |
+| Grant All Privileges / Revoke All Privileges | Ações de privilégios | `sec.priv.grantAll / sec.priv.revokeAll` |
+| Revoke Selected Privilege | Ação de privilégios | `sec.priv.revokeSelected` |
+| Grant Option | Checkbox de privilégio | `sec.priv.grantOption` |
+| Role Members / Role Privileges | Aba Roles | `sec.roles.members / sec.roles.privileges` |
+| Account Locked / Password Expire | Campos General | `sec.acct.locked / sec.acct.passwordExpire` |
+| Authentication type: / Authentication String: | Campos General | `sec.auth.type / sec.auth.string` |
+| Max Queries / Max Updates / Max Connections | Aba Limits | `sec.limits.queries / updates / connections` |
+| Host: / User: / Password: | Campos General | `sec.field.host / user / password` |
+| Password cannot be empty. | Erro de validação | `sec.err.passwordEmpty` |
+| User {0} created. / User {0} altered. | Mensagem de sucesso | `sec.msg.created / sec.msg.altered` |
+| Grant succeeded / Revoke succeeded | Resultado de execução | `sec.msg.grantOk / sec.msg.revokeOk` |
+| User '{0}' was modified. Do you want to save changes? | Confirmação ao fechar/trocar | `sec.dirtyConfirm` |
+| Insufficient privileges. | Estado sem permissão | `sec.err.insufficient` |
+| Kill Query / Kill Session / Kill User Sessions | Ações do Session Manager | `sess.kill.query / session / user` |
+| Do you really want to kill selected session? | Confirmação | `sess.kill.confirm` |
+| Are you sure you want to kill all sessions with user name '{0}'? | Confirmação (por usuário) | `sess.kill.userConfirm` |
+| Session statistics | Painel/aba de estatísticas | `sess.stats` |
+| Compare changes of STATUS VARIABLES | Ação em Server Variables | `vars.compareStatus` |
+| Apply / Apply Changes | Toolbar | `common.apply / common.applyChanges` |
