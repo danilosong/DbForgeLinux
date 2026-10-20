@@ -19,7 +19,10 @@ export default function App(): React.JSX.Element {
   async function connect(): Promise<void> {
     setBusy(true)
     try {
-      const config = { host, port: Number(port), user, password }
+      const passwordRef = password ? crypto.randomUUID() : undefined
+      if (passwordRef) await window.dbforge.savePassword(passwordRef, password)
+      setPassword('')
+      const config = { host, port: Number(port), user, passwordRef }
       const check = await window.dbforge.testConnection(config)
       const connected = await window.dbforge.connect(config)
       setConnection(connected)

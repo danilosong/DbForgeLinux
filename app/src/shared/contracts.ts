@@ -2,7 +2,7 @@ export interface ConnectionConfig {
   host: string
   port: number
   user: string
-  password?: string
+  passwordRef?: string
   database?: string
 }
 
@@ -30,7 +30,6 @@ export interface DbForgeApi {
   listTables(connectionId: string, database: string): Promise<string[]>
   executeSql(connectionId: string, sql: string): Promise<QueryResult[]>
   savePassword(key: string, password: string): Promise<void>
-  getPassword(key: string): Promise<string | null>
 }
 
 declare global {

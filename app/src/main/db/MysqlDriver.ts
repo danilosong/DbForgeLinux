@@ -1,11 +1,11 @@
 import mysql, { type Pool, type PoolConnection, type QueryResult as MysqlQueryResult, type RowDataPacket } from 'mysql2/promise'
-import type { ConnectionConfig, QueryResult } from '../../shared/contracts.js'
-import type { DbDriver } from './DbDriver.js'
+import type { QueryResult } from '../../shared/contracts.js'
+import type { DbDriver, DriverConnectionConfig } from './DbDriver.js'
 
 export class MysqlDriver implements DbDriver {
   private readonly pools = new Map<string, Pool>()
 
-  async testConnection(config: ConnectionConfig): Promise<{ serverVersion: string }> {
+  async testConnection(config: DriverConnectionConfig): Promise<{ serverVersion: string }> {
     const connection = await mysql.createConnection({ ...config, connectTimeout: 5000 })
     try {
       const [rows] = await connection.query<Array<RowDataPacket & { version: string }>>('SELECT VERSION() AS version')
@@ -15,7 +15,7 @@ export class MysqlDriver implements DbDriver {
     }
   }
 
-  async connect(config: ConnectionConfig): Promise<string> {
+  async connect(config: DriverConnectionConfig): Promise<string> {
     const pool = mysql.createPool({
       ...config,
       waitForConnections: true,

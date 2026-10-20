@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'node:path'
 import { MysqlDriver } from './db/MysqlDriver.js'
+import type { DriverConnectionConfig } from './db/DbDriver.js'
 import { PasswordVault } from './security/PasswordVault.js'
 import type { ConnectionConfig } from '../shared/contracts.js'
 
@@ -8,9 +9,9 @@ const driver = new MysqlDriver()
 let vault: PasswordVault
 
 function registerIpc(): void {
-  ipcMain.handle('db:test', (_event, config: ConnectionConfig) => driver.testConnection(config))
+  ipcMain.handle('db:test', async (_event, config: ConnectionConfig) => driver.testConnection(await resolveConnectionConfig(config)))
   ipcMain.handle('db:connect', async (_event, config: ConnectionConfig) => {
-    const id = await driver.connect(config)
+    const id = await driver.connect(await resolveConnectionConfig(config))
     return { id, host: config.host, port: config.port, user: config.user, database: config.database }
   })
   ipcMain.handle('db:disconnect', (_event, id: string) => driver.disconnect(id))
@@ -18,7 +19,12 @@ function registerIpc(): void {
   ipcMain.handle('db:tables', (_event, id: string, database: string) => driver.listTables(id, database))
   ipcMain.handle('db:execute', (_event, id: string, sql: string) => driver.executeSql(id, sql))
   ipcMain.handle('vault:save', (_event, key: string, password: string) => vault.save(key, password))
-  ipcMain.handle('vault:get', (_event, key: string) => vault.get(key))
+}
+
+async function resolveConnectionConfig(config: ConnectionConfig): Promise<DriverConnectionConfig> {
+  const { passwordRef, ...connection } = config
+  const password = passwordRef ? await vault.get(passwordRef) : null
+  return password === null ? connection : { ...connection, password }
 }
 
 function createWindow(): void {

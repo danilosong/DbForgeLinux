@@ -8,8 +8,7 @@ const api: DbForgeApi = {
   listDatabases: (id) => ipcRenderer.invoke('db:databases', id),
   listTables: (id, database) => ipcRenderer.invoke('db:tables', id, database),
   executeSql: (id, sql) => ipcRenderer.invoke('db:execute', id, sql),
-  savePassword: (key, password) => ipcRenderer.invoke('vault:save', key, password),
-  getPassword: (key) => ipcRenderer.invoke('vault:get', key)
+  savePassword: (key, password) => ipcRenderer.invoke('vault:save', key, password)
 }
 
 contextBridge.exposeInMainWorld('dbforge', api)
