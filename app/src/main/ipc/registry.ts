@@ -30,6 +30,9 @@ import { registerRoutineDebuggerIpc } from './routine-debugger.js'
 import { registerServiceControlIpc } from './service-control.js'
 import { registerCodeAnalysisIpc } from './code-analysis.js'
 import { registerGridEditingIpc } from './grid-editing.js'
+import { registerGridDataIpc } from './grid-data.js'
+import { registerExtraToolsIpc } from './extra-tools.js'
+import { registerAboutIpc } from './about.js'
 import { SqlExecutionHistoryStore } from '../history/SqlExecutionHistoryStore.js'
 import { join } from 'node:path'
 import { defaultTrustedRendererConfig, installIpcSecurity } from './guard.js'
@@ -68,6 +71,9 @@ export function registerIpcRegistry(deps: IpcDeps): void {
   registerServiceControlIpc()
   registerCodeAnalysisIpc()
   registerGridEditingIpc(deps)
+  registerGridDataIpc(deps)
+  registerExtraToolsIpc(deps)
+  registerAboutIpc()
 }
 export { ipcMain, BrowserWindow, dialog, readFile, writeFile }
 export type { OpenDialogOptions, SaveDialogOptions }

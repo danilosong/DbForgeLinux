@@ -19,8 +19,19 @@ import DatabaseToolsPanel from './database-tools/Panel'
 import ServiceControlPanel from './service-control/Panel'
 import CodeAnalysisPanel from './code-analysis/Panel'
 import RoutineDebuggerPanel from './routine-debugger/Panel'
+import FindResultsPanel from './find-results/Panel'
+import DocumentOutlinePanel from './document-outline/Panel'
+import ObjectViewerPanel from './object-viewer/Panel'
+import SchemaViewPanel from './schema-view/Panel'
+import SchemaUpdatePanel from './schema-update/Panel'
+import SnippetsPanel from './snippets/Panel'
+import ToolboxPanel from './toolbox/Panel'
+import type { DatabaseObject, EditorMetadata } from '../../../../shared/contracts.js'
+import type { TextMatch } from '../../modules/navigation/search.js'
 export const PanelConnectionContext = createContext<ConnectionSummary | undefined>(undefined)
-export const PanelEditorContext = createContext<{ sql: string; onFindings(findings: CodeAnalysisFinding[]): void }>({ sql: '', onFindings: () => undefined })
+export const PanelEditorContext = createContext<{ sql: string; onFindings(findings: CodeAnalysisFinding[]): void; insertText?(text: string, snippet?: boolean): void }>({ sql: '', onFindings: () => undefined })
+export interface SelectedExplorerObject { connection: ConnectionSummary; database: string; object: DatabaseObject }
+export const PanelNavigationContext = createContext<{ matches: Array<TextMatch & { documentId: string; documentLabel: string }>; onNavigate(match: TextMatch & { documentId: string }): void; selectedObject?: SelectedExplorerObject; onSelectSchemaObject(object: DatabaseObject): void; onOpenObjectViewer(): void; metadata: EditorMetadata }>({ matches: [], onNavigate: () => undefined, onSelectSchemaObject: () => undefined, onOpenObjectViewer: () => undefined, metadata: { database: '', databases: [], objects: [], routines: [] } })
 
 export function usePanelConnection(): ConnectionSummary | undefined {
  return useContext(PanelConnectionContext)
@@ -46,4 +57,11 @@ export const panelRegistry:PanelRegistration[]=[
  {id:'data-report-pivot',titleKey:'report.Data Report / Pivot',icon:'▥',component:DataReportPivotPanel,presentation:'document'},
  {id:'ai-assistant',titleKey:'ai.AI Assistant',icon:'✦',component:AiAssistantPanel,presentation:'dock'},
  {id:'routine-debugger',titleKey:'Routine Debugger',icon:'⏵',component:RoutineDebuggerPanel,presentation:'document'}
+ ,{id:'find-results',titleKey:'nav.findResults',icon:'⌕',component:FindResultsPanel,presentation:'document'}
+ ,{id:'document-outline',titleKey:'outline.title',icon:'☷',component:DocumentOutlinePanel,presentation:'document'}
+ ,{id:'object-viewer',titleKey:'nav.objectViewer',icon:'▤',component:ObjectViewerPanel,presentation:'document'}
+ ,{id:'schema-view',titleKey:'nav.schemaView',icon:'◇',component:SchemaViewPanel,presentation:'document'}
+ ,{id:'schema-update',titleKey:'extras.schema.title',icon:'⇄',component:SchemaUpdatePanel,presentation:'document'}
+ ,{id:'snippets-manager',titleKey:'extras.snippets.title',icon:'❝',component:SnippetsPanel,presentation:'document'}
+ ,{id:'toolbox',titleKey:'extras.toolbox.title',icon:'▦',component:ToolboxPanel,presentation:'dock'}
 ]

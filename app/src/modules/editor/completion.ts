@@ -1,5 +1,6 @@
 import type { EditorMetadata } from '../../shared/contracts/editor.js'
 import { sqlSnippets } from './snippets.js'
+import type { SqlSnippet } from './snippets.js'
 
 export type SqlSuggestionKind = 'database' | 'table' | 'column' | 'routine' | 'keyword' | 'snippet'
 export interface SqlSuggestion { label: string; insertText: string; detail: string; kind: SqlSuggestionKind }
@@ -9,7 +10,7 @@ const reservedAliases = new Set('WHERE JOIN LEFT RIGHT INNER OUTER ON GROUP ORDE
 const cleanIdentifier = (value: string): string => value.replaceAll('`', '')
 const quoteSuggestion = (value: string): string => /^[A-Za-z_$][\w$]*$/.test(value) ? value : `\`${value.replaceAll('`', '``')}\``
 
-export function buildSqlSuggestions(sql: string, offset: number, metadata: EditorMetadata): SqlSuggestion[] {
+export function buildSqlSuggestions(sql: string, offset: number, metadata: EditorMetadata, userSnippets: SqlSnippet[] = []): SqlSuggestion[] {
   const before = sql.slice(0, Math.max(0, Math.min(sql.length, offset)))
   const qualifier = /([\w$`]+)\.([\w$`]*)$/.exec(before)
   const prefix = /[\w$`]+$/.exec(before)?.[0] ?? ''
@@ -44,7 +45,7 @@ export function buildSqlSuggestions(sql: string, offset: number, metadata: Edito
     ...metadata.objects.map((item) => make(item.name, 'table', `${item.kind} · ${metadata.database}`)),
     ...metadata.routines.map((item) => make(item.name, 'routine', item.kind)),
     ...keywords.map((keyword) => make(keyword, 'keyword', 'SQL keyword', keyword)),
-    ...sqlSnippets.map((snippet) => make(snippet.label, 'snippet', `${snippet.prefix} · ${snippet.description}`, snippet.body))
+    ...[...sqlSnippets, ...userSnippets].map((snippet) => make(snippet.label, 'snippet', `${snippet.prefix} · ${snippet.description}`, snippet.body))
   ]
   return results.filter((item) => !normalizedPrefix || item.label.toLowerCase().startsWith(normalizedPrefix) || (item.kind === 'snippet' && item.detail.toLowerCase().startsWith(normalizedPrefix)))
 }

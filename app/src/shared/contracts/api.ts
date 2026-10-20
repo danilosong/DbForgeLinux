@@ -18,7 +18,10 @@ import type { RoutineDebugContract } from './routine-debugger.js'
 import type { ServiceControlApi } from './service-control.js'
 import type { CodeAnalysisApi } from './code-analysis.js'
 import type { GridEditingApi } from './grid-editing.js'
-export interface DbForgeApi extends SecurityApi, SessionsApi, SchemaCompareApi, DataCompareApi, ImportExportApi, ERDiagramApi, QueryBuilderApi, EditorApi, HistoryApi, SourceControlApi, ObjectEditorApi, OptionsApi, DatabaseToolsApi, ReportPivotApi, AiAssistantApi, RoutineDebugContract, ServiceControlApi, CodeAnalysisApi, GridEditingApi {
+import type { GridDataApi } from './grid-data.js'
+import type { ExtraToolsApi } from './extra-tools.js'
+import type { AboutApi } from './about.js'
+export interface DbForgeApi extends SecurityApi, SessionsApi, SchemaCompareApi, DataCompareApi, ImportExportApi, ERDiagramApi, QueryBuilderApi, EditorApi, HistoryApi, SourceControlApi, ObjectEditorApi, OptionsApi, DatabaseToolsApi, ReportPivotApi, AiAssistantApi, RoutineDebugContract, ServiceControlApi, CodeAnalysisApi, GridEditingApi, GridDataApi, ExtraToolsApi, AboutApi {
   getConnections(): Promise<ConnectionRecord[]>
   saveConnection(record: ConnectionRecord): Promise<void>
   deleteConnection(id: string): Promise<void>

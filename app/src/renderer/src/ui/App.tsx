@@ -11,13 +11,16 @@ import { Button } from './components/Button'
 import { ConnectionManager } from './components/ConnectionManager'
 import { ConnectionPropertiesDialog, type ConnectionAction, type ConnectionSecrets } from './components/ConnectionPropertiesDialog'
 import { DatabaseExplorer } from './components/DatabaseExplorer'
+import { AboutDialog } from './components/AboutDialog'
 import { ResultGrid } from './components/ResultGrid'
 import { PanelDialog } from './components/PanelDialog'
 import { ObjectEditor } from './components/ObjectEditor'
 import { StartPage } from './components/StartPage'
-import { PanelConnectionContext, PanelEditorContext, panelRegistry } from './panels/registry'
+import { PanelConnectionContext, PanelEditorContext, PanelNavigationContext, panelRegistry, type SelectedExplorerObject } from './panels/registry'
+import { findTextMatches, type TextMatch } from '../modules/navigation/search.js'
 import { defaultSettings, normalizeShortcut, type AppSettings } from '../../../modules/options/types.js'
 import { useI18n } from './i18n/useI18n.js'
+import type { UserSnippet } from '../../../modules/editor/snippetStore.js'
 
 type ThemeMode = 'auto' | 'light' | 'dark' | 'high-contrast'
 type DocumentTab = { id: string; label: string; modified: boolean; filePath?: string; panelId?: string; objectEditor?: ObjectEditorTarget & { isNew: boolean } }
@@ -37,15 +40,19 @@ export default function App(): React.JSX.Element {
   const [dialogRecord, setDialogRecord] = useState<ConnectionRecord | null>(null)
   const [newDialog, setNewDialog] = useState(false)
   const [managerOpen, setManagerOpen] = useState(false)
+  const [aboutOpen, setAboutOpen] = useState(false)
   const [openPanel, setOpenPanel] = useState<string | null>(null)
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => (localStorage.getItem('dbforge.theme') as ThemeMode | null) ?? 'auto')
   const [appSettings, setAppSettings] = useState<AppSettings>(structuredClone(defaultSettings))
+  const [userSnippets, setUserSnippets] = useState<UserSnippet[]>([])
+  const userSnippetsRef = useRef(userSnippets)
+  userSnippetsRef.current = userSnippets
   const [systemDark, setSystemDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches)
   const [explorerVisible, setExplorerVisible] = useState(() => localStorage.getItem('dbforge.explorerVisible') !== 'false')
   const [panelVisible, setPanelVisible] = useState(() => localStorage.getItem('dbforge.panelVisible') !== 'false')
   const [explorerWidth, setExplorerWidth] = useState(() => Number(localStorage.getItem('dbforge.explorerWidth')) || 280)
   const [panelHeight, setPanelHeight] = useState(() => Number(localStorage.getItem('dbforge.panelHeight')) || 200)
-  const [panelTab, setPanelTab] = useState<'Output' | 'Error List'>('Output')
+  const [panelTab, setPanelTab] = useState<'Output' | 'Error List' | 'Find Results'>('Output')
   const [documents, setDocuments] = useState<DocumentTab[]>(readStoredDocuments)
   const [selectedDocument, setSelectedDocument] = useState(() => localStorage.getItem('dbforge.selectedDocument') ?? 'start')
   const [sqlByDocument, setSqlByDocument] = useState<Record<string, string>>(() => {
@@ -73,6 +80,16 @@ export default function App(): React.JSX.Element {
   const completionProviderRef = useRef<{ dispose(): void } | null>(null)
   const [errors, setErrors] = useState<string[]>([])
   const [analysisFindings, setAnalysisFindings] = useState<CodeAnalysisFinding[]>([])
+  const [findOpen, setFindOpen] = useState(false)
+  const [findReplaceMode, setFindReplaceMode] = useState(false)
+  const [findQuery, setFindQuery] = useState('')
+  const [replaceQuery, setReplaceQuery] = useState('')
+  const [findRegex, setFindRegex] = useState(false)
+  const [findCase, setFindCase] = useState(false)
+  const [findScope, setFindScope] = useState<'document' | 'selection' | 'open'>('document')
+  const [findInFiles, setFindInFiles] = useState(false)
+  const [findMatches, setFindMatches] = useState<Array<TextMatch & { documentId: string; documentLabel: string }>>([])
+  const [selectedExplorerObject, setSelectedExplorerObject] = useState<SelectedExplorerObject>()
   const [status, setStatus] = useState('Ready')
   const [output, setOutput] = useState<OutputEntry[]>([])
   const [loadError, setLoadError] = useState('')
@@ -84,6 +101,10 @@ export default function App(): React.JSX.Element {
   const activePanelTab = documents.find((tab) => tab.id === selectedDocument)?.panelId
   const activeSql = selectedDocument !== 'start' && !activeObjectTab && !activePanelTab
   const activeSqlText = activeSql ? sqlByDocument[selectedDocument] ?? '' : ''
+  const navigationSqlDocument = documents.find((tab) => tab.id === selectedDocument && !tab.objectEditor && !tab.panelId)
+    ?? [...documents].reverse().find((tab) => !tab.objectEditor && !tab.panelId && tab.id !== 'start')
+  const navigationSqlText = navigationSqlDocument ? sqlByDocument[navigationSqlDocument.id] ?? '' : ''
+  const navigationMatches = useMemo(() => findMatches, [findMatches])
 
   useEffect(() => {
     void loadConnections()
@@ -101,6 +122,7 @@ export default function App(): React.JSX.Element {
     window.addEventListener('dbforge:settings-changed', onSettingsChanged)
     window.addEventListener('dbforge:close-panel', onClosePanel)
     void window.dbforge.loadSettings().then((result) => applySettings(result.settings)).catch((error: unknown) => log('Options', error instanceof Error ? error.message : 'Settings unavailable.', 'warning'))
+    void window.dbforge.listUserSnippets().then(setUserSnippets).catch(() => setUserSnippets([]))
     const media = window.matchMedia('(prefers-color-scheme: dark)')
     const onChange = (event: MediaQueryListEvent): void => setSystemDark(event.matches)
     media.addEventListener('change', onChange)
@@ -427,7 +449,7 @@ export default function App(): React.JSX.Element {
 
   async function dropObject(connection: ConnectionSummary, database: string, object: DatabaseObject): Promise<void> {
     const record = records.find((item) => item.id === connection.recordId)
-    if (record?.environment === 'prod' && window.prompt(`Database de produção: digite ${database} para confirmar.`) !== database) return
+    if (record?.environment === 'prod' && window.prompt(t('security.prod.confirm', [database])) !== database) return
     const kind = object.kind.toUpperCase()
     try {
       await window.dbforge.mutateDatabaseObject({ connectionId: connection.id, database, kind: object.kind, name: object.name }, 'drop')
@@ -437,11 +459,15 @@ export default function App(): React.JSX.Element {
   }
 
   async function renameTable(connection: ConnectionSummary, database: string, object: DatabaseObject, newName: string): Promise<void> {
+    const record = records.find((item) => item.id === connection.recordId)
+    if (record?.environment === 'prod' && window.prompt(t('security.prod.confirm', [database])) !== database) return
     try { await window.dbforge.mutateDatabaseObject({ connectionId: connection.id, database, kind: object.kind, name: object.name }, 'rename', newName); log('Explorer', `Tabela ${object.name} renomeada para ${newName}.`, 'success'); await loadObjects(connection, database) }
     catch (error) { log('Explorer', error instanceof Error ? error.message : `Falha ao renomear ${object.name}.`, 'error') }
   }
 
   async function truncateTable(connection: ConnectionSummary, database: string, object: DatabaseObject): Promise<void> {
+    const record = records.find((item) => item.id === connection.recordId)
+    if (record?.environment === 'prod' && window.prompt(t('security.prod.confirm', [database])) !== database) return
     try { await window.dbforge.mutateDatabaseObject({ connectionId: connection.id, database, kind: object.kind, name: object.name }, 'truncate'); log('Explorer', `Tabela ${object.name} truncada.`, 'success'); await loadObjects(connection, database) }
     catch (error) { log('Explorer', error instanceof Error ? error.message : `Falha ao truncar ${object.name}.`, 'error') }
   }
@@ -471,8 +497,9 @@ export default function App(): React.JSX.Element {
     const destructive = statements.some(({ sql: statement }) => /\b(DROP|TRUNCATE)\b/i.test(statement) || (/\b(DELETE|UPDATE)\b/i.test(statement) && !/\bWHERE\b/i.test(statement)))
     if (destructive) {
       if (currentRecord?.environment === 'prod') {
-        if (window.prompt(`Conexão de produção. Digite ${currentConnection.database ?? 'sem database'} para confirmar.`) !== (currentConnection.database ?? 'sem database')) return
-      } else if (!window.confirm('Este script pode alterar ou remover dados. Executar mesmo assim?')) return
+        const databaseName = currentConnection.database ?? t('conn.database.none')
+        if (window.prompt(t('security.prod.confirm', [databaseName])) !== databaseName) return
+      } else if (!window.confirm(t('security.destructive.confirm'))) return
     }
     const token = crypto.randomUUID()
     const startedAt = performance.now()
@@ -587,11 +614,127 @@ export default function App(): React.JSX.Element {
     if (entry?.presentation === 'document') {
       const id = `panel-${panelId}-${crypto.randomUUID()}`
       const number = documents.filter((tab) => tab.panelId === panelId).length + 1
-      setDocuments((current) => [...current, { id, label: `${entry.titleKey.split('.').at(-1) ?? panelId} ${number}`, modified: false, panelId }])
+      setDocuments((current) => [...current, { id, label: `${t(entry.titleKey)} ${number}`, modified: false, panelId }])
       setSelectedDocument(id)
       return
     }
     setOpenPanel(panelId)
+  }
+
+  function openFind(replace = false, files = false): void {
+    setFindOpen(true); setFindInFiles(files); setFindScope(files ? 'open' : 'document')
+    setFindReplaceMode(replace)
+    setTimeout(() => document.querySelector<HTMLInputElement>('.find-toolbar input[type="search"]')?.focus(), 0)
+  }
+
+  function runFind(): void {
+    const editor = editorRef.current
+    const model = editor?.getModel()
+    if (!findQuery || !model) { setFindMatches([]); return }
+    const docs = findInFiles || findScope === 'open' ? documents.filter((tab) => tab.id !== 'start' && !tab.panelId && !tab.objectEditor) : [documents.find((tab) => tab.id === selectedDocument)].filter((tab): tab is DocumentTab => Boolean(tab))
+    const found = docs.flatMap((tab) => {
+      const sql = sqlByDocument[tab.id] ?? ''
+      const selection = findScope === 'selection' && tab.id === selectedDocument ? editor?.getSelection() : null
+      if (findScope === 'selection' && tab.id === selectedDocument && (!selection || selection.isEmpty())) return []
+      const start = selection && editor ? model.getOffsetAt(selection.getStartPosition()) : undefined
+      const end = selection && editor ? model.getOffsetAt(selection.getEndPosition()) : undefined
+      const matches = findMatchesForScope(sql, findQuery, findRegex, findCase, start, end)
+      return matches.map((match) => ({ ...match, documentId: tab.id, documentLabel: tab.label }))
+    }).slice(0, 5000)
+    setFindMatches(found)
+    setPanelVisible(true); setPanelTab('Find Results')
+  }
+
+  function navigateToMatch(match: TextMatch & { documentId: string }): void {
+    const documentId = match.documentId || navigationSqlDocument?.id || selectedDocument
+    if (documentId !== selectedDocument) setSelectedDocument(documentId)
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const target = editorRef.current
+      const model = target?.getModel()
+      if (!target || !model) return
+      const start = model.getPositionAt(match.offset)
+      const end = model.getPositionAt(match.offset + match.length)
+      target.setSelection({ startLineNumber: start.lineNumber, startColumn: start.column, endLineNumber: end.lineNumber, endColumn: end.column })
+      target.revealPositionInCenter(start); target.focus()
+    }))
+  }
+
+  function replaceAllMatches(): void {
+    if (!findQuery) return
+    const docs = findInFiles || findScope === 'open' ? documents.filter((tab) => tab.id !== 'start' && !tab.panelId && !tab.objectEditor) : [documents.find((tab) => tab.id === selectedDocument)].filter((tab): tab is DocumentTab => Boolean(tab))
+    const updates: Record<string, string> = {}
+    for (const tab of docs) {
+      const source = sqlByDocument[tab.id] ?? ''
+      const editor = tab.id === selectedDocument ? editorRef.current : null
+      const model = editor?.getModel()
+      const selection = findScope === 'selection' && model ? editor?.getSelection() : null
+      if (findScope === 'selection' && tab.id === selectedDocument && (!selection || selection.isEmpty())) continue
+      const start = selection && model ? model.getOffsetAt(selection.getStartPosition()) : 0
+      const end = selection && model ? model.getOffsetAt(selection.getEndPosition()) : source.length
+      const region = source.slice(start, end)
+      let expression: RegExp
+      try { expression = new RegExp(findRegex ? findQuery : escapeRegExp(findQuery), `${findCase ? 'g' : 'gi'}m`) } catch { return }
+      updates[tab.id] = source.slice(0, start) + region.replace(expression, replaceQuery) + source.slice(end)
+    }
+    setSqlByDocument((current) => ({ ...current, ...updates }))
+    setDocuments((current) => current.map((tab) => updates[tab.id] === undefined ? tab : { ...tab, modified: true }))
+  }
+
+  function cycleFind(direction: 1 | -1): void {
+    if (!findMatches.length) return
+    const model = editorRef.current?.getModel()
+    const position = editorRef.current?.getPosition()
+    const offset = model && position ? model.getOffsetAt(position) : 0
+    const currentIndex = direction > 0
+      ? findMatches.findIndex((match) => match.documentId === selectedDocument && match.offset > offset)
+      : [...findMatches].reverse().findIndex((match) => match.documentId === selectedDocument && match.offset < offset)
+    const index = currentIndex < 0 ? (direction > 0 ? 0 : findMatches.length - 1) : direction > 0 ? currentIndex : findMatches.length - 1 - currentIndex
+    navigateToMatch(findMatches[index]!)
+  }
+
+  function replaceCurrentMatch(): void {
+    const match = findMatches.find((item) => item.documentId === selectedDocument) ?? findMatches[0]
+    if (!match) return
+    const source = sqlByDocument[match.documentId] ?? ''
+    const matched = source.slice(match.offset, match.offset + match.length)
+    let replacement = replaceQuery
+    if (findRegex) {
+      try { replacement = matched.replace(new RegExp(findQuery, findCase ? '' : 'i'), replaceQuery) } catch { return }
+    }
+    const updated = source.slice(0, match.offset) + replacement + source.slice(match.offset + match.length)
+    setSqlByDocument((current) => ({ ...current, [match.documentId]: updated }))
+    setDocuments((current) => current.map((tab) => tab.id === match.documentId ? { ...tab, modified: true } : tab))
+  }
+
+  function showObjectProperties(connection: ConnectionSummary, database: string, object: DatabaseObject): void {
+    setSelectedExplorerObject({ connection, database, object })
+    openRegisteredPanel('object-viewer')
+  }
+
+  const runFindRef = useRef(runFind)
+  runFindRef.current = runFind
+  useEffect(() => { if (findOpen) runFindRef.current() }, [findOpen, findQuery, findRegex, findCase, findScope, findInFiles, documents, sqlByDocument, selectedDocument])
+
+  function panelContents(Component: React.ComponentType): React.JSX.Element {
+    const editorContext = {
+      sql: navigationSqlText,
+      onFindings: setAnalysisFindings,
+      insertText: (text: string, snippet = false): void => {
+        const editor = editorRef.current
+        if (!editor) return
+        editor.trigger('toolbox', snippet ? 'editor.action.insertSnippet' : 'type', snippet ? { snippet: text } : { text })
+      }
+    }
+    const navigationContext = { matches: navigationMatches, onNavigate: navigateToMatch, selectedObject: selectedExplorerObject, onSelectSchemaObject: (object: DatabaseObject) => { if (currentConnection && editorMetadata.database) { setSelectedExplorerObject({ connection: currentConnection, database: editorMetadata.database, object }); openRegisteredPanel('object-viewer') } }, onOpenObjectViewer: () => openRegisteredPanel('object-viewer'), metadata: editorMetadata }
+    return <PanelConnectionContext.Provider value={currentConnection}><PanelEditorContext.Provider value={editorContext}><PanelNavigationContext.Provider value={navigationContext}><Component /></PanelNavigationContext.Provider></PanelEditorContext.Provider></PanelConnectionContext.Provider>
+  }
+
+  function renderErrorList(): React.JSX.Element {
+    if (!errors.length && !analysisFindings.length) return <div className="error-list"><p>{t('app.errors.empty')}</p></div>
+    return <div className="error-list"><table><thead><tr><th>Severity</th><th># / Rule</th><th>Message</th><th>Document</th><th>Line</th><th>Column</th></tr></thead><tbody>
+      {errors.map((error, index) => <tr key={`error-${index}`}><td className="field-error">● Error</td><td>{index + 1}</td><td>{error}</td><td>{documents.find((tab) => tab.id === selectedDocument)?.label}</td><td>—</td><td>—</td></tr>)}
+      {analysisFindings.map((finding) => <tr key={`${finding.ruleId}:${finding.line}:${finding.column}`} onClick={() => { editorRef.current?.setPosition({ lineNumber: finding.line, column: finding.column }); editorRef.current?.focus() }} style={{ cursor: 'pointer' }}><td className={`analysis-${finding.severity.toLowerCase()}`}>{finding.severity}</td><td>{finding.ruleId}</td><td>{t(`analysis.rule.${finding.ruleId}`)}</td><td>{documents.find((tab) => tab.id === selectedDocument)?.label}</td><td>{finding.line}</td><td>{finding.column}</td></tr>)}
+    </tbody></table></div>
   }
 
   function closeTab(id: string): void {
@@ -638,15 +781,23 @@ export default function App(): React.JSX.Element {
         else if (customBinding.command === 'Source Control Manager') openRegisteredPanel('source-control')
         else if (customBinding.command === 'Find in Database') openRegisteredPanel('database-tools')
         else if (customBinding.command === 'Find Invalid Objects') openRegisteredPanel('database-tools')
-        else if (customBinding.command === 'Find') { editorRef.current?.focus(); editorRef.current?.trigger('keyboard', 'actions.find', null) }
+        else if (customBinding.command === 'Find') openFind(false, false)
+        else if (customBinding.command === 'Replace') openFind(true, false)
+        else if (customBinding.command === 'Find in Files') openFind(false, true)
+        else if (customBinding.command === 'Document Outline') openRegisteredPanel('document-outline')
         else if (customBinding.command === 'Go To Line') { editorRef.current?.focus(); editorRef.current?.trigger('keyboard', 'editor.action.gotoLine', null) }
         else if (customBinding.command === 'Complete') { editorRef.current?.focus(); editorRef.current?.trigger('keyboard', 'editor.action.triggerSuggest', null) }
         else if (customBinding.command === 'Show Find Object') openRegisteredPanel('database-tools')
         else if (customBinding.command === 'Show Command Palette') window.dispatchEvent(new CustomEvent('dbforge:shortcut-command', { detail: { command: customBinding.command } }))
-        else if (customBinding.command === 'Show Help') window.dispatchEvent(new CustomEvent('dbforge:shortcut-command', { detail: { command: customBinding.command } }))
+        else if (customBinding.command === 'Show Help') void window.dbforge.openAboutLink('documentation')
         else window.dispatchEvent(new CustomEvent('dbforge:shortcut-command', { detail: { command: customBinding.command } }))
         return
       }
+      if (event.key === 'F4' && selectedExplorerObject) { event.preventDefault(); showObjectProperties(selectedExplorerObject.connection, selectedExplorerObject.database, selectedExplorerObject.object) }
+      else if (ctrl && event.key.toLowerCase() === 'f' && activeSql) { event.preventDefault(); openFind(false, false) }
+      else if (ctrl && event.key.toLowerCase() === 'h' && activeSql) { event.preventDefault(); openFind(true, false) }
+      else if (ctrl && event.shiftKey && event.key.toLowerCase() === 'f') { event.preventDefault(); openFind(false, true) }
+      else if (ctrl && event.altKey && event.key.toLowerCase() === 'u') { event.preventDefault(); openRegisteredPanel('document-outline') }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
@@ -667,14 +818,14 @@ export default function App(): React.JSX.Element {
       <strong className="brand">dbForgeLinux</strong>
       <nav className="menu-row" aria-label="Menu principal">
         <details><summary>File</summary><div className="menu-popup"><MenuAction label="New SQL Document" shortcut={shortcutFor('New SQL Document')} onClick={newSql} /><MenuAction label="Open SQL File…" shortcut={shortcutFor('Open SQL File')} onClick={() => void openSqlFile()} /><MenuAction label="Save SQL" shortcut={shortcutFor('Save SQL')} onClick={() => void saveCurrentSql()} disabled={!activeSql} /><MenuAction label="Database Connection…" shortcut={shortcutFor('New Connection')} onClick={openNewConnection} /><MenuAction label="Connection Manager…" onClick={() => setManagerOpen(true)} /><MenuAction label="Exit" shortcut={shortcutFor('Exit')} onClick={() => window.close()} /></div></details>
-        <details><summary>Edit</summary><div className="menu-popup"><MenuAction label="Undo" shortcut="Ctrl+Z" disabled /><MenuAction label="Redo" shortcut="Ctrl+Y" disabled /><MenuAction label="Find" shortcut="Ctrl+F" disabled={!activeSql} /></div></details>
-        <details><summary>View</summary><div className="menu-popup"><MenuAction label="Database Explorer" shortcut={shortcutFor('Show Database Explorer')} onClick={() => setExplorerVisible((value) => !value)} /><MenuAction label="Output" shortcut={shortcutFor('Show Output')} onClick={() => { setPanelVisible(true); setPanelTab('Output') }} /><MenuAction label="Error List" shortcut={shortcutFor('Show Error List')} onClick={() => { setPanelVisible(true); setPanelTab('Error List') }} /><div className="menu-divider" /><span className="menu-caption">Theme</span>{(['auto', 'light', 'dark'] as ThemeMode[]).map((mode) => <MenuAction key={mode} label={mode[0].toUpperCase() + mode.slice(1)} checked={themeMode === mode} onClick={() => setThemeMode(mode)} />)}</div></details>
-        <details><summary>Database</summary><div className="menu-popup">{panelRegistry.filter((item) => item.id === 'schema-compare' || item.id === 'documenter').map((item) => <MenuAction key={item.id} label={`${item.icon} ${item.titleKey.split('.').at(-1)}`} onClick={() => openRegisteredPanel(item.id)} />)}<MenuAction label="New Connection…" onClick={openNewConnection} /><MenuAction label="Connect" onClick={() => currentRecord && void connectFromExplorer(currentRecord)} disabled={!records.length || Boolean(currentConnection)} /><MenuAction label="Disconnect" onClick={() => currentConnection && void disconnect(currentConnection)} disabled={!currentConnection} /><MenuAction label="Refresh" shortcut="F5" onClick={() => currentRecord && void expandRecord(currentRecord)} disabled={!currentConnection} /></div></details>
+        <details><summary>Edit</summary><div className="menu-popup"><MenuAction label="Undo" shortcut="Ctrl+Z" disabled /><MenuAction label="Redo" shortcut="Ctrl+Y" disabled /><MenuAction label={t('nav.find')} shortcut="Ctrl+F" onClick={() => openFind()} disabled={!activeSql} /><MenuAction label={t('nav.replace')} shortcut="Ctrl+H" onClick={() => openFind(true)} disabled={!activeSql} /><MenuAction label={t('nav.findInFiles')} shortcut="Ctrl+Shift+F" onClick={() => openFind(false, true)} /></div></details>
+        <details><summary>View</summary><div className="menu-popup"><MenuAction label="Database Explorer" shortcut={shortcutFor('Show Database Explorer')} onClick={() => setExplorerVisible((value) => !value)} /><MenuAction label="Output" shortcut={shortcutFor('Show Output')} onClick={() => { setPanelVisible(true); setPanelTab('Output') }} /><MenuAction label="Error List" shortcut={shortcutFor('Show Error List')} onClick={() => { setPanelVisible(true); setPanelTab('Error List') }} /><MenuAction label={t('nav.documentOutline')} shortcut="Ctrl+Alt+U" onClick={() => openRegisteredPanel('document-outline')} /><MenuAction label={t('nav.schemaView')} onClick={() => openRegisteredPanel('schema-view')} /><MenuAction label={t('nav.propertiesF4')} shortcut="F4" onClick={() => selectedExplorerObject && showObjectProperties(selectedExplorerObject.connection, selectedExplorerObject.database, selectedExplorerObject.object)} disabled={!selectedExplorerObject} /><div className="menu-divider" /><span className="menu-caption">Theme</span>{(['auto', 'light', 'dark'] as ThemeMode[]).map((mode) => <MenuAction key={mode} label={mode[0].toUpperCase() + mode.slice(1)} checked={themeMode === mode} onClick={() => setThemeMode(mode)} />)}</div></details>
+        <details><summary>Database</summary><div className="menu-popup">{panelRegistry.filter((item) => item.id === 'schema-compare' || item.id === 'documenter').map((item) => <MenuAction key={item.id} label={`${item.icon} ${panelMenuTitle(item.titleKey, t)}`} onClick={() => openRegisteredPanel(item.id)} />)}<MenuAction label="New Connection…" onClick={openNewConnection} /><MenuAction label="Connect" onClick={() => currentRecord && void connectFromExplorer(currentRecord)} disabled={!records.length || Boolean(currentConnection)} /><MenuAction label="Disconnect" onClick={() => currentConnection && void disconnect(currentConnection)} disabled={!currentConnection} /><MenuAction label="Refresh" shortcut="F5" onClick={() => currentRecord && void expandRecord(currentRecord)} disabled={!currentConnection} /></div></details>
         <details><summary>SQL</summary><div className="menu-popup"><MenuAction label="New SQL" shortcut={shortcutFor('New SQL Document')} onClick={newSql} /><MenuAction label="Format Document" shortcut={shortcutFor('Format Document')} onClick={() => formatEditor('document')} disabled={!activeSql} /><MenuAction label="Format Selection" shortcut={shortcutFor('Format Selection')} onClick={() => formatEditor('selection')} disabled={!activeSql} /><MenuAction label="Format Statement" shortcut={shortcutFor('Format Current Statement')} onClick={() => formatEditor('statement')} disabled={!activeSql} /><MenuAction label="Code Analysis" shortcut="Ctrl+Alt+A" onClick={() => void runCodeAnalysis()} disabled={!activeSql} /><MenuAction label="Execute" shortcut={shortcutFor('Execute SQL')} onClick={() => void runSql()} disabled={!activeSql || !currentConnection || queryBusy} /><MenuAction label="Execute Current Statement" shortcut={shortcutFor('Execute Current Statement')} onClick={() => void runSql('current')} disabled={!activeSql || !currentConnection || queryBusy} /><MenuAction label={queryBusy ? 'Cancel' : 'Cancel'} shortcut={shortcutFor('Stop Execution')} onClick={() => void cancelSql()} disabled={!queryBusy} /></div></details>
         <details><summary>Data</summary><div className="menu-popup"><MenuAction label="Refresh Result" shortcut="F5" onClick={() => void runSql()} disabled={!activeSql || !currentConnection} /><MenuAction label="Export Data…" disabled /></div></details>
-        <details><summary>Tools</summary><div className="menu-popup">{panelRegistry.filter((item) => !['schema-compare','documenter','options'].includes(item.id)).map((item) => <MenuAction key={item.id} label={`${item.icon} ${item.titleKey.split('.').at(-1)}`} onClick={() => openRegisteredPanel(item.id)} />)}<div className="menu-divider" /><MenuAction label="Connection Manager…" onClick={() => setManagerOpen(true)} /><MenuAction label="Options…" shortcut="Ctrl+," onClick={() => openRegisteredPanel('options')} /></div></details>
+        <details><summary>Tools</summary><div className="menu-popup">{panelRegistry.filter((item) => !['schema-compare','documenter','options'].includes(item.id)).map((item) => <MenuAction key={item.id} label={`${item.icon} ${panelMenuTitle(item.titleKey, t)}`} onClick={() => openRegisteredPanel(item.id)} />)}<div className="menu-divider" /><MenuAction label="Connection Manager…" onClick={() => setManagerOpen(true)} /><MenuAction label="Options…" shortcut="Ctrl+," onClick={() => openRegisteredPanel('options')} /></div></details>
         <details><summary>Window</summary><div className="menu-popup"><MenuAction label="Next Tab" shortcut="Ctrl+Tab" onClick={() => cycleDocument(1)} /><MenuAction label="Previous Tab" shortcut="Ctrl+Shift+Tab" onClick={() => cycleDocument(-1)} /><MenuAction label="Close Tab" shortcut="Ctrl+W" onClick={() => closeTab(selectedDocument)} disabled={!activeSql} /></div></details>
-        <details><summary>Help</summary><div className="menu-popup"><MenuAction label="Keyboard Shortcuts" shortcut="Ctrl+K Ctrl+S" disabled /><MenuAction label="About dbForgeLinux" disabled /></div></details>
+        <details><summary>Help</summary><div className="menu-popup"><MenuAction label={t('about.documentation')} shortcut="F1" onClick={() => void window.dbforge.openAboutLink('documentation')} /><MenuAction label={t('about.title')} onClick={() => setAboutOpen(true)} /></div></details>
       </nav>
       <span className="menubar-status">{status}</span>
     </header>
@@ -699,7 +850,7 @@ export default function App(): React.JSX.Element {
     </div>
     {loadError && <div className="storage-error" role="alert">{loadError}<Button onClick={() => void loadConnections()}>Tentar de novo</Button></div>}
     <div className={`workbench${explorerVisible ? '' : ' explorer-hidden'}${panelVisible ? '' : ' panel-hidden'}`} style={{ gridTemplateColumns: explorerVisible ? `${explorerWidth}px 5px minmax(0, 1fr)` : 'minmax(0, 1fr)' }}>
-      {explorerVisible && <DatabaseExplorer records={records} active={active} databases={databases} objects={objects} loadingObjects={loadingObjects} connecting={connecting} errors={connectionErrors} onNew={openNewConnection} onManage={() => setManagerOpen(true)} onConnect={(record) => void connectFromExplorer(record)} onDisconnect={(connection) => void disconnect(connection)} onExpand={(record) => void expandRecord(record)} onLoadObjects={loadObjects} onSelectDatabase={(connection, database) => void selectDatabase(connection, database)} onSelectTop={selectTop} onGenerateScript={(connection, database, object) => void generateScript(connection, database, object)} onDropObject={(connection, database, object) => void dropObject(connection, database, object)} onOpenObject={(connection, database, object) => openObjectEditor(connection, database, object.kind, object.name)} onCreateObject={(connection, database, kind) => openObjectEditor(connection, database, kind, `new_${kind}`, true)} onRenameTable={(connection, database, object, name) => void renameTable(connection, database, object, name)} onTruncateTable={(connection, database, object) => void truncateTable(connection, database, object)} onEdit={openEdit} />}
+      {explorerVisible && <DatabaseExplorer records={records} active={active} databases={databases} objects={objects} loadingObjects={loadingObjects} connecting={connecting} errors={connectionErrors} onNew={openNewConnection} onManage={() => setManagerOpen(true)} onConnect={(record) => void connectFromExplorer(record)} onDisconnect={(connection) => void disconnect(connection)} onExpand={(record) => void expandRecord(record)} onLoadObjects={loadObjects} onSelectDatabase={(connection, database) => void selectDatabase(connection, database)} onSelectTop={selectTop} onGenerateScript={(connection, database, object) => void generateScript(connection, database, object)} onDropObject={(connection, database, object) => void dropObject(connection, database, object)} onOpenObject={(connection, database, object) => openObjectEditor(connection, database, object.kind, object.name)} onCreateObject={(connection, database, kind) => openObjectEditor(connection, database, kind, `new_${kind}`, true)} onRenameTable={(connection, database, object, name) => void renameTable(connection, database, object, name)} onTruncateTable={(connection, database, object) => void truncateTable(connection, database, object)} onSelectObject={(connection, database, object) => setSelectedExplorerObject({ connection, database, object })} onProperties={showObjectProperties} onEdit={openEdit} />}
       {explorerVisible && <div className="vertical-splitter" role="separator" aria-orientation="vertical" aria-label="Resize Database Explorer" onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)} onPointerMove={(event) => { if (event.buttons) setExplorerWidth(Math.min(Math.floor(window.innerWidth * 0.5), Math.max(200, event.clientX))) }} />}
       <section className="document-workspace" style={{ gridTemplateRows: panelVisible ? `30px minmax(0, 1fr) 5px ${panelHeight}px` : '30px minmax(0, 1fr) 0 0' }}>
         <div className="document-tabs" role="tablist" aria-label="Documents">
@@ -708,8 +859,9 @@ export default function App(): React.JSX.Element {
           </div>)}
           <button className="tab-overflow" title="Todas as abas" onClick={() => window.alert(documents.map((tab) => tab.label).join('\n'))}>⌄</button>
         </div>
-        {selectedDocument === 'start' ? <StartPage files={documents.filter((tab) => tab.id !== 'start' && !tab.objectEditor && !tab.panelId && tab.filePath).slice(-10).reverse()} connections={records} onNewSql={newSql} onOpenSql={() => void openSqlFile()} onNewConnection={openNewConnection} onManageConnections={() => setManagerOpen(true)} onOpenFile={setSelectedDocument} onConnect={(record) => void connectFromExplorer(record)} /> : activeObjectTab ? <ObjectEditor key={selectedDocument} target={activeObjectTab} isNew={activeObjectTab.isNew} isProduction={currentConnection?.environment === 'prod'} onApplied={() => { const connection = active.find((item) => item.id === activeObjectTab.connectionId); if (connection) void loadObjects(connection, activeObjectTab.database) }} /> : activePanelTab ? (() => { const entry = panelRegistry.find((item) => item.id === activePanelTab); if (!entry) return <div className="tool-document-empty">Painel indisponível.</div>; const Panel = entry.component; return <div className="tool-document"><PanelConnectionContext.Provider value={currentConnection}><PanelEditorContext.Provider value={{ sql: activeSqlText, onFindings: setAnalysisFindings }}><Panel /></PanelEditorContext.Provider></PanelConnectionContext.Provider></div> })() : <div className="document-main">
+        {selectedDocument === 'start' ? <StartPage files={documents.filter((tab) => tab.id !== 'start' && !tab.objectEditor && !tab.panelId && tab.filePath).slice(-10).reverse()} connections={records} onNewSql={newSql} onOpenSql={() => void openSqlFile()} onNewConnection={openNewConnection} onManageConnections={() => setManagerOpen(true)} onOpenFile={setSelectedDocument} onConnect={(record) => void connectFromExplorer(record)} /> : activeObjectTab ? <ObjectEditor key={selectedDocument} target={activeObjectTab} isNew={activeObjectTab.isNew} isProduction={currentConnection?.environment === 'prod'} onApplied={() => { const connection = active.find((item) => item.id === activeObjectTab.connectionId); if (connection) void loadObjects(connection, activeObjectTab.database) }} /> : activePanelTab ? (() => { const entry = panelRegistry.find((item) => item.id === activePanelTab); if (!entry) return <div className="tool-document-empty">Painel indisponível.</div>; const Panel = entry.component; return <div className="tool-document">{panelContents(Panel)}</div> })() : <div className="document-main">
           <div className="sql-context-toolbar"><span>{documents.find((tab) => tab.id === selectedDocument)?.label}</span><span>{activeTitle}</span><span className="metadata-state">{metadataLoading ? 'Loading schema…' : editorMetadata.objects.length ? `${editorMetadata.objects.length} schema objects` : ''}</span><Button onClick={() => formatEditor('document')}>Format</Button><Button onClick={() => formatEditor('statement')}>Format statement</Button><Button variant="primary" onClick={() => void runSql()} disabled={!currentConnection || queryBusy}>▶ Execute</Button><Button onClick={() => void runSql('current')} disabled={!currentConnection || queryBusy}>Current statement</Button></div>
+          {findOpen && <div className="find-toolbar"><input type="search" aria-label={t('nav.find')} placeholder={t('nav.find')} value={findQuery} onChange={(event) => setFindQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') cycleFind(event.shiftKey ? -1 : 1) }} /><Button onClick={() => cycleFind(-1)} title={t('nav.previous')}>↑</Button><Button onClick={() => cycleFind(1)} title={t('nav.next')}>↓</Button><label><input type="checkbox" checked={findRegex} onChange={(event) => setFindRegex(event.target.checked)} />{t('nav.regex')}</label><label><input type="checkbox" checked={findCase} onChange={(event) => setFindCase(event.target.checked)} />{t('nav.caseSensitive')}</label><select aria-label={t('nav.scope')} value={findScope} onChange={(event) => setFindScope(event.target.value as typeof findScope)}><option value="document">{t('nav.document')}</option><option value="selection">{t('nav.selection')}</option><option value="open">{t('nav.openDocuments')}</option></select>{findReplaceMode && <><input aria-label={t('nav.replace')} placeholder={t('nav.replace')} value={replaceQuery} onChange={(event) => setReplaceQuery(event.target.value)} /><Button onClick={replaceCurrentMatch}>{t('nav.replaceOne')}</Button><Button onClick={replaceAllMatches}>{t('nav.replaceAll')}</Button></>}<span>{findMatches.length}</span><Button onClick={() => { setFindOpen(false); setFindReplaceMode(false) }} title={t('nav.close')}>×</Button></div>}
           <div className="editor-surface"><Editor height="100%" language="sql" theme={theme === 'dark' || theme === 'high-contrast' ? 'vs-dark' : 'vs'} value={sqlByDocument[selectedDocument] ?? ''} onMount={(editor, monaco) => {
             editorRef.current = editor
             completionProviderRef.current?.dispose()
@@ -721,7 +873,7 @@ export default function App(): React.JSX.Element {
                 const word = model.getWordUntilPosition(position)
                 const range = new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, position.column)
                 const kinds = { database: monaco.languages.CompletionItemKind.Module, table: monaco.languages.CompletionItemKind.Struct, column: monaco.languages.CompletionItemKind.Field, routine: monaco.languages.CompletionItemKind.Function, keyword: monaco.languages.CompletionItemKind.Keyword, snippet: monaco.languages.CompletionItemKind.Snippet }
-                return { suggestions: buildSqlSuggestions(source, offset, metadataRef.current).map((item) => ({ label: item.label, kind: kinds[item.kind], detail: item.detail, insertText: item.insertText, filterText: item.kind === 'snippet' ? item.detail.split(' · ')[0] : item.label, insertTextRules: item.kind === 'snippet' ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : monaco.languages.CompletionItemInsertTextRule.None, range })) }
+                return { suggestions: buildSqlSuggestions(source, offset, metadataRef.current, userSnippetsRef.current).map((item) => ({ label: item.label, kind: kinds[item.kind], detail: item.detail, insertText: item.insertText, filterText: item.kind === 'snippet' ? item.detail.split(' · ')[0] : item.label, insertTextRules: item.kind === 'snippet' ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : monaco.languages.CompletionItemInsertTextRule.None, range })) }
               }
             })
             const formatAction = (id: string, label: string, target: 'document' | 'selection' | 'statement', keybindings?: number[]): void => { editor.addAction({ id, label, ...(keybindings ? { keybindings } : {}), run: () => formatEditor(target) }) }
@@ -736,17 +888,23 @@ export default function App(): React.JSX.Element {
         </div>}
         <div className="horizontal-splitter" role="separator" aria-orientation="horizontal" aria-label="Resize Output panel" onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)} onPointerMove={(event) => { if (event.buttons) setPanelHeight(Math.min(480, Math.max(80, window.innerHeight - event.clientY))) }} />
         <section className="bottom-panel" aria-label="Output and errors">
-          <div className="panel-tabs"><button className={panelTab === 'Output' ? 'selected' : ''} onClick={() => setPanelTab('Output')}>Output</button><button className={panelTab === 'Error List' ? 'selected' : ''} onClick={() => setPanelTab('Error List')}>Error List{errors.length + analysisFindings.length ? ` (${errors.length + analysisFindings.length})` : ''}</button><span className="toolbar-spacer" /><Button className="icon-button" onClick={() => setPanelVisible(false)} title="Hide panel">⌄</Button></div>
-          {panelTab === 'Output' ? <div className="output-log" aria-live="polite">{output.length ? output.map((entry, index) => <div key={`${entry.timestamp}-${index}`} className={`output-${entry.tone}`}>[{entry.timestamp}] {entry.origin} {entry.message}</div>) : <p>{t('app.output.empty')} {t('app.output.secretNote')}</p>}</div> : <div className="error-list">{errors.length + analysisFindings.length ? <table><thead><tr><th>Severity</th><th># / Rule</th><th>Message</th><th>Document</th><th>Line</th><th>Column</th></tr></thead><tbody>{errors.map((error, index) => <tr key={`error-${index}`}><td className="field-error">● Error</td><td>{index + 1}</td><td>{error}</td><td>{documents.find((tab) => tab.id === selectedDocument)?.label}</td><td>—</td><td>—</td></tr>)}{analysisFindings.map((finding) => <tr key={`${finding.ruleId}:${finding.line}:${finding.column}`} onClick={() => { editorRef.current?.setPosition({ lineNumber: finding.line, column: finding.column }); editorRef.current?.focus() }} style={{ cursor: 'pointer' }}><td className={`analysis-${finding.severity.toLowerCase()}`}>{finding.severity}</td><td>{finding.ruleId}</td><td>{t(`analysis.rule.${finding.ruleId}`)}</td><td>{documents.find((tab) => tab.id === selectedDocument)?.label}</td><td>{finding.line}</td><td>{finding.column}</td></tr>)}</tbody></table> : <p>{t('app.errors.empty')}</p>}</div>}
+          {panelTab === 'Output' ? <div className="output-log" aria-live="polite">{output.length ? output.map((entry, index) => <div key={`${entry.timestamp}-${index}`} className={`output-${entry.tone}`}>[{entry.timestamp}] {entry.origin} {entry.message}</div>) : <p>{t('app.output.empty')} {t('app.output.secretNote')}</p>}</div> : panelTab === 'Find Results' ? panelContents(panelRegistry.find((entry) => entry.id === 'find-results')!.component) : renderErrorList()}
         </section>
       </section>
     </div>
-    <footer className="status-bar"><span>{status}</span><button onClick={() => currentRecord && setManagerOpen(true)}>{activeTitle}</button><span>{currentConnection?.database ?? ''}</span><span>Ln 1, Col 1</span><span>UTF-8</span><span>LF</span><span>{results.length ? `${results.reduce((sum, item) => sum + (item.rowCount ?? item.rows.length), 0)} rows` : ''}</span><span className="toolbar-spacer" />{themeMode.toUpperCase()}</footer>
+    <footer className="status-bar"><span>{status}</span><button onClick={() => currentRecord && setManagerOpen(true)}>{activeTitle}</button>{currentConnection && currentRecord?.environment !== 'none' && <span className={`environment-badge env-${currentRecord?.environment ?? 'none'}`} style={{ '--environment-color': currentRecord?.color ?? (currentRecord?.environment === 'prod' ? '#c62828' : currentRecord?.environment === 'test' ? '#ed6c02' : '#2e7d32') } as React.CSSProperties}>{t(`conn.environment.${currentRecord?.environment ?? 'none'}`)}</span>}{currentRecord?.category && <span className="connection-category">{currentRecord.category}</span>}<span>{currentConnection?.database ?? ''}</span><span>Ln 1, Col 1</span><span>UTF-8</span><span>LF</span><span>{results.length ? `${results.reduce((sum, item) => sum + (item.rowCount ?? item.rows.length), 0)} rows` : ''}</span><span className="toolbar-spacer" />{themeMode.toUpperCase()}</footer>
     {dialogRecord && <ConnectionPropertiesDialog initial={dialogRecord} isNew={newDialog} names={records.filter((record) => record.id !== dialogRecord.id).map((record) => record.name)} onAction={runConnectionAction} onTrustHostKey={async (record) => { await window.dbforge.saveConnection(record); upsertRecord(record) }} onCancel={() => setDialogRecord(null)} />}
-    {openPanel && (() => { const entry = panelRegistry.find((item) => item.id === openPanel); if (!entry) return null; const Panel = entry.component; const contents = <PanelConnectionContext.Provider value={currentConnection}><PanelEditorContext.Provider value={{ sql: activeSqlText, onFindings: setAnalysisFindings }}><Panel /></PanelEditorContext.Provider></PanelConnectionContext.Provider>; return entry.presentation === 'dock' ? <aside className="right-dock" aria-label="AI Assistant"><header><strong>AI Assistant</strong><button onClick={() => setOpenPanel(null)} aria-label="Fechar AI Assistant">×</button></header>{contents}</aside> : <PanelDialog title={entry.titleKey.split('.').at(-1) ?? entry.id} onClose={() => setOpenPanel(null)}>{contents}</PanelDialog> })()}
+    {openPanel && (() => { const entry = panelRegistry.find((item) => item.id === openPanel); if (!entry) return null; const contents = panelContents(entry.component); return entry.presentation === 'dock' ? <aside className="right-dock" aria-label={t(entry.titleKey)}><header><strong>{t(entry.titleKey)}</strong><button onClick={() => setOpenPanel(null)} aria-label={`Close ${t(entry.titleKey)}`}>×</button></header>{contents}</aside> : <PanelDialog title={t(entry.titleKey)} onClose={() => setOpenPanel(null)}>{contents}</PanelDialog> })()}
     {managerOpen && <ConnectionManager records={records} onNew={() => { setManagerOpen(false); openNewConnection() }} onEdit={(record) => { setManagerOpen(false); openEdit(record) }} onDuplicate={(record) => { setManagerOpen(false); setDialogRecord({ ...structuredClone(record), id: crypto.randomUUID(), name: `${record.name} copy`, lastUsedAt: undefined }); setNewDialog(true) }} onDelete={deleteRecords} onClose={() => setManagerOpen(false)} />}
+    {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
   </main>
 
+}
+
+function panelMenuTitle(titleKey: string, translate: (key: string) => string): string {
+  if (titleKey.startsWith('extras.')) return translate(titleKey)
+  if (titleKey.startsWith('panels.')) return titleKey.slice('panels.'.length).replaceAll('-', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+  return titleKey.split('.').at(-1) ?? titleKey
 }
 
 function MenuAction({ label, shortcut, onClick, disabled = false, checked }: { label: string; shortcut?: string; onClick?: () => void; disabled?: boolean; checked?: boolean }): React.JSX.Element {
@@ -757,6 +915,18 @@ function MenuAction({ label, shortcut, onClick, disabled = false, checked }: { l
 
 function emptySecrets(): ConnectionSecrets {
   return { password: '', sshPassword: '', sshPassphrase: '', httpPassword: '', proxyPassword: '' }
+}
+
+function escapeRegExp(value: string): string { return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') }
+
+function findMatchesForScope(source: string, query: string, regex: boolean, caseSensitive: boolean, start?: number, end?: number): TextMatch[] {
+  const from = start ?? 0
+  const to = end ?? source.length
+  return findTextMatches(source.slice(from, to), query, { regex, caseSensitive }).map((match) => {
+    const offset = from + match.offset
+    const before = source.slice(0, offset)
+    return { ...match, offset, line: before.split('\n').length, column: offset - before.lastIndexOf('\n') }
+  })
 }
 
 function maskSecrets(value: string): string {

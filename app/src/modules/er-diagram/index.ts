@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { DatabaseModel, ForeignKeyModel } from '../schema/model.js'
 import type { DiagramPoint, DiagramRelation, ERDiagram, VirtualRelationInput } from './types.js'
@@ -94,11 +94,21 @@ export class VirtualRelationStore {
   async read(connectionId: string, database: string): Promise<DiagramRelation[]> {
     try {
       const value: unknown = JSON.parse(await readFile(this.file(connectionId, database), 'utf8'))
-      return Array.isArray(value) ? value.filter((item): item is DiagramRelation => Boolean(item && typeof item === 'object' && (item as DiagramRelation).virtual === true)) : []
+      if (!Array.isArray(value) || value.length > 20000) throw new Error('Virtual relation file is invalid.')
+      return value.filter(isVirtualRelation)
     } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw error }
   }
   async write(connectionId: string, database: string, relations: DiagramRelation[]): Promise<void> {
-    await mkdir(this.directory, { recursive: true })
-    await writeFile(this.file(connectionId, database), JSON.stringify(relations.filter((relation) => relation.virtual), null, 2), { mode: 0o600 })
+    if (!connectionId || !database || relations.length > 20000 || relations.some((relation) => !isVirtualRelation(relation))) throw new Error('Virtual relation data is invalid.')
+    await mkdir(this.directory, { recursive: true, mode: 0o700 })
+    const destination = this.file(connectionId, database); const temporary = `${destination}.${randomUUID()}.tmp`
+    await writeFile(temporary, `${JSON.stringify(relations, null, 2)}\n`, { mode: 0o600 })
+    await rename(temporary, destination); await chmod(destination, 0o600)
   }
+}
+
+function isVirtualRelation(value: unknown): value is DiagramRelation {
+  if (!value || typeof value !== 'object') return false
+  const relation = value as Partial<DiagramRelation>
+  return relation.virtual === true && typeof relation.id === 'string' && relation.id.length <= 512 && typeof relation.name === 'string' && relation.name.length > 0 && relation.name.length <= 256 && typeof relation.fromTable === 'string' && relation.fromTable.length <= 256 && typeof relation.toTable === 'string' && relation.toTable.length <= 256 && Array.isArray(relation.fromColumns) && relation.fromColumns.length > 0 && relation.fromColumns.length <= 1000 && relation.fromColumns.every((name) => typeof name === 'string' && name.length <= 256) && Array.isArray(relation.toColumns) && relation.toColumns.length === relation.fromColumns.length && relation.toColumns.every((name) => typeof name === 'string' && name.length <= 256) && (relation.comment === undefined || typeof relation.comment === 'string' && relation.comment.length <= 4000)
 }

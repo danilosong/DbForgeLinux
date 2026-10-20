@@ -22,7 +22,7 @@ export default function Panel(): React.JSX.Element {
   const [displayMode, setDisplayMode] = useState<DisplayMode>('types'); const [zoom, setZoom] = useState(1); const [pan, setPan] = useState<DiagramPoint>({ x: 0, y: 0 })
   const [message, setMessage] = useState('Selecione conexão e database para criar um diagrama.')
   const [busy, setBusy] = useState(false); const [relationName, setRelationName] = useState(''); const [fromTable, setFromTable] = useState(''); const [fromColumns, setFromColumns] = useState(''); const [toTable, setToTable] = useState(''); const [toColumns, setToColumns] = useState(''); const [relationComment, setRelationComment] = useState('')
-  const [showRelations, setShowRelations] = useState(false); const [search, setSearch] = useState('')
+  const [showRelations, setShowRelations] = useState(false); const [search, setSearch] = useState(''); const [editingRelationId, setEditingRelationId] = useState(''); const [relationDdl, setRelationDdl] = useState('')
   const svgRef = useRef<SVGSVGElement>(null); const dragRef = useRef<{ table?: string; pointerX: number; pointerY: number; startX: number; startY: number; panning: boolean } | null>(null)
   const activeRecord = connections.find((record) => record.id === connectionId)
   const visibleTables = useMemo(() => diagram?.tables.filter((table) => table.name.toLowerCase().includes(search.toLowerCase())) ?? [], [diagram, search])
@@ -44,15 +44,46 @@ export default function Panel(): React.JSX.Element {
     if (!diagram) return
     const next = { ...diagram, virtualRelations: relations, relations: [...diagram.relations.filter((item) => !item.virtual), ...relations] }
     setDiagram(next)
-    try { await window.dbforge.saveVirtualRelations(diagram.connectionId, diagram.database, relations); setMessage('Relações virtuais salvas localmente.') }
+    try { await window.dbforge.saveVirtualRelations(diagram.connectionId, diagram.database, relations); setMessage(t('extras.erd.saved')) }
     catch (error) { setMessage(error instanceof Error ? error.message : 'Falha ao salvar relações virtuais.') }
   }
   function addVirtualRelation(): void {
     if (!diagram) return
     const childColumns = fromColumns.split(',').map((value) => value.trim()).filter(Boolean); const parentColumns = toColumns.split(',').map((value) => value.trim()).filter(Boolean)
     if (!relationName.trim() || !childColumns.length || childColumns.length !== parentColumns.length) { setMessage('Informe um nome e o mesmo número de colunas em cada lado.'); return }
-    const relation: DiagramRelation = { id: `virtual:${Date.now()}:${relationName.trim()}`, name: relationName.trim(), fromTable, fromColumns: childColumns, toTable, toColumns: parentColumns, comment: relationComment.trim(), virtual: true }
-    void persistRelations([...diagram.virtualRelations, relation]); setRelationName(''); setFromColumns(''); setToColumns(''); setRelationComment('')
+    if (!diagram.tables.some((table) => table.name === fromTable) || !diagram.tables.some((table) => table.name === toTable)) { setMessage(t('extras.erd.selectTables')); return }
+    const prior = diagram.virtualRelations.find((item) => item.id === editingRelationId)
+    const relation: DiagramRelation = { id: prior?.id ?? `virtual:${Date.now()}:${relationName.trim()}`, name: relationName.trim(), fromTable, fromColumns: childColumns, toTable, toColumns: parentColumns, comment: relationComment.trim(), virtual: true }
+    void persistRelations([...diagram.virtualRelations.filter((item) => item.id !== relation.id), relation]); setEditingRelationId(''); setRelationName(''); setFromTable(''); setFromColumns(''); setToTable(''); setToColumns(''); setRelationComment('')
+  }
+  function editRelation(relation: DiagramRelation): void { setEditingRelationId(relation.id); setRelationName(relation.name); setFromTable(relation.fromTable); setFromColumns(relation.fromColumns.join(', ')); setToTable(relation.toTable); setToColumns(relation.toColumns.join(', ')); setRelationComment(relation.comment ?? '') }
+  async function showRelationDdl(relation: DiagramRelation): Promise<void> {
+    if (!diagram) return
+    const quote = (value: string): string => `\`${value.replaceAll('`', '``')}\``
+    const constraint = `${relation.fromTable}_${relation.name}`.replace(/[^A-Za-z0-9_$]/g, '_')
+    const ddl = `ALTER TABLE ${quote(diagram.database)}.${quote(relation.fromTable)}\n  ADD CONSTRAINT ${quote(constraint)} FOREIGN KEY (${relation.fromColumns.map(quote).join(', ')})\n  REFERENCES ${quote(diagram.database)}.${quote(relation.toTable)} (${relation.toColumns.map(quote).join(', ')});`
+    setRelationDdl(ddl)
+  }
+  async function convertRelation(relation: DiagramRelation): Promise<void> {
+    if (!diagram || !activeRecord) return
+    const child = diagram.tables.find((table) => table.name === relation.fromTable); const parent = diagram.tables.find((table) => table.name === relation.toTable)
+    const childColumns = relation.fromColumns.map((name) => child?.columns.find((column) => column.name === name)); const parentColumns = relation.toColumns.map((name) => parent?.columns.find((column) => column.name === name))
+    if (childColumns.some((column) => !column) || parentColumns.some((column) => !column)) { setMessage(t('extras.erd.missingColumns')); return }
+    if (childColumns.some((column, index) => column!.type.toLowerCase().replace(/\s+/g, '') !== parentColumns[index]!.type.toLowerCase().replace(/\s+/g, ''))) { setMessage(t('extras.erd.typeMismatch')); return }
+    const quote = (value: string): string => `\`${value.replaceAll('`', '``')}\``
+    const childAlias = 'c'; const parentAlias = 'p'
+    const joins = relation.fromColumns.map((column, index) => `${childAlias}.${quote(column)} = ${parentAlias}.${quote(relation.toColumns[index]!)}`).join(' AND ')
+    const nonNull = relation.fromColumns.map((column) => `${childAlias}.${quote(column)} IS NOT NULL`).join(' AND ')
+    const sql = `SELECT 1 FROM ${quote(diagram.database)}.${quote(relation.fromTable)} ${childAlias} LEFT JOIN ${quote(diagram.database)}.${quote(relation.toTable)} ${parentAlias} ON ${joins} WHERE ${nonNull} AND ${parentAlias}.${quote(relation.toColumns[0]!)} IS NULL LIMIT 1`
+    try {
+      const connected = await window.dbforge.connect(activeRecord!)
+      try { const results = await window.dbforge.executeSql(connected.id, sql); if (results[0]?.rows?.length) { setMessage(t('extras.erd.orphans')); return } } finally { await window.dbforge.disconnect(connected.id) }
+      const quoteConstraint = `${relation.fromTable}_${relation.name}`.replace(/[^A-Za-z0-9_$]/g, '_')
+      const finalDdl = `ALTER TABLE ${quote(diagram.database)}.${quote(relation.fromTable)} ADD CONSTRAINT ${quote(quoteConstraint)} FOREIGN KEY (${relation.fromColumns.map(quote).join(', ')}) REFERENCES ${quote(diagram.database)}.${quote(relation.toTable)} (${relation.toColumns.map(quote).join(', ')});`
+      if (!window.confirm(t('extras.erd.confirmConvert'))) return
+      await window.dbforge.queueSchemaUpdate({ connectionId: diagram.connectionId, database: diagram.database, source: `Virtual relation · ${relation.name}`, script: finalDdl })
+      setMessage(t('extras.erd.queued'))
+    } catch (error) { setMessage(error instanceof Error ? error.message : 'Foreign key check failed.') }
   }
   function layout(): void {
     if (!diagram) return
@@ -113,6 +144,6 @@ export default function Panel(): React.JSX.Element {
         <div className="er-properties"><h3>{t('panel.er.diagram.m88564ee79c')}</h3>{diagram.tables.find((table) => table.name === selectedTable) ? <><b>{selectedTable}</b><span>{diagram.tables.find((table) => table.name === selectedTable)!.columns.length} {t('panel.er.diagram.m59ee64a001')}</span><span>{diagram.relations.filter((relation) => relation.fromTable === selectedTable || relation.toTable === selectedTable).length} {t('panel.er.diagram.mee5252bb95')}</span><button onClick={() => setDiagram((current) => current ? { ...current, tables: current.tables.filter((table) => table.name !== selectedTable), relations: current.relations.filter((relation) => relation.fromTable !== selectedTable && relation.toTable !== selectedTable) } : current)}>{t('erd.cmd.removeFromDiagram')}</button></> : <span>{t('panel.er.diagram.mb4774373de')}</span>}</div>
       </aside>
     </div>}
-    {showRelations && diagram && <div className="er-relations" role="dialog" aria-label={t('erd.vr.manager')}><header><h3>{t('erd.vr.manager')}</h3><button onClick={() => setShowRelations(false)}>{t('panel.er.diagram.md72510b688')}</button></header><div className="er-rel-form"><label>{t('panel.er.diagram.m6cf9eef7ff')}<input value={relationName} onChange={(event) => setRelationName(event.target.value)} /></label><label>{t('panel.er.diagram.me602b5049a')}<select value={fromTable} onChange={(event) => setFromTable(event.target.value)}><option value="">{t('panel.er.diagram.m548bbb794e')}</option>{diagram.tables.map((table) => <option key={table.name}>{table.name}</option>)}</select></label><label>{t('panel.er.diagram.m99531e1578')}<input value={fromColumns} onChange={(event) => setFromColumns(event.target.value)} placeholder={t('panel.er.diagram.mcb996c6ecb')} /></label><label>{t('panel.er.diagram.m8e0b9bbbdc')}<select value={toTable} onChange={(event) => setToTable(event.target.value)}><option value="">{t('panel.er.diagram.m548bbb794e')}</option>{diagram.tables.map((table) => <option key={table.name}>{table.name}</option>)}</select></label><label>{t('panel.er.diagram.m86c59b290c')}<input value={toColumns} onChange={(event) => setToColumns(event.target.value)} placeholder={t('panel.er.diagram.mf5ebbae88a')} /></label><label>{t('panel.er.diagram.m2422471bc2')}<input value={relationComment} onChange={(event) => setRelationComment(event.target.value)} /></label><button onClick={addVirtualRelation}>{t('panel.er.diagram.m54b199f39b')}</button></div><div className="er-relation-list">{diagram.virtualRelations.length ? diagram.virtualRelations.map((relation) => <div key={relation.id}><span>{relation.name} · {relation.fromTable}.{relation.fromColumns.join(',')} → {relation.toTable}.{relation.toColumns.join(',')}</span><button onClick={() => void persistRelations(diagram.virtualRelations.filter((item) => item.id !== relation.id))}>{t('panel.er.diagram.m24678722b6')}</button></div>) : <p>{t('panel.er.diagram.m6f614bc328')}</p>}</div></div>}
+    {showRelations && diagram && <div className="er-relations" role="dialog" aria-label={t('erd.vr.manager')}><header><h3>{t('erd.vr.manager')}</h3><button onClick={() => setShowRelations(false)}>{t('panel.er.diagram.md72510b688')}</button></header><div className="er-rel-form"><label>{t('panel.er.diagram.m6cf9eef7ff')}<input value={relationName} onChange={(event) => setRelationName(event.target.value)} /></label><label>{t('panel.er.diagram.me602b5049a')}<select value={fromTable} onChange={(event) => setFromTable(event.target.value)}><option value="">{t('panel.er.diagram.m548bbb794e')}</option>{diagram.tables.map((table) => <option key={table.name}>{table.name}</option>)}</select></label><label>{t('panel.er.diagram.m99531e1578')}<input value={fromColumns} onChange={(event) => setFromColumns(event.target.value)} placeholder={t('panel.er.diagram.mcb996c6ecb')} /></label><label>{t('panel.er.diagram.m8e0b9bbbdc')}<select value={toTable} onChange={(event) => setToTable(event.target.value)}><option value="">{t('panel.er.diagram.m548bbb794e')}</option>{diagram.tables.map((table) => <option key={table.name}>{table.name}</option>)}</select></label><label>{t('panel.er.diagram.m86c59b290c')}<input value={toColumns} onChange={(event) => setToColumns(event.target.value)} placeholder={t('panel.er.diagram.mf5ebbae88a')} /></label><label>{t('panel.er.diagram.m2422471bc2')}<input value={relationComment} onChange={(event) => setRelationComment(event.target.value)} /></label><button onClick={addVirtualRelation}>{editingRelationId ? t('extras.erd.save') : t('panel.er.diagram.m54b199f39b')}</button>{editingRelationId && <button onClick={() => { setEditingRelationId(''); setRelationName(''); setFromTable(''); setFromColumns(''); setToTable(''); setToColumns(''); setRelationComment('') }}>{t('extras.erd.cancelEdit')}</button>}</div><div className="er-relation-list">{diagram.virtualRelations.length ? diagram.virtualRelations.map((relation) => <div key={relation.id}><span>{relation.name} · {relation.fromTable}.{relation.fromColumns.join(',')} → {relation.toTable}.{relation.toColumns.join(',')}</span><button onClick={() => editRelation(relation)}>{t('extras.erd.edit')}</button><button onClick={() => void showRelationDdl(relation)}>{t('extras.erd.ddl')}</button><button onClick={() => void convertRelation(relation)}>{t('extras.erd.convert')}</button><button onClick={() => void persistRelations(diagram.virtualRelations.filter((item) => item.id !== relation.id))}>{t('panel.er.diagram.m24678722b6')}</button></div>) : <p>{t('panel.er.diagram.m6f614bc328')}</p>}</div>{relationDdl && <pre className="er-relation-ddl">{relationDdl}</pre>}</div>}
   </section>
 }

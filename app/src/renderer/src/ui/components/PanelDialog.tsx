@@ -4,9 +4,10 @@ interface PanelDialogProps {
   title: string
   onClose: () => void
   children: ReactNode
+  closeLabel?: string
 }
 
-export function PanelDialog({ title, onClose, children }: PanelDialogProps): React.JSX.Element {
+export function PanelDialog({ title, onClose, children, closeLabel = 'Close panel' }: PanelDialogProps): React.JSX.Element {
   const dialogRef = useRef<HTMLElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
   const closeHandler = useRef(onClose)
@@ -57,7 +58,7 @@ export function PanelDialog({ title, onClose, children }: PanelDialogProps): Rea
 
   return <div className="panel-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
     <section ref={dialogRef} className="panel-dialog" role="dialog" aria-modal="true" aria-label={title} tabIndex={-1}>
-      <button ref={closeRef} className="panel-dialog-close" type="button" onClick={onClose} aria-label="Close panel">×</button>
+      <button ref={closeRef} className="panel-dialog-close" type="button" onClick={onClose} aria-label={closeLabel}>×</button>
       {children}
     </section>
   </div>

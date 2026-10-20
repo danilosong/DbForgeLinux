@@ -5,6 +5,7 @@ import type { ColumnModel, IndexModel, TableModel } from '../../../../modules/sc
 import { quoteIdentifier } from '../../../../modules/schema/index.js'
 import { buildObjectTemplate, buildTableDdlPreview } from '../../../../modules/object-editors/index.js'
 import { Button } from './Button'
+import { useI18n } from '../i18n/useI18n.js'
 
 type TablePage = 'Columns' | 'Indexes' | 'Foreign Keys' | 'Options' | 'Partitions' | 'DDL'
 interface Props { target: ObjectEditorTarget; isNew: boolean; isProduction?: boolean; onApplied(): void }
@@ -13,6 +14,7 @@ const blankColumn = (index: number): ColumnModel => ({ name: `column_${index}`, 
 const blankTable = (name: string): TableModel => ({ kind: 'table', name, columns: [{ name: 'id', type: 'INT', nullable: false, autoIncrement: true }, { name: 'name', type: 'VARCHAR(100)', nullable: true }], indexes: [{ name: 'PRIMARY', kind: 'PRIMARY', columns: [{ name: 'id' }] }], foreignKeys: [], checks: [], engine: 'InnoDB', charset: 'utf8mb4', comment: '' })
 
 export function ObjectEditor({ target, isNew, isProduction, onApplied }: Props): React.JSX.Element {
+  const { t } = useI18n()
   const [loading, setLoading] = useState(!isNew)
   const [page, setPage] = useState<TablePage>('Columns')
   const [original, setOriginal] = useState<TableModel | null>(null)
@@ -74,6 +76,12 @@ export function ObjectEditor({ target, isNew, isProduction, onApplied }: Props):
     finally { setBusy(false) }
   }
 
+  async function queueTableChanges(): Promise<void> {
+    if (!table || busy) return
+    try { await window.dbforge.queueTableSchemaUpdate(target.connectionId, target.database, original, table); setMessage(t('extras.schema.added')) }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not queue table changes.') }
+  }
+
   async function execute(): Promise<void> {
     if (target.kind !== 'procedure' && target.kind !== 'function') return
     const parameters = window.prompt('Parâmetros SQL (separados por vírgula):', '')
@@ -99,7 +107,7 @@ export function ObjectEditor({ target, isNew, isProduction, onApplied }: Props):
 
   if (loading) return <div className="object-editor-state">Loading {target.kind} {target.name}…</div>
   return <section className="object-editor" aria-label={`${target.kind} editor`}>
-    <div className="object-editor-toolbar"><strong>{target.kind === 'table' ? 'Table Designer' : `${target.kind[0]?.toUpperCase()}${target.kind.slice(1)} Editor`} · {target.name}</strong><span className="toolbar-spacer" />{target.kind !== 'table' && <Button onClick={() => setShowPreview((value) => !value)}>{showPreview ? 'Edit Definition' : 'Preview DDL'}</Button>}<Button onClick={() => { if (target.kind === 'table') setTable(original ? structuredClone(original) : blankTable(target.name)); else setSql(buildObjectTemplate(target)); setError(''); setMessage('') }}>Discard Changes</Button>{(target.kind === 'procedure' || target.kind === 'function') && <Button onClick={() => void execute()} disabled={busy}>Execute / Test</Button>}<Button variant="primary" onClick={() => void apply()} disabled={busy}>{busy ? 'Applying…' : target.kind === 'table' && !existing ? 'Create Table' : 'Apply Changes'}</Button></div>
+    <div className="object-editor-toolbar"><strong>{target.kind === 'table' ? 'Table Designer' : `${target.kind[0]?.toUpperCase()}${target.kind.slice(1)} Editor`} · {target.name}</strong><span className="toolbar-spacer" />{target.kind === 'table' && <Button onClick={() => void queueTableChanges()} disabled={busy}>{t('extras.schema.queue')}</Button>}{target.kind !== 'table' && <Button onClick={() => setShowPreview((value) => !value)}>{showPreview ? 'Edit Definition' : 'Preview DDL'}</Button>}<Button onClick={() => { if (target.kind === 'table') setTable(original ? structuredClone(original) : blankTable(target.name)); else setSql(buildObjectTemplate(target)); setError(''); setMessage('') }}>Discard Changes</Button>{(target.kind === 'procedure' || target.kind === 'function') && <Button onClick={() => void execute()} disabled={busy}>Execute / Test</Button>}<Button variant="primary" onClick={() => void apply()} disabled={busy}>{busy ? 'Applying…' : target.kind === 'table' && !existing ? 'Create Table' : 'Apply Changes'}</Button></div>
     {error && <div className="object-editor-message error" role="alert">{error}</div>}{message && <div className="object-editor-message" aria-live="polite">{message}</div>}
     {target.kind === 'table' ? <><div className="object-editor-layout"><nav className="object-editor-nav" aria-label="Table Designer pages">{(['Columns', 'Indexes', 'Foreign Keys', 'Options', 'Partitions', 'DDL'] as TablePage[]).map((name) => <button key={name} className={page === name ? 'selected' : ''} onClick={() => setPage(name)}>{name}</button>)}</nav><div className="object-editor-content">{editBody()}</div><aside className="object-editor-preview"><strong>Preview DDL</strong><pre>{String(preview)}</pre></aside></div><div className="object-editor-footer"><Button onClick={() => void navigator.clipboard.writeText(String(preview))}>Copy SQL</Button><span>{original ? 'Pending changes are generated with schema diff.' : 'Create mode'}</span></div></> : <><div className="object-editor-code">{showPreview ? <pre className="object-ddl-preview">{sql}</pre> : <Editor height="100%" language="sql" value={sql} onChange={(value) => setSql(value ?? '')} theme={['dark', 'high-contrast'].includes(document.documentElement.dataset.theme ?? '') ? 'vs-dark' : 'vs'} options={{ minimap: { enabled: false }, fontSize: 13, automaticLayout: true, lineNumbers: 'on' }} />}</div><div className="object-editor-footer"><Button onClick={() => void navigator.clipboard.writeText(sql)}>Copy DDL</Button><span>{showPreview ? 'Read-only preview' : `Definition editor · ${target.kind}`}</span></div></>}
   </section>

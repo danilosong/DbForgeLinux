@@ -1,6 +1,8 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron'
-import { chmod, readFile, writeFile, stat } from 'node:fs/promises'
+import { chmod, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
 import { createBackupSql, restoreBackup } from '../../modules/database-tools/backup.js'
+import { BackupScheduleStore, cronMatches, scheduledBackupPath } from '../../modules/database-tools/scheduler.js'
+import { join } from 'node:path'
 import { findInvalidObjects, searchObjectText } from '../../modules/database-tools/index.js'
 import { inspectDatabase } from '../../modules/schema/index.js'
 import type { DatabaseObject } from '../../shared/contracts/sql.js'
@@ -9,7 +11,51 @@ import type { IpcDeps } from './registry.js'
 const quote = (identifier: string): string => `\`${identifier.replaceAll('`', '``')}\``
 function assertTarget(connectionId: string, database: string): void { if (!connectionId || !database.trim()) throw new Error('Selecione uma conexão e um database.') }
 
-export function registerDatabaseToolsIpc({ driver }: IpcDeps): void {
+export function registerDatabaseToolsIpc(deps: IpcDeps): void {
+  const { driver, userDataDir } = deps
+  const schedules = new BackupScheduleStore(join(userDataDir, 'backup-schedules.json'))
+  ipcMain.handle('database-tools:schedule:list', () => schedules.list())
+  ipcMain.handle('database-tools:schedule:save', (_event, schedule: import('../../modules/database-tools/scheduler.js').BackupSchedule) => schedules.save(schedule))
+  ipcMain.handle('database-tools:schedule:delete', (_event, id: string) => schedules.delete(id))
+  let scheduleRunning = false
+  const runSchedules = async (): Promise<void> => {
+    if (scheduleRunning) return
+    scheduleRunning = true
+    try {
+      const now = new Date(); const minute = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+      for (const schedule of await schedules.list()) {
+        let due = false
+        try { due = schedule.enabled && schedule.lastRunMinute !== minute && cronMatches(schedule.cron, now) }
+        catch (error) { console.error('Invalid scheduled backup configuration:', error instanceof Error ? error.message : 'unknown error'); continue }
+        if (!due) continue
+        const updated = { ...schedule, lastRunMinute: minute }
+        await schedules.update(updated)
+        let connectionId: string | undefined
+        try {
+          const record = (await deps.connectionsStore.list()).find((item) => item.id === schedule.connectionId)
+          if (!record) throw new Error('Scheduled backup connection no longer exists.')
+          connectionId = await driver.connect(await deps.resolveConnectionConfig(record))
+          await driver.setDatabase(connectionId, schedule.database)
+          const schema = await inspectDatabase((sql, parameters) => driver.queryRows(connectionId!, sql, parameters), schedule.database)
+          const backup = await createBackupSql(schema, true, async (table, offset, limit) => driver.queryRows(connectionId!, `SELECT * FROM ${quote(schedule.database)}.${quote(table)} LIMIT ${limit} OFFSET ${offset}`))
+          await mkdir(schedule.directory, { recursive: true, mode: 0o700 })
+          const destination = scheduledBackupPath(schedule.directory, schedule.database, now)
+          await writeFile(destination, backup.sql, { encoding: 'utf8', mode: 0o600 }); await chmod(destination, 0o600)
+          const prefix = `${schedule.database.replace(/[^A-Za-z0-9_.-]/g, '_')}-`
+          const files = (await readdir(schedule.directory, { withFileTypes: true })).filter((entry) => entry.isFile() && entry.name.startsWith(prefix) && entry.name.endsWith('.sql'))
+          const ordered = await Promise.all(files.map(async (entry) => ({ path: join(schedule.directory, entry.name), mtime: (await stat(join(schedule.directory, entry.name))).mtimeMs })))
+          ordered.sort((a, b) => b.mtime - a.mtime)
+          const { unlink } = await import('node:fs/promises')
+          await Promise.all(ordered.slice(schedule.retention).map((item) => unlink(item.path)))
+        } catch (error) {
+          console.error('Scheduled backup failed:', error instanceof Error ? error.message : 'unknown error')
+        } finally { if (connectionId) await driver.disconnect(connectionId) }
+      }
+    } finally { scheduleRunning = false }
+  }
+  const scheduleRun = setInterval(() => { void runSchedules() }, 60_000)
+  scheduleRun.unref()
+  void runSchedules()
   ipcMain.handle('database-tools:search', async (_event, connectionId: string, database: string, query: string, options: { names: boolean; definitions: boolean; caseSensitive?: boolean; wholeWord?: boolean; regex?: boolean }) => {
     assertTarget(connectionId, database)
     const objects = await driver.listDatabaseObjects(connectionId, database)

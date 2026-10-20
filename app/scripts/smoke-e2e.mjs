@@ -1,4 +1,4 @@
-/* global process, console, setTimeout, clearTimeout, window */
+/* global process, console, setTimeout, clearTimeout, window, document */
 import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -15,6 +15,7 @@ const docTable = `smoke_doc_${process.pid}`
 let app
 try {
   await admin.query("CREATE USER IF NOT EXISTS 'dbforge_smoke'@'%' IDENTIFIED BY ''")
+  await admin.query("ALTER USER 'dbforge_smoke'@'%' IDENTIFIED BY ''")
   await admin.query('GRANT ALL PRIVILEGES ON sample.* TO `dbforge_smoke`@`%`')
   await admin.query(`CREATE TABLE sample.\`${docTable}\` (id INT PRIMARY KEY, label VARCHAR(40) NOT NULL)`)
   app = await electron.launch({
@@ -104,14 +105,59 @@ try {
   await page.locator('.database-tools-panel').waitFor()
   await page.locator('.panel-dialog-close').click()
   await tools.click()
-  await page.getByRole('button', { name: /er-diagram/ }).click()
+  await page.getByRole('button', { name: /ER Diagram|er-diagram/i }).click()
   await page.locator('.er-panel').waitFor()
-  await page.getByRole('tab', { name: /er-diagram/ }).waitFor()
-  await page.getByRole('button', { name: /Fechar er-diagram/ }).click()
+  const erDialogClose = page.locator('.panel-dialog-close')
+  if (await erDialogClose.count()) await erDialogClose.click()
+  else await page.locator('.document-tab.selected .tab-close').click()
   await tools.click()
   await page.getByRole('button', { name: 'Options…' }).click()
   await page.locator('.options-panel').waitFor()
-  console.log('Smoke e2e passed: MySQL connection, recent SQL open/reopen, UI SQL execution/result grid, real database documentation in HTML/Markdown/PDF, new SQL, Database Tools, ER Diagram, Options.')
+  await page.locator('.panel-dialog-close').click()
+  await page.evaluate(() => window.dispatchEvent(new window.CustomEvent('dbforge:insert-ai-sql', { detail: { sql: 'SELECT 1 AS recent_file;\nSELECT 2 AS next_result;' } })))
+  await page.waitForFunction(() => document.querySelector('.sql-context-toolbar')?.textContent?.includes('AI Assistant SQL'))
+  const chooseTheme = async (theme) => {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      if (await page.locator('html').getAttribute('data-theme') === theme.toLowerCase()) return
+      await page.locator('button[title="Auto theme"]').click()
+    }
+    if (await page.locator('html').getAttribute('data-theme') !== theme.toLowerCase()) throw new Error(`Could not switch to ${theme} theme.`)
+    await page.locator('.workbench').waitFor()
+  }
+  const captureBothThemes = async (name) => {
+    await chooseTheme('Light')
+    await page.screenshot({ path: join(evidenceDirectory, `${name}-light.png`) })
+    await chooseTheme('Dark')
+    await page.screenshot({ path: join(evidenceDirectory, `${name}-dark.png`) })
+  }
+  await page.keyboard.press('Control+Shift+F')
+  await page.locator('.find-toolbar input[type="search"]').fill('SELECT')
+  await page.locator('.navigation-list button').first().waitFor()
+  await captureBothThemes('find-results')
+  await page.keyboard.press('Control+H')
+  await page.locator('.find-toolbar input[placeholder="Replace"]').fill('2')
+  await captureBothThemes('find-replace')
+  await page.keyboard.press('Control+Alt+U')
+  await page.locator('.tool-document .navigation-panel').waitFor()
+  await captureBothThemes('document-outline')
+  await page.locator('summary').filter({ hasText: 'View' }).click()
+  await page.locator('.menu-action').filter({ hasText: /Schema View|Visualização do esquema/ }).click()
+  await page.locator('.schema-overview').waitFor()
+  await captureBothThemes('schema-view')
+  const connectionNode = page.locator('.node-name').filter({ hasText: 'Smoke MySQL 33067' })
+  if (await connectionNode.count()) await connectionNode.click()
+  const sampleDatabase = page.locator('.database-name').filter({ hasText: 'sample' }).first()
+  await sampleDatabase.waitFor({ timeout: 15_000 })
+  await sampleDatabase.locator('span').click()
+  await page.locator('.object-group-name').filter({ hasText: 'Tables' }).click()
+  const smokeObject = page.locator('.object-name').filter({ hasText: docTable }).first()
+  await smokeObject.waitFor({ timeout: 15_000 })
+  await smokeObject.click()
+  await page.keyboard.press('F4')
+  await page.locator('.object-viewer').waitFor()
+  await page.locator('.object-viewer pre').waitFor()
+  await captureBothThemes('object-viewer')
+  console.log('Smoke e2e passed: MySQL connection, open-file SQL, result grid, documentation, navigation panels, object properties, and light/dark evidence.')
 } finally {
   if (app) {
     const child = app.process()

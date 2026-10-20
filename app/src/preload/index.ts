@@ -24,5 +24,8 @@ import { routineDebuggerApi } from './api/routine-debugger.js'
 import { serviceControlApi } from './api/service-control.js'
 import { codeAnalysisApi } from './api/code-analysis.js'
 import { gridEditingApi } from './api/grid-editing.js'
-const api:DbForgeApi={...connectionsApi,...sqlApi,...securityApi,...sessionsApi,...profilerApi,...dataGeneratorApi,...documenterApi,...schemaCompareApi,...dataCompareApi,...importExportApi,...erDiagramApi,...queryBuilderApi,...editorApi,...historyApi,...sourceControlApi,...objectEditorsApi,...optionsApi,...databaseToolsApi,...dataReportPivotApi,...aiAssistantApi,...routineDebuggerApi,...serviceControlApi,...codeAnalysisApi,...gridEditingApi}
+import { gridDataApi } from './api/grid-data.js'
+import { extraToolsApi } from './api/extra-tools.js'
+import { aboutApi } from './api/about.js'
+const api:DbForgeApi={...connectionsApi,...sqlApi,...securityApi,...sessionsApi,...profilerApi,...dataGeneratorApi,...documenterApi,...schemaCompareApi,...dataCompareApi,...importExportApi,...erDiagramApi,...queryBuilderApi,...editorApi,...historyApi,...sourceControlApi,...objectEditorsApi,...optionsApi,...databaseToolsApi,...dataReportPivotApi,...aiAssistantApi,...routineDebuggerApi,...serviceControlApi,...codeAnalysisApi,...gridEditingApi,...gridDataApi,...extraToolsApi,...aboutApi}
 contextBridge.exposeInMainWorld('dbforge',api)

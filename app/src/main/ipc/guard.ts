@@ -25,6 +25,7 @@ const outputFormat = enumOf('csv', 'json', 'xml', 'sql', 'xlsx')
 
 /** Runtime argument contracts for every invoke channel. Structured records are recursively size/type checked below. */
 export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
+  'about:info': [], 'about:open-link': [enumOf('documentation', 'repository', 'license')],
   'ai-assistant:settings:load': [], 'ai-assistant:settings:save': [object, opt(s('text'))], 'ai-assistant:settings:test': [object, opt(s('text'))],
   'ai-assistant:complete': [object], 'ai-assistant:cancel': [id], 'code-analysis:run': [sql],
   'connections:list': [], 'connections:save': [object], 'connections:delete': [id], 'vault:save': [ident, s('text')], 'vault:delete': [ident], 'vault:status': [],
@@ -34,13 +35,17 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'report-pivot:load': [id, sql], 'report-pivot:build': [id, object], 'report-pivot:export': [object, enumOf('csv', 'xlsx')],
   'database-tools:search': [id, ident, text, object], 'database-tools:invalid': [id, ident], 'database-tools:backup': [id, ident, bool], 'database-tools:select-backup': [],
   'database-tools:restore': [id, ident, text, sql, opt(bool)], 'database-tools:copy': [id, ident, id, ident, text, bool],
+  'database-tools:schedule:list': [], 'database-tools:schedule:save': [object], 'database-tools:schedule:delete': [id],
   'db:test': [object], 'db:connect': [object], 'db:disconnect': [id], 'db:databases': [id], 'db:execute': [id, sql, opt(id), opt(ident)],
   'grid-editing:describe': [id, sql, opt(ident)], 'grid-editing:preview': [object, objects], 'grid-editing:apply': [id, object, objects, bool],
+  'grid-data:master-detail': [id, object, object],
   'db:result-read': [id, integer, integer], 'db:result-dispose': [id], 'db:cancel': [id, id], 'db:transaction-begin': [id], 'db:transaction-commit': [id], 'db:transaction-rollback': [id],
   'db:tables': [id, ident], 'db:objects': [id, ident], 'db:show-create': [id, ident, object], 'db:set-database': [id, ident],
   'file:open-sql': [], 'file:open-sql-path': [path], 'file:save-sql': [opt(path), sql],
   'documenter:preview': [id, ident, opt(text)], 'documenter:generate': [object], 'editor:metadata': [id, ident, opt(bool)], 'editor:invalidate-metadata': [id, opt(ident)],
   'er-diagram:load': [id, ident, id], 'er-diagram:save-relations': [id, ident, objects], 'er-diagram:save-file': [object], 'er-diagram:open-file': [],
+  'schema-update:list': [], 'schema-update:queue': [object], 'schema-update:queue-table': [id, ident, s('nullable-object'), object], 'schema-update:remove': [strings], 'schema-update:execute': [strings, trueOnly],
+  'snippets:list': [], 'snippets:save': [object], 'snippets:delete': [id], 'snippets:import': [enumOf('en', 'pt-BR')], 'snippets:export': [enumOf('en', 'pt-BR')],
   'history:list': [opt(object)], 'history:record': [object],
   'import-export:export': [id, sql, outputFormat, opt(object), opt(id)], 'import-export:select-source': [id, fileFormat, opt(object)], 'import-export:preview-export': [id, sql, id],
   'import-export:import': [id, ident, fileFormat, enumOf('append', 'upsert', 'update', 'delete'), strings, opt(object), opt(id)], 'import-export:cancel': [id], 'import-export:templates:list': [],
@@ -176,7 +181,7 @@ export function isTrustedIpcFrame(event: GuardEvent, config: TrustedRendererConf
 function rateLimit(channel: string, senderId: number, args: readonly unknown[], now = Date.now()): void {
   const mutatingSql = channel === 'db:execute' && typeof args[1] === 'string' && /\b(drop|truncate|alter|create|grant|revoke|insert|update|delete|replace)\b/i.test(args[1])
   const queryBuilderMutation = channel === 'query-builder:execute' && typeof args[1] === 'object' && args[1] !== null && ['INSERT', 'UPDATE', 'DELETE'].includes(String((args[1] as Record<string, unknown>).statement))
-  const destructive = mutatingSql || queryBuilderMutation || /^(grid-editing:apply|security:apply|sessions:kill|database-tools:(restore|copy)|object-editor:(apply|apply-table|mutate)|schema-compare:synchronize|import-export:import|data-generator:generate|routine-debugger:(engine:(deploy|remove)|start)|service-control:action|source-control:(commit|init|checkout-branch|delete-branch|fetch|pull|push))$/.test(channel)
+  const destructive = mutatingSql || queryBuilderMutation || /^(grid-editing:apply|security:apply|sessions:kill|database-tools:(restore|copy)|object-editor:(apply|apply-table|mutate)|schema-compare:synchronize|schema-update:execute|import-export:import|data-generator:generate|routine-debugger:(engine:(deploy|remove)|start)|service-control:action|source-control:(commit|init|checkout-branch|delete-branch|fetch|pull|push))$/.test(channel)
   const git = channel.startsWith('source-control:')
   const limit = destructive ? 8 : git ? 30 : channel === 'db:execute' ? 60 : 120
   const key = `${senderId}:${channel}`

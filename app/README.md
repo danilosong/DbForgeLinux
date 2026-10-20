@@ -54,3 +54,12 @@ docker compose -f test/docker-compose.yml down -v
 ```
 
 O serviço de teste fica em `127.0.0.1:33067`; a senha `integration-only` é exclusiva do container local.
+
+Capturas dos painéis de ferramentas extras em tema claro e escuro:
+
+```sh
+pnpm dist:deb
+pnpm screenshots:extras
+```
+
+O script usa `xvfb-run`, testa a criação de snippet e sua presença no Toolbox, e fecha o Electron com SIGTERM antes de liberar o Xvfb.

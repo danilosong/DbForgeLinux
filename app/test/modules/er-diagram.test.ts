@@ -58,5 +58,6 @@ describe('ER diagram module', () => {
     await store.write('conn', 'shop', [relation])
     expect(await store.read('conn', 'shop')).toEqual([relation])
     expect(JSON.parse(await readFile(join(folder, 'conn--shop.relations.json'), 'utf8'))).toEqual([relation])
+    await expect(store.write('conn', 'shop', [{ ...relation, toColumns: [] }])).rejects.toThrow(/invalid/i)
   })
 })

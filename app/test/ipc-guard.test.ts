@@ -33,6 +33,7 @@ describe('IPC runtime guard', () => {
     expect(() => validateIpcArguments('sessions:kill', ['connection', [17], 'query', false])).toThrow(/confirmation/)
     expect(() => validateIpcArguments('db:execute', ['connection', 'x'.repeat(20 * 1024 * 1024 + 1)])).toThrow(/size limit/)
     expect(() => validateIpcArguments('grid-editing:apply', ['connection', {}, [], false])).not.toThrow()
+    expect(() => validateIpcArguments('grid-data:master-detail', ['connection', { database: 'shop', table: 'orders' }, { id: 7 }])).not.toThrow()
     expect(() => validateIpcArguments('grid-editing:apply', ['connection', {}, [], 'yes'])).toThrow(/boolean/)
     expect(() => validateIpcArguments('import-export:import', ['c', 'db.table', 'csv', 'append', [], {}, 'job'])).not.toThrow()
   })
@@ -66,6 +67,7 @@ describe('IPC runtime guard', () => {
       ['database-tools:restore', ['c', 'd', 'd', 'CREATE TABLE t (id INT)']],
       ['db:execute', ['c', 'DROP TABLE t']],
       ['grid-editing:apply', ['c', {}, [], true]],
+      ['schema-update:execute', [['queued-change'], true]],
     ] as const) {
       const operation = wrapIpcHandler(channel, () => 'ok', config, () => true)
       const operationEvent = { ...event, sender: { ...event.sender, id: senderId++ } }
