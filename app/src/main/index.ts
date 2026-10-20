@@ -1,5 +1,6 @@
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, type OpenDialogOptions, type SaveDialogOptions } from 'electron'
 import { join } from 'node:path'
+import { readFile, writeFile } from 'node:fs/promises'
 import { MysqlDriver } from './db/MysqlDriver.js'
 import { ConnectionsStore } from './connections/ConnectionsStore.js'
 import type { DriverConnectionConfig } from './db/DbDriver.js'
@@ -47,7 +48,33 @@ function registerIpc(): void {
   ipcMain.handle('db:disconnect', (_event, id: string) => driver.disconnect(id))
   ipcMain.handle('db:databases', (_event, id: string) => driver.listDatabases(id))
   ipcMain.handle('db:tables', (_event, id: string, database: string) => driver.listTables(id, database))
-  ipcMain.handle('db:execute', (_event, id: string, sql: string) => driver.executeSql(id, sql))
+  ipcMain.handle('db:execute', (_event, id: string, sql: string, executionId?: string) => driver.executeSql(id, sql, executionId))
+  ipcMain.handle('db:cancel', (_event, id: string, executionId: string) => driver.cancelQuery(id, executionId))
+  ipcMain.handle('db:objects', (_event, id: string, database: string) => driver.listDatabaseObjects(id, database))
+  ipcMain.handle('db:show-create', (_event, id: string, database: string, object) => driver.showCreateObject(id, database, object))
+  ipcMain.handle('db:set-database', (_event, id: string, database: string) => driver.setDatabase(id, database))
+  ipcMain.handle('db:transaction-begin', (_event, id: string) => driver.beginTransaction(id))
+  ipcMain.handle('db:transaction-commit', (_event, id: string) => driver.commitTransaction(id))
+  ipcMain.handle('db:transaction-rollback', (_event, id: string) => driver.rollbackTransaction(id))
+  ipcMain.handle('file:open-sql', async () => {
+    const window = BrowserWindow.getFocusedWindow() ?? undefined
+    const options: OpenDialogOptions = { properties: ['openFile'], filters: [{ name: 'SQL', extensions: ['sql'] }, { name: 'All files', extensions: ['*'] }] }
+    const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
+    if (result.canceled || !result.filePaths[0]) return null
+    return { path: result.filePaths[0], contents: await readFile(result.filePaths[0], 'utf8') }
+  })
+  ipcMain.handle('file:save-sql', async (_event, path: string | undefined, contents: string) => {
+    const window = BrowserWindow.getFocusedWindow() ?? undefined
+    let destination = path
+    if (!destination) {
+      const options: SaveDialogOptions = { defaultPath: 'query.sql', filters: [{ name: 'SQL', extensions: ['sql'] }] }
+      const result = window ? await dialog.showSaveDialog(window, options) : await dialog.showSaveDialog(options)
+      if (result.canceled || !result.filePath) return null
+      destination = result.filePath
+    }
+    await writeFile(destination, contents, { encoding: 'utf8', mode: 0o600 })
+    return destination
+  })
   ipcMain.handle('vault:save', (_event, key: string, password: string) => vault.save(key, password))
   ipcMain.handle('vault:delete', (_event, key: string) => vault.delete(key))
 }

@@ -22,6 +22,7 @@ export async function createSshTunnel(config: OpenSshTunnelConfig): Promise<Acti
   const server = createServer((localSocket) => forwardSocket(client, localSocket, config))
   const sshOptions = buildSshOptions({ ...config, privateKey: config.privateKey ?? await readPrivateKey(config) })
   let fingerprint = ''
+  let hostKeyError: Error | undefined
 
   return new Promise((resolve, reject) => {
     let settled = false
@@ -32,9 +33,7 @@ export async function createSshTunnel(config: OpenSshTunnelConfig): Promise<Acti
       reject(error)
     }
 
-    client.on('error', (error) => {
-      fail(fingerprint ? new Error(`SSH host key não confiável: ${fingerprint}`) : redactSshError(error))
-    })
+    client.on('error', (error) => fail(hostKeyError ?? mapSshError(error)))
     client.on('ready', () => {
       server.once('error', fail)
       server.listen(config.localPort ?? 0, '127.0.0.1', () => {
@@ -52,7 +51,9 @@ export async function createSshTunnel(config: OpenSshTunnelConfig): Promise<Acti
       ...sshOptions,
       hostVerifier: (key: Buffer, verify: VerifyCallback) => {
         fingerprint = `SHA256:${createHash('sha256').update(key).digest('base64').replace(/=+$/, '')}`
-        verify(Boolean(config.hostFingerprint && fingerprint === config.hostFingerprint))
+        const decision = verifySshHostKey(fingerprint, config.hostFingerprint)
+        hostKeyError = decision.error
+        verify(decision.trusted)
       }
     })
   })
@@ -84,7 +85,22 @@ function closeResources(server: Server, client: Client): Promise<void> {
   })
 }
 
-function redactSshError(error: Error): Error {
-  const message = error.message.replace(/(password|passphrase)=\S+/gi, '$1=****')
-  return new Error(message)
+export function verifySshHostKey(fingerprint: string, trustedFingerprint?: string): { trusted: boolean; error?: Error } {
+  if (!trustedFingerprint) return { trusted: false, error: new Error(`SSH host key não confiável: ${fingerprint}`) }
+  if (trustedFingerprint !== fingerprint) return { trusted: false, error: new Error(`Fingerprint SSH mudou. Possível ataque man-in-the-middle. Esperado ${trustedFingerprint}; recebido ${fingerprint}.`) }
+  return { trusted: true }
+}
+
+export function mapSshError(error: Error): Error {
+  if (/auth|authentication|all configured authentication methods failed|permission denied/i.test(error.message) || error.message === 'All configured authentication methods failed') {
+    return new Error(`Autenticação SSH falhou: ${redactSshMessage(error.message)}`)
+  }
+  if (/timed out|ETIMEDOUT|ECONNREFUSED|ENOTFOUND|EHOSTUNREACH|ECONNRESET|socket hang up/i.test(error.message)) {
+    return new Error(`Falha de rede SSH: ${redactSshMessage(error.message)}`)
+  }
+  return new Error(`Falha SSH: ${redactSshMessage(error.message)}`)
+}
+
+function redactSshMessage(message: string): string {
+  return message.replace(/(password|passphrase)=\S+/gi, '$1=****')
 }

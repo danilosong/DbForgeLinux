@@ -52,4 +52,26 @@ describe('MysqlDriver.executeSql', () => {
 
     await expect(driver.executeSql(connectionId, 'SELEC FROM')).rejects.toBe(syntaxError)
   })
+
+  it('envia KILL QUERY para a sessão da execução ativa', async () => {
+    let rejectQuery: ((error: Error) => void) | undefined
+    mysqlMock.getConnection.mockResolvedValue({
+      threadId: 77,
+      query: vi.fn(() => new Promise((_resolve, reject) => { rejectQuery = reject })),
+      release: mysqlMock.release
+    })
+    mysqlMock.query.mockImplementation(async (sql: string) => {
+      if (sql === 'KILL QUERY 77') {
+        const error = Object.assign(new Error('Query interrupted'), { code: 'ER_QUERY_INTERRUPTED' })
+        rejectQuery?.(error)
+      }
+      return [[], []]
+    })
+    const execution = driver.executeSql(connectionId, 'SELECT SLEEP(10)', 'active-execution')
+    await Promise.resolve()
+    await Promise.resolve()
+    await driver.cancelQuery(connectionId, 'active-execution')
+    await expect(execution).rejects.toMatchObject({ code: 'ER_QUERY_INTERRUPTED' })
+    expect(mysqlMock.query).toHaveBeenCalledWith('KILL QUERY 77')
+  })
 })
