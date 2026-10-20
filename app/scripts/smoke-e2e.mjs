@@ -1,18 +1,22 @@
 /* global process, console, setTimeout, clearTimeout, window */
-import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { once } from 'node:events'
 import { _electron as electron } from 'playwright'
 import mysql from 'mysql2/promise'
 
-const electronPath = join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux')
+const packagedElectron = join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux')
+const electronPath = existsSync(packagedElectron) ? packagedElectron : join(process.cwd(), 'dist', 'linux-unpacked', 'electron')
 const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-smoke-'))
 const admin = await mysql.createConnection({ host: '127.0.0.1', port: 33067, user: 'root', password: process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only' })
+const docTable = `smoke_doc_${process.pid}`
 let app
 try {
   await admin.query("CREATE USER IF NOT EXISTS 'dbforge_smoke'@'%' IDENTIFIED BY ''")
   await admin.query('GRANT ALL PRIVILEGES ON sample.* TO `dbforge_smoke`@`%`')
+  await admin.query(`CREATE TABLE sample.\`${docTable}\` (id INT PRIMARY KEY, label VARCHAR(40) NOT NULL)`)
   app = await electron.launch({
     executablePath: electronPath,
     args: [],
@@ -49,6 +53,20 @@ try {
   })
   if (Number(scalar) !== 1) throw new Error(`SELECT 1 returned ${String(scalar)}.`)
 
+  const documentationDirectory = join(dataRoot, 'documentation')
+  const documentation = await page.evaluate(async ({ targetDirectory }) => {
+    const record = (await window.dbforge.getConnections()).find((item) => item.name === 'Smoke MySQL 33067')
+    if (!record) throw new Error('Documenter smoke connection was not saved.')
+    const connection = await window.dbforge.connect(record)
+    try {
+      return await window.dbforge.generateDatabaseDocumentation({ connectionId: connection.id, database: 'sample', title: 'Smoke database', outputDirectory: targetDirectory, formats: ['html', 'markdown', 'pdf'], includeDiagram: true, confirmed: true })
+    } finally { await window.dbforge.disconnect(connection.id) }
+  }, { targetDirectory: documentationDirectory })
+  const pdf = await readFile(documentation.pdf)
+  if (pdf.subarray(0, 5).toString() !== '%PDF-') throw new Error('Documenter did not write a valid PDF header.')
+  if (!(await readFile(documentation.html, 'utf8')).startsWith('<!doctype html>')) throw new Error('Documenter HTML output is invalid.')
+  if (!(await readFile(documentation.markdown, 'utf8')).startsWith('# Smoke database')) throw new Error('Documenter Markdown output is invalid.')
+
   await page.getByRole('heading', { name: 'Recent Connections' }).waitFor()
   await page.locator('.start-page .start-recent-list').first().getByRole('button', { name: /Smoke MySQL 33067/ }).waitFor()
   const recentSqlPath = join(dataRoot, 'recent-e2e.sql')
@@ -61,6 +79,16 @@ try {
   await page.locator('.sql-context-toolbar').getByRole('button', { name: /Execute/ }).click()
   await page.locator('.grid-result').waitFor()
   await page.locator('.grid-result tbody tr td').filter({ hasText: /^1$/ }).first().waitFor()
+  await page.locator('.workbench.panel-hidden').waitFor()
+  const evidenceDirectory = join(process.cwd(), '..', 'document', 'evidence', 'ui')
+  await mkdir(evidenceDirectory, { recursive: true })
+  await page.screenshot({ path: join(evidenceDirectory, 'reconcile-ui-light.png') })
+  await page.locator('summary').filter({ hasText: 'View' }).click()
+  await page.getByRole('button', { name: 'Dark', exact: true }).click()
+  await page.locator('.workbench').waitFor()
+  await page.screenshot({ path: join(evidenceDirectory, 'reconcile-ui-dark.png') })
+  await page.locator('summary').filter({ hasText: 'View' }).click()
+  await page.getByRole('button', { name: 'Light', exact: true }).click()
   await page.getByRole('tab', { name: 'Start Page' }).click()
   const recentFile = page.locator('.start-page').getByRole('button', { name: /recent-e2e\.sql/ })
   await recentFile.waitFor()
@@ -78,11 +106,12 @@ try {
   await tools.click()
   await page.getByRole('button', { name: /er-diagram/ }).click()
   await page.locator('.er-panel').waitFor()
-  await page.locator('.panel-dialog-close').click()
+  await page.getByRole('tab', { name: /er-diagram/ }).waitFor()
+  await page.getByRole('button', { name: /Fechar er-diagram/ }).click()
   await tools.click()
   await page.getByRole('button', { name: 'Options…' }).click()
   await page.locator('.options-panel').waitFor()
-  console.log('Smoke e2e passed: MySQL connection, recent SQL open/reopen, UI SQL execution/result grid, new SQL, Database Tools, ER Diagram, Options.')
+  console.log('Smoke e2e passed: MySQL connection, recent SQL open/reopen, UI SQL execution/result grid, real database documentation in HTML/Markdown/PDF, new SQL, Database Tools, ER Diagram, Options.')
 } finally {
   if (app) {
     const child = app.process()
@@ -97,6 +126,7 @@ try {
     }
   }
   await admin.query("DROP USER IF EXISTS 'dbforge_smoke'@'%'")
+  await admin.query(`DROP TABLE IF EXISTS sample.\`${docTable}\``)
   await admin.end()
   await rm(dataRoot, { recursive: true, force: true })
 }
