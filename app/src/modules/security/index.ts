@@ -34,7 +34,10 @@ export type SecurityChange =
 export interface PlannedStatement { sql: string; previewSql: string; risk: 'normal' | 'privileged' | 'destructive' }
 export interface SecurityPlan { statements: PlannedStatement[] }
 export interface SecurityPlanOptions {
-  serverFamily?: 'mysql' | 'mariadb'; confirm?: true; currentAccount?: AccountRef; allowCurrentAdminRevoke?: true
+  serverFamily?: 'mysql' | 'mariadb'; confirm?: true
+  /** The IPC caller must always provide the authenticated account to prevent DROP USER on its own connection. */
+  currentAccount?: AccountRef
+  allowCurrentAdminRevoke?: true
 }
 
 const limitKeys = ['MAX_QUERIES_PER_HOUR', 'MAX_UPDATES_PER_HOUR', 'MAX_CONNECTIONS_PER_HOUR', 'MAX_USER_CONNECTIONS'] as const
@@ -113,11 +116,10 @@ export function securitySql(change: SecurityChange, options: { confirm?: true } 
       return `CREATE USER ${account(change.account)}${plugin}${options};`
     }
     case 'alterUser': {
-      const options = userOptions({ ...change.changes, limits: undefined })
+      const options = userOptions(change.changes)
       const auth = change.password === undefined ? '' : ` IDENTIFIED BY ${quoteString(change.password)}`
       const plugin = change.changes.plugin ? ` IDENTIFIED WITH ${quoteIdentifier(change.changes.plugin)}${change.password === undefined ? '' : ` BY ${quoteString(change.password)}`}` : auth
-      const limits = renderLimits(change.changes.limits)
-      return `ALTER USER ${account(change.account)}${plugin}${options}${limits ? ` WITH${limits}` : ''};`
+      return `ALTER USER ${account(change.account)}${plugin}${options};`
     }
     case 'dropUser': return `DROP USER ${account(change.account)};`
     case 'grant': {
@@ -216,16 +218,19 @@ function renderPrivileges(privileges: string[], scope: PrivilegeScope): string {
 
 function userOptions(accountValue: Partial<UserAccount>): string {
   const options: string[] = []
-  if (accountValue.locked !== undefined) options.push(accountValue.locked ? ' ACCOUNT LOCK' : ' ACCOUNT UNLOCK')
-  if (accountValue.passwordExpired !== undefined) options.push(accountValue.passwordExpired ? ' PASSWORD EXPIRE' : ' PASSWORD EXPIRE NEVER')
-  if (accountValue.sslType === 'ANY' || accountValue.sslType === 'SSL') options.push(' REQUIRE SSL')
-  else if (accountValue.sslType === 'X509') options.push(' REQUIRE X509')
-  else if (accountValue.sslType === 'NONE') options.push(' REQUIRE NONE')
-  if (accountValue.sslIssuer) options.push(` REQUIRE ISSUER ${quoteString(accountValue.sslIssuer)}`)
-  if (accountValue.sslSubject) options.push(` REQUIRE SUBJECT ${quoteString(accountValue.sslSubject)}`)
-  if (accountValue.comment) options.push(` COMMENT ${quoteString(accountValue.comment)}`)
+  const requirements: string[] = []
+  if (accountValue.sslType === 'ANY' || accountValue.sslType === 'SSL') requirements.push('SSL')
+  else if (accountValue.sslType === 'X509') requirements.push('X509')
+  else if (accountValue.sslType === 'NONE') requirements.push('NONE')
+  if (accountValue.sslIssuer) requirements.push(`ISSUER ${quoteString(accountValue.sslIssuer)}`)
+  if (accountValue.sslSubject) requirements.push(`SUBJECT ${quoteString(accountValue.sslSubject)}`)
+  if (requirements.length) options.push(` REQUIRE ${requirements.join(' AND ')}`)
   const limits = renderLimits(accountValue.limits)
-  return options.join('') + (limits ? ` WITH${limits}` : '')
+  if (limits) options.push(` WITH${limits}`)
+  if (accountValue.passwordExpired !== undefined) options.push(accountValue.passwordExpired ? ' PASSWORD EXPIRE' : ' PASSWORD EXPIRE NEVER')
+  if (accountValue.locked !== undefined) options.push(accountValue.locked ? ' ACCOUNT LOCK' : ' ACCOUNT UNLOCK')
+  if (accountValue.comment) options.push(` COMMENT ${quoteString(accountValue.comment)}`)
+  return options.join('')
 }
 
 function renderLimits(limits: UserAccount['limits']): string {

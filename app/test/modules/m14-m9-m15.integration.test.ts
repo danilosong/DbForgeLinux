@@ -33,6 +33,16 @@ describe.skipIf(!enabled)('M14, M9 Data Compare e M15 MySQL integration', () => 
     await driver.executeSql(connectionId, `CREATE DATABASE \`${db}\`; CREATE DATABASE \`${sourceDb}\`; CREATE DATABASE \`${targetDb}\`;`)
     await driver.executeSql(connectionId, `CREATE TABLE \`${db}\`.parents (id INT PRIMARY KEY, name VARCHAR(80) NOT NULL UNIQUE); CREATE TABLE \`${db}\`.children (id INT PRIMARY KEY, parent_id INT NOT NULL, email VARCHAR(100) NOT NULL UNIQUE, age INT NOT NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES \`${db}\`.parents(id), CONSTRAINT ck_age CHECK (age >= 0));`)
     await driver.executeSql(connectionId, `CREATE TABLE \`${sourceDb}\`.items (id INT PRIMARY KEY, label VARCHAR(100) NOT NULL); CREATE TABLE \`${targetDb}\`.items (id INT PRIMARY KEY, label VARCHAR(100) NOT NULL);`)
+    await driver.executeSql(connectionId, `CREATE TABLE \`${sourceDb}\`.string_items (id VARCHAR(8) PRIMARY KEY); CREATE TABLE \`${targetDb}\`.string_items (id VARCHAR(8) PRIMARY KEY);`)
+    for (const key of ['a', 'B', 'c']) {
+      await driver.executeParameterized(connectionId, `INSERT INTO \`${sourceDb}\`.string_items (id) VALUES (?)`, [key])
+      await driver.executeParameterized(connectionId, `INSERT INTO \`${targetDb}\`.string_items (id) VALUES (?)`, [key])
+    }
+    const stringKeyReport = await compareData({
+      source: { driver, connectionId, database: sourceDb, table: 'string_items' },
+      target: { driver, connectionId, database: targetDb, table: 'string_items' }, keyColumns: ['id']
+    })
+    expect(stringKeyReport).toMatchObject({ compared: 3, same: 3, different: 0, sourceOnly: 0, targetOnly: 0 })
 
     const parent: TableModel = { kind: 'table', name: 'parents', columns: [{ name: 'id', type: 'int', nullable: false }, { name: 'name', type: 'varchar(80)', nullable: false }], indexes: [{ name: 'PRIMARY', kind: 'PRIMARY', columns: [{ name: 'id' }] }, { name: 'uq_name', kind: 'UNIQUE', columns: [{ name: 'name' }] }], foreignKeys: [], checks: [] }
     const child: TableModel = { kind: 'table', name: 'children', columns: [{ name: 'id', type: 'int', nullable: false }, { name: 'parent_id', type: 'int', nullable: false }, { name: 'email', type: 'varchar(100)', nullable: false }, { name: 'age', type: 'int', nullable: false }], indexes: [{ name: 'PRIMARY', kind: 'PRIMARY', columns: [{ name: 'id' }] }, { name: 'uq_email', kind: 'UNIQUE', columns: [{ name: 'email' }] }], foreignKeys: [{ name: 'fk_parent', columns: ['parent_id'], referencedDatabase: db, referencedTable: 'parents', referencedColumns: ['id'] }], checks: [{ name: 'ck_age', expression: 'age >= 0' }] }

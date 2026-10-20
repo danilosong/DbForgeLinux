@@ -4,10 +4,13 @@ import { compareData, type DataCompareEndpoint } from '../../src/modules/data-co
 import type { DataCompareDifference, SyncStatement } from '../../src/modules/data-compare/index.js'
 import type { DbDriver } from '../../src/main/db/DbDriver.js'
 
-function endpoint(rows: Record<string, unknown>[]): DataCompareEndpoint {
+function endpoint(rows: Record<string, unknown>[], textKeys: string[] = []): DataCompareEndpoint {
   return {
     connectionId: 'c', database: 'db', table: 'items',
-    driver: { streamRows: async function* () { yield* rows } } as unknown as DbDriver
+    driver: {
+      streamRows: async function* () { yield* rows },
+      queryRows: async () => textKeys.map((columnName) => ({ columnName, dataType: 'varchar' }))
+    } as unknown as DbDriver
   }
 }
 
@@ -45,5 +48,18 @@ describe('data compare', () => {
 
   it('exige chave e não coleta resultados antes da comparação', async () => {
     await expect(compareData({ source: endpoint([]), target: endpoint([]), keyColumns: [] })).rejects.toThrow('coluna-chave')
+  })
+
+  it('ordena chaves textuais com collation binária nos dois servidores', async () => {
+    const source = endpoint([{ id: 'B' }, { id: 'a' }, { id: 'c' }], ['id'])
+    const target = endpoint([{ id: 'B' }, { id: 'a' }, { id: 'c' }], ['id'])
+    const sourceQueries: string[] = []
+    source.driver.streamRows = async function* (_id, sql) { sourceQueries.push(sql); yield* [{ id: 'B' }, { id: 'a' }, { id: 'c' }] }
+    const targetQueries: string[] = []
+    target.driver.streamRows = async function* (_id, sql) { targetQueries.push(sql); yield* [{ id: 'B' }, { id: 'a' }, { id: 'c' }] }
+    const report = await compareData({ source, target, keyColumns: ['id'] })
+    expect(report).toMatchObject({ compared: 3, same: 3 })
+    expect(sourceQueries[0]).toContain('CONVERT(`id` USING utf8mb4) COLLATE utf8mb4_bin')
+    expect(targetQueries[0]).toContain('CONVERT(`id` USING utf8mb4) COLLATE utf8mb4_bin')
   })
 })

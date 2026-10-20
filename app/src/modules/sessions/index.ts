@@ -25,7 +25,7 @@ const enumValues: Record<string, string[]> = {
 export async function listSessions(client: SqlClient, filters: SessionFilters = {}): Promise<SessionInfo[]> {
   let rows: SqlRow[]
   try {
-    rows = await client.query('SELECT p.ID AS id, p.USER AS user, p.HOST AS host, p.DB AS databaseName, p.COMMAND AS command, p.TIME AS timeSeconds, p.STATE AS state, p.INFO AS queryText, t.PROCESSLIST_ID AS threadId, t.PROCESSLIST_MEMORY AS memoryBytes, es.ROWS_EXAMINED AS rowsExamined FROM information_schema.PROCESSLIST p LEFT JOIN performance_schema.threads t ON t.PROCESSLIST_ID = p.ID LEFT JOIN performance_schema.events_statements_current es ON es.THREAD_ID = t.THREAD_ID ORDER BY p.ID')
+    rows = await client.query('SELECT p.ID AS id, p.USER AS user, p.HOST AS host, p.DB AS databaseName, p.COMMAND AS command, p.TIME AS timeSeconds, p.STATE AS state, p.INFO AS queryText, t.PROCESSLIST_ID AS threadId, es.ROWS_EXAMINED AS rowsExamined FROM information_schema.PROCESSLIST p LEFT JOIN performance_schema.threads t ON t.PROCESSLIST_ID = p.ID LEFT JOIN performance_schema.events_statements_current es ON es.THREAD_ID = t.THREAD_ID ORDER BY p.ID')
   } catch {
     rows = await client.query('SHOW FULL PROCESSLIST')
   }
@@ -35,7 +35,7 @@ export async function listSessions(client: SqlClient, filters: SessionFilters = 
       id, user: stringValue(row.user ?? row.User), host: stringValue(row.host ?? row.Host), database: stringValue(row.databaseName ?? row.DB ?? row.db),
       command: stringValue(row.command ?? row.Command), timeSeconds: numberValue(row.timeSeconds ?? row.Time), state: stringValue(row.state ?? row.State),
       query: stringValue(row.queryText ?? row.Info ?? row.info), current: id === filters.currentId || (filters.currentUser !== undefined && String(row.user ?? row.User) === filters.currentUser),
-      system: !row.user && !row.User || String(row.user ?? row.User).toLowerCase() === 'system user',
+      system: !row.user && !row.User || ['system user', 'event_scheduler'].includes(String(row.user ?? row.User).toLowerCase()),
       memoryBytes: row.memoryBytes == null ? undefined : numberValue(row.memoryBytes), rowsExamined: row.rowsExamined == null ? undefined : numberValue(row.rowsExamined)
     } satisfies SessionInfo
   })

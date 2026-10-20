@@ -29,6 +29,24 @@ describe('sessions and server variables backend', () => {
     expect(execute).toHaveBeenCalledExactlyOnceWith('KILL QUERY 3')
   })
 
+  it('keeps the performance schema query enabled and treats event_scheduler as a system thread', async () => {
+    const execute = vi.fn(async () => undefined)
+    const query = vi.fn(async (sql: string) => {
+      if (sql.startsWith('SELECT p.ID')) return [
+        { id: 4, user: 'event_scheduler', command: 'Daemon', rowsExamined: 12 },
+        { id: 5, user: 'worker', command: 'Query', rowsExamined: 7 }
+      ]
+      return []
+    })
+    const db = client({ query, execute })
+    const listed = await listSessions(db)
+    expect(query.mock.calls[0][0]).not.toContain('PROCESSLIST_MEMORY')
+    expect(listed[0]).toMatchObject({ id: 4, system: true, rowsExamined: 12 })
+    const killed = await killSessions(db, [4, 5], 'session', { confirm: true, currentId: 1 })
+    expect(killed.map((item) => item.success)).toEqual([false, true])
+    expect(execute).toHaveBeenCalledExactlyOnceWith('KILL 5')
+  })
+
   it('marks static variables and validates global SET values', async () => {
     const execute = vi.fn(async () => undefined)
     const db = client({ execute, query: vi.fn(async () => [{ Variable: 'port', Value: '3306' }, { Variable: 'max_connections', Value: '151' }, { Variable: 'sql_mode', Value: 'STRICT_TRANS_TABLES,ANSI' }]) })

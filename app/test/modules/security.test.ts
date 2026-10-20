@@ -60,6 +60,20 @@ describe('security manager backend', () => {
     expect(() => buildSecurityPlan([{ kind: 'revoke', privileges: ['SELECT'], scope: { kind: 'global' }, grantee: { user: 'app', host: '%' } }])).toThrow('confirmação')
   })
 
+  it('renders account options in MySQL order with one combined REQUIRE clause', () => {
+    const create = securitySql({ kind: 'createUser', account: {
+      user: 'app', host: '%', sslType: 'SSL', sslIssuer: 'issuer', sslSubject: 'subject',
+      limits: { MAX_QUERIES_PER_HOUR: 20 }, passwordExpired: true, locked: true, comment: 'managed'
+    } })
+    expect(create).toBe("CREATE USER 'app'@'%' REQUIRE SSL AND ISSUER 'issuer' AND SUBJECT 'subject' WITH MAX_QUERIES_PER_HOUR 20 PASSWORD EXPIRE ACCOUNT LOCK COMMENT 'managed';")
+    expect(create.match(/ REQUIRE /g)).toHaveLength(1)
+
+    const alter = securitySql({ kind: 'alterUser', account: { user: 'app', host: '%' }, changes: {
+      sslIssuer: 'issuer', sslSubject: 'subject', limits: { MAX_USER_CONNECTIONS: 3 }, passwordExpired: false, locked: false
+    } })
+    expect(alter).toBe("ALTER USER 'app'@'%' REQUIRE ISSUER 'issuer' AND SUBJECT 'subject' WITH MAX_USER_CONNECTIONS 3 PASSWORD EXPIRE NEVER ACCOUNT UNLOCK;")
+  })
+
   it('blocks deleting root or the active account and requires strong confirmation for own admin revokes', () => {
     expect(() => buildSecurityPlan([{ kind: 'dropUser', account: { user: 'root', host: 'localhost' } }], { confirm: true })).toThrow('root@localhost')
     expect(() => buildSecurityPlan([{ kind: 'dropUser', account: { user: 'admin', host: '%' } }], { confirm: true, currentAccount: { user: 'admin', host: '%' } })).toThrow('conta desta conexão')

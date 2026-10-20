@@ -20,6 +20,7 @@ function compareValues(left: unknown, right: unknown): number {
   if (left instanceof Date && right instanceof Date) return left.getTime() - right.getTime()
   if (typeof left === 'number' && typeof right === 'number') return left - right
   if (typeof left === 'bigint' && typeof right === 'bigint') return left < right ? -1 : left > right ? 1 : 0
+  if (typeof left === 'string' && typeof right === 'string') return Buffer.compare(Buffer.from(left, 'utf8'), Buffer.from(right, 'utf8'))
   const a = String(left); const b = String(right)
   return a < b ? -1 : a > b ? 1 : 0
 }
@@ -70,9 +71,12 @@ export async function compareData(job: DataCompareJob): Promise<DataCompareRepor
   if (job.script && !job.onStatement) throw new Error('Para gerar um script parametrizado, informe onStatement para receber os valores bind.')
   const columns = [...new Set([...(job.columns ?? []), ...job.keyColumns])]
   const projection = job.columns?.length ? columns.map(quoteId).join(', ') : '*'
-  const order = job.keyColumns.map(quoteId).join(', ')
-  const sourceSql = `SELECT ${projection} FROM ${tableName(job.source)} ORDER BY ${order}`
-  const targetSql = `SELECT ${projection} FROM ${tableName(job.target)} ORDER BY ${order}`
+  const sourceTextKeys = await findTextKeyColumns(job.source, job.keyColumns)
+  const targetTextKeys = await findTextKeyColumns(job.target, job.keyColumns)
+  const sourceOrder = job.keyColumns.map((key) => sourceTextKeys.has(key) ? `CONVERT(${quoteId(key)} USING utf8mb4) COLLATE utf8mb4_bin` : quoteId(key)).join(', ')
+  const targetOrder = job.keyColumns.map((key) => targetTextKeys.has(key) ? `CONVERT(${quoteId(key)} USING utf8mb4) COLLATE utf8mb4_bin` : quoteId(key)).join(', ')
+  const sourceSql = `SELECT ${projection} FROM ${tableName(job.source)} ORDER BY ${sourceOrder}`
+  const targetSql = `SELECT ${projection} FROM ${tableName(job.target)} ORDER BY ${targetOrder}`
   const sourceIterator = job.source.driver.streamRows(job.source.connectionId, sourceSql, [], job.signal)[Symbol.asyncIterator]()
   const targetIterator = job.target.driver.streamRows(job.target.connectionId, targetSql, [], job.signal)[Symbol.asyncIterator]()
   const report: DataCompareReport = { compared: 0, same: 0, different: 0, sourceOnly: 0, targetOnly: 0, statements: 0 }
@@ -136,5 +140,21 @@ export async function compareData(job: DataCompareJob): Promise<DataCompareRepor
   } finally {
     await sourceIterator.return?.()
     await targetIterator.return?.()
+  }
+}
+
+const textTypes = new Set(['char', 'varchar', 'tinytext', 'text', 'mediumtext', 'longtext', 'enum', 'set'])
+
+async function findTextKeyColumns(endpoint: DataCompareEndpoint, keys: string[]): Promise<Set<string>> {
+  try {
+    const rows = await endpoint.driver.queryRows(
+      endpoint.connectionId,
+      'SELECT COLUMN_NAME AS columnName, DATA_TYPE AS dataType FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME IN (?)',
+      [endpoint.database, endpoint.table, keys]
+    )
+    return new Set(rows.filter((row) => textTypes.has(String(row.dataType ?? '').toLowerCase())).map((row) => String(row.columnName)))
+  } catch {
+    // Lightweight/test drivers may not expose metadata; retain native server ordering.
+    return new Set()
   }
 }
