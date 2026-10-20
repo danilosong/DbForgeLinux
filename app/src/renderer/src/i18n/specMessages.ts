@@ -1,5 +1,6 @@
 // Generated from suggested keys in UX specs 01–19.
 import { generatedPtBrMessages } from './ptBrGenerated.js'
+import { enPanelMessages, ptBrPanelMessages } from './panelMessages.js'
 export const enMessages: Record<string, string> = {
   "conn.dialog.title": "Database Connection Properties",
   "conn.manager.title": "Connection Manager",
@@ -29,6 +30,10 @@ export const enMessages: Record<string, string> = {
   "conn.error.deleteBusy": "Cannot delete connection while database operation is in progress.",
   "conn.confirm.applyChanges": "Do you want to apply all unsaved changes? (ao fechar editores após editar conexão)",
   "explorer.title": "Database Explorer",
+  "explorer.showSystemDatabases": "Show system databases",
+  "explorer.empty.search": "No results for '{0}'",
+  "explorer.empty.title": "No connections",
+  "explorer.empty.hint": "Add a connection to get started.",
   "editor.title": "SQL Editor",
   "editor.newSql": "New SQL",
   "editor.execute": "Execute",
@@ -265,6 +270,8 @@ export const enMessages: Record<string, string> = {
   "erd.err.changeConn": "Cannot change connection for non-empty diagram document.",
   "prof.mode": "Query Profiling Mode",
   "prof.empty": "Turn on \"Query Profiling Mode\" and execute the current query",
+  "prof.empty.detail": "Run the current query to load its execution profile and plan.",
+  "prof.history.empty": "No profiling runs yet.",
   "prof.getResults": "Get New Results",
   "prof.getResultsHint": "Get new results for current element",
   "prof.noCache": "Profile a query without caching (use SQL_NO_CACHE option)",
@@ -287,6 +294,7 @@ export const enMessages: Record<string, string> = {
   "dg.cmd.new": "New Data Generation... / Open Data Generation...",
   "dg.cmd.open": "New Data Generation... / Open Data Generation...",
   "dg.step.source": "Choose connection and database for data generation.",
+  "dg.empty": "Choose a connection and database, then load the schema to configure columns and preview generated rows.",
   "dg.opt.truncate": "Truncate table data before the data generation process.",
   "dg.out.populate": "Generate test data and instantly populate your database",
   "dg.out.script": "Open the data population script in the internal editor",
@@ -466,6 +474,29 @@ export const enMessages: Record<string, string> = {
   "restore.aborted": "Restore aborted by a user.",
   "svc.title": "Service Control / Show Service Control",
   "start.title": "Start Page",
+  "start.welcome": "Get started",
+  "start.description": "Open a SQL document or connect to a server.",
+  "start.newSql": "New SQL",
+  "start.openSql": "Open SQL file…",
+  "start.recentFiles": "Recent Files",
+  "start.recentConnections": "Recent Connections",
+  "start.sqlDocument": "SQL document",
+  "start.emptyFiles": "No recent files.",
+  "start.emptyConnections": "No recent connections.",
+  "start.openConnectionManager": "Open Connection Manager",
+  "start.shortcuts": "Shortcuts",
+  "start.tips": "Tips",
+  "start.shortcut.newSql": "New SQL",
+  "start.shortcut.openSql": "Open SQL file",
+  "start.shortcut.newConnection": "New connection",
+  "start.shortcut.execute": "Execute query",
+  "start.tip.one": "Use Ctrl+N to open a SQL document quickly.",
+  "start.tip.two": "Save frequent queries as SQL files to find them here.",
+  "start.tip.three": "Connect to a database in Explorer to browse tables and objects.",
+  "app.connection.none": "No active connection",
+  "app.output.empty": "Connection and execution output appears here.",
+  "app.output.secretNote": "Secrets are never logged.",
+  "app.errors.empty": "No errors or warnings.",
   "toolbox.title": "Toolbox",
   "outline.title": "Document Outline",
   "outline.refreshing": "Document Outline: Refreshing...",
@@ -508,8 +539,17 @@ Object.assign(enMessages, {
   'debug.panel.watches': 'Watches', 'debug.panel.callStack': 'Call Stack', 'debug.watch.delete': 'Delete Watch',
   'debug.compileDependants': 'Compile Dependants for Debugging', 'debug.compileReferences': 'Compile References for Debugging',
   'debug.engine.remove': 'Remove Debug Engine', 'debug.engine.deployed': 'Debug engine has been successfully deployed.', 'debug.engine.removing': 'Removing the debug engine from the server...', 'debug.engine.removed': 'The debug engine was removed.', 'debug.ignoreChanges': 'Always ignore changes and continue debugging', 'debug.source.ignoreChanges': 'Always ignore changes and continue debugging',
-  'opt.font.size': 'Font Size', 'opt.font.scale': 'Font Scale'
+  'opt.font.size': 'Font Size', 'opt.font.scale': 'Font Scale', 'qb.join.editCond': 'Update Join',
+  'analysis.rule.SQL001': 'Avoid SELECT *; list the columns you need.',
+  'analysis.rule.SQL002': 'UPDATE without WHERE may modify every row.',
+  'analysis.rule.SQL003': 'DELETE without WHERE may remove every row.',
+  'analysis.rule.SQL004': 'Use IS NULL or IS NOT NULL to compare NULL values.',
+  'analysis.rule.SQL005': 'A function on a predicate column can prevent index use.',
+  'analysis.rule.SQL006': 'JOIN without ON or USING may create a Cartesian product.',
+  'analysis.rule.SQL007': 'LIMIT without ORDER BY may return different rows between runs.',
+  'analysis.rule.SQL008': 'Check whether UNION DISTINCT is needed; UNION ALL avoids duplicate removal.'
 })
+Object.assign(enMessages, enPanelMessages)
 
 export const ptBrMessages: Record<string, string> = {
   // Curated wording for high-visibility renderer labels.
@@ -517,7 +557,7 @@ export const ptBrMessages: Record<string, string> = {
   'explorer.title': 'Explorador do banco de dados', 'editor.title': 'Editor SQL', 'editor.newSql': 'Novo SQL', 'editor.execute': 'Executar', 'editor.stop': 'Parar', 'editor.format': 'Formatar', 'editor.commentSelection': 'Comentar seleção', 'explorer.filter': 'Filtrar...', 'common.refresh': 'Atualizar', 'editor.output': 'Saída', 'editor.errorList': 'Lista de erros', 'editor.outline': 'Estrutura do documento', 'grid.state.fetching': 'Buscando dados...', 'grid.fetchLimit': 'Limite de linhas:', 'common.copy': 'Copiar', 'common.paste': 'Colar', 'common.selectAll': 'Selecionar tudo',
   'tbl.edit': 'Editar tabela', 'tbl.col.add': 'Adicionar coluna', 'tbl.page.columns': 'Colunas', 'tbl.page.fks': 'Chaves estrangeiras', 'tbl.page.checks': 'Restrições CHECK', 'tbl.page.triggers': 'Gatilhos', 'tbl.col.allowNull': 'Permitir NULL', 'tbl.col.autoInc': 'Incremento automático', 'tbl.pk.add': 'Adicionar chave primária', 'tbl.fk.add': 'Adicionar chave estrangeira', 'tbl.check.add': 'Adicionar restrição CHECK', 'tbl.unique.add': 'Adicionar chave única', 'tbl.apply': 'Aplicar alterações', 'tbl.discard': 'Descartar alterações',
   'cmp.title': 'Comparação de esquemas', 'cmp.compare': 'Comparar', 'cmp.sync': 'Sincronizar', 'cmp.export': 'Exportar script', 'cmp.source': 'Origem', 'cmp.target': 'Destino', 'cmp.nextDiff': 'Próxima diferença', 'cmp.prevDiff': 'Diferença anterior',
-  'qb.title': 'Construtor de consultas', 'qb.designQuery': 'Projetar consulta', 'qb.addTable': 'Adicionar tabela', 'qb.selection.add': 'Adicionar coluna de saída', 'qb.selection.delete': 'Excluir coluna de saída', 'qb.selection.aggregate': 'Funções de agregação', 'qb.selection.distinct': 'Distinto', 'qb.groupBy': 'Agrupar por', 'qb.cond.add': 'Adicionar condição', 'qb.cond.criteria': 'Critérios:', 'qb.join.changeType': 'Alterar tipo de junção', 'qb.join.drop': 'Remover junção', 'qb.sub.create': 'Criar subconsulta', 'qb.sub.edit': 'Editar subconsulta',
+  'qb.title': 'Construtor de consultas', 'qb.designQuery': 'Projetar consulta', 'qb.addTable': 'Adicionar tabela', 'qb.selection.add': 'Adicionar coluna de saída', 'qb.selection.delete': 'Excluir coluna de saída', 'qb.selection.aggregate': 'Funções de agregação', 'qb.selection.distinct': 'Distinto', 'qb.groupBy': 'Agrupar por', 'qb.cond.add': 'Adicionar condição', 'qb.cond.criteria': 'Critérios:', 'qb.join.changeType': 'Alterar tipo de junção', 'qb.join.drop': 'Remover junção', 'qb.join.editCond': 'Atualizar junção', 'qb.sub.create': 'Criar subconsulta', 'qb.sub.edit': 'Editar subconsulta',
   'debug.menu': 'Depuração', 'debug.start': 'Iniciar depuração', 'debug.stop': 'Parar depuração', 'debug.stepInto': 'Entrar', 'debug.stepOver': 'Avançar', 'debug.stepOut': 'Sair', 'debug.runToCursor': 'Executar até o cursor', 'debug.restart': 'Reiniciar', 'debug.bp.toggle': 'Alternar breakpoint', 'debug.bp.insert': 'Inserir breakpoint', 'debug.bp.delete': 'Excluir breakpoint', 'debug.bp.deleteAll': 'Excluir todos os breakpoints', 'debug.bp.disableAll': 'Desativar todos os breakpoints', 'debug.panel.breakpoints': 'Breakpoints', 'debug.panel.watches': 'Expressões monitoradas', 'debug.panel.callStack': 'Pilha de chamadas', 'debug.watch.add': 'Adicionar expressão monitorada', 'debug.watch.delete': 'Excluir expressão monitorada',
   'io.export.menu': 'Exportar dados...', 'io.export.format': 'Formato de exportação', 'io.export.source.hint': 'Escolha uma tabela de origem para exportar.', 'io.import.target.hint': 'Escolha uma tabela de destino para importar.', 'io.import.mode.hint': 'Escolha um modo de importação.', 'io.errors.title': 'Tratamento de erros', 'io.export.preview': 'Pré-visualização dos arquivos exportados:', 'io.import.rowsPct': '{0} linhas importadas, {1}%', 'io.export.cancelConfirm': 'Tem certeza de que deseja interromper a exportação dos dados?', 'io.export.done': 'Exportação de dados concluída.', 'io.export.doneWithErrors': 'Exportação de dados concluída com erros.', 'io.import.failed': 'Falha ao importar dados.', 'io.template.load': 'Carregar modelo...',
   'doc.cmd.generate': 'Gerar documentação', 'doc.cmd.new': 'Nova documentação...', 'doc.cmd.open': 'Abrir documentação...', 'doc.step.objects': 'Escolher objetos para documentar', 'doc.wizard.title': 'Geração de documentação', 'doc.progress': 'Gerando documentação...', 'doc.empty': 'A documentação não está disponível.',
@@ -525,10 +565,10 @@ export const ptBrMessages: Record<string, string> = {
   'ai.title': 'Assistente de IA', 'ai.chat.title': 'Conversa com o Assistente de IA', 'ai.menu.openChat': 'Abrir conversa', 'ai.chat.new': 'Nova conversa', 'ai.chat.all': 'Todas as conversas', 'ai.chat.settings': 'Configurações da conversa', 'ai.chat.empty': 'Você ainda não tem conversas.', 'ai.cmd.explainSql': 'Explicar SQL', 'ai.cmd.fixSql': 'Corrigir SQL', 'ai.cmd.explainCurrent': 'Explicar nesta conversa', 'ai.cmd.explainNew': 'Explicar em uma nova conversa', 'ai.cmd.sendSelection': 'Enviar seleção para nova conversa', 'ai.cmd.nl2sql': 'Converter linguagem natural em SQL', 'ai.signIn': 'Entrar',
   'opt.title': 'Opções...', 'opt.env': 'Ambiente', 'opt.dataEditor': 'Editor de dados', 'opt.language': 'Idioma', 'opt.kbd.scheme': 'Aplicar o seguinte esquema adicional de teclado:', 'opt.reset': 'Restaurar padrões', 'opt.resetAll': 'Redefinir todas as configurações', 'opt.importExport': 'Importar e exportar configurações...', 'opt.recent.count': 'itens na lista de usados recentemente', 'opt.hoverHint': 'Passe o cursor sobre uma opção para ver a descrição detalhada.',
   'sc.panel.title': 'Controle de versão', 'sc.commit.selection': 'Confirmar seleção', 'sc.getLatest': 'Obter versão mais recente', 'sc.revert': 'Reverter alterações', 'proj.explorer': 'Explorador de projetos', 'proj.wizard': 'Assistente de projeto', 'svc.title': 'Controle de serviços', 'start.title': 'Página inicial', 'toolbox.title': 'Caixa de ferramentas', 'outline.title': 'Estrutura do documento', 'snippets.manager': 'Gerenciador de trechos', 'snippets.insert': 'Inserir trecho...',
-  'analysis.state.complete': 'Análise de código concluída', 'search.findObject': 'Localizar objeto...', 'search.results': 'Resultados da pesquisa', 'search.clear': 'Limpar resultados da pesquisa', 'backup.cmd': 'Fazer backup do banco de dados...', 'restore.cmd': 'Restaurar banco de dados...',
+  'analysis.state.complete': 'Análise de código concluída', 'analysis.rule.SQL001': 'Evite SELECT *; enumere as colunas necessárias.', 'analysis.rule.SQL002': 'UPDATE sem WHERE pode alterar todas as linhas.', 'analysis.rule.SQL003': 'DELETE sem WHERE pode remover todas as linhas.', 'analysis.rule.SQL004': 'Use IS NULL ou IS NOT NULL para comparar valores NULL.', 'analysis.rule.SQL005': 'Uma função aplicada à coluna no predicado pode impedir o uso de índice.', 'analysis.rule.SQL006': 'JOIN sem ON ou USING pode gerar produto cartesiano.', 'analysis.rule.SQL007': 'LIMIT sem ORDER BY pode retornar linhas diferentes entre execuções.', 'analysis.rule.SQL008': 'Confirme se UNION DISTINCT é necessário; UNION ALL evita remover duplicatas.', 'search.findObject': 'Localizar objeto...', 'search.results': 'Resultados da pesquisa', 'search.clear': 'Limpar resultados da pesquisa', 'backup.cmd': 'Fazer backup do banco de dados...', 'restore.cmd': 'Restaurar banco de dados...',
   'debug.compileDependants': 'Compilar dependências para depuração', 'debug.compileReferences': 'Compilar referências para depuração', 'debug.engine.remove': 'Remover mecanismo de depuração', 'debug.engine.deployed': 'Mecanismo de depuração instalado com sucesso.', 'debug.engine.removing': 'Removendo mecanismo de depuração do servidor...', 'debug.engine.removed': 'Mecanismo de depuração removido.', 'debug.ignoreChanges': 'Ignorar alterações e continuar depurando', 'debug.source.ignoreChanges': 'Ignorar alterações e continuar depurando', 'opt.font.size': 'Tamanho da fonte', 'opt.font.scale': 'Escala da fonte'
 }
 
 Object.assign(ptBrMessages, { 'debug.ignoreChanges': 'Ignorar alterações e continuar depurando', 'debugger.title': 'Depurador de rotinas', 'debugger.description': 'Execução passo a passo instrumentada de procedimentos armazenados', 'common.cancel': 'Cancelar', 'common.ok': 'OK', 'opt.saving': 'Salvando configurações…', 'opt.applied': 'Alterações aplicadas.', 'opt.resetPage': 'Restaurar padrões', 'opt.resetPage.confirm': 'Restaurar os padrões desta página?', 'opt.resetAll.confirm': 'Os atalhos serão restaurados aos valores padrão. Continuar?', 'opt.imported': 'Configurações importadas.', 'opt.exported': 'Configurações exportadas para {0}' })
 
-export const ptBrCatalog: Record<string, string> = { ...enMessages, ...generatedPtBrMessages, ...ptBrMessages }
+export const ptBrCatalog: Record<string, string> = { ...enMessages, ...generatedPtBrMessages, ...ptBrPanelMessages, ...ptBrMessages }
