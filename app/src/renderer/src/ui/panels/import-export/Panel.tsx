@@ -3,24 +3,9 @@ import type { ConnectionRecord } from '../../../../../shared/contracts.js'
 import type { ExportFormat, ImportFormat, ImportMode } from '../../../../../modules/data-export-import/types.js'
 import type { ImportExportTemplate } from '../../../../../shared/contracts/import-export.js'
 import { usePanelConnection } from '../registry'
+import { exportFormats, importFormats } from './formats.js'
 
 type Direction = 'export' | 'import'
-const exportFormats: Array<{ id: ExportFormat; title: string; description: string }> = [
-  { id: 'csv', title: 'CSV', description: 'Delimited text for spreadsheets and other tools.' },
-  { id: 'xlsx', title: 'Excel', description: 'Microsoft Excel workbook.' },
-  { id: 'xml', title: 'XML', description: 'Rows and columns in XML format.' },
-  { id: 'json', title: 'JSON', description: 'Array of row objects.' },
-  { id: 'xml', title: 'XML', description: 'Structured row document.' },
-  { id: 'sql', title: 'SQL', description: 'INSERT statements.' },
-  { id: 'html', title: 'HTML', description: 'A formatted HTML table.' }
-]
-const importFormats: Array<{ id: ImportFormat; title: string; description: string }> = [
-  { id: 'csv', title: 'CSV / TSV', description: 'Delimited text file.' },
-  { id: 'xlsx', title: 'Excel', description: 'Excel workbook.' },
-  { id: 'xml', title: 'XML', description: 'Rows and columns in XML format.' },
-  { id: 'json', title: 'JSON', description: 'Array of row objects.' },
-  { id: 'sql', title: 'SQL', description: 'INSERT statements only.' }
-]
 const exportSteps = ['Format', 'Source', 'Options', 'Columns', 'Destination & preview', 'Run', 'Report']
 const importSteps = ['Source', 'Format & options', 'Destination', 'Mapping', 'Mode & options', 'Preview & validation', 'Run', 'Report']
 

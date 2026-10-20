@@ -4,6 +4,7 @@ import type { ConnectionRecord } from '../../../../../shared/contracts.js'
 import type { SchemaCompareResult } from '../../../../../shared/contracts/schema-compare.js'
 import type { SchemaDifference } from '../../../../../modules/schema/model.js'
 import { createTable } from '../../../../../modules/schema/ddl.js'
+import './Panel.css'
 import { usePanelConnection } from '../registry'
 
 type Filter = 'all' | 'different' | 'added' | 'removed'
@@ -74,11 +75,11 @@ export default function Panel(): React.JSX.Element {
     return object?.createSql ?? ('definition' in (object ?? {}) ? String(object?.definition ?? '') : '')
   }
 
-  return <section className="tool-panel">
+  return <section className="tool-panel compare-panel">
     <h2>⇆ Schema Compare</h2><p>Compare a origem com o destino. O destino será modificado durante a sincronização.</p>
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-      <fieldset><legend>Source</legend><label>Source connection: <select value={source} onChange={(event) => { invalidate(); setSource(event.target.value) }}>{records.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Source database: <input value={sourceDb} onChange={(event) => { invalidate(); setSourceDb(event.target.value) }} /></label></fieldset>
-      <fieldset style={{ borderColor: 'var(--error)' }}><legend>Target (será modificado)</legend><label>Destination connection: <select value={target} onChange={(event) => { invalidate(); setTarget(event.target.value) }}>{records.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Destination database: <input value={targetDb} onChange={(event) => { invalidate(); setTargetDb(event.target.value) }} /></label></fieldset>
+      <fieldset><legend>Source</legend><div className="compare-form"><label>Source connection<select value={source} onChange={(event) => { invalidate(); setSource(event.target.value) }}>{records.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Source database<input value={sourceDb} onChange={(event) => { invalidate(); setSourceDb(event.target.value) }} /></label></div></fieldset>
+      <fieldset style={{ borderColor: 'var(--error)' }}><legend>Target (será modificado)</legend><div className="compare-form"><label>Destination connection<select value={target} onChange={(event) => { invalidate(); setTarget(event.target.value) }}>{records.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Destination database<input value={targetDb} onChange={(event) => { invalidate(); setTargetDb(event.target.value) }} /></label></div></fieldset>
     </div>
     <label style={{ display: 'block', margin: '10px 0' }}><input type="checkbox" checked={includeDrops} onChange={(event) => { setIncludeDrops(event.target.checked); setMessage('Resultados desatualizados — Compare novamente.'); setResult(null) }} /> Include drops (possible data loss)</label>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}><button onClick={() => void runCompare()} disabled={busy || records.length === 0}>Compare (F5)</button><button onClick={() => { setScriptPreview(true); setConfirmOpen(false) }} disabled={!selectedScript}>Generate Script</button><button onClick={() => { setConfirmOpen(true); setScriptPreview(false) }} disabled={busy || !selectedScript}>Synchronize (Ctrl+Shift+Y)</button><button onClick={exportScript} disabled={!selectedScript}>Export script</button><button onClick={() => { setSource(target); setTarget(source); setSourceDb(targetDb); setTargetDb(sourceDb); setResult(null); setMessage('Resultados desatualizados — Compare novamente.') }}>Swap ⇄</button></div>

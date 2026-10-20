@@ -15,14 +15,30 @@ import { registerDataCompareIpc } from './data-compare.js'
 import { registerDocumenterIpc } from './documenter.js'
 import { registerSchemaCompareIpc } from './schema-compare.js'
 import { registerImportExportIpc } from './import-export.js'
+import { registerERDiagramIpc } from './er-diagram.js'
+import { registerQueryBuilderIpc } from './query-builder.js'
+import { registerEditorIpc } from './editor.js'
+import { registerHistoryIpc } from './history.js'
+import { registerSourceControlIpc } from './source-control.js'
+import { registerObjectEditorsIpc } from './object-editors.js'
+import { registerDataReportPivotIpc } from './data-report-pivot.js'
+import { registerAiAssistantIpc } from './ai-assistant.js'
+import { registerOptionsIpc } from './options.js'
+import { SettingsStore } from '../../modules/options/index.js'
+import { registerDatabaseToolsIpc } from './database-tools.js'
+import { SqlExecutionHistoryStore } from '../history/SqlExecutionHistoryStore.js'
+import { join } from 'node:path'
 
 export interface IpcDeps {
   driver: MysqlDriver
   vault: PasswordVault
   connectionsStore: ConnectionsStore
   resolveConnectionConfig(record: ConnectionRecord): Promise<import('../db/DbDriver.js').DriverConnectionConfig>
+  userDataDir: string
 }
 export function registerIpcRegistry(deps: IpcDeps): void {
+  registerEditorIpc(deps)
+  registerHistoryIpc(new SqlExecutionHistoryStore(join(deps.userDataDir, 'sql-execution-history.json')))
   registerConnectionsIpc(deps)
   registerSqlIpc(deps)
   registerSchemaIpc(deps)
@@ -34,6 +50,14 @@ export function registerIpcRegistry(deps: IpcDeps): void {
   registerDocumenterIpc(deps)
   registerSchemaCompareIpc(deps)
   registerImportExportIpc(deps)
+  registerERDiagramIpc(deps)
+  registerQueryBuilderIpc(deps)
+  registerSourceControlIpc(deps)
+  registerObjectEditorsIpc(deps)
+  registerDataReportPivotIpc(deps)
+  registerAiAssistantIpc(deps)
+  registerOptionsIpc(new SettingsStore(join(deps.userDataDir, 'settings.json')))
+  registerDatabaseToolsIpc(deps)
 }
 export { ipcMain, BrowserWindow, dialog, readFile, writeFile }
 export type { OpenDialogOptions, SaveDialogOptions }

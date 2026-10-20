@@ -6,7 +6,8 @@ export interface DatabaseModel extends SchemaObject {
 }
 export interface TableModel extends SchemaObject {
   kind: 'table'; columns: ColumnModel[]; indexes: IndexModel[]; foreignKeys: ForeignKeyModel[]; checks: CheckConstraintModel[]
-  partitions?: PartitionModel[]; engine?: string; charset?: string; collation?: string; comment?: string; options?: Record<string, string>
+  partitions?: PartitionModel[]; partitioning?: { method: 'RANGE' | 'LIST' | 'HASH' | 'KEY' | 'LINEAR HASH' | 'LINEAR KEY'; expression?: string; definitions?: Array<{ name: string; value?: string; comment?: string }> }
+  engine?: string; charset?: string; collation?: string; comment?: string; options?: Record<string, string>
 }
 export interface ColumnModel { name: string; type: string; nullable: boolean; default?: string | null; autoIncrement?: boolean; comment?: string; generated?: string; generatedStorage?: 'VIRTUAL' | 'STORED'; charset?: string; collation?: string; onUpdate?: string }
 export interface IndexModel { name: string; columns: Array<{ name: string; order?: 'ASC' | 'DESC'; prefixLength?: number; expression?: string }>; kind: 'PRIMARY' | 'UNIQUE' | 'INDEX' | 'FULLTEXT' | 'SPATIAL'; comment?: string; visible?: boolean }

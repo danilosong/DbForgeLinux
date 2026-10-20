@@ -20,6 +20,10 @@ interface Props {
   onSelectTop(connection: ConnectionSummary, database: string, object: DatabaseObject): void
   onGenerateScript(connection: ConnectionSummary, database: string, object: DatabaseObject): void
   onDropObject(connection: ConnectionSummary, database: string, object: DatabaseObject): void
+  onOpenObject(connection: ConnectionSummary, database: string, object: DatabaseObject): void
+  onCreateObject(connection: ConnectionSummary, database: string, kind: DatabaseObjectKind): void
+  onRenameTable(connection: ConnectionSummary, database: string, object: DatabaseObject, newName: string): void
+  onTruncateTable(connection: ConnectionSummary, database: string, object: DatabaseObject): void
   onEdit(record: ConnectionRecord): void
 }
 
@@ -30,7 +34,7 @@ const kinds: Array<{ kind: DatabaseObjectKind; label: string; icon: string }> = 
 ]
 
 export function DatabaseExplorer(props: Props): React.JSX.Element {
-  const { records, active, databases, objects, loadingObjects, connecting, errors, onNew, onManage, onConnect, onDisconnect, onExpand, onLoadObjects, onSelectDatabase, onSelectTop, onGenerateScript, onDropObject, onEdit } = props
+  const { records, active, databases, objects, loadingObjects, connecting, errors, onNew, onManage, onConnect, onDisconnect, onExpand, onLoadObjects, onSelectDatabase, onSelectTop, onGenerateScript, onDropObject, onOpenObject, onCreateObject, onRenameTable, onTruncateTable, onEdit } = props
   const [filter, setFilter] = useState('')
   const [showSystemDatabases, setShowSystemDatabases] = useState(false)
   const [expanded, setExpanded] = useState<string[]>([])
@@ -84,7 +88,7 @@ export function DatabaseExplorer(props: Props): React.JSX.Element {
                   {dbExpanded && <div className="object-groups">{loadingObjects.includes(dbKey) ? <small>Loading…</small> : kinds.map(({ kind, label, icon }) => {
                     const members = dbObjects.filter((object) => object.kind === kind)
                     const groupKey = `${dbKey}:${kind}`
-                    return <div className="object-group" key={kind}><button className="object-group-name" onClick={() => toggleKind(groupKey)}>{expandedKinds.includes(groupKey) ? '▾' : '▸'} {label} ({members.length})</button>
+                    return <div className="object-group" key={kind}><div className="object-group-heading"><button className="object-group-name" onClick={() => toggleKind(groupKey)}>{expandedKinds.includes(groupKey) ? '▾' : '▸'} {label} ({members.length})</button><button className="object-create" title={`Create ${kind}`} onClick={() => onCreateObject(connection, database, kind)}>＋</button></div>
                       {expandedKinds.includes(groupKey) && members.map((object) => <button key={`${kind}:${object.name}`} className="object-name" onDoubleClick={() => kind === 'table' || kind === 'view' ? onSelectTop(connection, database, object) : onGenerateScript(connection, database, object)} onContextMenu={(event) => { event.preventDefault(); setContext({ x: event.clientX, y: event.clientY, record: connection, database, object }) }}>{icon} {object.name}</button>)}
                     </div>
                   })}</div>}
@@ -96,6 +100,6 @@ export function DatabaseExplorer(props: Props): React.JSX.Element {
         })}
       </div>)}
     </div>
-    {context && <div className="object-context" style={{ left: context.x, top: context.y }} onMouseLeave={() => setContext(undefined)}><button onClick={() => { onSelectTop(context.record, context.database, context.object); setContext(undefined) }} disabled={!['table', 'view'].includes(context.object.kind)}>Select top 1000 rows</button><button onClick={() => { void navigator.clipboard.writeText(`\`${context.object.name.replace(/`/g, '``')}\``); setContext(undefined) }}>Copy name</button><button onClick={() => { onGenerateScript(context.record, context.database, context.object); setContext(undefined) }}>Generate script</button><button onClick={() => { onLoadObjects(context.record, context.database); setContext(undefined) }}>Refresh</button>{!records.find((record) => record.id === context.record.recordId)?.advanced.readOnly && <button className="drop-action" onClick={() => { const expected = context.object.name; if (window.prompt(`Digite ${expected} para excluir este objeto:`) === expected) onDropObject(context.record, context.database, context.object); setContext(undefined) }}>Drop…</button>}</div>}
+    {context && <div className="object-context" style={{ left: context.x, top: context.y }} onMouseLeave={() => setContext(undefined)}>{['table', 'view'].includes(context.object.kind) && <button onClick={() => { onSelectTop(context.record, context.database, context.object); setContext(undefined) }}>Select top 1000 rows</button>}<button onClick={() => { onOpenObject(context.record, context.database, context.object); setContext(undefined) }}>{context.object.kind === 'table' ? 'Design' : 'Edit'}</button><button onClick={() => { void navigator.clipboard.writeText(`\`${context.object.name.replace(/`/g, '``')}\``); setContext(undefined) }}>Copy name</button><button onClick={() => { onGenerateScript(context.record, context.database, context.object); setContext(undefined) }}>Generate script</button><button onClick={() => { onLoadObjects(context.record, context.database); setContext(undefined) }}>Refresh</button>{!records.find((record) => record.id === context.record.recordId)?.advanced.readOnly && <>{context.object.kind === 'table' && <><button onClick={() => { const name = window.prompt(`New table name for ${context.object.name}:`); if (name && window.prompt(`Type ${context.object.name} to confirm rename:`) === context.object.name && window.confirm(`Rename ${context.object.name} to ${name}?`)) onRenameTable(context.record, context.database, context.object, name); setContext(undefined) }}>Rename…</button><button className="drop-action" onClick={() => { if (window.prompt(`Type ${context.object.name} to confirm truncation:`) === context.object.name && window.confirm(`Truncate all rows from ${context.object.name}?`)) onTruncateTable(context.record, context.database, context.object); setContext(undefined) }}>Truncate…</button></>}<button className="drop-action" onClick={() => { const expected = context.object.name; if (window.prompt(`Type ${expected} to confirm drop:`) === expected && window.confirm(`Drop ${context.object.kind} ${expected}? This cannot be undone.`)) onDropObject(context.record, context.database, context.object); setContext(undefined) }}>Drop…</button></>}</div>}
   </aside>
 }

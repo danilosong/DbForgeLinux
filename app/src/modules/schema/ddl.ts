@@ -37,6 +37,7 @@ export function createTable(table: TableModel, database: string): string {
   if (table.collation) sql += ` COLLATE=${quoteIdentifier(table.collation)}`
   if (table.comment) sql += ` COMMENT=${literal(table.comment)}`
   if (table.options) sql += Object.entries(table.options).map(([key, value]) => ` ${key}=${value}`).join('')
+  if (table.partitioning) sql += ` ${partitionSql(table.partitioning)}`
   return `${sql};`
 }
 
@@ -122,5 +123,24 @@ export function diffTables(source: TableModel, target: TableModel, database: str
     const old = source.checks.find((item) => item.name === check.name)
     if (!old || (includeDrops && old.expression !== check.expression)) statements.push(`ADD CONSTRAINT ${quoteIdentifier(check.name)} CHECK (${check.expression})${check.enforced === false ? ' NOT ENFORCED' : ''}`)
   }
+  if (source.engine !== target.engine && target.engine) statements.push(`ENGINE=${target.engine}`)
+  if (source.charset !== target.charset && target.charset) statements.push(`DEFAULT CHARACTER SET=${quoteIdentifier(target.charset)}`)
+  if (source.collation !== target.collation && target.collation) statements.push(`COLLATE=${quoteIdentifier(target.collation)}`)
+  if (source.comment !== target.comment) statements.push(`COMMENT=${literal(target.comment ?? '')}`)
+  for (const [key, value] of Object.entries(target.options ?? {})) if (source.options?.[key] !== value) statements.push(`${key}=${value}`)
+  for (const key of Object.keys(source.options ?? {})) if (!(key in (target.options ?? {})) && key === 'AUTO_INCREMENT') statements.push('AUTO_INCREMENT=1')
+  if (JSON.stringify(source.partitioning) !== JSON.stringify(target.partitioning)) {
+    if (target.partitioning) statements.push(partitionSql(target.partitioning))
+    else if (source.partitioning) statements.push('REMOVE PARTITIONING')
+  }
   return statements.length ? [`ALTER TABLE ${qualifiedName(database, target.name)}\n  ${statements.join(',\n  ')};`] : []
+}
+
+function partitionSql(partitioning: NonNullable<TableModel['partitioning']>): string {
+  const method = partitioning.method.replace('LINEAR ', 'LINEAR ')
+  const expression = partitioning.expression ? ` (${partitioning.expression})` : ''
+  const definitions = partitioning.definitions?.length
+    ? ` (${partitioning.definitions.map((item) => `PARTITION ${quoteIdentifier(item.name)} ${partitioning.method.includes('RANGE') ? `VALUES LESS THAN (${item.value ?? 'MAXVALUE'})` : partitioning.method.includes('LIST') ? `VALUES IN (${item.value ?? ''})` : ''}${item.comment ? ` COMMENT ${literal(item.comment)}` : ''}`).join(', ')})`
+    : ''
+  return `PARTITION BY ${method}${expression}${definitions}`
 }

@@ -10,5 +10,15 @@ import { sessionsApi } from './api/sessions.js'
 import { schemaCompareApi } from './api/schema-compare.js'
 import { dataCompareApi } from './api/data-compare.js'
 import { importExportApi } from './api/import-export.js'
-const api:DbForgeApi={...connectionsApi,...sqlApi,...securityApi,...sessionsApi,...profilerApi,...dataGeneratorApi,...documenterApi,...schemaCompareApi,...dataCompareApi,...importExportApi}
+import { erDiagramApi } from './api/er-diagram.js'
+import { queryBuilderApi } from './api/query-builder.js'
+import { editorApi } from './api/editor.js'
+import { historyApi } from './api/history.js'
+import { sourceControlApi } from './api/source-control.js'
+import { objectEditorsApi } from './api/object-editors.js'
+import { optionsApi } from './api/options.js'
+import { databaseToolsApi } from './api/database-tools.js'
+import { dataReportPivotApi } from './api/data-report-pivot.js'
+import { aiAssistantApi } from './api/ai-assistant.js'
+const api:DbForgeApi={...connectionsApi,...sqlApi,...securityApi,...sessionsApi,...profilerApi,...dataGeneratorApi,...documenterApi,...schemaCompareApi,...dataCompareApi,...importExportApi,...erDiagramApi,...queryBuilderApi,...editorApi,...historyApi,...sourceControlApi,...objectEditorsApi,...optionsApi,...databaseToolsApi,...dataReportPivotApi,...aiAssistantApi}
 contextBridge.exposeInMainWorld('dbforge',api)

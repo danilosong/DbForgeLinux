@@ -73,7 +73,12 @@ export class SchemaIntrospector {
         const existing = partitionMap.get(pname)
         if (!existing) partitionMap.set(pname, { name: pname, method: String(part.method ?? ''), expression: str(part, 'expression'), description: str(part, 'description'), subpartition: str(part, 'subpartition') })
       }
-      tables.push({ kind: 'table', name, columns: cols, indexes, foreignKeys: fks, checks, partitions: [...partitionMap.values()], engine: str(row, 'engine'), charset: str(row, 'charset'), collation: str(row, 'collation'), comment: str(row, 'comment'), options: parseOptions(str(row, 'options')), createSql })
+      const tablePartitions = [...partitionMap.values()]
+      const partitionMethod = tablePartitions[0]?.method.toUpperCase().replace(/\s+/g, ' ')
+      const partitioning = partitionMethod && ['RANGE', 'LIST', 'HASH', 'KEY', 'LINEAR HASH', 'LINEAR KEY'].includes(partitionMethod)
+        ? { method: partitionMethod as NonNullable<TableModel['partitioning']>['method'], expression: tablePartitions[0]?.expression, definitions: tablePartitions.map((partition) => ({ name: partition.name, value: partition.description })) }
+        : undefined
+      tables.push({ kind: 'table', name, columns: cols, indexes, foreignKeys: fks, checks, partitions: tablePartitions, partitioning, engine: str(row, 'engine'), charset: str(row, 'charset'), collation: str(row, 'collation'), comment: str(row, 'comment'), options: parseOptions(str(row, 'options')), createSql })
     }
     return tables
   }

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Editor from '@monaco-editor/react'
-import type { editor as MonacoEditor } from 'monaco-editor'
-import type { ConnectionRecord, ConnectionSummary, ConnectionTestResult, DatabaseObject, QueryResult } from '../../../shared/contracts'
+import type { editor as MonacoEditor, IRange } from 'monaco-editor'
+import type { ConnectionRecord, ConnectionSummary, ConnectionTestResult, DatabaseObject, DatabaseObjectKind, EditorMetadata, ObjectEditorTarget, QueryResult, SqlExecutionHistoryEntry } from '../../../shared/contracts'
 import { splitSqlStatements, statementAtOffset } from '../../../shared/sqlStatements'
+import { buildSqlSuggestions } from '../../../modules/editor/completion.js'
+import { formatSql } from '../../../modules/editor/formatter.js'
 import { createDefaultConnection } from '../../../shared/connectionDefaults'
 import { Button } from './components/Button'
 import { ConnectionManager } from './components/ConnectionManager'
@@ -10,13 +12,15 @@ import { ConnectionPropertiesDialog, type ConnectionAction, type ConnectionSecre
 import { DatabaseExplorer } from './components/DatabaseExplorer'
 import { ResultGrid } from './components/ResultGrid'
 import { PanelDialog } from './components/PanelDialog'
+import { ObjectEditor } from './components/ObjectEditor'
 import { PanelConnectionContext, panelRegistry } from './panels/registry'
+import { defaultSettings, normalizeShortcut, type AppSettings } from '../../../modules/options/types.js'
 
-type ThemeMode = 'auto' | 'light' | 'dark'
-type DocumentTab = { id: string; label: string; modified: boolean; filePath?: string }
+type ThemeMode = 'auto' | 'light' | 'dark' | 'high-contrast'
+type DocumentTab = { id: string; label: string; modified: boolean; filePath?: string; objectEditor?: ObjectEditorTarget & { isNew: boolean } }
 type OutputEntry = { timestamp: string; origin: string; message: string; tone: string }
-type HistoryEntry = { timestamp: string; connection: string; sql: string; elapsedMs: number }
 type PageQuery = { database: string; table: string; offset: number }
+const emptyEditorMetadata: EditorMetadata = { database: '', databases: [], objects: [], routines: [] }
 
 export default function App(): React.JSX.Element {
   const [records, setRecords] = useState<ConnectionRecord[]>([])
@@ -31,6 +35,7 @@ export default function App(): React.JSX.Element {
   const [managerOpen, setManagerOpen] = useState(false)
   const [openPanel, setOpenPanel] = useState<string | null>(null)
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => (localStorage.getItem('dbforge.theme') as ThemeMode | null) ?? 'auto')
+  const [appSettings, setAppSettings] = useState<AppSettings>(structuredClone(defaultSettings))
   const [systemDark, setSystemDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches)
   const [explorerVisible, setExplorerVisible] = useState(() => localStorage.getItem('dbforge.explorerVisible') !== 'false')
   const [panelVisible, setPanelVisible] = useState(() => localStorage.getItem('dbforge.panelVisible') !== 'false')
@@ -50,12 +55,15 @@ export default function App(): React.JSX.Element {
   const [resultIndex, setResultIndex] = useState(-1)
   const [queryElapsed, setQueryElapsed] = useState(0)
   const [autoCommit, setAutoCommit] = useState(true)
-  const [history, setHistory] = useState<HistoryEntry[]>(() => {
-    try { const saved: unknown = JSON.parse(localStorage.getItem('dbforge.queryHistory') ?? '[]'); return Array.isArray(saved) ? saved as HistoryEntry[] : [] }
-    catch { return [] }
-  })
+  const [history, setHistory] = useState<SqlExecutionHistoryEntry[]>([])
+  const [historySearch, setHistorySearch] = useState('')
+  const [historyLoading, setHistoryLoading] = useState(false)
+  const [editorMetadata, setEditorMetadata] = useState<EditorMetadata>(emptyEditorMetadata)
+  const [metadataLoading, setMetadataLoading] = useState(false)
   const [pageQueries, setPageQueries] = useState<Record<string, PageQuery>>({})
   const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null)
+  const metadataRef = useRef<EditorMetadata>(emptyEditorMetadata)
+  const completionProviderRef = useRef<{ dispose(): void } | null>(null)
   const [errors, setErrors] = useState<string[]>([])
   const [status, setStatus] = useState('Ready')
   const [output, setOutput] = useState<OutputEntry[]>([])
@@ -63,14 +71,28 @@ export default function App(): React.JSX.Element {
   const theme = themeMode === 'auto' ? (systemDark ? 'dark' : 'light') : themeMode
   const currentConnection = active[0]
   const currentRecord = records.find((record) => record.id === currentConnection?.recordId)
-  const activeSql = selectedDocument !== 'start'
+  const activeObjectTab = documents.find((tab) => tab.id === selectedDocument)?.objectEditor
+  const activeSql = selectedDocument !== 'start' && !activeObjectTab
 
   useEffect(() => {
     void loadConnections()
+    const applySettings = (settings: AppSettings): void => {
+      setAppSettings(settings); setThemeMode(settings.appearance.theme); setAutoCommit(settings.execution.autoCommit)
+      document.documentElement.style.setProperty('--accent', settings.appearance.accent)
+      document.documentElement.style.zoom = String(settings.appearance.uiZoom / 100)
+      document.documentElement.style.setProperty('--grid-row-height', `${settings.grid.rowHeight}px`)
+      document.documentElement.style.fontFamily = settings.editor.fontName === 'monospace' ? '' : settings.editor.fontName
+      editorRef.current?.updateOptions({ fontFamily: settings.editor.fontName, fontSize: settings.editor.fontSize, lineNumbers: settings.editor.lineNumbers ? 'on' : 'off', minimap: { enabled: settings.editor.minimap }, wordWrap: settings.editor.wordWrap ? 'on' : 'off', tabSize: settings.editor.tabSize, insertSpaces: settings.editor.insertSpaces, folding: settings.editor.folding, renderLineHighlight: settings.editor.highlightCurrentLine ? 'line' : 'none', fontLigatures: settings.editor.ligatures, quickSuggestions: settings.editor.autoComplete, suggestOnTriggerCharacters: settings.editor.autoComplete, quickSuggestionsDelay: settings.editor.completionDelayMs })
+    }
+    const onSettingsChanged = (event: Event): void => applySettings((event as CustomEvent<AppSettings>).detail)
+    const onClosePanel = (): void => setOpenPanel(null)
+    window.addEventListener('dbforge:settings-changed', onSettingsChanged)
+    window.addEventListener('dbforge:close-panel', onClosePanel)
+    void window.dbforge.loadSettings().then((result) => applySettings(result.settings)).catch((error: unknown) => log('Options', error instanceof Error ? error.message : 'Settings unavailable.', 'warning'))
     const media = window.matchMedia('(prefers-color-scheme: dark)')
     const onChange = (event: MediaQueryListEvent): void => setSystemDark(event.matches)
     media.addEventListener('change', onChange)
-    return () => media.removeEventListener('change', onChange)
+    return () => { media.removeEventListener('change', onChange); window.removeEventListener('dbforge:settings-changed', onSettingsChanged); window.removeEventListener('dbforge:close-panel', onClosePanel) }
   }, [])
 
   useEffect(() => {
@@ -78,14 +100,43 @@ export default function App(): React.JSX.Element {
     localStorage.setItem('dbforge.theme', themeMode)
   }, [theme, themeMode])
 
+  useEffect(() => {
+    const insertSql = (event: Event): void => {
+      const sql = (event as CustomEvent<{ sql?: string }>).detail?.sql
+      if (typeof sql !== 'string' || !sql.trim()) return
+      const id = `sql-${crypto.randomUUID()}`
+      setDocuments((current) => [...current, { id, label: 'AI Assistant SQL', modified: false }])
+      setSqlByDocument((current) => ({ ...current, [id]: sql }))
+      setSelectedDocument(id)
+      setOpenPanel(null)
+    }
+    window.addEventListener('dbforge:insert-ai-sql', insertSql)
+    return () => window.removeEventListener('dbforge:insert-ai-sql', insertSql)
+  }, [])
+
   useEffect(() => { localStorage.setItem('dbforge.explorerVisible', String(explorerVisible)) }, [explorerVisible])
   useEffect(() => { localStorage.setItem('dbforge.panelVisible', String(panelVisible)) }, [panelVisible])
   useEffect(() => { localStorage.setItem('dbforge.explorerWidth', String(explorerWidth)) }, [explorerWidth])
   useEffect(() => { localStorage.setItem('dbforge.panelHeight', String(panelHeight)) }, [panelHeight])
   useEffect(() => { localStorage.setItem('dbforge.documents', JSON.stringify(documents)) }, [documents])
   useEffect(() => { localStorage.setItem('dbforge.selectedDocument', selectedDocument) }, [selectedDocument])
-  useEffect(() => { localStorage.setItem('dbforge.queryHistory', JSON.stringify(history.slice(0, 100))) }, [history])
   useEffect(() => { localStorage.setItem('dbforge.sqlDrafts', JSON.stringify(sqlByDocument)) }, [sqlByDocument])
+  useEffect(() => { metadataRef.current = editorMetadata }, [editorMetadata])
+
+  useEffect(() => {
+    let cancelled = false
+    setHistoryLoading(true)
+    void window.dbforge.listSqlExecutionHistory({ search: historySearch, limit: 200 }).then((entries) => { if (!cancelled) setHistory(entries) }).catch((error: unknown) => { if (!cancelled) log('History', error instanceof Error ? error.message : 'Não foi possível carregar o histórico.', 'error') }).finally(() => { if (!cancelled) setHistoryLoading(false) })
+    return () => { cancelled = true }
+  }, [historySearch])
+
+  useEffect(() => {
+    let cancelled = false
+    if (!currentConnection?.database) { setEditorMetadata(emptyEditorMetadata); setMetadataLoading(false); return }
+    setMetadataLoading(true)
+    void window.dbforge.getEditorMetadata(currentConnection.id, currentConnection.database).then((value) => { if (!cancelled) setEditorMetadata(value) }).catch((error: unknown) => { if (!cancelled) { setEditorMetadata({ ...emptyEditorMetadata, database: currentConnection.database ?? '' }); log('Editor', error instanceof Error ? error.message : 'Autocomplete contextual indisponível.', 'warning') } }).finally(() => { if (!cancelled) setMetadataLoading(false) })
+    return () => { cancelled = true }
+  }, [currentConnection?.id, currentConnection?.database])
 
   async function loadConnections(): Promise<void> {
     try { setRecords(await window.dbforge.getConnections()); setLoadError('') }
@@ -235,6 +286,61 @@ export default function App(): React.JSX.Element {
     return id
   }
 
+  function openObjectEditor(connection: ConnectionSummary, database: string, kind: DatabaseObjectKind, name: string, isNew = false): void {
+    const id = `object-${crypto.randomUUID()}`
+    const objectEditor = { connectionId: connection.id, database, kind, name, isNew }
+    setDocuments((current) => [...current, { id, label: `${kind === 'table' ? '▤' : '◇'} ${name}`, modified: false, objectEditor }])
+    setSelectedDocument(id)
+  }
+
+  function formatEditor(target: 'document' | 'selection' | 'statement'): void {
+    const editor = editorRef.current
+    const model = editor?.getModel()
+    if (!editor || !model) return
+    const source = model.getValue()
+    let range: IRange
+    let text: string
+    if (target === 'selection') {
+      const selection = editor.getSelection()
+      if (!selection || selection.isEmpty()) return
+      range = selection
+      text = model.getValueInRange(selection)
+    } else if (target === 'statement') {
+      const position = editor.getPosition()
+      const statement = statementAtOffset(source, position ? model.getOffsetAt(position) : 0)
+      if (!statement) return
+      range = { ...model.getFullModelRange(), startLineNumber: model.getPositionAt(statement.start).lineNumber, startColumn: model.getPositionAt(statement.start).column, endLineNumber: model.getPositionAt(statement.end).lineNumber, endColumn: model.getPositionAt(statement.end).column }
+      text = source.slice(statement.start, statement.end)
+    } else {
+      range = model.getFullModelRange()
+      text = source
+    }
+    const formatted = formatSql(text)
+    if (formatted === text) return
+    editor.pushUndoStop()
+    editor.executeEdits('dbforge.sql-format', [{ range, text: formatted, forceMoveMarkers: true }])
+    editor.pushUndoStop()
+    editor.focus()
+  }
+
+  async function persistExecutionHistory(sql: string, startedAt: number, success: boolean, rowCount: number, error?: string): Promise<void> {
+    if (!currentConnection) return
+    const entry: SqlExecutionHistoryEntry = {
+      id: crypto.randomUUID(), timestamp: new Date().toISOString(), connection: currentConnection.name,
+      ...(currentConnection.database ? { database: currentConnection.database } : {}), sql,
+      elapsedMs: Math.max(0, performance.now() - startedAt), success, rowCount, ...(error ? { error } : {})
+    }
+    try {
+      await window.dbforge.recordSqlExecutionHistory(entry)
+      setHistory(await window.dbforge.listSqlExecutionHistory({ search: historySearch, limit: 200 }))
+    } catch (reason) { log('History', reason instanceof Error ? reason.message : 'Não foi possível registrar a consulta.', 'error') }
+  }
+
+  function replayHistory(entry: SqlExecutionHistoryEntry): void {
+    openSqlDocument(`History · ${new Date(entry.timestamp).toLocaleString()}`, entry.sql)
+    void runSql('auto', entry.sql)
+  }
+
   async function openSqlFile(): Promise<void> {
     try {
       const file = await window.dbforge.openSqlFile()
@@ -283,12 +389,21 @@ export default function App(): React.JSX.Element {
     const record = records.find((item) => item.id === connection.recordId)
     if (record?.environment === 'prod' && window.prompt(`Database de produção: digite ${database} para confirmar.`) !== database) return
     const kind = object.kind.toUpperCase()
-    const quote = (value: string): string => String.fromCharCode(96) + value.replaceAll(String.fromCharCode(96), String.fromCharCode(96).repeat(2)) + String.fromCharCode(96)
     try {
-      await window.dbforge.executeSql(connection.id, `DROP ${kind} ${quote(database)}.${quote(object.name)}`)
+      await window.dbforge.mutateDatabaseObject({ connectionId: connection.id, database, kind: object.kind, name: object.name }, 'drop')
       log('Explorer', `${kind} ${object.name} removido.`, 'success')
       await loadObjects(connection, database)
     } catch (error) { log('Explorer', error instanceof Error ? error.message : `Falha ao remover ${object.name}.`, 'error') }
+  }
+
+  async function renameTable(connection: ConnectionSummary, database: string, object: DatabaseObject, newName: string): Promise<void> {
+    try { await window.dbforge.mutateDatabaseObject({ connectionId: connection.id, database, kind: object.kind, name: object.name }, 'rename', newName); log('Explorer', `Tabela ${object.name} renomeada para ${newName}.`, 'success'); await loadObjects(connection, database) }
+    catch (error) { log('Explorer', error instanceof Error ? error.message : `Falha ao renomear ${object.name}.`, 'error') }
+  }
+
+  async function truncateTable(connection: ConnectionSummary, database: string, object: DatabaseObject): Promise<void> {
+    try { await window.dbforge.mutateDatabaseObject({ connectionId: connection.id, database, kind: object.kind, name: object.name }, 'truncate'); log('Explorer', `Tabela ${object.name} truncada.`, 'success'); await loadObjects(connection, database) }
+    catch (error) { log('Explorer', error instanceof Error ? error.message : `Falha ao truncar ${object.name}.`, 'error') }
   }
 
   async function deleteRecords(selected: ConnectionRecord[]): Promise<void> {
@@ -301,8 +416,8 @@ export default function App(): React.JSX.Element {
     log('Connections', `${selected.length} conexão(ões) removida(s).`)
   }
 
-  async function runSql(mode: 'auto' | 'current' = 'auto'): Promise<void> {
-    if (!currentConnection || !activeSql) return
+  async function runSql(mode: 'auto' | 'current' = 'auto', queryOverride?: string): Promise<void> {
+    if (!currentConnection || (!activeSql && queryOverride === undefined)) return
     const source = sqlByDocument[selectedDocument] ?? ''
     const selection = editorRef.current?.getSelection()
     const selectedText = selection && !selection.isEmpty() ? editorRef.current?.getModel()?.getValueInRange(selection) : ''
@@ -310,7 +425,7 @@ export default function App(): React.JSX.Element {
     const position = editorRef.current?.getPosition()
     const currentOffset = model && position ? model.getOffsetAt(position) : 0
     const current = mode === 'current' ? statementAtOffset(source, currentOffset)?.sql : undefined
-    const sql = (mode === 'current' ? current ?? '' : selectedText || source).trim()
+    const sql = (queryOverride ?? (mode === 'current' ? current ?? '' : selectedText || source)).trim()
     if (!sql) return
     const statements = splitSqlStatements(sql)
     const destructive = statements.some(({ sql: statement }) => /\b(DROP|TRUNCATE)\b/i.test(statement) || (/\b(DELETE|UPDATE)\b/i.test(statement) && !/\bWHERE\b/i.test(statement)))
@@ -342,7 +457,11 @@ export default function App(): React.JSX.Element {
       setErrors([])
       setStatus('Ready')
       setQueryElapsed(performance.now() - startedAt)
-      setHistory((current) => [{ timestamp: new Date().toISOString(), connection: currentConnection.name, sql: redactHistorySql(sql), elapsedMs: performance.now() - startedAt }, ...current].slice(0, 100))
+      await persistExecutionHistory(sql, startedAt, true, next.reduce((sum, result) => sum + result.rows.length, 0))
+      if (currentConnection.database && /\b(CREATE|ALTER|DROP|TRUNCATE|RENAME)\b/i.test(sql)) {
+        try { setEditorMetadata(await window.dbforge.getEditorMetadata(currentConnection.id, currentConnection.database, true)) }
+        catch (error) { log('Editor', error instanceof Error ? error.message : 'O cache do esquema não foi atualizado.', 'warning') }
+      }
       log('Execution', `Consulta concluída · ${next.reduce((sum, result) => sum + result.rows.length, 0)} rows.`, 'success')
     } catch (error) {
       const code = typeof error === 'object' && error ? String((error as { code?: unknown }).code ?? '') : ''
@@ -350,6 +469,7 @@ export default function App(): React.JSX.Element {
         setQueryMessages((current) => [...current, 'Execução cancelada.'])
         setResultIndex(next.length ? 0 : -1)
         setStatus('Ready')
+        await persistExecutionHistory(sql, startedAt, false, next.reduce((sum, result) => sum + result.rows.length, 0), 'Execução cancelada.')
         return
       }
       const message = error instanceof Error ? error.message : 'Falha na consulta.'
@@ -359,6 +479,7 @@ export default function App(): React.JSX.Element {
       const column = detail.columnNumber ?? Number(match?.[2] ?? 0)
       const shownMessage = `${detail.code ? `${detail.code}${detail.errno ? ` ${detail.errno}` : ''}: ` : ''}${message}${line ? ` · line ${line}${column ? `, column ${column}` : ''}` : ''}`
       setErrors([shownMessage]); setQueryMessages([...messages, shownMessage]); setResultIndex(-1); setPanelTab('Error List'); setPanelVisible(true); setStatus('Error'); log('Execution', shownMessage, 'error')
+      await persistExecutionHistory(sql, startedAt, false, next.reduce((sum, result) => sum + result.rows.length, 0), shownMessage)
       if (line && editorRef.current) editorRef.current.revealLineInCenter(line)
     } finally { setQueryBusy(false); setExecutionId('') }
   }
@@ -394,7 +515,7 @@ export default function App(): React.JSX.Element {
     const id = `sql-${crypto.randomUUID()}`
     const number = documents.filter((tab) => tab.id !== 'start').length + 1
     setDocuments((current) => [...current, { id, label: `SQL ${number}`, modified: false }])
-    setSqlByDocument((current) => ({ ...current, [id]: '-- Novo documento SQL\n' }))
+    setSqlByDocument((current) => ({ ...current, [id]: '' }))
     setSelectedDocument(id)
   }
 
@@ -409,14 +530,30 @@ export default function App(): React.JSX.Element {
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent): void {
+      if (event.defaultPrevented) return
       const ctrl = event.ctrlKey || event.metaKey
+      const pressed = [ctrl ? 'Ctrl' : '', event.altKey ? 'Alt' : '', event.shiftKey ? 'Shift' : '', ['Control', 'Alt', 'Shift', 'Meta'].includes(event.key) ? '' : event.key.length === 1 ? event.key.toUpperCase() : event.key].filter(Boolean).join('+')
+      const customBinding = appSettings.shortcuts.bindings.find((binding) => binding.shortcut && normalizeShortcut(binding.shortcut) === normalizeShortcut(pressed) && (binding.context === 'Global' || (binding.context === 'Editor' && activeSql)))
+      if (customBinding) {
+        event.preventDefault()
+        if (customBinding.command === 'New SQL Document') newSql()
+        else if (customBinding.command === 'Open SQL File') void openSqlFile()
+        else if (customBinding.command === 'Save SQL') void saveCurrentSql()
+        else if (customBinding.command === 'Execute SQL') void runSql()
+        else if (customBinding.command === 'Format Document') formatEditor('document')
+        else if (customBinding.command === 'Options') setOpenPanel('options')
+        else if (customBinding.command === 'Source Control Manager') setOpenPanel('source-control')
+        else if (customBinding.command === 'Find in Database') setOpenPanel('database-tools')
+        else if (customBinding.command === 'Find Invalid Objects') setOpenPanel('database-tools')
+        return
+      }
       if (ctrl && event.shiftKey && event.key.toLowerCase() === 'n') { event.preventDefault(); openNewConnection() }
       else if (ctrl && event.key.toLowerCase() === 'n') { event.preventDefault(); newSql() }
       else if (ctrl && event.key.toLowerCase() === 'o') { event.preventDefault(); void openSqlFile() }
       else if (ctrl && event.key.toLowerCase() === 's') { event.preventDefault(); void saveCurrentSql() }
       else if (ctrl && event.altKey && event.key.toLowerCase() === 'e') setExplorerVisible((value) => !value)
       else if (ctrl && event.key.toLowerCase() === 'j') setPanelVisible((value) => !value)
-      else if (ctrl && event.key === ',') setManagerOpen(true)
+      else if (ctrl && event.key === ',') { event.preventDefault(); setOpenPanel('options') }
       else if (event.shiftKey && event.key === 'F5') { event.preventDefault(); void cancelSql() }
       else if (ctrl && event.shiftKey && event.key === 'Enter') { event.preventDefault(); void runSql('current') }
       else if (event.key === 'F5' || (ctrl && event.key === 'Enter')) { event.preventDefault(); void runSql() }
@@ -432,6 +569,8 @@ export default function App(): React.JSX.Element {
 
   const activeTitle = useMemo(() => currentConnection?.name ?? 'Nenhuma conexão ativa', [currentConnection])
 
+  useEffect(() => () => completionProviderRef.current?.dispose(), [])
+
   function cycleDocument(direction: number): void {
     const index = documents.findIndex((tab) => tab.id === selectedDocument)
     setSelectedDocument(documents[(index + direction + documents.length) % documents.length]?.id ?? 'start')
@@ -445,9 +584,9 @@ export default function App(): React.JSX.Element {
         <details><summary>Edit</summary><div className="menu-popup"><MenuAction label="Undo" shortcut="Ctrl+Z" disabled /><MenuAction label="Redo" shortcut="Ctrl+Y" disabled /><MenuAction label="Find" shortcut="Ctrl+F" disabled={!activeSql} /></div></details>
         <details><summary>View</summary><div className="menu-popup"><MenuAction label="Database Explorer" shortcut="Ctrl+Alt+E" onClick={() => setExplorerVisible((value) => !value)} /><MenuAction label="Output / Error List" shortcut="Ctrl+J" onClick={() => setPanelVisible((value) => !value)} /><div className="menu-divider" /><span className="menu-caption">Theme</span>{(['auto', 'light', 'dark'] as ThemeMode[]).map((mode) => <MenuAction key={mode} label={mode[0].toUpperCase() + mode.slice(1)} checked={themeMode === mode} onClick={() => setThemeMode(mode)} />)}</div></details>
         <details><summary>Database</summary><div className="menu-popup">{panelRegistry.filter((item) => item.id === 'schema-compare' || item.id === 'documenter').map((item) => <MenuAction key={item.id} label={`${item.icon} ${item.titleKey.split('.').at(-1)}`} onClick={() => setOpenPanel(item.id)} />)}<MenuAction label="New Connection…" onClick={openNewConnection} /><MenuAction label="Connect" onClick={() => currentRecord && void connectFromExplorer(currentRecord)} disabled={!records.length || Boolean(currentConnection)} /><MenuAction label="Disconnect" onClick={() => currentConnection && void disconnect(currentConnection)} disabled={!currentConnection} /><MenuAction label="Refresh" shortcut="F5" onClick={() => currentRecord && void expandRecord(currentRecord)} disabled={!currentConnection} /></div></details>
-        <details><summary>SQL</summary><div className="menu-popup"><MenuAction label="New SQL" shortcut="Ctrl+N" onClick={newSql} /><MenuAction label="Execute" shortcut="F5 / Ctrl+Enter" onClick={() => void runSql()} disabled={!activeSql || !currentConnection || queryBusy} /><MenuAction label="Execute Current Statement" shortcut="Ctrl+Shift+Enter" onClick={() => void runSql('current')} disabled={!activeSql || !currentConnection || queryBusy} /><MenuAction label={queryBusy ? 'Cancel' : 'Cancel'} shortcut="Shift+F5" onClick={() => void cancelSql()} disabled={!queryBusy} /></div></details>
+        <details><summary>SQL</summary><div className="menu-popup"><MenuAction label="New SQL" shortcut="Ctrl+N" onClick={newSql} /><MenuAction label="Format Document" shortcut="Ctrl+K Ctrl+D" onClick={() => formatEditor('document')} disabled={!activeSql} /><MenuAction label="Format Selection" onClick={() => formatEditor('selection')} disabled={!activeSql} /><MenuAction label="Format Statement" onClick={() => formatEditor('statement')} disabled={!activeSql} /><MenuAction label="Execute" shortcut="F5 / Ctrl+Enter" onClick={() => void runSql()} disabled={!activeSql || !currentConnection || queryBusy} /><MenuAction label="Execute Current Statement" shortcut="Ctrl+Shift+Enter" onClick={() => void runSql('current')} disabled={!activeSql || !currentConnection || queryBusy} /><MenuAction label={queryBusy ? 'Cancel' : 'Cancel'} shortcut="Shift+F5" onClick={() => void cancelSql()} disabled={!queryBusy} /></div></details>
         <details><summary>Data</summary><div className="menu-popup"><MenuAction label="Refresh Result" shortcut="F5" onClick={() => void runSql()} disabled={!activeSql || !currentConnection} /><MenuAction label="Export Data…" disabled /></div></details>
-        <details><summary>Tools</summary><div className="menu-popup">{panelRegistry.filter((item) => !['schema-compare','documenter'].includes(item.id)).map((item) => <MenuAction key={item.id} label={`${item.icon} ${item.titleKey.split('.').at(-1)}`} onClick={() => setOpenPanel(item.id)} />)}<div className="menu-divider" /><MenuAction label="Connection Manager…" onClick={() => setManagerOpen(true)} /><MenuAction label="Options…" shortcut="Ctrl+," disabled /></div></details>
+        <details><summary>Tools</summary><div className="menu-popup">{panelRegistry.filter((item) => !['schema-compare','documenter','options'].includes(item.id)).map((item) => <MenuAction key={item.id} label={`${item.icon} ${item.titleKey.split('.').at(-1)}`} onClick={() => setOpenPanel(item.id)} />)}<div className="menu-divider" /><MenuAction label="Connection Manager…" onClick={() => setManagerOpen(true)} /><MenuAction label="Options…" shortcut="Ctrl+," onClick={() => setOpenPanel('options')} /></div></details>
         <details><summary>Window</summary><div className="menu-popup"><MenuAction label="Next Tab" shortcut="Ctrl+Tab" onClick={() => cycleDocument(1)} /><MenuAction label="Previous Tab" shortcut="Ctrl+Shift+Tab" onClick={() => cycleDocument(-1)} /><MenuAction label="Close Tab" shortcut="Ctrl+W" onClick={() => closeTab(selectedDocument)} disabled={!activeSql} /></div></details>
         <details><summary>Help</summary><div className="menu-popup"><MenuAction label="Keyboard Shortcuts" shortcut="Ctrl+K Ctrl+S" disabled /><MenuAction label="About dbForgeLinux" disabled /></div></details>
       </nav>
@@ -473,7 +612,7 @@ export default function App(): React.JSX.Element {
     </div>
     {loadError && <div className="storage-error" role="alert">{loadError}<Button onClick={() => void loadConnections()}>Tentar de novo</Button></div>}
     <div className={`workbench${explorerVisible ? '' : ' explorer-hidden'}${panelVisible ? '' : ' panel-hidden'}`} style={{ gridTemplateColumns: explorerVisible ? `${explorerWidth}px 5px minmax(0, 1fr)` : 'minmax(0, 1fr)' }}>
-      {explorerVisible && <DatabaseExplorer records={records} active={active} databases={databases} objects={objects} loadingObjects={loadingObjects} connecting={connecting} errors={connectionErrors} onNew={openNewConnection} onManage={() => setManagerOpen(true)} onConnect={(record) => void connectFromExplorer(record)} onDisconnect={(connection) => void disconnect(connection)} onExpand={(record) => void expandRecord(record)} onLoadObjects={loadObjects} onSelectDatabase={(connection, database) => void selectDatabase(connection, database)} onSelectTop={selectTop} onGenerateScript={(connection, database, object) => void generateScript(connection, database, object)} onDropObject={(connection, database, object) => void dropObject(connection, database, object)} onEdit={openEdit} />}
+      {explorerVisible && <DatabaseExplorer records={records} active={active} databases={databases} objects={objects} loadingObjects={loadingObjects} connecting={connecting} errors={connectionErrors} onNew={openNewConnection} onManage={() => setManagerOpen(true)} onConnect={(record) => void connectFromExplorer(record)} onDisconnect={(connection) => void disconnect(connection)} onExpand={(record) => void expandRecord(record)} onLoadObjects={loadObjects} onSelectDatabase={(connection, database) => void selectDatabase(connection, database)} onSelectTop={selectTop} onGenerateScript={(connection, database, object) => void generateScript(connection, database, object)} onDropObject={(connection, database, object) => void dropObject(connection, database, object)} onOpenObject={(connection, database, object) => openObjectEditor(connection, database, object.kind, object.name)} onCreateObject={(connection, database, kind) => openObjectEditor(connection, database, kind, `new_${kind}`, true)} onRenameTable={(connection, database, object, name) => void renameTable(connection, database, object, name)} onTruncateTable={(connection, database, object) => void truncateTable(connection, database, object)} onEdit={openEdit} />}
       {explorerVisible && <div className="vertical-splitter" role="separator" aria-orientation="vertical" aria-label="Resize Database Explorer" onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)} onPointerMove={(event) => { if (event.buttons) setExplorerWidth(Math.min(Math.floor(window.innerWidth * 0.5), Math.max(200, event.clientX))) }} />}
       <section className="document-workspace" style={{ gridTemplateRows: panelVisible ? `30px minmax(0, 1fr) 5px ${panelHeight}px` : '30px minmax(0, 1fr) 0 0' }}>
         <div className="document-tabs" role="tablist" aria-label="Documents">
@@ -482,12 +621,30 @@ export default function App(): React.JSX.Element {
           </div>)}
           <button className="tab-overflow" title="Todas as abas" onClick={() => window.alert(documents.map((tab) => tab.label).join('\n'))}>⌄</button>
         </div>
-        {selectedDocument === 'start' ? <section className="start-page"><p className="eyebrow">MySQL & MariaDB</p><h1>Comece a trabalhar</h1><p>Abra um documento SQL ou conecte-se a um servidor.</p><div><Button variant="primary" onClick={newSql}>New SQL</Button><Button onClick={openNewConnection}>New Connection</Button><Button onClick={() => setManagerOpen(true)}>Connection Manager</Button></div><h2>Recent Connections</h2>{records.slice().sort((a, b) => (b.lastUsedAt ?? '').localeCompare(a.lastUsedAt ?? '')).slice(0, 5).map((record) => <button key={record.id} className="recent-connection" onClick={() => void connectFromExplorer(record)}>{record.name} <span>{record.user}@{record.host}:{record.port}</span></button>)}</section> : <div className="document-main">
-          <div className="sql-context-toolbar"><span>{documents.find((tab) => tab.id === selectedDocument)?.label}</span><span>{activeTitle}</span><Button variant="primary" onClick={() => void runSql()} disabled={!currentConnection || queryBusy}>▶ Execute</Button><Button onClick={() => void runSql('current')} disabled={!currentConnection || queryBusy}>Current statement</Button></div>
-          <div className="editor-surface"><Editor height="100%" language="sql" theme={theme === 'dark' ? 'vs-dark' : 'vs'} value={sqlByDocument[selectedDocument] ?? ''} onMount={(editor) => { editorRef.current = editor }} onChange={(value) => { setSqlByDocument((current) => ({ ...current, [selectedDocument]: value ?? '' })); setDocuments((current) => current.map((tab) => tab.id === selectedDocument ? { ...tab, modified: true } : tab)) }} options={{ minimap: { enabled: false }, fontSize: 13, automaticLayout: true, fontLigatures: false, lineNumbers: 'on' }} /></div>
+        {selectedDocument === 'start' ? <section className="start-page"><p className="eyebrow">MySQL & MariaDB</p><h1>Comece a trabalhar</h1><p>Abra um documento SQL ou conecte-se a um servidor.</p><div><Button variant="primary" onClick={newSql}>New SQL</Button><Button onClick={openNewConnection}>New Connection</Button><Button onClick={() => setManagerOpen(true)}>Connection Manager</Button></div><h2>Recent Connections</h2>{records.slice().sort((a, b) => (b.lastUsedAt ?? '').localeCompare(a.lastUsedAt ?? '')).slice(0, 5).map((record) => <button key={record.id} className="recent-connection" onClick={() => void connectFromExplorer(record)}>{record.name} <span>{record.user}@{record.host}:{record.port}</span></button>)}</section> : activeObjectTab ? <ObjectEditor key={selectedDocument} target={activeObjectTab} isNew={activeObjectTab.isNew} isProduction={currentConnection?.environment === 'prod'} onApplied={() => { const connection = active.find((item) => item.id === activeObjectTab.connectionId); if (connection) void loadObjects(connection, activeObjectTab.database) }} /> : <div className="document-main">
+          <div className="sql-context-toolbar"><span>{documents.find((tab) => tab.id === selectedDocument)?.label}</span><span>{activeTitle}</span><span className="metadata-state">{metadataLoading ? 'Loading schema…' : editorMetadata.objects.length ? `${editorMetadata.objects.length} schema objects` : ''}</span><Button onClick={() => formatEditor('document')}>Format</Button><Button onClick={() => formatEditor('statement')}>Format statement</Button><Button variant="primary" onClick={() => void runSql()} disabled={!currentConnection || queryBusy}>▶ Execute</Button><Button onClick={() => void runSql('current')} disabled={!currentConnection || queryBusy}>Current statement</Button></div>
+          <div className="editor-surface"><Editor height="100%" language="sql" theme={theme === 'dark' || theme === 'high-contrast' ? 'vs-dark' : 'vs'} value={sqlByDocument[selectedDocument] ?? ''} onMount={(editor, monaco) => {
+            editorRef.current = editor
+            completionProviderRef.current?.dispose()
+            completionProviderRef.current = monaco.languages.registerCompletionItemProvider('sql', {
+              triggerCharacters: ['.'],
+              provideCompletionItems: (model, position) => {
+                const source = model.getValue()
+                const offset = model.getOffsetAt(position)
+                const word = model.getWordUntilPosition(position)
+                const range = new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, position.column)
+                const kinds = { database: monaco.languages.CompletionItemKind.Module, table: monaco.languages.CompletionItemKind.Struct, column: monaco.languages.CompletionItemKind.Field, routine: monaco.languages.CompletionItemKind.Function, keyword: monaco.languages.CompletionItemKind.Keyword, snippet: monaco.languages.CompletionItemKind.Snippet }
+                return { suggestions: buildSqlSuggestions(source, offset, metadataRef.current).map((item) => ({ label: item.label, kind: kinds[item.kind], detail: item.detail, insertText: item.insertText, filterText: item.kind === 'snippet' ? item.detail.split(' · ')[0] : item.label, insertTextRules: item.kind === 'snippet' ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : monaco.languages.CompletionItemInsertTextRule.None, range })) }
+              }
+            })
+            const formatAction = (id: string, label: string, target: 'document' | 'selection' | 'statement', keybindings?: number[]): void => { editor.addAction({ id, label, ...(keybindings ? { keybindings } : {}), run: () => formatEditor(target) }) }
+            formatAction('dbforge.format-document', 'Format Document', 'document', [monaco.KeyMod.chord(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD)])
+            formatAction('dbforge.format-selection', 'Format Selection', 'selection')
+            formatAction('dbforge.format-statement', 'Format Statement', 'statement')
+          }} onChange={(value) => { setSqlByDocument((current) => ({ ...current, [selectedDocument]: value ?? '' })); setDocuments((current) => current.map((tab) => tab.id === selectedDocument ? { ...tab, modified: true } : tab)) }} options={{ minimap: { enabled: appSettings.editor.minimap }, fontFamily: appSettings.editor.fontName, fontSize: appSettings.editor.fontSize, automaticLayout: true, fontLigatures: appSettings.editor.ligatures, lineNumbers: appSettings.editor.lineNumbers ? 'on' : 'off', tabCompletion: 'on', suggestOnTriggerCharacters: appSettings.editor.autoComplete, quickSuggestions: appSettings.editor.autoComplete, quickSuggestionsDelay: appSettings.editor.completionDelayMs, wordWrap: appSettings.editor.wordWrap ? 'on' : 'off', tabSize: appSettings.editor.tabSize, insertSpaces: appSettings.editor.insertSpaces, folding: appSettings.editor.folding, renderLineHighlight: appSettings.editor.highlightCurrentLine ? 'line' : 'none' }} /></div>
           <div className="result-view">
-            <div className="result-tabs" role="tablist">{results.map((result, index) => <button key={index} role="tab" aria-selected={resultIndex === index} className={resultIndex === index ? 'selected' : ''} onClick={() => setResultIndex(index)}>Result {index + 1} ({result.rows.length})</button>)}<button role="tab" aria-selected={resultIndex === -1} className={resultIndex === -1 ? 'selected' : ''} onClick={() => setResultIndex(-1)}>Messages</button><button role="tab" aria-selected={resultIndex === -2} className={resultIndex === -2 ? 'selected' : ''} onClick={() => setResultIndex(-2)}>History</button></div>
-            {resultIndex >= 0 && results[resultIndex] ? <ResultGrid result={results[resultIndex]} index={resultIndex} onLoadMore={pageQueries[selectedDocument] ? () => loadMorePage(resultIndex) : undefined} /> : resultIndex === -2 ? <div className="query-messages">{history.length ? history.map((entry, index) => <button className="history-entry" key={`${entry.timestamp}-${index}`} onClick={() => openSqlDocument('History query', entry.sql)}><span>{new Date(entry.timestamp).toLocaleString()} · {entry.connection} · {(entry.elapsedMs / 1000).toFixed(3)} s</span><code>{entry.sql}</code></button>) : <p>Histórico vazio.</p>}</div> : <div className="query-messages" aria-live="polite">{queryBusy && <p>Executando…</p>}{queryMessages.map((message, index) => <p key={index}>{message}</p>)}{!queryBusy && !queryMessages.length && <p>Messages de execução aparecerão aqui.</p>}{results.filter((result) => !result.columns.length).map((result, index) => <p key={`affected-${index}`}>Affected rows: {result.affectedRows} · Last insert id: {result.insertId}</p>)}{queryElapsed > 0 && <small>{(queryElapsed / 1000).toFixed(3)} s</small>}</div>}
+            <div className="result-tabs" role="tablist">{results.map((result, index) => <button key={index} role="tab" aria-selected={resultIndex === index} className={resultIndex === index ? 'selected' : ''} onClick={() => setResultIndex(index)}>Result {index + 1} ({result.rows.length})</button>)}<button role="tab" aria-selected={resultIndex === -1} className={resultIndex === -1 ? 'selected' : ''} onClick={() => setResultIndex(-1)}>Messages</button><button role="tab" aria-selected={resultIndex === -2} className={resultIndex === -2 ? 'selected' : ''} onClick={() => setResultIndex(-2)}>Query History</button></div>
+            {resultIndex >= 0 && results[resultIndex] ? <ResultGrid result={results[resultIndex]} index={resultIndex} onLoadMore={pageQueries[selectedDocument] ? () => loadMorePage(resultIndex) : undefined} /> : resultIndex === -2 ? <div className="query-history"><div className="history-toolbar"><input aria-label="Search Query History" placeholder="Search SQL, connection, database…" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} /><span>{historyLoading ? 'Loading…' : `${history.length} entries`}</span></div><div className="query-messages">{history.length ? history.map((entry) => <article className="history-row" key={entry.id}><button className="history-entry" onClick={() => openSqlDocument('History query', entry.sql)}><span>{new Date(entry.timestamp).toLocaleString()} · {entry.connection}{entry.database ? ` · ${entry.database}` : ''} · {(entry.elapsedMs / 1000).toFixed(3)} s · {entry.success ? 'Success' : 'Failed'}</span><code>{entry.sql}</code></button><Button onClick={() => replayHistory(entry)}>Re-run</Button></article>) : <p>{historyLoading ? 'Loading…' : 'Histórico vazio.'}</p>}</div></div> : <div className="query-messages" aria-live="polite">{queryBusy && <p>Executando…</p>}{queryMessages.map((message, index) => <p key={index}>{message}</p>)}{!queryBusy && !queryMessages.length && <p>Messages de execução aparecerão aqui.</p>}{results.filter((result) => !result.columns.length).map((result, index) => <p key={`affected-${index}`}>Affected rows: {result.affectedRows} · Last insert id: {result.insertId}</p>)}{queryElapsed > 0 && <small>{(queryElapsed / 1000).toFixed(3)} s</small>}</div>}
           </div>
         </div>}
         <div className="horizontal-splitter" role="separator" aria-orientation="horizontal" aria-label="Resize Output panel" onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)} onPointerMove={(event) => { if (event.buttons) setPanelHeight(Math.min(480, Math.max(80, window.innerHeight - event.clientY))) }} />
@@ -528,10 +685,4 @@ function readStoredDocuments(): DocumentTab[] {
     }
   } catch { /* discard malformed renderer state */ }
   return [{ id: 'start', label: 'Start Page', modified: false }]
-}
-
-function redactHistorySql(sql: string): string {
-  return sql.replace(/(IDENTIFIED\s+BY\s+)('[^']*'|"[^"]*"|\S+)/gi, '$1****')
-    .replace(/(PASSWORD\s*=\s*)('[^']*'|"[^"]*"|\S+)/gi, '$1****')
-    .replace(/(SET\s+PASSWORD\s*=\s*)('[^']*'|"[^"]*"|\S+)/gi, '$1****')
 }
