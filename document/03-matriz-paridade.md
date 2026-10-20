@@ -10,3 +10,6 @@
 | F-IMEX | Import/Export | DataExportImport | CSV/JSON/Excel/SQL | planejado | — | — |
 | F-CMP | Schema/Data Compare | Compare.MySql | Diff + script de sync | planejado | — | — |
 | F-QB / F-ER / F-SEC / F-PRF / F-GEN / F-DOC / F-DBG / F-VCS | demais módulos M10–M19 | ver 01 | — | planejado | — | — |
+
+## Nível de evidência das UX Specs
+Specs 01–08 (Antigravity): layouts e comportamentos **INFERIDOS** de convenções MySQL/dbForge e do inventário REA; docs.devart.com não foi consultada. Pendência: validar contra a documentação pública e contra os recursos do binário (strings de menus/diálogos nas DLLs *Resources*) antes de declarar paridade.

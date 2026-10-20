@@ -1,0 +1,7 @@
+AGENT: Prisma (Antigravity)
+NOTA: o Arquiteto se chama "Chefinho". Reporte: maestri ask "Chefinho" "<resumo>" (ou resumo no terminal).
+OBJECTIVE: UX Specs do 3º lote (módulos restantes), com fidelidade verificada.
+REFERENCE: document/ux/01-shell.md (tokens/componentes); document/01-rea-inventario.md (M10–M19); lista de painéis em document/04-roadmap-prds.md.
+PRIMEIRO: pesquise a documentação pública do dbForge Studio for MySQL (docs.devart.com / devart.com/dbforge/mysql) para cada módulo e cite a URL consultada em cada spec; marque cada comportamento como CONFIRMADO (doc pública) ou INFERIDO.
+TASK: em document/ux/: 09-query-builder.md, 10-diagrama-er.md (Database Diagram, Diagram Overview, Virtual Relation Manager), 11-query-profiler.md (+ Query History, plano de execução EXPLAIN visual), 12-data-generator.md, 13-documenter.md, 14-debugger.md (Breakpoints, Watches, Call Stack), 15-source-control-projects.md (Project Explorer, Git, Schema/Data Compare no VCS), 16-data-report-pivot.md (Data Viewer, Pivot, Master-Detail, report designer), 17-ai-assistant.md, 18-ferramentas-extras.md (Find Invalid Objects, SQL Search, Code Analysis, Copy Databases, Backup/Restore, Service Control, Start Page, Toolbox, Document Outline, Find and Replace, Code Snippets), 19-configuracoes.md (Options: editor, formatação SQL, atalhos, temas, idioma).
+CONSTRAINTS: só Markdown/ASCII; reaproveitar tokens/componentes; não copiar assets.
