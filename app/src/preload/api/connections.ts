@@ -1,0 +1,3 @@
+import { ipcRenderer } from 'electron'
+import type { DbForgeApi } from '../../shared/contracts.js'
+export const connectionsApi:Pick<DbForgeApi,'getConnections'|'saveConnection'|'deleteConnection'|'testConnection'|'connect'|'disconnect'|'listDatabases'>={getConnections:()=>ipcRenderer.invoke('connections:list'),saveConnection:r=>ipcRenderer.invoke('connections:save',r),deleteConnection:id=>ipcRenderer.invoke('connections:delete',id),testConnection:r=>ipcRenderer.invoke('db:test',r),connect:r=>ipcRenderer.invoke('db:connect',r),disconnect:id=>ipcRenderer.invoke('db:disconnect',id),listDatabases:id=>ipcRenderer.invoke('db:databases',id)}
