@@ -30,6 +30,7 @@ export const keymapCommands: readonly KeymapCommand[] = [
   { command: 'Execute Selection', shortcut: 'Ctrl+F8', context: 'Editor' },
   { command: 'Execute To Cursor', shortcut: 'Ctrl+Shift+F10', context: 'Editor' },
   { command: 'Stop Execution', shortcut: 'Shift+F5', context: 'Editor' },
+  { command: 'Stop Execution (Alt+Pause)', shortcut: 'Alt+Pause', context: 'Editor' },
   { command: 'Explain Plan', shortcut: 'Ctrl+L', context: 'Editor' },
   { command: 'Toggle Results', shortcut: 'Ctrl+Alt+ArrowDown', context: 'Editor' },
   { command: 'Format Document', shortcut: 'Ctrl+K Ctrl+D', context: 'Editor' },

@@ -17,7 +17,8 @@ import type { AiAssistantApi } from './ai-assistant.js'
 import type { RoutineDebugContract } from './routine-debugger.js'
 import type { ServiceControlApi } from './service-control.js'
 import type { CodeAnalysisApi } from './code-analysis.js'
-export interface DbForgeApi extends SecurityApi, SessionsApi, SchemaCompareApi, DataCompareApi, ImportExportApi, ERDiagramApi, QueryBuilderApi, EditorApi, HistoryApi, SourceControlApi, ObjectEditorApi, OptionsApi, DatabaseToolsApi, ReportPivotApi, AiAssistantApi, RoutineDebugContract, ServiceControlApi, CodeAnalysisApi {
+import type { GridEditingApi } from './grid-editing.js'
+export interface DbForgeApi extends SecurityApi, SessionsApi, SchemaCompareApi, DataCompareApi, ImportExportApi, ERDiagramApi, QueryBuilderApi, EditorApi, HistoryApi, SourceControlApi, ObjectEditorApi, OptionsApi, DatabaseToolsApi, ReportPivotApi, AiAssistantApi, RoutineDebugContract, ServiceControlApi, CodeAnalysisApi, GridEditingApi {
   getConnections(): Promise<ConnectionRecord[]>
   saveConnection(record: ConnectionRecord): Promise<void>
   deleteConnection(id: string): Promise<void>
@@ -29,7 +30,7 @@ export interface DbForgeApi extends SecurityApi, SessionsApi, SchemaCompareApi, 
   disconnect(connectionId: string): Promise<void>
   listDatabases(connectionId: string): Promise<string[]>
   listTables(connectionId: string, database: string): Promise<string[]>
-  executeSql(connectionId: string, sql: string, executionId?: string): Promise<QueryResult[]>
+  executeSql(connectionId: string, sql: string, executionId?: string, database?: string): Promise<QueryResult[]>
   readResultRows(resultStoreId: string, offset: number, limit: number): Promise<Array<Record<string, unknown>>>
   disposeResult(resultStoreId: string): Promise<void>
   cancelQuery(connectionId: string, executionId: string): Promise<void>

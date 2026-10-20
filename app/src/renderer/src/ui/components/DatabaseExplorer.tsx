@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { ConnectionRecord, ConnectionSummary, DatabaseObject, DatabaseObjectKind } from '../../../../shared/contracts'
 import { Button } from './Button'
+import { useI18n } from '../i18n/useI18n.js'
 
 interface Props {
   records: ConnectionRecord[]
@@ -34,6 +35,7 @@ const kinds: Array<{ kind: DatabaseObjectKind; label: string; icon: string }> = 
 ]
 
 export function DatabaseExplorer(props: Props): React.JSX.Element {
+  const { t } = useI18n()
   const { records, active, databases, objects, loadingObjects, connecting, errors, onNew, onManage, onConnect, onDisconnect, onExpand, onLoadObjects, onSelectDatabase, onSelectTop, onGenerateScript, onDropObject, onOpenObject, onCreateObject, onRenameTable, onTruncateTable, onEdit } = props
   const [filter, setFilter] = useState('')
   const [showSystemDatabases, setShowSystemDatabases] = useState(false)
@@ -59,11 +61,11 @@ export function DatabaseExplorer(props: Props): React.JSX.Element {
   function toggleKind(key: string): void { setExpandedKinds((current) => current.includes(key) ? current.filter((item) => item !== key) : [...current, key]) }
 
   return <aside className="explorer-dock">
-    <header className="dock-heading"><strong>Database Explorer</strong><div><Button className="icon-button" title="New Connection" onClick={onNew}>＋</Button><Button className="icon-button" title="Connection Manager" onClick={onManage}>⚙</Button></div></header>
+    <header className="dock-heading"><strong>{t('explorer.title')}</strong><div><Button className="icon-button" title={t('conn.new')} onClick={onNew}>＋</Button><Button className="icon-button" title={t('conn.manager.title')} onClick={onManage}>⚙</Button></div></header>
     <input className="explorer-filter" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder="Filter connections…" aria-label="Filter connections" />
-    <label className="system-database-toggle"><input type="checkbox" checked={showSystemDatabases} onChange={(event) => setShowSystemDatabases(event.target.checked)} />Show system databases</label>
+    <label className="system-database-toggle"><input type="checkbox" checked={showSystemDatabases} onChange={(event) => setShowSystemDatabases(event.target.checked)} />{t('explorer.showSystemDatabases')}</label>
     <div className="explorer-tree" role="tree" aria-label="Database Explorer">
-      {visible.length === 0 ? <div className="empty-state compact"><strong>{filter ? `Nenhum resultado para '${filter}'` : 'Nenhuma conexão'}</strong><p>Adicione uma conexão para começar.</p><Button variant="primary" onClick={onNew}>New Connection</Button></div> : [...groups.entries()].map(([category, items]) => <div className="explorer-group" key={category}>
+      {visible.length === 0 ? <div className="empty-state compact"><strong>{filter ? t('explorer.empty.search', [filter]) : t('explorer.empty.title')}</strong><p>{t('explorer.empty.hint')}</p><Button variant="primary" onClick={onNew}>{t('conn.new')}</Button></div> : [...groups.entries()].map(([category, items]) => <div className="explorer-group" key={category}>
         <div className="group-label">▾ {category}</div>
         {items.map((record) => {
           const connection = active.find((item) => item.recordId === record.id)

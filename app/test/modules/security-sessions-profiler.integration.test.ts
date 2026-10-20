@@ -46,6 +46,8 @@ describe.skipIf(!enabled)('security, sessions and profiler integration', () => {
 
     const plan = await explainQuery(security, 'SELECT 1 AS value', 'JSON')
     expect(plan.roots.length).toBeGreaterThan(0)
+    const analyzed = await explainQuery(security, 'SELECT 1 AS value', 'ANALYZE', { confirmAnalyze: true, serverFamily: 'mysql' })
+    expect(analyzed.roots.length).toBeGreaterThan(0)
 
     workerConnection = await driver.connect(config)
     const workerId = Number((await driver.queryRows(workerConnection, 'SELECT CONNECTION_ID() AS id'))[0].id)
@@ -54,5 +56,23 @@ describe.skipIf(!enabled)('security, sessions and profiler integration', () => {
     const killed = await killSessions(security, [workerId], 'session', { confirm: true })
     expect(killed).toEqual([{ id: workerId, success: true }])
     await sleepingQuery
+  }, 30000)
+})
+
+const mariaEnabled = process.env.MARIADB_INTEGRATION === '1'
+describe.skipIf(!mariaEnabled)('profiler MariaDB integration', () => {
+  const driver = new MysqlDriver()
+  let connectionId = ''
+  afterAll(async () => { if (connectionId) await driver.disconnect(connectionId).catch(() => undefined) })
+
+  it('runs ANALYZE FORMAT=JSON against a real MariaDB server', async () => {
+    connectionId = await driver.connect({
+      ...createDefaultConnection('mariadb-profiler', 'MariaDB profiler integration'),
+      host: process.env.MARIADB_HOST ?? '127.0.0.1', port: Number(process.env.MARIADB_PORT ?? 33069), user: 'root', password: 'integration-only'
+    })
+    const client: SqlClient = { query: (sql, parameters = []) => driver.queryRows(connectionId, sql, [...parameters]), execute: async (sql) => { await driver.executeSql(connectionId, sql) } }
+    const plan = await explainQuery(client, 'SELECT 1 AS value', 'ANALYZE', { confirmAnalyze: true, serverFamily: 'mariadb' })
+    expect(plan.roots.length).toBeGreaterThan(0)
+    expect(plan.raw).toHaveLength(1)
   }, 30000)
 })

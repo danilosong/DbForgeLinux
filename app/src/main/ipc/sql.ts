@@ -8,6 +8,7 @@ import { maySaveSqlToPath } from '../security/windowPolicy.js'
 import { ResultSpoolRegistry } from '../db/ResultSpool.js'
 import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
+import { describeGridResult } from './grid-editing.js'
 const openedSqlFiles = new Map<number, Set<string>>()
 export function registerSqlIpc({driver,resolveConnectionConfig,userDataDir}:IpcDeps):void {
  const resultSpools=new ResultSpoolRegistry(join(userDataDir,'query-results'))
@@ -20,7 +21,7 @@ export function registerSqlIpc({driver,resolveConnectionConfig,userDataDir}:IpcD
  ipcMain.handle('db:test',async(_e,r:ConnectionRecord)=>driver.testConnection(await resolveConnectionConfig(r)))
  ipcMain.handle('db:connect',async(_e,r:ConnectionRecord)=>{const id=await driver.connect(await resolveConnectionConfig(r));return {id,recordId:r.id,name:r.name,host:r.host,port:r.port,user:r.user,database:r.database,environment:r.environment,color:r.color}})
  ipcMain.handle('db:disconnect',async(_e,id:string)=>{editorMetadataCache.invalidate(id);await driver.disconnect(id)}); ipcMain.handle('db:databases',(_e,id:string)=>driver.listDatabases(id))
- ipcMain.handle('db:execute',async(event,id:string,sql:string,executionId?:string)=>{
+ ipcMain.handle('db:execute',async(event,id:string,sql:string,executionId?:string,database?:string)=>{
   await spoolCleanup
   const smallLimit=/\bLIMIT\s+(?:\d+\s*,\s*)?(\d+)\b/i.exec(sql)?.[1]
   const useDiskSpool=/^\s*(SELECT|WITH)\b/i.test(sql.trim())&&!sql.includes(';')&&!(smallLimit&&Number(smallLimit)<=1000)
@@ -29,12 +30,13 @@ export function registerSqlIpc({driver,resolveConnectionConfig,userDataDir}:IpcD
    const controller=new AbortController();streamedJobs.set(eid,{connectionId:id,senderId:event.sender.id,controller})
    const spool=await resultSpools.create();resultOwners.set(spool.id,event.sender.id)
    if(!spoolSenders.has(event.sender.id)){spoolSenders.add(event.sender.id);event.sender.once('destroyed',()=>{spoolSenders.delete(event.sender.id);for(const [rid,owner] of resultOwners)if(owner===event.sender.id){resultOwners.delete(rid);void resultSpools.dispose(rid)}})}
-   try{let columns:string[]=[];for await(const row of driver.streamRows(id,sql,[],controller.signal)){if(!columns.length)columns=Object.keys(row);await spool.append(row)}
-    return [{columns,rows:[],resultStoreId:spool.id,rowCount:spool.rowCount,affectedRows:0,insertId:0,warningStatus:0}]
+   try{let columns:string[]=[];for await(const row of driver.streamRows(id,sql,[],controller.signal,undefined,eid)){if(!columns.length)columns=Object.keys(row);await spool.append(row)}
+    const editable = await describeGridResult(driver, id, sql, database)
+    return [{columns,rows:[],resultStoreId:spool.id,rowCount:spool.rowCount,affectedRows:0,insertId:0,warningStatus:0,editable}]
    }catch(error){await resultSpools.dispose(spool.id);resultOwners.delete(spool.id);throw error}
    finally{streamedJobs.delete(eid)}
   }
-  const result=await driver.executeSql(id,sql,executionId);if(/\b(CREATE|ALTER|DROP|TRUNCATE|RENAME|GRANT|REVOKE)\b/i.test(sql))editorMetadataCache.invalidate(id);return result
+  const result=await driver.executeSql(id,sql,executionId);if(/^\s*SELECT\b/i.test(sql.trim())){const editable=await describeGridResult(driver,id,sql,database);for(const item of result)if(item.columns.length)item.editable=editable}if(/\b(CREATE|ALTER|DROP|TRUNCATE|RENAME|GRANT|REVOKE)\b/i.test(sql))editorMetadataCache.invalidate(id);return result
  });
  ipcMain.handle('db:result-read',async(event,rid:string,offset:number,limit:number)=>{await spoolCleanup;if(resultOwners.get(rid)!==event.sender.id)throw new Error('Resultado expirado ou sem acesso.');const spool=resultSpools.get(rid);if(!spool)throw new Error('Resultado expirado.');return spool.read(offset,limit)})
  ipcMain.handle('db:result-dispose',async(event,rid:string)=>{if(resultOwners.get(rid)!==event.sender.id)return;resultOwners.delete(rid);await resultSpools.dispose(rid)})

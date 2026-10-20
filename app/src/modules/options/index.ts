@@ -1,4 +1,4 @@
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { defaultSettings, type AppSettings, type KeyBinding } from './types.js'
 import { findKeymapConflicts } from '../keymap/registry.js'
@@ -82,4 +82,10 @@ export class SettingsStore {
     return settings
   }
   async reset(): Promise<AppSettings> { return this.save(defaultSettings) }
+}
+
+export async function importSettingsFile(filePath: string, store: SettingsStore): Promise<AppSettings> {
+  if ((await stat(filePath)).size > 5 * 1024 * 1024) throw new Error('Settings file exceeds the 5 MB safety limit.')
+  const parsed: unknown = JSON.parse(await readFile(filePath, 'utf8'))
+  return store.save(parsed)
 }

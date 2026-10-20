@@ -29,8 +29,10 @@ import { registerDatabaseToolsIpc } from './database-tools.js'
 import { registerRoutineDebuggerIpc } from './routine-debugger.js'
 import { registerServiceControlIpc } from './service-control.js'
 import { registerCodeAnalysisIpc } from './code-analysis.js'
+import { registerGridEditingIpc } from './grid-editing.js'
 import { SqlExecutionHistoryStore } from '../history/SqlExecutionHistoryStore.js'
 import { join } from 'node:path'
+import { defaultTrustedRendererConfig, installIpcSecurity } from './guard.js'
 
 export interface IpcDeps {
   driver: MysqlDriver
@@ -40,6 +42,7 @@ export interface IpcDeps {
   userDataDir: string
 }
 export function registerIpcRegistry(deps: IpcDeps): void {
+  installIpcSecurity(defaultTrustedRendererConfig(join(__dirname, '../renderer/index.html')))
   registerEditorIpc(deps)
   registerHistoryIpc(new SqlExecutionHistoryStore(join(deps.userDataDir, 'sql-execution-history.json')))
   registerConnectionsIpc(deps)
@@ -64,6 +67,7 @@ export function registerIpcRegistry(deps: IpcDeps): void {
   registerRoutineDebuggerIpc(deps)
   registerServiceControlIpc()
   registerCodeAnalysisIpc()
+  registerGridEditingIpc(deps)
 }
 export { ipcMain, BrowserWindow, dialog, readFile, writeFile }
 export type { OpenDialogOptions, SaveDialogOptions }

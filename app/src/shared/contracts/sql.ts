@@ -7,6 +7,7 @@ export interface QueryResult {
   affectedRows: number
   insertId: number
   warningStatus: number
+  editable?: import('../../modules/grid-editing/index.js').EditableResult
 }
 
 export type DatabaseObjectKind = 'table' | 'view' | 'procedure' | 'function' | 'trigger' | 'event'

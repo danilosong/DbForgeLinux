@@ -1,5 +1,6 @@
 export * from './connections.js'
 export * from './sql.js'
+export * from './grid-editing.js'
 export * from './api.js'
 export * from './security.js'
 export * from './sessions.js'

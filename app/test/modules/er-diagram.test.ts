@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { autoLayout, buildDiagram, createVirtualRelation, deserializeDiagram, moveTable, serializeDiagram, validateVirtualRelation, VirtualRelationStore } from '../../src/modules/er-diagram/index.js'
+import { routeERRelation } from '../../src/modules/er-diagram/routing.js'
 import type { DatabaseModel } from '../../src/modules/schema/model.js'
 
 const schema: DatabaseModel = {
@@ -26,6 +27,18 @@ describe('ER diagram module', () => {
     const points = autoLayout(['parent', 'child', 'other'], [{ from: 'parent', to: 'child' }])
     expect(points.child.x).toBeGreaterThan(points.parent.x)
     expect(Object.keys(autoLayout(['a', 'b'], [{ from: 'a', to: 'b' }, { from: 'b', to: 'a' }]))).toEqual(['a', 'b'])
+  })
+
+  it('routes orthogonal relations above every table obstacle', () => {
+    const boxes = [
+      { position: { x: 40, y: 100 }, width: 250, height: 100 },
+      { position: { x: 400, y: 240 }, width: 250, height: 150 },
+      { position: { x: 700, y: 130 }, width: 250, height: 110 }
+    ]
+    const path = routeERRelation(boxes[0], boxes[1], boxes)
+    expect(path).toBe('M 165 100 L 165 82 L 525 82 L 525 240')
+    const laneY = 82
+    expect(boxes.every((box) => laneY < box.position.y)).toBe(true)
   })
 
   it('creates and validates virtual relations, and preserves diagram positions on serialization', () => {

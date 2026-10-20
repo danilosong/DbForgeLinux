@@ -3,6 +3,7 @@ import { buildQuery, parseQuery, inspectQueryBuilderSchema } from '../../src/mod
 import type { QueryBuilderModel } from '../../src/modules/query-builder/index.js'
 import type { DbDriver } from '../../src/main/db/DbDriver.js'
 import { exportFormats } from '../../src/renderer/src/ui/panels/import-export/formats.js'
+import { columnPortY, joinPath } from '../../src/modules/query-builder/diagram.js'
 
 function model(): QueryBuilderModel {
   return {
@@ -18,6 +19,12 @@ function model(): QueryBuilderModel {
 }
 
 describe('query builder', () => {
+  it('anchors the visual join path at the selected table-column rows', () => {
+    const value = model()
+    expect(columnPortY(value.tables[0], 'customer_id', 32)).toBe(131)
+    expect(columnPortY(value.tables[1], 'id', 32)).toBe(107)
+    expect(joinPath(300, 131, 400, 107)).toBe('M 300 131 C 350 131, 350 107, 400 107')
+  })
   it('generates safe parameterized SQL with joins, criteria, grouping, order, and limit', () => {
     const built = buildQuery(model())
     expect(built.sql).toContain('LEFT JOIN `shop`.`customers` AS `c` ON `o`.`customer_id` = `c`.`id`')

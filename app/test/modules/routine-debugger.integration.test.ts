@@ -21,7 +21,7 @@ describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
     }
     try { await callTask } catch { /* expected if cleanup stopped execution */ }
     if (executor) {
-      try { await executor.execute(`USE sample`); await executor.execute(`DROP PROCEDURE IF EXISTS ${quoteDebugIdentifier('sample')}.${quoteDebugIdentifier(procedure)}`) } catch { /* disposable test server cleanup */ }
+      try { await executor.execute(`USE sample`); await executor.execute(`DROP PROCEDURE IF EXISTS ${quoteDebugIdentifier('sample')}.${quoteDebugIdentifier(procedure)}`); await executor.execute('DROP TABLE IF EXISTS debug_values') } catch { /* disposable test server cleanup */ }
       await executor.close()
     }
     if (controller) { await controller.close() }
@@ -40,11 +40,24 @@ describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
     executor = await driver.openDedicatedSession(connectionId)
     for (const sql of engineDdl()) await controller.execute(sql)
     await executor.execute('USE sample')
-    const original = `CREATE PROCEDURE ${quoteDebugIdentifier(procedure)}(IN p_value INT)
+    await executor.execute('DROP TABLE IF EXISTS debug_values')
+    await executor.execute('CREATE TABLE debug_values (id INT PRIMARY KEY)')
+    await executor.execute('INSERT INTO debug_values VALUES (1),(2),(3)')
+    const original = `CREATE PROCEDURE ${quoteDebugIdentifier(procedure)}()
 BEGIN
   DECLARE local_value INT DEFAULT 0;
-  SET local_value = p_value + 1;
-  SELECT local_value INTO @routine_debug_result;
+  DECLARE total_value INT DEFAULT 0;
+  DECLARE finished BOOLEAN DEFAULT FALSE;
+  DECLARE rows_cursor CURSOR FOR SELECT id FROM debug_values ORDER BY id;
+  DECLARE CONTINUE HANDLER FOR NOT FOUND SET finished = TRUE;
+  OPEN rows_cursor;
+  read_loop: LOOP
+    FETCH rows_cursor INTO local_value;
+    IF finished THEN LEAVE read_loop; END IF;
+    SET total_value = total_value + local_value;
+  END LOOP;
+  CLOSE rows_cursor;
+  SELECT total_value INTO @routine_debug_result;
 END`
     await executor.execute(`DROP PROCEDURE IF EXISTS ${quoteDebugIdentifier(procedure)}`)
     await executor.execute(original)
@@ -54,23 +67,26 @@ END`
     await executor.execute(`DROP PROCEDURE ${quoteDebugIdentifier(procedure)}`)
     await executor.execute(instrumented.sql)
     await executor.execute(`SET @dbforge_linux_debug_id='${debugId}'`)
-    callTask = executor.execute(`CALL ${quoteDebugIdentifier(procedure)}(6)`).then(() => undefined)
+    await controller.execute(`INSERT INTO ${schema('breakpoints')}(debug_id,line_number,enabled) VALUES (?,?,TRUE)`, [debugId, instrumented.statementLines[1]])
+    callTask = executor.execute(`CALL ${quoteDebugIdentifier(procedure)}()`).then(() => undefined)
 
     const firstPause = await waitForStatus('paused')
     expect(Number(firstPause.current_line)).toBe(instrumented.statementLines[0])
     const firstVariables = parseJson(firstPause.variables_json)
     expect(Number(firstVariables.local_value)).toBe(0)
-    await command('into')
+    await command('continue')
     const secondPause = await waitForLine(instrumented.statementLines[1]!)
     expect(String(secondPause.status)).toBe('paused')
+    await command('into')
+    await waitForLine(instrumented.statementLines[2]!)
     await command('continue')
     await callTask
     const result = await executor.query('SELECT @routine_debug_result AS result')
-    expect(Number(result[0]?.result)).toBe(7)
+    expect(Number(result[0]?.result)).toBe(6)
     await executor.execute(`DROP PROCEDURE ${quoteDebugIdentifier(procedure)}`)
     await executor.execute(original)
     const restored = await executor.query(`SHOW CREATE PROCEDURE ${quoteDebugIdentifier(procedure)}`)
-    expect(String(Object.entries(restored[0] ?? {}).find(([key]) => key.startsWith('Create '))?.[1])).toContain('SELECT local_value INTO @routine_debug_result')
+    expect(String(Object.entries(restored[0] ?? {}).find(([key]) => key.startsWith('Create '))?.[1])).toContain('SELECT total_value INTO @routine_debug_result')
   }, 30000)
 
   async function command(kind: 'into' | 'continue'): Promise<void> {

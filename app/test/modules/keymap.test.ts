@@ -5,6 +5,7 @@ import { defaultSettings } from '../../src/modules/options/types.js'
 import { mergeSettings, validateSettings } from '../../src/modules/options/index.js'
 import { findKeymapConflicts, keymapCommands } from '../../src/modules/keymap/registry.js'
 import { enMessages, ptBrCatalog } from '../../src/renderer/src/i18n/specMessages.js'
+import { enPanelMessages, ptBrPanelMessages } from '../../src/renderer/src/i18n/panelMessages.js'
 
 describe('central keymap', () => {
   it('registers the confirmed SQL editor and debugger bindings', () => {
@@ -66,5 +67,6 @@ describe('UX translation catalogs', () => {
     expect([...expected].filter((key) => typeof enMessages[key] !== 'string')).toEqual([])
     expect([...expected].filter((key) => typeof ptBrCatalog[key] !== 'string')).toEqual([])
     expect(Object.values(ptBrCatalog).every((message) => message.trim().length > 0)).toBe(true)
+    expect(Object.keys(enPanelMessages).every((key) => typeof ptBrPanelMessages[key] === 'string' && typeof ptBrCatalog[key] === 'string')).toBe(true)
   })
 })

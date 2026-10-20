@@ -54,6 +54,8 @@ describe.skipIf(!enabled)('M14, M9 Data Compare e M15 MySQL integration', () => 
     expect(generation).toMatchObject({ generated: 100_100, inserted: 100_100 })
     const counts = await driver.queryRows(connectionId, `SELECT COUNT(*) AS total, COUNT(DISTINCT parent_id) AS parents_used FROM \`${db}\`.children`)
     expect(Number(counts[0]?.total)).toBe(100_000)
+    const uniqueValues = await driver.queryRows(connectionId, `SELECT COUNT(DISTINCT email) AS emails FROM \`${db}\`.children`)
+    expect(Number(uniqueValues[0]?.emails)).toBe(100_000)
     const orphans = await driver.queryRows(connectionId, `SELECT COUNT(*) AS total FROM \`${db}\`.children c LEFT JOIN \`${db}\`.parents p ON p.id = c.parent_id WHERE p.id IS NULL`)
     expect(Number(orphans[0]?.total)).toBe(0)
 

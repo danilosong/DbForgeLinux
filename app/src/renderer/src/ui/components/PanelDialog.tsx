@@ -15,7 +15,10 @@ export function PanelDialog({ title, onClose, children }: PanelDialogProps): Rea
 
   useEffect(() => {
     const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null
-    closeRef.current?.focus()
+    const initialFocus = dialogRef.current?.querySelector<HTMLElement>(
+      'input:not(:disabled), select:not(:disabled), textarea:not(:disabled), button:not(:disabled), a[href], [tabindex]:not([tabindex="-1"])'
+    )
+    ;(initialFocus ?? closeRef.current)?.focus()
 
     function handleKeyDown(event: KeyboardEvent): void {
       if (event.key === 'Escape') {
@@ -35,10 +38,10 @@ export function PanelDialog({ title, onClose, children }: PanelDialogProps): Rea
       }
 
       const first = focusable[0]
-      const last = focusable[focusable.length - 1]
+      const last = focusable.at(-1)
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault()
-        last.focus()
+        last?.focus()
       } else if (!event.shiftKey && document.activeElement === last) {
         event.preventDefault()
         first.focus()
