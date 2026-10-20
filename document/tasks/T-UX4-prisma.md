@@ -1,0 +1,7 @@
+AGENT: Prisma (Antigravity)
+NOTA: Arquiteto = "Chefinho". Se maestri ask falhar, finalize com resumo no terminal.
+OBJECTIVE: Verificação de fidelidade das UX Specs 01–19 contra a evidência REA (substitui a busca web, que falhou).
+REFERENCE: re/ui-strings/ui-text.txt (≈7k+ textos de interface extraídos do produto original: menus com acelerador &, comandos, labels, mensagens — USO INTERNO, não copiar para o código nem para o repo), document/05-rea-debugger.md, document/ux/*.md
+TASK: para cada spec (01–19): (1) buscar no ui-text.txt (grep) os nomes reais de menus, comandos, abas, campos, mensagens de erro/progresso do módulo; (2) corrigir a spec trocando termos INFERIDOS pelos reais e promovendo a [C] com fonte "REA ui-text"; (3) adicionar seção "Textos de interface (referência)" com a lista de rótulos/mensagens encontrados (parafraseando quando for frase longa) para o dev usar como chave i18n; (4) em 14-debugger.md, substituir o aviso de inviabilidade pelo mecanismo confirmado em document/05-rea-debugger.md (fluxo de UX: instalar infraestrutura com confirmação, sessões, breakpoints, watches, call stack); (5) listar em document/ux/FIDELIDADE.md o que continua [I] por falta de evidência.
+CONSTRAINTS: só Markdown; nada de colar o catálogo inteiro em docs versionados — somente rótulos necessários por tela.
+ACCEPTANCE: toda spec tem seção de textos reais; FIDELIDADE.md lista pendências.

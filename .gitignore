@@ -6,3 +6,4 @@ out/
 .maestri/
 re/evidence/DefaultLayout.xml
 re/evidence/members-mysql.json
+re/ui-strings/
