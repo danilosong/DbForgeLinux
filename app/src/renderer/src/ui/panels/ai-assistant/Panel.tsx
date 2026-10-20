@@ -1,3 +1,4 @@
+import { useI18n } from '../../i18n/useI18n.js'
 import { useEffect, useMemo, useState } from 'react'
 import type { ConnectionRecord } from '../../../../../shared/contracts.js'
 import { defaultAiAssistantSettings, type AiAssistantSettings, type AiChatMessage, type AiSchemaContext } from '../../../../../modules/ai-assistant/types.js'
@@ -7,6 +8,8 @@ interface ChatMessage extends AiChatMessage { id: string; requestId?: string }
 interface Chat { id: string; title: string; messages: ChatMessage[] }
 
 export default function AiAssistantPanel(): React.JSX.Element {
+  const { t } = useI18n()
+
   const active = usePanelConnection()
   const [settings, setSettings] = useState<AiAssistantSettings>({ ...defaultAiAssistantSettings })
   const [hasKey, setHasKey] = useState(false); const [apiKey, setApiKey] = useState(''); const [settingsOpen, setSettingsOpen] = useState(false); const [settingsBusy, setSettingsBusy] = useState(false); const [settingsMessage, setSettingsMessage] = useState('')
@@ -93,12 +96,12 @@ export default function AiAssistantPanel(): React.JSX.Element {
   }
 
   return <section className="ai-panel">
-    <header className="ai-header"><div><h2>✦ AI Assistant</h2><p>Review every answer before using generated SQL.</p></div><div><button onClick={() => setShowChats((value) => !value)}>All Chats</button><button onClick={newChat}>＋ New chat</button><button onClick={() => setSettingsOpen((value) => !value)}>⚙ Chat Settings</button></div></header>
-    {showChats && <nav className="ai-chat-list" aria-label="All Chats">{chats.map((chat) => <button key={chat.id} className={chat.id === currentChat.id ? 'selected' : ''} onClick={() => { setChatId(chat.id); setShowChats(false) }}>{chat.title}</button>)}</nav>}
+    <header className="ai-header"><div><h2>✦ {t('ai.title')}</h2><p>Review every answer before using generated SQL.</p></div><div><button onClick={() => setShowChats((value) => !value)}>{t('ai.chat.all')}</button><button onClick={newChat}>＋ {t('ai.chat.new')}</button><button onClick={() => setSettingsOpen((value) => !value)}>⚙ {t('ai.chat.settings')}</button></div></header>
+    {showChats && <nav className="ai-chat-list" aria-label={t('ai.chat.all')}>{chats.map((chat) => <button key={chat.id} className={chat.id === currentChat.id ? 'selected' : ''} onClick={() => { setChatId(chat.id); setShowChats(false) }}>{chat.title}</button>)}</nav>}
     <div className="ai-context">
       {approvedSchema ? <><span className="ai-schema-chip">Sending: {approvedSchema.tables.length} tables · metadata only</span><button onClick={() => setApprovedSchema(null)}>Remove schema</button></> : <><label>Connection <select aria-label="Schema connection" value={connectionId} onChange={(event) => setConnectionId(event.target.value)}><option value="">Select connection</option>{connections.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>Database <select aria-label="Schema database" value={database} onChange={(event) => setDatabase(event.target.value)}><option value="">Select database</option>{databases.map((item) => <option key={item}>{item}</option>)}</select></label><button disabled={schemaBusy || !database} onClick={() => void reviewSchema()}>{schemaBusy ? 'Loading schema…' : 'Review schema payload'}</button><span>No schema context is sent unless you approve it.</span></>}
     </div>
-    <div className="ai-actions"><button onClick={() => setDraft((value) => `Explain the SQL and describe its behavior:\n\n${value}`)}>Explain SQL</button><button onClick={() => setDraft((value) => `Optimize this SQL and explain any index suggestions:\n\n${value}`)}>Optimize</button><button onClick={() => setDraft((value) => `Generate a MySQL SQL query for this request:\n\n${value}`)}>Convert Natural Language to SQL</button></div>
+    <div className="ai-actions"><button onClick={() => setDraft((value) => `Explain the SQL and describe its behavior:\n\n${value}`)}>{t('ai.cmd.explainSql')}</button><button onClick={() => setDraft((value) => `Optimize this SQL and explain any index suggestions:\n\n${value}`)}>{t('ai.cmd.optimizeHint')}</button><button onClick={() => setDraft((value) => `Generate a MySQL SQL query for this request:\n\n${value}`)}>{t('ai.cmd.nl2sql')}</button></div>
     <div className="ai-thread" aria-live="polite">{!currentChat.messages.length && <div className="ai-empty">You have no chats yet. Ask about SQL, query plans, or database design.</div>}{currentChat.messages.map((message) => <article className={`ai-message ai-${message.role}`} key={message.id}><strong>{message.role === 'user' ? 'You' : 'AI Assistant'}</strong><MessageContent message={message} onInsert={(sql) => setInsertSql(sql)} /></article>)}{busy && <p className="ai-thinking">Thinking…</p>}{error && <p className="ai-error" role="alert">{error}</p>}</div>
     <div className="ai-composer"><textarea aria-label="Message to AI Assistant" placeholder="Ask a database question… (Enter to send, Shift+Enter for a new line)" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendMessage() } }} /><button disabled={!draft.trim() || busy} onClick={() => void sendMessage()}>Send ▶</button>{busy && <button onClick={() => void stop()}>Stop ■</button>}</div>
     {!enabled && <p className="ai-note">Configure a provider to start the chat. Local models can use an HTTP endpoint without an API key.</p>}

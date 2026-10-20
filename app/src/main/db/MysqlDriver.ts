@@ -3,14 +3,23 @@ import type { ConnectionTestResult, DatabaseObject, QueryResult } from '../../sh
 import type { DbDriver, DbTransaction, DriverConnectionConfig, SqlValue } from './DbDriver.js'
 import { buildMysqlOptions } from './connectionOptions.js'
 import { createSshTunnel, type ActiveSshTunnel } from './SshTunnel.js'
+import { createHttpTunnel, type ActiveHttpTunnel } from './HttpTunnel.js'
 import { splitSqlStatements } from '../../shared/sqlStatements.js'
 
 interface ManagedConnection {
   pool: Pool
   tunnel?: ActiveSshTunnel
+  httpTunnel?: ActiveHttpTunnel
   config: DriverConnectionConfig
   currentDatabase?: string
   transactionConnection?: PoolConnection
+}
+
+export interface DedicatedMysqlSession {
+  query(sql: string, values?: readonly SqlValue[]): Promise<Array<Record<string, unknown>>>
+  execute(sql: string, values?: readonly SqlValue[]): Promise<void>
+  close(): Promise<void>
+  cancel(): void
 }
 
 export class MysqlDriver implements DbDriver {
@@ -20,10 +29,12 @@ export class MysqlDriver implements DbDriver {
   async testConnection(config: DriverConnectionConfig): Promise<ConnectionTestResult> {
     const startedAt = Date.now()
     let tunnel: ActiveSshTunnel | undefined
+    let httpTunnel: ActiveHttpTunnel | undefined
     let connection: Awaited<ReturnType<typeof mysql.createConnection>> | undefined
     try {
       tunnel = config.ssh.enabled ? await createSshTunnel(config.ssh) : undefined
-      const options = await buildMysqlOptions(config, tunnel)
+      httpTunnel = config.http.enabled ? await createHttpTunnel(config.http, config.host, config.port) : undefined
+      const options = await buildMysqlOptions(config, tunnel ?? httpTunnel)
       connection = await mysql.createConnection(options)
       const [rows] = await connection.query<Array<RowDataPacket & { version: string }>>('SELECT VERSION() AS version')
       const [tlsRows] = await connection.query<Array<RowDataPacket & { Value: string }>>("SHOW STATUS LIKE 'Ssl_version'")
@@ -31,20 +42,24 @@ export class MysqlDriver implements DbDriver {
         serverVersion: rows[0]?.version ?? 'unknown',
         elapsedMs: Date.now() - startedAt,
         tlsVersion: tlsRows[0]?.Value || undefined,
-        sshTunnel: Boolean(tunnel)
+        sshTunnel: Boolean(tunnel),
+        httpTunnel: Boolean(httpTunnel)
       }
     } finally {
       if (connection) await connection.end()
       if (tunnel) await tunnel.close()
+      if (httpTunnel) await httpTunnel.close()
     }
   }
 
   async connect(config: DriverConnectionConfig): Promise<string> {
     let tunnel: ActiveSshTunnel | undefined
+    let httpTunnel: ActiveHttpTunnel | undefined
     let pool: Pool | undefined
     try {
       tunnel = config.ssh.enabled ? await createSshTunnel(config.ssh) : undefined
-      const options = await buildMysqlOptions(config, tunnel)
+      httpTunnel = config.http.enabled ? await createHttpTunnel(config.http, config.host, config.port) : undefined
+      const options = await buildMysqlOptions(config, tunnel ?? httpTunnel)
       pool = mysql.createPool({
         ...options,
         waitForConnections: true,
@@ -57,11 +72,12 @@ export class MysqlDriver implements DbDriver {
         connection.release()
       }
       const id = crypto.randomUUID()
-      this.pools.set(id, { pool, tunnel, config, currentDatabase: config.database })
+      this.pools.set(id, { pool, tunnel, httpTunnel, config, currentDatabase: config.database })
       return id
     } catch (error) {
       if (pool) await pool.end()
       if (tunnel) await tunnel.close()
+      if (httpTunnel) await httpTunnel.close()
       throw error
     }
   }
@@ -72,6 +88,39 @@ export class MysqlDriver implements DbDriver {
     if (managed.transactionConnection) { try { await managed.transactionConnection.rollback() } finally { managed.transactionConnection.release() } }
     await managed.pool.end()
     if (managed.tunnel) await managed.tunnel.close()
+    if (managed.httpTunnel) await managed.httpTunnel.close()
+  }
+
+  /** Opens one pinned server session for protocols that depend on connection-scoped locks or variables. */
+  async openDedicatedSession(connectionId: string): Promise<DedicatedMysqlSession> {
+    const managed = this.requireConnection(connectionId)
+    const connection = await managed.pool.getConnection()
+    let closed = false
+    try {
+      await this.initializeSession(connection, managed.config)
+      if (managed.currentDatabase) await connection.query(`USE ${quoteIdentifier(managed.currentDatabase)}`)
+    } catch (error) { connection.release(); throw error }
+    return {
+      query: async (sql, values = []) => {
+        if (closed) throw new Error('Dedicated MySQL session is closed.')
+        const [rows] = await connection.query({ sql, values: [...values], rowsAsArray: false })
+        return Array.isArray(rows) ? rows as Array<Record<string, unknown>> : []
+      },
+      execute: async (sql, values = []) => {
+        if (closed) throw new Error('Dedicated MySQL session is closed.')
+        await connection.query({ sql, values: [...values] })
+      },
+      close: async () => {
+        if (closed) return
+        closed = true
+        connection.release()
+      },
+      cancel: () => {
+        if (closed) return
+        closed = true
+        connection.destroy()
+      }
+    }
   }
 
   async listDatabases(connectionId: string): Promise<string[]> {
@@ -207,12 +256,15 @@ export class MysqlDriver implements DbDriver {
     return rows
   }
 
-  async *streamRows(connectionId: string, sql: string, values: readonly SqlValue[] = [], signal?: AbortSignal): AsyncIterable<Record<string, unknown>> {
-    const pool = this.requireConnection(connectionId).pool
+  async *streamRows(connectionId: string, sql: string, values: readonly SqlValue[] = [], signal?: AbortSignal, timeoutSeconds?: number): AsyncIterable<Record<string, unknown>> {
+    const managed = this.requireConnection(connectionId)
+    const pool = managed.pool
     if (signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
     const rawPool = pool.pool as unknown as { query(options: unknown): { stream(): NodeJS.ReadableStream } }
     const stream = rawPool.query({ sql, values: [...values], rowsAsArray: false }).stream() as NodeJS.ReadableStream & AsyncIterable<Record<string, unknown>> & { destroy(error?: Error): void }
     const abort = (): void => stream.destroy(new DOMException('A operação foi cancelada.', 'AbortError'))
+    const commandTimeout = timeoutSeconds ?? managed.config.advanced.commandTimeoutSeconds
+    const timeout = commandTimeout > 0 ? setTimeout(() => stream.destroy(Object.assign(new Error('A consulta excedeu o tempo limite configurado.'), { code: 'ETIMEDOUT' })), commandTimeout * 1000) : undefined
     signal?.addEventListener('abort', abort, { once: true })
     try {
       for await (const row of stream) {
@@ -221,6 +273,7 @@ export class MysqlDriver implements DbDriver {
       }
     } finally {
       signal?.removeEventListener('abort', abort)
+      if (timeout) clearTimeout(timeout)
       if (signal?.aborted) stream.destroy()
     }
   }

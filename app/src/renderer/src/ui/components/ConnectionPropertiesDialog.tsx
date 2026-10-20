@@ -68,7 +68,11 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
       if (record.ssh.authMethod === 'private-key' && !record.ssh.privateKeyFile) next.privateKeyFile = 'Escolha o arquivo da chave privada.'
     }
     if (record.http.enabled) {
-      try { new URL(record.http.url) } catch { next.httpUrl = 'Informe uma URL válida para o túnel HTTP.' }
+      try {
+        const url = new URL(record.http.url)
+        if (!['http:', 'https:'].includes(url.protocol)) next.httpUrl = 'Use uma URL HTTP ou HTTPS para o tunnel.php.'
+      } catch { next.httpUrl = 'Informe uma URL válida para o túnel HTTP.' }
+      if (record.http.proxyHost && (!Number.isInteger(record.http.proxyPort) || (record.http.proxyPort ?? 0) < 1 || (record.http.proxyPort ?? 0) > 65535)) next.proxyPort = 'Porta de proxy inválida.'
       if (record.ssh.enabled) next.transport = 'SSH e HTTP tunneling são mutuamente exclusivos.'
     }
     setErrors(next)
@@ -88,7 +92,8 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
       if (action === 'test' && result) {
         const tls = result.tlsVersion ? ` · ${result.tlsVersion}` : ''
         const ssh = result.sshTunnel ? ' · via SSH' : ''
-        setStatus({ kind: 'success', text: `Conexão bem-sucedida · ${result.serverVersion} · ${result.elapsedMs} ms${tls}${ssh}` })
+        const http = result.httpTunnel ? ' · via HTTP tunnel' : ''
+        setStatus({ kind: 'success', text: `Conexão bem-sucedida · ${result.serverVersion} · ${result.elapsedMs} ms${tls}${ssh}${http}` })
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Falha na conexão.'
@@ -165,7 +170,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
         </div>}
         {page === 'HTTP' && <div className="form-grid">
           <label className="check-field wide"><input type="checkbox" checked={record.http.enabled} onChange={(event) => { const enabled = event.target.checked; updateHttp({ enabled }); if (enabled) updateSsh({ enabled: false }) }} /> Use HTTP tunneling</label>
-          <Field label="Tunnel URL" error={errors.httpUrl} help="O endpoint tunnel.php não possui protocolo wire documentado."><input disabled={!record.http.enabled} value={record.http.url} onChange={(event) => updateHttp({ url: event.target.value })} placeholder="https://server/tunnel.php" /></Field>
+          <Field label="Tunnel URL" error={errors.httpUrl} help="URL do endpoint tunnel.php instalado no servidor web."><input disabled={!record.http.enabled} value={record.http.url} onChange={(event) => updateHttp({ url: event.target.value })} placeholder="https://server/tunnel.php" /></Field>
           <Field label="HTTP user"><input disabled={!record.http.enabled} value={record.http.user ?? ''} onChange={(event) => updateHttp({ user: event.target.value || undefined })} /></Field>
           <Field label="HTTP password"><input type="password" disabled={!record.http.enabled} value={secrets.httpPassword} onChange={(event) => updateSecret('httpPassword', event.target.value)} placeholder={record.http.passwordRef ? '•••••••• (salva no cofre)' : ''} /></Field>
           <Field label="Proxy host"><input disabled={!record.http.enabled} value={record.http.proxyHost ?? ''} onChange={(event) => updateHttp({ proxyHost: event.target.value || undefined })} /></Field>
@@ -174,7 +179,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
           <Field label="Proxy password"><input type="password" disabled={!record.http.enabled} value={secrets.proxyPassword} onChange={(event) => updateSecret('proxyPassword', event.target.value)} placeholder={record.http.proxyPasswordRef ? '•••••••• (salva no cofre)' : ''} /></Field>
           <Field label="Timeout (s)"><input type="number" min="1" disabled={!record.http.enabled} value={record.http.timeoutSeconds} onChange={(event) => updateHttp({ timeoutSeconds: Number(event.target.value) })} /></Field>
           <label className="check-field wide"><input type="checkbox" disabled={!record.http.enabled} checked={!record.http.rejectUnauthorized} onChange={(event) => updateHttp({ rejectUnauthorized: !event.target.checked })} /> Ignorar erros de certificado <b className="field-error">(inseguro)</b></label>
-          {record.http.enabled && <p className="inline-warning wide">Este transporte permanece indisponível até a definição do protocolo MySQL por HTTP.</p>}
+          {record.http.enabled && <p className="form-help wide">O MySQL é encaminhado pelo servidor web; host e porta da aba General são o destino remoto do banco.</p>}
         </div>}
         {page === 'Advanced' && <div className="form-grid">
           <Field label="Connection timeout (s)"><input type="number" min="1" value={record.advanced.connectionTimeoutSeconds} onChange={(event) => updateAdvanced({ connectionTimeoutSeconds: Number(event.target.value) })} /></Field>

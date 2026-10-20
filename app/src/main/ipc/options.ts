@@ -1,5 +1,5 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron'
-import { readFile, writeFile } from 'node:fs/promises'
+import { chmod, readFile, stat, writeFile } from 'node:fs/promises'
 import { mergeSettings, SettingsStore } from '../../modules/options/index.js'
 
 export function registerOptionsIpc(store: SettingsStore): void {
@@ -12,12 +12,14 @@ export function registerOptionsIpc(store: SettingsStore): void {
     const window = BrowserWindow.getFocusedWindow(); const result = window ? await dialog.showSaveDialog(window, options) : await dialog.showSaveDialog(options)
     if (result.canceled || !result.filePath) return null
     await writeFile(result.filePath, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 })
+    await chmod(result.filePath, 0o600)
     return result.filePath
   })
   ipcMain.handle('options:import', async () => {
     const options = { title: 'Import Settings', properties: ['openFile'] as ('openFile')[], filters: [{ name: 'JSON', extensions: ['json'] }] }
     const window = BrowserWindow.getFocusedWindow(); const result = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
     if (result.canceled || !result.filePaths[0]) return null
+    if ((await stat(result.filePaths[0])).size > 5 * 1024 * 1024) throw new Error('Settings file exceeds the 5 MB safety limit.')
     return store.save(JSON.parse(await readFile(result.filePaths[0], 'utf8')) as unknown)
   })
 }

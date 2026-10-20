@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Editor from '@monaco-editor/react'
 import type { editor as MonacoEditor, IRange } from 'monaco-editor'
 import type { ConnectionRecord, ConnectionSummary, ConnectionTestResult, DatabaseObject, DatabaseObjectKind, EditorMetadata, ObjectEditorTarget, QueryResult, SqlExecutionHistoryEntry } from '../../../shared/contracts'
+import type { CodeAnalysisFinding } from '../../../shared/contracts/code-analysis.js'
 import { splitSqlStatements, statementAtOffset } from '../../../shared/sqlStatements'
 import { buildSqlSuggestions } from '../../../modules/editor/completion.js'
 import { formatSql } from '../../../modules/editor/formatter.js'
@@ -13,7 +14,8 @@ import { DatabaseExplorer } from './components/DatabaseExplorer'
 import { ResultGrid } from './components/ResultGrid'
 import { PanelDialog } from './components/PanelDialog'
 import { ObjectEditor } from './components/ObjectEditor'
-import { PanelConnectionContext, panelRegistry } from './panels/registry'
+import { StartPage } from './components/StartPage'
+import { PanelConnectionContext, PanelEditorContext, panelRegistry } from './panels/registry'
 import { defaultSettings, normalizeShortcut, type AppSettings } from '../../../modules/options/types.js'
 
 type ThemeMode = 'auto' | 'light' | 'dark' | 'high-contrast'
@@ -62,20 +64,25 @@ export default function App(): React.JSX.Element {
   const [metadataLoading, setMetadataLoading] = useState(false)
   const [pageQueries, setPageQueries] = useState<Record<string, PageQuery>>({})
   const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null)
+  const shortcutChordRef = useRef('')
   const metadataRef = useRef<EditorMetadata>(emptyEditorMetadata)
   const completionProviderRef = useRef<{ dispose(): void } | null>(null)
   const [errors, setErrors] = useState<string[]>([])
+  const [analysisFindings, setAnalysisFindings] = useState<CodeAnalysisFinding[]>([])
   const [status, setStatus] = useState('Ready')
   const [output, setOutput] = useState<OutputEntry[]>([])
   const [loadError, setLoadError] = useState('')
+  const [vaultWarning, setVaultWarning] = useState('')
   const theme = themeMode === 'auto' ? (systemDark ? 'dark' : 'light') : themeMode
   const currentConnection = active[0]
   const currentRecord = records.find((record) => record.id === currentConnection?.recordId)
   const activeObjectTab = documents.find((tab) => tab.id === selectedDocument)?.objectEditor
   const activeSql = selectedDocument !== 'start' && !activeObjectTab
+  const activeSqlText = activeSql ? sqlByDocument[selectedDocument] ?? '' : ''
 
   useEffect(() => {
     void loadConnections()
+    void window.dbforge.getVaultStatus().then((vault) => { setVaultWarning(vault.warning ?? ''); if (vault.warning) log('Security', vault.warning, 'warning') }).catch(() => {})
     const applySettings = (settings: AppSettings): void => {
       setAppSettings(settings); setThemeMode(settings.appearance.theme); setAutoCommit(settings.execution.autoCommit)
       document.documentElement.style.setProperty('--accent', settings.appearance.accent)
@@ -111,7 +118,15 @@ export default function App(): React.JSX.Element {
       setOpenPanel(null)
     }
     window.addEventListener('dbforge:insert-ai-sql', insertSql)
-    return () => window.removeEventListener('dbforge:insert-ai-sql', insertSql)
+    const removeOpenSql = window.dbforge.onOpenSqlPath((path) => {
+      void window.dbforge.openSqlPath(path).then((file) => {
+        const id = `sql-${crypto.randomUUID()}`
+        setDocuments((current) => [...current, { id, label: file.path.split('/').at(-1) ?? 'query.sql', filePath: file.path, modified: false }])
+        setSqlByDocument((current) => ({ ...current, [id]: file.contents }))
+        setSelectedDocument(id)
+      }).catch((error: unknown) => log('File', error instanceof Error ? error.message : 'Não foi possível abrir o arquivo SQL.', 'error'))
+    })
+    return () => { window.removeEventListener('dbforge:insert-ai-sql', insertSql); removeOpenSql() }
   }, [])
 
   useEffect(() => { localStorage.setItem('dbforge.explorerVisible', String(explorerVisible)) }, [explorerVisible])
@@ -323,6 +338,17 @@ export default function App(): React.JSX.Element {
     editor.focus()
   }
 
+  async function runCodeAnalysis(): Promise<void> {
+    if (!activeSqlText.trim()) return
+    try {
+      const findings = await window.dbforge.analyzeSql(activeSqlText)
+      setAnalysisFindings(findings)
+      setPanelTab('Error List')
+      setPanelVisible(true)
+      log('Code Analysis', findings.length ? `Analysis complete · ${findings.length} findings.` : 'Code analysis complete · No issues found.', findings.some((item) => item.severity === 'Error') ? 'error' : 'success')
+    } catch (error) { log('Code Analysis', error instanceof Error ? error.message : 'Code Analysis Error', 'error') }
+  }
+
   async function persistExecutionHistory(sql: string, startedAt: number, success: boolean, rowCount: number, error?: string): Promise<void> {
     if (!currentConnection) return
     const entry: SqlExecutionHistoryEntry = {
@@ -359,6 +385,15 @@ export default function App(): React.JSX.Element {
       const path = await window.dbforge.saveSqlFile(tab.filePath, sqlByDocument[selectedDocument] ?? '')
       if (path) setDocuments((current) => current.map((item) => item.id === selectedDocument ? { ...item, label: path.split('/').at(-1) ?? item.label, filePath: path, modified: false } : item))
     } catch (error) { log('File', error instanceof Error ? error.message : 'Não foi possível salvar o arquivo SQL.', 'error') }
+  }
+
+  async function saveAllSql(): Promise<void> {
+    for (const tab of documents.filter((item) => item.id !== 'start' && item.filePath)) {
+      try {
+        const path = await window.dbforge.saveSqlFile(tab.filePath, sqlByDocument[tab.id] ?? '')
+        if (path) setDocuments((current) => current.map((item) => item.id === tab.id ? { ...item, label: path.split('/').at(-1) ?? item.label, filePath: path, modified: false } : item))
+      } catch (error) { log('File', error instanceof Error ? error.message : `Could not save ${tab.label}.`, 'error') }
+    }
   }
 
   function selectTop(connection: ConnectionSummary, database: string, object: DatabaseObject): void {
@@ -437,39 +472,49 @@ export default function App(): React.JSX.Element {
     const token = crypto.randomUUID()
     const startedAt = performance.now()
     if (pageQueries[selectedDocument]) setPageQueries((current) => ({ ...current, [selectedDocument]: { ...current[selectedDocument], offset: 1000 } }))
+    for (const result of results) if (result.resultStoreId) void window.dbforge.disposeResult(result.resultStoreId)
     setExecutionId(token); setQueryBusy(true); setQueryMessages([]); setResults([]); setResultIndex(-1)
     setStatus('Executing…')
     const next: QueryResult[] = []
     const messages: string[] = []
     try {
-      for (const [index, statement] of statements.entries()) {
-        const requestId = `${token}:${index}`
-        setExecutionId(requestId)
-        const statementResults = await window.dbforge.executeSql(currentConnection.id, statement.sql, requestId)
-        next.push(...statementResults)
-        setResults([...next])
-        const returnedRows = statementResults.reduce((total, result) => total + result.rows.length, 0)
-        messages.push(`OK · ${returnedRows} rows · ${((performance.now() - startedAt) / 1000).toFixed(3)} s`)
-        setQueryMessages([...messages])
+      const canBatchScript = statements.length >= 100 && currentRecord?.advanced.multipleStatements && statements.every(({ sql: statement }) => !/^\s*(SELECT|WITH)\b/i.test(statement))
+      if (canBatchScript) {
+        const requestId = `${token}:batch`; setExecutionId(requestId)
+        next.push(...await window.dbforge.executeSql(currentConnection.id, statements.map(({ sql: statement }) => statement).join(';\n') + ';', requestId))
+        const returnedRows = next.reduce((total, result) => total + (result.rowCount ?? result.rows.length), 0)
+        messages.push(`OK · ${statements.length} statements · ${returnedRows} rows · ${((performance.now() - startedAt) / 1000).toFixed(3)} s`)
+        setResults([...next]); setQueryMessages([...messages])
+      } else {
+        for (const [index, statement] of statements.entries()) {
+          const requestId = `${token}:${index}`
+          setExecutionId(requestId)
+          const statementResults = await window.dbforge.executeSql(currentConnection.id, statement.sql, requestId)
+          next.push(...statementResults)
+          if (index % 50 === 0 || index === statements.length - 1) setResults([...next])
+          const returnedRows = statementResults.reduce((total, result) => total + (result.rowCount ?? result.rows.length), 0)
+          messages.push(`OK · ${returnedRows} rows · ${((performance.now() - startedAt) / 1000).toFixed(3)} s`)
+          if (index % 50 === 0 || index === statements.length - 1) setQueryMessages([...messages])
+        }
       }
       setResults(next); setQueryMessages(messages); setResultIndex(next.length ? 0 : -1)
-      if (pageQueries[selectedDocument] && (next[0]?.rows.length ?? 0) < 1000) setPageQueries((current) => { const updated = { ...current }; delete updated[selectedDocument]; return updated })
+      if (pageQueries[selectedDocument] && (next[0]?.rowCount ?? next[0]?.rows.length ?? 0) < 1000) setPageQueries((current) => { const updated = { ...current }; delete updated[selectedDocument]; return updated })
       setErrors([])
       setStatus('Ready')
       setQueryElapsed(performance.now() - startedAt)
-      await persistExecutionHistory(sql, startedAt, true, next.reduce((sum, result) => sum + result.rows.length, 0))
+      await persistExecutionHistory(sql, startedAt, true, next.reduce((sum, result) => sum + (result.rowCount ?? result.rows.length), 0))
       if (currentConnection.database && /\b(CREATE|ALTER|DROP|TRUNCATE|RENAME)\b/i.test(sql)) {
         try { setEditorMetadata(await window.dbforge.getEditorMetadata(currentConnection.id, currentConnection.database, true)) }
         catch (error) { log('Editor', error instanceof Error ? error.message : 'O cache do esquema não foi atualizado.', 'warning') }
       }
-      log('Execution', `Consulta concluída · ${next.reduce((sum, result) => sum + result.rows.length, 0)} rows.`, 'success')
+      log('Execution', `Consulta concluída · ${next.reduce((sum, result) => sum + (result.rowCount ?? result.rows.length), 0)} rows.`, 'success')
     } catch (error) {
       const code = typeof error === 'object' && error ? String((error as { code?: unknown }).code ?? '') : ''
-      if (code === 'ER_QUERY_INTERRUPTED' || code === '1317') {
+      if (code === 'ER_QUERY_INTERRUPTED' || code === '1317' || (error instanceof Error && error.name === 'AbortError')) {
         setQueryMessages((current) => [...current, 'Execução cancelada.'])
         setResultIndex(next.length ? 0 : -1)
         setStatus('Ready')
-        await persistExecutionHistory(sql, startedAt, false, next.reduce((sum, result) => sum + result.rows.length, 0), 'Execução cancelada.')
+        await persistExecutionHistory(sql, startedAt, false, next.reduce((sum, result) => sum + (result.rowCount ?? result.rows.length), 0), 'Execução cancelada.')
         return
       }
       const message = error instanceof Error ? error.message : 'Falha na consulta.'
@@ -477,9 +522,19 @@ export default function App(): React.JSX.Element {
       const match = /at (?:line )?(\d+)(?:,? column (\d+))?/i.exec(message)
       const line = detail.lineNumber ?? Number(match?.[1] ?? 0)
       const column = detail.columnNumber ?? Number(match?.[2] ?? 0)
-      const shownMessage = `${detail.code ? `${detail.code}${detail.errno ? ` ${detail.errno}` : ''}: ` : ''}${message}${line ? ` · line ${line}${column ? `, column ${column}` : ''}` : ''}`
+      const lostConnection = ['PROTOCOL_CONNECTION_LOST', 'ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'EPIPE', 'PROTOCOL_ENQUEUE_AFTER_FATAL_ERROR'].includes(detail.code ?? '')
+      const safeMessage = maskSecrets(message)
+      if (lostConnection && currentConnection && currentRecord?.advanced.autoReconnect) {
+        try {
+          await window.dbforge.disconnect(currentConnection.id)
+          setActive((current) => current.filter((item) => item.id !== currentConnection.id))
+          await runConnectionAction(currentRecord, emptySecrets(), true, 'connect')
+          log('Connections', 'A conexão caiu durante a execução e foi restabelecida. A consulta com falha não foi repetida.', 'warning')
+        } catch { log('Connections', 'A conexão caiu e a reconexão automática falhou. Reconecte pelo Explorer.', 'warning') }
+      }
+      const shownMessage = `${detail.code ? `${detail.code}${detail.errno ? ` ${detail.errno}` : ''}: ` : ''}${lostConnection ? `A conexão caiu durante a execução. Verifique a rede e reconecte antes de repetir a consulta. (${safeMessage})` : safeMessage}${line ? ` · line ${line}${column ? `, column ${column}` : ''}` : ''}`
       setErrors([shownMessage]); setQueryMessages([...messages, shownMessage]); setResultIndex(-1); setPanelTab('Error List'); setPanelVisible(true); setStatus('Error'); log('Execution', shownMessage, 'error')
-      await persistExecutionHistory(sql, startedAt, false, next.reduce((sum, result) => sum + result.rows.length, 0), shownMessage)
+      await persistExecutionHistory(sql, startedAt, false, next.reduce((sum, result) => sum + (result.rowCount ?? result.rows.length), 0), shownMessage)
       if (line && editorRef.current) editorRef.current.revealLineInCenter(line)
     } finally { setQueryBusy(false); setExecutionId('') }
   }
@@ -533,41 +588,52 @@ export default function App(): React.JSX.Element {
       if (event.defaultPrevented) return
       const ctrl = event.ctrlKey || event.metaKey
       const pressed = [ctrl ? 'Ctrl' : '', event.altKey ? 'Alt' : '', event.shiftKey ? 'Shift' : '', ['Control', 'Alt', 'Shift', 'Meta'].includes(event.key) ? '' : event.key.length === 1 ? event.key.toUpperCase() : event.key].filter(Boolean).join('+')
-      const customBinding = appSettings.shortcuts.bindings.find((binding) => binding.shortcut && normalizeShortcut(binding.shortcut) === normalizeShortcut(pressed) && (binding.context === 'Global' || (binding.context === 'Editor' && activeSql)))
+      const combined = shortcutChordRef.current ? `${shortcutChordRef.current} ${pressed}` : pressed
+      const hasChordContinuation = appSettings.shortcuts.bindings.some((binding) => binding.shortcut && normalizeShortcut(binding.shortcut).startsWith(`${normalizeShortcut(combined)} `))
+      if (hasChordContinuation) { shortcutChordRef.current = combined; event.preventDefault(); return }
+      const customBinding = appSettings.shortcuts.bindings.find((binding) => binding.shortcut && normalizeShortcut(binding.shortcut) === normalizeShortcut(combined) && (binding.context === 'Global' || (binding.context === 'Editor' && activeSql) || (binding.context === 'Debugger' && openPanel === 'routine-debugger')))
+      shortcutChordRef.current = ''
       if (customBinding) {
         event.preventDefault()
         if (customBinding.command === 'New SQL Document') newSql()
+        else if (customBinding.command.startsWith('New Connection')) openNewConnection()
         else if (customBinding.command === 'Open SQL File') void openSqlFile()
         else if (customBinding.command === 'Save SQL') void saveCurrentSql()
-        else if (customBinding.command === 'Execute SQL') void runSql()
+        else if (customBinding.command === 'Save All') void saveAllSql()
+        else if (customBinding.command === 'Close Tab') closeTab(selectedDocument)
+        else if (customBinding.command === 'Exit') window.close()
+        else if (customBinding.command.startsWith('Execute SQL')) void runSql()
+        else if (customBinding.command.startsWith('Execute Current Statement')) void runSql('current')
         else if (customBinding.command === 'Format Document') formatEditor('document')
+        else if (customBinding.command === 'Format Selection') formatEditor('selection')
+        else if (customBinding.command === 'Format Current Statement') formatEditor('statement')
+        else if (customBinding.command === 'Code Analysis') void runCodeAnalysis()
+        else if (customBinding.command === 'Stop Execution') void cancelSql()
+        else if (customBinding.command === 'Comment Selection') editorRef.current?.trigger('keyboard', 'editor.action.commentLine', null)
+        else if (customBinding.command === 'Comment Selection (alternate)') editorRef.current?.trigger('keyboard', 'editor.action.commentLine', null)
+        else if (customBinding.command === 'Show Database Explorer') setExplorerVisible((value) => !value)
+        else if (customBinding.command === 'Show Output') { setPanelVisible(true); setPanelTab('Output') }
+        else if (customBinding.command === 'Show Error List') { setPanelVisible(true); setPanelTab('Error List') }
         else if (customBinding.command === 'Options') setOpenPanel('options')
         else if (customBinding.command === 'Source Control Manager') setOpenPanel('source-control')
         else if (customBinding.command === 'Find in Database') setOpenPanel('database-tools')
         else if (customBinding.command === 'Find Invalid Objects') setOpenPanel('database-tools')
+        else if (customBinding.command === 'Find') { editorRef.current?.focus(); editorRef.current?.trigger('keyboard', 'actions.find', null) }
+        else if (customBinding.command === 'Go To Line') { editorRef.current?.focus(); editorRef.current?.trigger('keyboard', 'editor.action.gotoLine', null) }
+        else if (customBinding.command === 'Complete') { editorRef.current?.focus(); editorRef.current?.trigger('keyboard', 'editor.action.triggerSuggest', null) }
+        else if (customBinding.command === 'Show Find Object') setOpenPanel('database-tools')
+        else if (customBinding.command === 'Show Command Palette') window.dispatchEvent(new CustomEvent('dbforge:shortcut-command', { detail: { command: customBinding.command } }))
+        else if (customBinding.command === 'Show Help') window.dispatchEvent(new CustomEvent('dbforge:shortcut-command', { detail: { command: customBinding.command } }))
+        else window.dispatchEvent(new CustomEvent('dbforge:shortcut-command', { detail: { command: customBinding.command } }))
         return
       }
-      if (ctrl && event.shiftKey && event.key.toLowerCase() === 'n') { event.preventDefault(); openNewConnection() }
-      else if (ctrl && event.key.toLowerCase() === 'n') { event.preventDefault(); newSql() }
-      else if (ctrl && event.key.toLowerCase() === 'o') { event.preventDefault(); void openSqlFile() }
-      else if (ctrl && event.key.toLowerCase() === 's') { event.preventDefault(); void saveCurrentSql() }
-      else if (ctrl && event.altKey && event.key.toLowerCase() === 'e') setExplorerVisible((value) => !value)
-      else if (ctrl && event.key.toLowerCase() === 'j') setPanelVisible((value) => !value)
-      else if (ctrl && event.key === ',') { event.preventDefault(); setOpenPanel('options') }
-      else if (event.shiftKey && event.key === 'F5') { event.preventDefault(); void cancelSql() }
-      else if (ctrl && event.shiftKey && event.key === 'Enter') { event.preventDefault(); void runSql('current') }
-      else if (event.key === 'F5' || (ctrl && event.key === 'Enter')) { event.preventDefault(); void runSql() }
-      else if (ctrl && event.key === 'Tab') {
-        event.preventDefault()
-        const index = documents.findIndex((tab) => tab.id === selectedDocument)
-        setSelectedDocument(documents[(index + (event.shiftKey ? documents.length - 1 : 1)) % documents.length]?.id ?? 'start')
-      } else if (ctrl && event.key.toLowerCase() === 'w') { event.preventDefault(); closeTab(selectedDocument) }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
   })
 
   const activeTitle = useMemo(() => currentConnection?.name ?? 'Nenhuma conexão ativa', [currentConnection])
+  const shortcutFor = (command: string): string | undefined => appSettings.shortcuts.bindings.find((binding) => binding.command === command)?.shortcut || undefined
 
   useEffect(() => () => completionProviderRef.current?.dispose(), [])
 
@@ -580,11 +646,11 @@ export default function App(): React.JSX.Element {
     <header className="app-menubar">
       <strong className="brand">dbForgeLinux</strong>
       <nav className="menu-row" aria-label="Menu principal">
-        <details><summary>File</summary><div className="menu-popup"><MenuAction label="New SQL Document" shortcut="Ctrl+N" onClick={newSql} /><MenuAction label="Open SQL File…" shortcut="Ctrl+O" onClick={() => void openSqlFile()} /><MenuAction label="Save SQL" shortcut="Ctrl+S" onClick={() => void saveCurrentSql()} disabled={!activeSql} /><MenuAction label="Database Connection…" shortcut="Ctrl+Shift+N" onClick={openNewConnection} /><MenuAction label="Connection Manager…" onClick={() => setManagerOpen(true)} /><MenuAction label="Exit" shortcut="Ctrl+Q" onClick={() => window.close()} /></div></details>
+        <details><summary>File</summary><div className="menu-popup"><MenuAction label="New SQL Document" shortcut={shortcutFor('New SQL Document')} onClick={newSql} /><MenuAction label="Open SQL File…" shortcut={shortcutFor('Open SQL File')} onClick={() => void openSqlFile()} /><MenuAction label="Save SQL" shortcut={shortcutFor('Save SQL')} onClick={() => void saveCurrentSql()} disabled={!activeSql} /><MenuAction label="Database Connection…" shortcut={shortcutFor('New Connection')} onClick={openNewConnection} /><MenuAction label="Connection Manager…" onClick={() => setManagerOpen(true)} /><MenuAction label="Exit" shortcut={shortcutFor('Exit')} onClick={() => window.close()} /></div></details>
         <details><summary>Edit</summary><div className="menu-popup"><MenuAction label="Undo" shortcut="Ctrl+Z" disabled /><MenuAction label="Redo" shortcut="Ctrl+Y" disabled /><MenuAction label="Find" shortcut="Ctrl+F" disabled={!activeSql} /></div></details>
-        <details><summary>View</summary><div className="menu-popup"><MenuAction label="Database Explorer" shortcut="Ctrl+Alt+E" onClick={() => setExplorerVisible((value) => !value)} /><MenuAction label="Output / Error List" shortcut="Ctrl+J" onClick={() => setPanelVisible((value) => !value)} /><div className="menu-divider" /><span className="menu-caption">Theme</span>{(['auto', 'light', 'dark'] as ThemeMode[]).map((mode) => <MenuAction key={mode} label={mode[0].toUpperCase() + mode.slice(1)} checked={themeMode === mode} onClick={() => setThemeMode(mode)} />)}</div></details>
+        <details><summary>View</summary><div className="menu-popup"><MenuAction label="Database Explorer" shortcut={shortcutFor('Show Database Explorer')} onClick={() => setExplorerVisible((value) => !value)} /><MenuAction label="Output" shortcut={shortcutFor('Show Output')} onClick={() => { setPanelVisible(true); setPanelTab('Output') }} /><MenuAction label="Error List" shortcut={shortcutFor('Show Error List')} onClick={() => { setPanelVisible(true); setPanelTab('Error List') }} /><div className="menu-divider" /><span className="menu-caption">Theme</span>{(['auto', 'light', 'dark'] as ThemeMode[]).map((mode) => <MenuAction key={mode} label={mode[0].toUpperCase() + mode.slice(1)} checked={themeMode === mode} onClick={() => setThemeMode(mode)} />)}</div></details>
         <details><summary>Database</summary><div className="menu-popup">{panelRegistry.filter((item) => item.id === 'schema-compare' || item.id === 'documenter').map((item) => <MenuAction key={item.id} label={`${item.icon} ${item.titleKey.split('.').at(-1)}`} onClick={() => setOpenPanel(item.id)} />)}<MenuAction label="New Connection…" onClick={openNewConnection} /><MenuAction label="Connect" onClick={() => currentRecord && void connectFromExplorer(currentRecord)} disabled={!records.length || Boolean(currentConnection)} /><MenuAction label="Disconnect" onClick={() => currentConnection && void disconnect(currentConnection)} disabled={!currentConnection} /><MenuAction label="Refresh" shortcut="F5" onClick={() => currentRecord && void expandRecord(currentRecord)} disabled={!currentConnection} /></div></details>
-        <details><summary>SQL</summary><div className="menu-popup"><MenuAction label="New SQL" shortcut="Ctrl+N" onClick={newSql} /><MenuAction label="Format Document" shortcut="Ctrl+K Ctrl+D" onClick={() => formatEditor('document')} disabled={!activeSql} /><MenuAction label="Format Selection" onClick={() => formatEditor('selection')} disabled={!activeSql} /><MenuAction label="Format Statement" onClick={() => formatEditor('statement')} disabled={!activeSql} /><MenuAction label="Execute" shortcut="F5 / Ctrl+Enter" onClick={() => void runSql()} disabled={!activeSql || !currentConnection || queryBusy} /><MenuAction label="Execute Current Statement" shortcut="Ctrl+Shift+Enter" onClick={() => void runSql('current')} disabled={!activeSql || !currentConnection || queryBusy} /><MenuAction label={queryBusy ? 'Cancel' : 'Cancel'} shortcut="Shift+F5" onClick={() => void cancelSql()} disabled={!queryBusy} /></div></details>
+        <details><summary>SQL</summary><div className="menu-popup"><MenuAction label="New SQL" shortcut={shortcutFor('New SQL Document')} onClick={newSql} /><MenuAction label="Format Document" shortcut={shortcutFor('Format Document')} onClick={() => formatEditor('document')} disabled={!activeSql} /><MenuAction label="Format Selection" shortcut={shortcutFor('Format Selection')} onClick={() => formatEditor('selection')} disabled={!activeSql} /><MenuAction label="Format Statement" shortcut={shortcutFor('Format Current Statement')} onClick={() => formatEditor('statement')} disabled={!activeSql} /><MenuAction label="Code Analysis" shortcut="Ctrl+Alt+A" onClick={() => void runCodeAnalysis()} disabled={!activeSql} /><MenuAction label="Execute" shortcut={shortcutFor('Execute SQL')} onClick={() => void runSql()} disabled={!activeSql || !currentConnection || queryBusy} /><MenuAction label="Execute Current Statement" shortcut={shortcutFor('Execute Current Statement')} onClick={() => void runSql('current')} disabled={!activeSql || !currentConnection || queryBusy} /><MenuAction label={queryBusy ? 'Cancel' : 'Cancel'} shortcut={shortcutFor('Stop Execution')} onClick={() => void cancelSql()} disabled={!queryBusy} /></div></details>
         <details><summary>Data</summary><div className="menu-popup"><MenuAction label="Refresh Result" shortcut="F5" onClick={() => void runSql()} disabled={!activeSql || !currentConnection} /><MenuAction label="Export Data…" disabled /></div></details>
         <details><summary>Tools</summary><div className="menu-popup">{panelRegistry.filter((item) => !['schema-compare','documenter','options'].includes(item.id)).map((item) => <MenuAction key={item.id} label={`${item.icon} ${item.titleKey.split('.').at(-1)}`} onClick={() => setOpenPanel(item.id)} />)}<div className="menu-divider" /><MenuAction label="Connection Manager…" onClick={() => setManagerOpen(true)} /><MenuAction label="Options…" shortcut="Ctrl+," onClick={() => setOpenPanel('options')} /></div></details>
         <details><summary>Window</summary><div className="menu-popup"><MenuAction label="Next Tab" shortcut="Ctrl+Tab" onClick={() => cycleDocument(1)} /><MenuAction label="Previous Tab" shortcut="Ctrl+Shift+Tab" onClick={() => cycleDocument(-1)} /><MenuAction label="Close Tab" shortcut="Ctrl+W" onClick={() => closeTab(selectedDocument)} disabled={!activeSql} /></div></details>
@@ -592,6 +658,7 @@ export default function App(): React.JSX.Element {
       </nav>
       <span className="menubar-status">{status}</span>
     </header>
+    {vaultWarning && <div role="alert" className="vault-warning"><span>{vaultWarning}</span><button aria-label="Dismiss vault warning" onClick={() => setVaultWarning('')}>×</button></div>}
     <div className="app-toolbar">
       <Button title="New SQL Document (Ctrl+N)" onClick={newSql}>＋ SQL</Button>
       <Button title="New Connection (Ctrl+Shift+N)" onClick={openNewConnection}>＋ Connection</Button>
@@ -621,7 +688,7 @@ export default function App(): React.JSX.Element {
           </div>)}
           <button className="tab-overflow" title="Todas as abas" onClick={() => window.alert(documents.map((tab) => tab.label).join('\n'))}>⌄</button>
         </div>
-        {selectedDocument === 'start' ? <section className="start-page"><p className="eyebrow">MySQL & MariaDB</p><h1>Comece a trabalhar</h1><p>Abra um documento SQL ou conecte-se a um servidor.</p><div><Button variant="primary" onClick={newSql}>New SQL</Button><Button onClick={openNewConnection}>New Connection</Button><Button onClick={() => setManagerOpen(true)}>Connection Manager</Button></div><h2>Recent Connections</h2>{records.slice().sort((a, b) => (b.lastUsedAt ?? '').localeCompare(a.lastUsedAt ?? '')).slice(0, 5).map((record) => <button key={record.id} className="recent-connection" onClick={() => void connectFromExplorer(record)}>{record.name} <span>{record.user}@{record.host}:{record.port}</span></button>)}</section> : activeObjectTab ? <ObjectEditor key={selectedDocument} target={activeObjectTab} isNew={activeObjectTab.isNew} isProduction={currentConnection?.environment === 'prod'} onApplied={() => { const connection = active.find((item) => item.id === activeObjectTab.connectionId); if (connection) void loadObjects(connection, activeObjectTab.database) }} /> : <div className="document-main">
+        {selectedDocument === 'start' ? <StartPage files={documents.filter((tab) => tab.id !== 'start' && !tab.objectEditor && tab.filePath).slice(-10).reverse()} connections={records} onNewSql={newSql} onOpenSql={() => void openSqlFile()} onNewConnection={openNewConnection} onManageConnections={() => setManagerOpen(true)} onOpenFile={setSelectedDocument} onConnect={(record) => void connectFromExplorer(record)} /> : activeObjectTab ? <ObjectEditor key={selectedDocument} target={activeObjectTab} isNew={activeObjectTab.isNew} isProduction={currentConnection?.environment === 'prod'} onApplied={() => { const connection = active.find((item) => item.id === activeObjectTab.connectionId); if (connection) void loadObjects(connection, activeObjectTab.database) }} /> : <div className="document-main">
           <div className="sql-context-toolbar"><span>{documents.find((tab) => tab.id === selectedDocument)?.label}</span><span>{activeTitle}</span><span className="metadata-state">{metadataLoading ? 'Loading schema…' : editorMetadata.objects.length ? `${editorMetadata.objects.length} schema objects` : ''}</span><Button onClick={() => formatEditor('document')}>Format</Button><Button onClick={() => formatEditor('statement')}>Format statement</Button><Button variant="primary" onClick={() => void runSql()} disabled={!currentConnection || queryBusy}>▶ Execute</Button><Button onClick={() => void runSql('current')} disabled={!currentConnection || queryBusy}>Current statement</Button></div>
           <div className="editor-surface"><Editor height="100%" language="sql" theme={theme === 'dark' || theme === 'high-contrast' ? 'vs-dark' : 'vs'} value={sqlByDocument[selectedDocument] ?? ''} onMount={(editor, monaco) => {
             editorRef.current = editor
@@ -638,25 +705,25 @@ export default function App(): React.JSX.Element {
               }
             })
             const formatAction = (id: string, label: string, target: 'document' | 'selection' | 'statement', keybindings?: number[]): void => { editor.addAction({ id, label, ...(keybindings ? { keybindings } : {}), run: () => formatEditor(target) }) }
-            formatAction('dbforge.format-document', 'Format Document', 'document', [monaco.KeyMod.chord(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyK, monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyD)])
+            formatAction('dbforge.format-document', 'Format Document', 'document')
             formatAction('dbforge.format-selection', 'Format Selection', 'selection')
             formatAction('dbforge.format-statement', 'Format Statement', 'statement')
           }} onChange={(value) => { setSqlByDocument((current) => ({ ...current, [selectedDocument]: value ?? '' })); setDocuments((current) => current.map((tab) => tab.id === selectedDocument ? { ...tab, modified: true } : tab)) }} options={{ minimap: { enabled: appSettings.editor.minimap }, fontFamily: appSettings.editor.fontName, fontSize: appSettings.editor.fontSize, automaticLayout: true, fontLigatures: appSettings.editor.ligatures, lineNumbers: appSettings.editor.lineNumbers ? 'on' : 'off', tabCompletion: 'on', suggestOnTriggerCharacters: appSettings.editor.autoComplete, quickSuggestions: appSettings.editor.autoComplete, quickSuggestionsDelay: appSettings.editor.completionDelayMs, wordWrap: appSettings.editor.wordWrap ? 'on' : 'off', tabSize: appSettings.editor.tabSize, insertSpaces: appSettings.editor.insertSpaces, folding: appSettings.editor.folding, renderLineHighlight: appSettings.editor.highlightCurrentLine ? 'line' : 'none' }} /></div>
           <div className="result-view">
-            <div className="result-tabs" role="tablist">{results.map((result, index) => <button key={index} role="tab" aria-selected={resultIndex === index} className={resultIndex === index ? 'selected' : ''} onClick={() => setResultIndex(index)}>Result {index + 1} ({result.rows.length})</button>)}<button role="tab" aria-selected={resultIndex === -1} className={resultIndex === -1 ? 'selected' : ''} onClick={() => setResultIndex(-1)}>Messages</button><button role="tab" aria-selected={resultIndex === -2} className={resultIndex === -2 ? 'selected' : ''} onClick={() => setResultIndex(-2)}>Query History</button></div>
-            {resultIndex >= 0 && results[resultIndex] ? <ResultGrid result={results[resultIndex]} index={resultIndex} onLoadMore={pageQueries[selectedDocument] ? () => loadMorePage(resultIndex) : undefined} /> : resultIndex === -2 ? <div className="query-history"><div className="history-toolbar"><input aria-label="Search Query History" placeholder="Search SQL, connection, database…" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} /><span>{historyLoading ? 'Loading…' : `${history.length} entries`}</span></div><div className="query-messages">{history.length ? history.map((entry) => <article className="history-row" key={entry.id}><button className="history-entry" onClick={() => openSqlDocument('History query', entry.sql)}><span>{new Date(entry.timestamp).toLocaleString()} · {entry.connection}{entry.database ? ` · ${entry.database}` : ''} · {(entry.elapsedMs / 1000).toFixed(3)} s · {entry.success ? 'Success' : 'Failed'}</span><code>{entry.sql}</code></button><Button onClick={() => replayHistory(entry)}>Re-run</Button></article>) : <p>{historyLoading ? 'Loading…' : 'Histórico vazio.'}</p>}</div></div> : <div className="query-messages" aria-live="polite">{queryBusy && <p>Executando…</p>}{queryMessages.map((message, index) => <p key={index}>{message}</p>)}{!queryBusy && !queryMessages.length && <p>Messages de execução aparecerão aqui.</p>}{results.filter((result) => !result.columns.length).map((result, index) => <p key={`affected-${index}`}>Affected rows: {result.affectedRows} · Last insert id: {result.insertId}</p>)}{queryElapsed > 0 && <small>{(queryElapsed / 1000).toFixed(3)} s</small>}</div>}
+            <div className="result-tabs" role="tablist">{results.map((result, index) => <button key={index} role="tab" aria-selected={resultIndex === index} className={resultIndex === index ? 'selected' : ''} onClick={() => setResultIndex(index)}>Result {index + 1} ({result.rowCount ?? result.rows.length})</button>)}<button role="tab" aria-selected={resultIndex === -1} className={resultIndex === -1 ? 'selected' : ''} onClick={() => setResultIndex(-1)}>Messages</button><button role="tab" aria-selected={resultIndex === -2} className={resultIndex === -2 ? 'selected' : ''} onClick={() => setResultIndex(-2)}>Query History</button></div>
+            {resultIndex >= 0 && results[resultIndex] ? <ResultGrid result={results[resultIndex]} index={resultIndex} fetchRows={(offset, limit) => window.dbforge.readResultRows(results[resultIndex].resultStoreId!, offset, limit)} onLoadMore={pageQueries[selectedDocument] ? () => loadMorePage(resultIndex) : undefined} /> : resultIndex === -2 ? <div className="query-history"><div className="history-toolbar"><input aria-label="Search Query History" placeholder="Search SQL, connection, database…" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} /><span>{historyLoading ? 'Loading…' : `${history.length} entries`}</span></div><div className="query-messages">{history.length ? history.map((entry) => <article className="history-row" key={entry.id}><button className="history-entry" onClick={() => openSqlDocument('History query', entry.sql)}><span>{new Date(entry.timestamp).toLocaleString()} · {entry.connection}{entry.database ? ` · ${entry.database}` : ''} · {(entry.elapsedMs / 1000).toFixed(3)} s · {entry.success ? 'Success' : 'Failed'}</span><code>{entry.sql}</code></button><Button onClick={() => replayHistory(entry)}>Re-run</Button></article>) : <p>{historyLoading ? 'Loading…' : 'Histórico vazio.'}</p>}</div></div> : <div className="query-messages" aria-live="polite">{queryBusy && <p>Executando…</p>}{queryMessages.map((message, index) => <p key={index}>{message}</p>)}{!queryBusy && !queryMessages.length && <p>Messages de execução aparecerão aqui.</p>}{results.filter((result) => !result.columns.length).map((result, index) => <p key={`affected-${index}`}>Affected rows: {result.affectedRows} · Last insert id: {result.insertId}</p>)}{queryElapsed > 0 && <small>{(queryElapsed / 1000).toFixed(3)} s</small>}</div>}
           </div>
         </div>}
         <div className="horizontal-splitter" role="separator" aria-orientation="horizontal" aria-label="Resize Output panel" onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)} onPointerMove={(event) => { if (event.buttons) setPanelHeight(Math.min(480, Math.max(80, window.innerHeight - event.clientY))) }} />
         <section className="bottom-panel" aria-label="Output and errors">
-          <div className="panel-tabs"><button className={panelTab === 'Output' ? 'selected' : ''} onClick={() => setPanelTab('Output')}>Output</button><button className={panelTab === 'Error List' ? 'selected' : ''} onClick={() => setPanelTab('Error List')}>Error List{errors.length ? ` (${errors.length})` : ''}</button><span className="toolbar-spacer" /><Button className="icon-button" onClick={() => setPanelVisible(false)} title="Hide panel">⌄</Button></div>
-          {panelTab === 'Output' ? <div className="output-log" aria-live="polite">{output.length ? output.map((entry, index) => <div key={`${entry.timestamp}-${index}`} className={`output-${entry.tone}`}>[{entry.timestamp}] {entry.origin} {entry.message}</div>) : <p>Output de conexões e execução aparecerá aqui. Segredos nunca são registrados.</p>}</div> : <div className="error-list">{errors.length ? <table><thead><tr><th>Severity</th><th>#</th><th>Message</th><th>Document</th><th>Line</th><th>Column</th></tr></thead><tbody>{errors.map((error, index) => <tr key={index}><td className="field-error">● Error</td><td>{index + 1}</td><td>{error}</td><td>{documents.find((tab) => tab.id === selectedDocument)?.label}</td><td>—</td><td>—</td></tr>)}</tbody></table> : <p>Nenhum erro ou aviso.</p>}</div>}
+          <div className="panel-tabs"><button className={panelTab === 'Output' ? 'selected' : ''} onClick={() => setPanelTab('Output')}>Output</button><button className={panelTab === 'Error List' ? 'selected' : ''} onClick={() => setPanelTab('Error List')}>Error List{errors.length + analysisFindings.length ? ` (${errors.length + analysisFindings.length})` : ''}</button><span className="toolbar-spacer" /><Button className="icon-button" onClick={() => setPanelVisible(false)} title="Hide panel">⌄</Button></div>
+          {panelTab === 'Output' ? <div className="output-log" aria-live="polite">{output.length ? output.map((entry, index) => <div key={`${entry.timestamp}-${index}`} className={`output-${entry.tone}`}>[{entry.timestamp}] {entry.origin} {entry.message}</div>) : <p>Output de conexões e execução aparecerá aqui. Segredos nunca são registrados.</p>}</div> : <div className="error-list">{errors.length + analysisFindings.length ? <table><thead><tr><th>Severity</th><th># / Rule</th><th>Message</th><th>Document</th><th>Line</th><th>Column</th></tr></thead><tbody>{errors.map((error, index) => <tr key={`error-${index}`}><td className="field-error">● Error</td><td>{index + 1}</td><td>{error}</td><td>{documents.find((tab) => tab.id === selectedDocument)?.label}</td><td>—</td><td>—</td></tr>)}{analysisFindings.map((finding) => <tr key={`${finding.ruleId}:${finding.line}:${finding.column}`} onClick={() => { editorRef.current?.setPosition({ lineNumber: finding.line, column: finding.column }); editorRef.current?.focus() }} style={{ cursor: 'pointer' }}><td className={`analysis-${finding.severity.toLowerCase()}`}>{finding.severity}</td><td>{finding.ruleId}</td><td>{finding.message}</td><td>{documents.find((tab) => tab.id === selectedDocument)?.label}</td><td>{finding.line}</td><td>{finding.column}</td></tr>)}</tbody></table> : <p>Nenhum erro ou aviso.</p>}</div>}
         </section>
       </section>
     </div>
-    <footer className="status-bar"><span>{status}</span><button onClick={() => currentRecord && setManagerOpen(true)}>{activeTitle}</button><span>{currentConnection?.database ?? ''}</span><span>Ln 1, Col 1</span><span>UTF-8</span><span>LF</span><span>{results.length ? `${results.reduce((sum, item) => sum + item.rows.length, 0)} rows` : ''}</span><span className="toolbar-spacer" />{themeMode.toUpperCase()}</footer>
+    <footer className="status-bar"><span>{status}</span><button onClick={() => currentRecord && setManagerOpen(true)}>{activeTitle}</button><span>{currentConnection?.database ?? ''}</span><span>Ln 1, Col 1</span><span>UTF-8</span><span>LF</span><span>{results.length ? `${results.reduce((sum, item) => sum + (item.rowCount ?? item.rows.length), 0)} rows` : ''}</span><span className="toolbar-spacer" />{themeMode.toUpperCase()}</footer>
     {dialogRecord && <ConnectionPropertiesDialog initial={dialogRecord} isNew={newDialog} names={records.filter((record) => record.id !== dialogRecord.id).map((record) => record.name)} onAction={runConnectionAction} onTrustHostKey={async (record) => { await window.dbforge.saveConnection(record); upsertRecord(record) }} onCancel={() => setDialogRecord(null)} />}
-    {openPanel && (() => { const entry = panelRegistry.find((item) => item.id === openPanel); if (!entry) return null; const Panel = entry.component; return <PanelDialog title={entry.titleKey.split('.').at(-1) ?? entry.id} onClose={() => setOpenPanel(null)}><PanelConnectionContext.Provider value={currentConnection}><Panel /></PanelConnectionContext.Provider></PanelDialog> })()}
+    {openPanel && (() => { const entry = panelRegistry.find((item) => item.id === openPanel); if (!entry) return null; const Panel = entry.component; return <PanelDialog title={entry.titleKey.split('.').at(-1) ?? entry.id} onClose={() => setOpenPanel(null)}><PanelConnectionContext.Provider value={currentConnection}><PanelEditorContext.Provider value={{ sql: activeSqlText, onFindings: setAnalysisFindings }}><Panel /></PanelEditorContext.Provider></PanelConnectionContext.Provider></PanelDialog> })()}
     {managerOpen && <ConnectionManager records={records} onNew={() => { setManagerOpen(false); openNewConnection() }} onEdit={(record) => { setManagerOpen(false); openEdit(record) }} onDuplicate={(record) => { setManagerOpen(false); setDialogRecord({ ...structuredClone(record), id: crypto.randomUUID(), name: `${record.name} copy`, lastUsedAt: undefined }); setNewDialog(true) }} onDelete={deleteRecords} onClose={() => setManagerOpen(false)} />}
   </main>
 

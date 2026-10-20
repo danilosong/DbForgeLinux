@@ -1,5 +1,5 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron'
-import { readFile, writeFile, stat } from 'node:fs/promises'
+import { chmod, readFile, writeFile, stat } from 'node:fs/promises'
 import { createBackupSql, restoreBackup } from '../../modules/database-tools/backup.js'
 import { findInvalidObjects, searchObjectText } from '../../modules/database-tools/index.js'
 import { inspectDatabase } from '../../modules/schema/index.js'
@@ -36,6 +36,7 @@ export function registerDatabaseToolsIpc({ driver }: IpcDeps): void {
     const window = BrowserWindow.getFocusedWindow(); const selected = window ? await dialog.showSaveDialog(window, options) : await dialog.showSaveDialog(options)
     if (selected.canceled || !selected.filePath) return null
     await writeFile(selected.filePath, backup.sql, { encoding: 'utf8', mode: 0o600 })
+    await chmod(selected.filePath, 0o600)
     return { path: selected.filePath, rows: backup.rows, skipped: backup.skipped }
   })
   ipcMain.handle('database-tools:select-backup', async () => {

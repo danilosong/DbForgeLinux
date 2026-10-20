@@ -1,4 +1,5 @@
 export type ThemeOption = 'auto' | 'light' | 'dark' | 'high-contrast'
+import { keymapCommands } from '../keymap/registry.js'
 export interface KeyBinding { command: string; shortcut: string; context: string }
 export interface AppSettings {
   schemaVersion: 1
@@ -14,17 +15,7 @@ export interface AppSettings {
 
 export function normalizeShortcut(value: string): string { return value.trim().replace(/\s*\+\s*/g, '+').replace(/\s+/g, ' ').toLowerCase() }
 
-export const defaultKeyBindings: KeyBinding[] = [
-  { command: 'New SQL Document', shortcut: 'Ctrl+N', context: 'Global' },
-  { command: 'Open SQL File', shortcut: 'Ctrl+O', context: 'Global' },
-  { command: 'Save SQL', shortcut: 'Ctrl+S', context: 'Editor' },
-  { command: 'Execute SQL', shortcut: 'F5', context: 'Editor' },
-  { command: 'Format Document', shortcut: 'Ctrl+K Ctrl+D', context: 'Editor' },
-  { command: 'Options', shortcut: 'Ctrl+,', context: 'Global' },
-  { command: 'Find in Database', shortcut: 'Ctrl+Shift+F', context: 'Explorer' },
-  { command: 'Find Invalid Objects', shortcut: '', context: 'Database' },
-  { command: 'Source Control Manager', shortcut: 'Ctrl+Alt+G', context: 'Global' }
-]
+export const defaultKeyBindings: KeyBinding[] = keymapCommands.map((item) => ({ ...item }))
 
 export const defaultSettings: AppSettings = {
   schemaVersion: 1,

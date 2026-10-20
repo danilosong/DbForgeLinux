@@ -31,6 +31,22 @@ describe('data export/import', () => {
     expect(content.toString()).toBe('id,name\r\n1,"a,""b"" — 日本語"\r\n2,\r\n')
   })
 
+  it('faz round trip CSV de exportação para importação com aspas, unicode e NULL', async () => {
+    const original = [{ id: '8', name: `O'Brien, "雪"`, nullable: '' }]
+    const source = fakeDriver(original)
+    const csv = await outputOf((destination) => exportData({ driver: source.driver, connectionId: 'id', query: 'SELECT', destination, format: 'csv' }))
+    const target = fakeDriver()
+    const report = await importData({
+      driver: target.driver,
+      connectionId: 'id',
+      source: (async function* () { yield csv })(),
+      format: 'csv',
+      table: 'round_trip'
+    })
+    expect(report).toMatchObject({ read: 1, inserted: 1, errors: 0 })
+    expect(target.statements[0].values).toEqual(['8', `O'Brien, "雪"`, ''])
+  })
+
   it('faz round trip XLSX com cells escapadas sem manter linhas no exportador', async () => {
     const original = [{ id: 3, name: '雪 & <tea>', nullable: null, blob: Buffer.from([0, 255]), created: new Date('2024-03-01T12:00:00.000Z') }, { id: 4, name: 'naïve', nullable: 'x', blob: Buffer.from('data'), created: new Date('2024-03-02T12:00:00.000Z') }]
     const source = fakeDriver(original)
@@ -112,6 +128,10 @@ describe('data export/import', () => {
     })
     expect(report.inserted).toBe(1)
     expect(target.statements[0].values).toEqual(['7', 'A & B'])
+
+    const entities = fakeDriver()
+    await importData({ driver: entities.driver, connectionId: 'id', format: 'xml', table: 'items', source: (async function* () { yield Buffer.from('<!DOCTYPE rows [<!ENTITY local SYSTEM "file:///etc/passwd">]><rows><row><label>&local;</label></row></rows>') })() })
+    expect(entities.statements[0].values).toEqual(['&local;'])
 
     const source = fakeDriver([{ id: 1 }, { id: 2 }, { id: 3 }])
     const preview = await previewExport({ driver: source.driver, connectionId: 'id', query: 'SELECT * FROM items' }, 2)

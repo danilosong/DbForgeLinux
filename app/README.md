@@ -28,6 +28,23 @@ pnpm dist:deb
 
 O pacote `.deb` é criado em `dist/` e depende de `libsecret-1-0` para o cofre seguro no Linux.
 
+Inspecione o conteúdo do pacote sem instalá-lo no sistema:
+
+```sh
+dpkg-deb -c dist/dbForgeLinux_0.1.0_amd64.deb
+```
+
+Smoke e2e com o Electron empacotado, Playwright e MySQL descartável na porta `33067`:
+
+```sh
+docker compose -f test/docker-compose.yml up -d --wait
+pnpm dist:deb
+pnpm smoke:e2e
+docker compose -f test/docker-compose.yml down -v
+```
+
+O script abre a conexão temporária `dbforge_smoke`, executa `SELECT 1`, abre Database Tools, ER Diagram e Options, encerra o Electron com SIGTERM e aguarda sua saída antes de liberar o Xvfb. O usuário temporário e os dados locais do teste são removidos ao final.
+
 ## Integração MySQL
 
 ```sh

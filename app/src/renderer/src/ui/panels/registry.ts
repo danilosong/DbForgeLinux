@@ -1,5 +1,6 @@
 import { createContext, useContext, type ComponentType } from 'react'
 import type { ConnectionSummary } from '../../../../shared/contracts.js'
+import type { CodeAnalysisFinding } from '../../../../shared/contracts/code-analysis.js'
 import SecurityPanel from './security/Panel'
 import SessionsPanel from './sessions/Panel'
 import ProfilerPanel from './profiler/Panel'
@@ -15,7 +16,11 @@ import DataReportPivotPanel from './data-report-pivot/Panel'
 import AiAssistantPanel from './ai-assistant/Panel'
 import OptionsPanel from './options/Panel'
 import DatabaseToolsPanel from './database-tools/Panel'
+import ServiceControlPanel from './service-control/Panel'
+import CodeAnalysisPanel from './code-analysis/Panel'
+import RoutineDebuggerPanel from './routine-debugger/Panel'
 export const PanelConnectionContext = createContext<ConnectionSummary | undefined>(undefined)
+export const PanelEditorContext = createContext<{ sql: string; onFindings(findings: CodeAnalysisFinding[]): void }>({ sql: '', onFindings: () => undefined })
 
 export function usePanelConnection(): ConnectionSummary | undefined {
  return useContext(PanelConnectionContext)
@@ -34,8 +39,11 @@ export const panelRegistry:PanelRegistration[]=[
  {id:'source-control',titleKey:'Source Control Manager',icon:'⑂',component:SourceControlPanel},
  {id:'options',titleKey:'Options...',icon:'⚙',component:OptionsPanel},
  {id:'database-tools',titleKey:'Find Object / Invalid Objects',icon:'⌕',component:DatabaseToolsPanel},
+ {id:'service-control',titleKey:'Service Control',icon:'⏻',component:ServiceControlPanel},
+ {id:'code-analysis',titleKey:'Code Analysis',icon:'⌁',component:CodeAnalysisPanel},
  {id:'import-export',titleKey:'panels.import-export',icon:'⇧',component:ImportexportPanel},
  {id:'query-builder',titleKey:'panels.Query Builder',icon:'◇',component:QuerybuilderPanel},
  {id:'data-report-pivot',titleKey:'report.Data Report / Pivot',icon:'▥',component:DataReportPivotPanel},
- {id:'ai-assistant',titleKey:'ai.AI Assistant',icon:'✦',component:AiAssistantPanel}
+ {id:'ai-assistant',titleKey:'ai.AI Assistant',icon:'✦',component:AiAssistantPanel},
+ {id:'routine-debugger',titleKey:'Routine Debugger',icon:'⏵',component:RoutineDebuggerPanel}
 ]

@@ -1,3 +1,4 @@
+import { useI18n } from '../../i18n/useI18n.js'
 import { useMemo, useState } from 'react'
 import type { PivotAggregation, PivotChartType, PivotConfig, PivotResult, ReportExportFormat } from '../../../../../modules/data-report-pivot/types.js'
 import { buildPivotChart } from '../../../../../modules/data-report-pivot/index.js'
@@ -9,6 +10,8 @@ const charts: PivotChartType[] = ['bar', 'line', 'pie', 'area', 'stacked']
 const emptyConfig = (): PivotConfig => ({ rows: [], columns: [], values: [], rowTotals: true, columnTotals: true, grandTotal: true })
 
 export default function DataReportPivotPanel(): React.JSX.Element {
+  const { t } = useI18n()
+
   const active = usePanelConnection()
   const [query, setQuery] = useState('')
   const [datasetId, setDatasetId] = useState('')
@@ -64,7 +67,7 @@ export default function DataReportPivotPanel(): React.JSX.Element {
   }
 
   return <section className="report-pivot-panel">
-    <header className="rp-header"><div><h2>Data Report / Pivot Table</h2><p>Group query results, summarize values, and export a report.</p></div><div className="rp-actions"><button disabled={!datasetId || busy} onClick={() => void build()}>Build Pivot Table</button><select aria-label="Export report" disabled={!pivot} onChange={(event) => { if (event.target.value) void exportResult(event.target.value as ReportExportFormat); event.target.value = '' }}><option value="">Export…</option><option value="csv">CSV</option><option value="html">HTML</option><option value="pdf">PDF</option></select></div></header>
+    <header className="rp-header"><div><h2>Data Report / Pivot Table</h2><p>Group query results, summarize values, and export a report.</p></div><div className="rp-actions"><button disabled={!datasetId || busy} onClick={() => void build()}>{t('pivot.build')}</button><select aria-label="Export report" disabled={!pivot} onChange={(event) => { if (event.target.value) void exportResult(event.target.value as ReportExportFormat); event.target.value = '' }}><option value="">Export…</option><option value="csv">CSV</option><option value="html">HTML</option><option value="pdf">PDF</option></select></div></header>
     <label className="rp-query-label">Query <textarea aria-label="Report query" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="SELECT region, year, sales FROM ..." rows={4} /></label>
     <div className="rp-toolbar"><button disabled={!active || busy} onClick={() => void loadQuery()}>{busy ? 'Loading…' : 'Load query fields'}</button>{datasetId && <span>{sampleCount.toLocaleString()} rows loaded{truncated ? ' · partial result' : ''}</span>}</div>
     {!fields.length ? <div className="rp-empty">Drag Items to the Pivot Table · Load a SELECT query to begin.</div> : <div className="rp-workspace">
@@ -73,7 +76,7 @@ export default function DataReportPivotPanel(): React.JSX.Element {
         <div className="rp-totals"><label><input type="checkbox" checked={config.rowTotals !== false} onChange={(event) => setConfig((current) => ({ ...current, rowTotals: event.target.checked }))} /> Row totals</label><label><input type="checkbox" checked={config.columnTotals !== false} onChange={(event) => setConfig((current) => ({ ...current, columnTotals: event.target.checked }))} /> Column totals</label><label><input type="checkbox" checked={config.grandTotal !== false} onChange={(event) => setConfig((current) => ({ ...current, grandTotal: event.target.checked }))} /> Grand total</label><label><input type="checkbox" checked={Boolean(config.subtotals)} onChange={(event) => setConfig((current) => ({ ...current, subtotals: event.target.checked }))} /> Subtotals</label></div>
       </section>
     </div>}
-    {pivot && <><div className="rp-result-toolbar"><strong>Pivot Table</strong><span>{pivot.rowCount.toLocaleString()} rows{pivot.truncated ? ' · partial result' : ''}</span><button onClick={() => setChartVisible((visible) => !visible)}>{chartVisible ? 'Hide Chart' : 'Show Chart'}</button>{chartVisible && <select aria-label="Chart type" value={chartType} onChange={(event) => setChartType(event.target.value as PivotChartType)}>{charts.map((item) => <option key={item}>{item}</option>)}</select>}</div>
+    {pivot && <><div className="rp-result-toolbar"><strong>{t('pivot.title')}</strong><span>{pivot.rowCount.toLocaleString()} rows{pivot.truncated ? ' · partial result' : ''}</span><button onClick={() => setChartVisible((visible) => !visible)}>{chartVisible ? 'Hide Chart' : 'Show Chart'}</button>{chartVisible && <select aria-label="Chart type" value={chartType} onChange={(event) => setChartType(event.target.value as PivotChartType)}>{charts.map((item) => <option key={item}>{item}</option>)}</select>}</div>
       {chartVisible && chart && <Chart data={chart} />}
       <div className="rp-grid-scroll"><table className="rp-grid"><thead><tr>{pivot.rowFields.map((field) => <th key={field}>{field}</th>)}{pivot.columns.map((column) => <th key={column.key}>{column.label}</th>)}{pivot.rowFields.length > 0 && <th>Row Total</th>}</tr></thead><tbody>{pivot.rows.map((row) => <tr key={row.key} className={row.subtotal ? 'rp-subtotal' : ''}>{pivot.rowFields.map((_, index) => <td key={index}>{row.values[index] == null ? '' : String(row.values[index])}</td>)}{pivot.columns.map((column) => <td key={column.key}>{formatValue(row.cells[column.key])}</td>)}{pivot.rowFields.length > 0 && <td>{row.total ? Object.values(row.total).map(formatValue).join(' · ') : ''}</td>}</tr>)}{Object.keys(pivot.grandTotal).length > 0 && <tr className="rp-grand-total">{pivot.rowFields.map((_, index) => <th key={index}>{index === 0 ? 'Grand Total' : ''}</th>)}{pivot.columns.map((column) => <td key={column.key}>{formatValue(pivot.columnTotals[column.key])}</td>)}{pivot.rowFields.length > 0 && <td>{Object.values(pivot.grandTotal).map(formatValue).join(' · ')}</td>}</tr>}</tbody></table></div>
     </>}

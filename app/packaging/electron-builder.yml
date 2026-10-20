@@ -6,8 +6,17 @@ directories:
 files:
   - out/**/*
   - package.json
+fileAssociations:
+  - ext: sql
+    name: SQL script
+    mimeType: text/x-sql
+    role: Editor
 linux:
   icon: packaging/icon.png
+  executableName: dbforgelinux
+  syncDesktopName: true
+  mimeTypes:
+    - application/sql
   target:
     - deb
   category: Development;Database;
@@ -15,6 +24,8 @@ linux:
   desktop:
     entry:
       Icon: dbforgelinux
+      StartupWMClass: dbforgelinux
+      StartupNotify: 'true'
   synopsis: MySQL and MariaDB database client
   description: Desktop database client for MySQL and MariaDB.
 deb:

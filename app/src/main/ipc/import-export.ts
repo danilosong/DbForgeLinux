@@ -1,6 +1,6 @@
 import { app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
 import { createReadStream, createWriteStream } from 'node:fs'
-import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { IpcDeps } from './registry.js'
@@ -70,7 +70,8 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
     if (canceled || !filePath) throw new Error('Exportação cancelada.')
     const controller = startJob(event, jobId)
     try {
-      const report = await exportData({ driver, connectionId, query: statement, format, options, signal: controller.signal, onProgress: (value) => progress(event, jobId, value), destination: createWriteStream(filePath) })
+      const report = await exportData({ driver, connectionId, query: statement, format, options, signal: controller.signal, onProgress: (value) => progress(event, jobId, value), destination: createWriteStream(filePath, { mode: 0o600 }) })
+      await chmod(filePath, 0o600)
       return { path: filePath, report }
     } finally { activeJobs.delete(jobId) }
   })
@@ -84,6 +85,7 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
     const file = selected.filePaths[0]
     const details = await stat(file)
     if (!details.size) throw new Error('O arquivo selecionado está vazio.')
+    if (details.size > 100 * 1024 * 1024) throw new Error('O arquivo de importação excede o limite de 100 MB.')
     selectedSources.set(jobId, { file, senderId: event.sender.id })
     const preview = await previewImport({ driver, connectionId: '', table: '', format, source: createReadStream(file), options: { ...options, previewRows: 20 }, onProgress: (value) => progress(event, jobId, value) }, 20)
     return { name: file.split(/[\\/]/).pop() ?? file, size: details.size, modified: details.mtimeMs, preview }

@@ -23,7 +23,18 @@ describe('database backup and restore', () => {
     const executed: string[] = []
     await expect(restoreBackup('shop', 'wrong', 'CREATE TABLE x (id int);', async (statement) => { executed.push(statement) })).rejects.toThrow('typing the destination')
     await expect(restoreBackup('shop', 'shop', 'DROP TABLE customers;', async (statement) => { executed.push(statement) })).rejects.toThrow('not allowed')
+    await expect(restoreBackup('shop', 'shop', 'CREATE TABLE `production`.`users` (`id` int);', async (statement) => { executed.push(statement) })).rejects.toThrow('outside shop')
+    await expect(restoreBackup('shop', 'shop', 'INSERT INTO `production`.`users` VALUES (1);', async (statement) => { executed.push(statement) })).rejects.toThrow('outside shop')
+    await expect(restoreBackup('shop', 'shop', 'CREATE TABLE production/**/.users (`id` int);', async (statement) => { executed.push(statement) })).rejects.toThrow('outside shop')
+    await expect(restoreBackup('shop', 'shop', 'CREATE TABLE /*!50000 production.users */ (`id` int);', async (statement) => { executed.push(statement) })).rejects.toThrow('executable SQL comments')
+    await expect(restoreBackup('shop', 'shop', 'CREATE EVENT cleanup ON SCHEDULE EVERY 1 SECOND DO DROP TABLE customers;', async (statement) => { executed.push(statement) })).rejects.toThrow('not allowed')
     expect(executed).toEqual([])
+  })
+  it('omits scheduled events from portable backups so restoring cannot enable server jobs', async () => {
+    const database = { ...model, events: [{ kind: 'event' as const, name: 'cleanup', createSql: 'CREATE EVENT cleanup ON SCHEDULE EVERY 1 DAY DO SELECT 1;' }] }
+    const backup = await createBackupSql(database, false, async () => [])
+    expect(backup.sql).not.toContain('CREATE EVENT')
+    expect(backup.skipped).toContain('event cleanup (restore disabled for scheduled events)')
   })
   it('restores only approved statements and can continue after a statement error', async () => {
     const executed: string[] = []

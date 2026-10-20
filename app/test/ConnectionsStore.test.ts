@@ -34,6 +34,7 @@ describe('ConnectionsStore', () => {
       ssh: { password: string; passphrase: string }
     }
     record.password = 'database-secret'
+    Object.assign(record, { apiToken: 'token-secret', credential: 'credential-secret' })
     record.passwordRef = 'vault-db-1'
     record.ssh = { ...record.ssh, password: 'ssh-secret', passphrase: 'key-secret' }
 
@@ -42,6 +43,8 @@ describe('ConnectionsStore', () => {
     expect(serialized).not.toContain('database-secret')
     expect(serialized).not.toContain('ssh-secret')
     expect(serialized).not.toContain('key-secret')
+    expect(serialized).not.toContain('token-secret')
+    expect(serialized).not.toContain('credential-secret')
     expect(serialized).toContain('vault-db-1')
   })
 

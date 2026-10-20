@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -34,11 +34,13 @@ describe('PasswordVault', () => {
     vi.clearAllMocks()
   })
 
-  it.each(['basic_text', 'unknown'] as const)('recusa o backend %s', async (backend) => {
+  it.each(['basic_text', 'unknown'] as const)('usa cofre cifrado quando backend %s não é seguro', async (backend) => {
     safeStorageMock.getSelectedStorageBackend.mockReturnValue(backend)
     const vault = new PasswordVault(directory)
 
-    await expect(vault.save('connection-1', 'secret')).rejects.toThrow(/gnome-keyring ou kwallet/)
+    await vault.save('connection-1', 'secret')
+    await expect(vault.get('connection-1')).resolves.toBe('secret')
+    expect(vault.getStatus().warning).toMatch(/Keyring indisponível/)
     expect(safeStorageMock.encryptString).not.toHaveBeenCalled()
   })
 
@@ -53,10 +55,15 @@ describe('PasswordVault', () => {
     expect(safeStorageMock.decryptString).toHaveBeenCalledWith(stored)
   })
 
-  it('recusa salvar quando a criptografia do sistema está indisponível', async () => {
+  it('cifra localmente quando a criptografia do sistema está indisponível', async () => {
     safeStorageMock.isEncryptionAvailable.mockReturnValue(false)
     const vault = new PasswordVault(directory)
 
-    await expect(vault.save('connection-1', 'secret')).rejects.toThrow(/Instale e desbloqueie/)
+    await vault.save('connection-1', 'secret')
+    await expect(vault.get('connection-1')).resolves.toBe('secret')
+    const stored = await readFile(join(directory, `${Buffer.from('connection-1').toString('hex')}.secret`))
+    expect(stored.subarray(0, 9).toString()).toBe('DBFVAULT1')
+    expect(stored.toString()).not.toContain('secret')
+    expect((await stat(join(directory, 'local-master.key'))).mode & 0o777).toBe(0o600)
   })
 })

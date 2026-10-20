@@ -1,20 +1,47 @@
 import { app, BrowserWindow } from 'electron'
 import { join } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { MysqlDriver } from './db/MysqlDriver.js'
 import { ConnectionsStore } from './connections/ConnectionsStore.js'
 import type { DriverConnectionConfig } from './db/DbDriver.js'
 import { PasswordVault } from './security/PasswordVault.js'
 import type { ConnectionRecord } from '../shared/contracts.js'
 import { registerIpcRegistry } from './ipc/registry.js'
+import { isTrustedRendererNavigation } from './security/windowPolicy.js'
 
 const driver = new MysqlDriver()
 let vault: PasswordVault
 let connectionsStore: ConnectionsStore
+let mainWindow: BrowserWindow | undefined
+const pendingSqlPaths: string[] = []
+function queueSqlPath(path: string): void {
+ if (path.startsWith('file:')) { try { path=fileURLToPath(path) } catch { return } }
+ if (!path.toLowerCase().endsWith('.sql')) return
+ if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('app:open-sql-path', path)
+ else pendingSqlPaths.push(path)
+}
+const hasSingleInstance = app.requestSingleInstanceLock()
+if (!hasSingleInstance) app.quit()
+const linuxBackend = process.env.DBFORGE_LINUX_BACKEND
+if (process.platform === 'linux' && (linuxBackend === 'x11' || linuxBackend === 'wayland')) app.commandLine.appendSwitch('ozone-platform', linuxBackend)
+else if (process.platform === 'linux') app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
+app.on('second-instance', (_event, argv) => { const file=argv.find((arg)=>arg.toLowerCase().endsWith('.sql'));if(file)queueSqlPath(file);if(mainWindow){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.focus()} })
+app.on('open-file', (event, path) => { event.preventDefault(); queueSqlPath(path) })
 async function resolveConnectionConfig(record: ConnectionRecord): Promise<DriverConnectionConfig> {
  const [password,sshPassword,sshPassphrase,httpPassword,proxyPassword]=await Promise.all([resolveSecret(record.passwordRef),resolveSecret(record.ssh.passwordRef),resolveSecret(record.ssh.passphraseRef),resolveSecret(record.http.passwordRef),resolveSecret(record.http.proxyPasswordRef)])
  return {...record,password:password??undefined,ssh:{...record.ssh,password:sshPassword??undefined,passphrase:sshPassphrase??undefined},http:{...record.http,password:httpPassword??undefined,proxyPassword:proxyPassword??undefined}}
 }
 function resolveSecret(ref:string|undefined):Promise<string|null>{return ref?vault.get(ref):Promise.resolve(null)}
-function createWindow():void { const window=new BrowserWindow({width:1440,height:900,minWidth:1024,minHeight:640,webPreferences:{preload:join(__dirname,'../preload/index.js'),contextIsolation:true,nodeIntegration:false,sandbox:true}});if(process.env.ELECTRON_RENDERER_URL)void window.loadURL(process.env.ELECTRON_RENDERER_URL);else void window.loadFile(join(__dirname,'../renderer/index.html')) }
-app.whenReady().then(()=>{vault=new PasswordVault(join(app.getPath('userData'),'vault'));connectionsStore=new ConnectionsStore(join(app.getPath('userData'),'connections.json'));registerIpcRegistry({driver,vault,connectionsStore,resolveConnectionConfig,userDataDir:app.getPath('userData')});createWindow();app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()})})
+function createWindow():void {
+ const window=new BrowserWindow({width:1440,height:900,minWidth:1024,minHeight:640,webPreferences:{preload:join(__dirname,'../preload/index.js'),contextIsolation:true,nodeIntegration:false,sandbox:true}})
+ mainWindow=window
+ const rendererUrl=process.env.ELECTRON_RENDERER_URL
+ window.webContents.setWindowOpenHandler(()=>({action:'deny'}))
+ window.webContents.on('will-navigate',(event,url)=>{const current=rendererUrl??pathToFileURL(join(__dirname,'../renderer/index.html')).toString();if(!isTrustedRendererNavigation(current,url))event.preventDefault()})
+ window.webContents.on('will-attach-webview',(event)=>event.preventDefault())
+ window.webContents.once('did-finish-load',()=>{for(const path of pendingSqlPaths.splice(0))window.webContents.send('app:open-sql-path',path)})
+ window.on('closed',()=>{if(mainWindow===window)mainWindow=undefined})
+ if(rendererUrl)void window.loadURL(rendererUrl);else void window.loadFile(join(__dirname,'../renderer/index.html'))
+}
+if(hasSingleInstance)app.whenReady().then(()=>{vault=new PasswordVault(join(app.getPath('userData'),'vault'));connectionsStore=new ConnectionsStore(join(app.getPath('userData'),'connections.json'));registerIpcRegistry({driver,vault,connectionsStore,resolveConnectionConfig,userDataDir:app.getPath('userData')});for(const arg of process.argv)if(arg.toLowerCase().endsWith('.sql'))queueSqlPath(arg);createWindow();app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()})})
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()})

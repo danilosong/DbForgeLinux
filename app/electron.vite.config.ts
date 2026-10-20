@@ -6,6 +6,7 @@ export default defineConfig({
   main: { plugins: [externalizeDepsPlugin()] },
   preload: { plugins: [externalizeDepsPlugin()] },
   renderer: {
+    publicDir: resolve('node_modules/monaco-editor/min'),
     resolve: { alias: { '@': resolve('src/renderer/src') } },
     plugins: [react()]
   }

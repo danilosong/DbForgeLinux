@@ -26,6 +26,9 @@ import { registerAiAssistantIpc } from './ai-assistant.js'
 import { registerOptionsIpc } from './options.js'
 import { SettingsStore } from '../../modules/options/index.js'
 import { registerDatabaseToolsIpc } from './database-tools.js'
+import { registerRoutineDebuggerIpc } from './routine-debugger.js'
+import { registerServiceControlIpc } from './service-control.js'
+import { registerCodeAnalysisIpc } from './code-analysis.js'
 import { SqlExecutionHistoryStore } from '../history/SqlExecutionHistoryStore.js'
 import { join } from 'node:path'
 
@@ -58,6 +61,9 @@ export function registerIpcRegistry(deps: IpcDeps): void {
   registerAiAssistantIpc(deps)
   registerOptionsIpc(new SettingsStore(join(deps.userDataDir, 'settings.json')))
   registerDatabaseToolsIpc(deps)
+  registerRoutineDebuggerIpc(deps)
+  registerServiceControlIpc()
+  registerCodeAnalysisIpc()
 }
 export { ipcMain, BrowserWindow, dialog, readFile, writeFile }
 export type { OpenDialogOptions, SaveDialogOptions }

@@ -98,4 +98,5 @@ export interface ConnectionTestResult {
   elapsedMs: number
   tlsVersion?: string
   sshTunnel: boolean
+  httpTunnel?: boolean
 }

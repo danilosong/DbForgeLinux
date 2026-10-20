@@ -20,5 +20,8 @@ import { optionsApi } from './api/options.js'
 import { databaseToolsApi } from './api/database-tools.js'
 import { dataReportPivotApi } from './api/data-report-pivot.js'
 import { aiAssistantApi } from './api/ai-assistant.js'
-const api:DbForgeApi={...connectionsApi,...sqlApi,...securityApi,...sessionsApi,...profilerApi,...dataGeneratorApi,...documenterApi,...schemaCompareApi,...dataCompareApi,...importExportApi,...erDiagramApi,...queryBuilderApi,...editorApi,...historyApi,...sourceControlApi,...objectEditorsApi,...optionsApi,...databaseToolsApi,...dataReportPivotApi,...aiAssistantApi}
+import { routineDebuggerApi } from './api/routine-debugger.js'
+import { serviceControlApi } from './api/service-control.js'
+import { codeAnalysisApi } from './api/code-analysis.js'
+const api:DbForgeApi={...connectionsApi,...sqlApi,...securityApi,...sessionsApi,...profilerApi,...dataGeneratorApi,...documenterApi,...schemaCompareApi,...dataCompareApi,...importExportApi,...erDiagramApi,...queryBuilderApi,...editorApi,...historyApi,...sourceControlApi,...objectEditorsApi,...optionsApi,...databaseToolsApi,...dataReportPivotApi,...aiAssistantApi,...routineDebuggerApi,...serviceControlApi,...codeAnalysisApi}
 contextBridge.exposeInMainWorld('dbforge',api)

@@ -1,5 +1,5 @@
 import { BrowserWindow, dialog, ipcMain, type OpenDialogOptions } from 'electron'
-import { readFile, writeFile } from 'node:fs/promises'
+import { chmod, readFile, stat, writeFile } from 'node:fs/promises'
 import { inspectDatabase } from '../../modules/schema/index.js'
 import { buildDiagram, deserializeDiagram, serializeDiagram, VirtualRelationStore, type ERDiagram } from '../../modules/er-diagram/index.js'
 import type { IpcDeps } from './registry.js'
@@ -25,6 +25,7 @@ export function registerERDiagramIpc({ driver, userDataDir }: IpcDeps): void {
     const target = window ? await dialog.showSaveDialog(window, options) : await dialog.showSaveDialog(options)
     if (target.canceled || !target.filePath) return null
     await writeFile(target.filePath, serializeDiagram(diagram), { encoding: 'utf8', mode: 0o600 })
+    await chmod(target.filePath, 0o600)
     return target.filePath
   })
   ipcMain.handle('er-diagram:open-file', async () => {
@@ -32,6 +33,7 @@ export function registerERDiagramIpc({ driver, userDataDir }: IpcDeps): void {
     const window = BrowserWindow.getFocusedWindow()
     const selected = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
     if (selected.canceled || !selected.filePaths[0]) return null
+    if ((await stat(selected.filePaths[0])).size > 20 * 1024 * 1024) throw new Error('Diagram file exceeds the 20 MB safety limit.')
     return deserializeDiagram(await readFile(selected.filePaths[0], 'utf8'))
   })
 }

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { Readable } from 'node:stream'
 
 const mysqlMock = vi.hoisted(() => ({
   createPool: vi.fn(),
@@ -24,7 +25,8 @@ describe('MysqlDriver.executeSql', () => {
     mysqlMock.createPool.mockReturnValue({
       query: mysqlMock.query,
       getConnection: mysqlMock.getConnection,
-      end: mysqlMock.end
+      end: mysqlMock.end,
+      pool: { query: vi.fn(() => ({ stream: () => Readable.from([{ id: 1 }, { id: 2 }, { id: 3 }]) })) }
     })
     mysqlMock.getConnection.mockResolvedValue({ release: mysqlMock.release })
     driver = new MysqlDriver()
@@ -73,5 +75,13 @@ describe('MysqlDriver.executeSql', () => {
     await driver.cancelQuery(connectionId, 'active-execution')
     await expect(execution).rejects.toMatchObject({ code: 'ER_QUERY_INTERRUPTED' })
     expect(mysqlMock.query).toHaveBeenCalledWith('KILL QUERY 77')
+  })
+
+  it('interrompe um stream de resultados assim que o sinal é abortado', async () => {
+    const controller = new AbortController()
+    const iterator = driver.streamRows(connectionId, 'SELECT id FROM t', [], controller.signal)[Symbol.asyncIterator]()
+    await expect(iterator.next()).resolves.toMatchObject({ value: { id: 1 }, done: false })
+    controller.abort()
+    await expect(iterator.next()).rejects.toMatchObject({ name: 'AbortError' })
   })
 })

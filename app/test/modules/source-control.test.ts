@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { chmod, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
@@ -52,6 +52,25 @@ describe('source control module', () => {
     expect(project.root).toBe(folder)
     await expect(addProjectFile(folder, '../outside.sql')).rejects.toThrow('permanecer dentro')
     await expect(writeProjectScript(folder, 'bad.txt', 'SELECT 1')).rejects.toThrow('.sql')
+  })
+
+  it('does not write through project symlinks and does not execute repository hooks', async () => {
+    const folder = await temp(); const outside = await temp(); const repository = new GitRepository(folder)
+    await repository.initialize()
+    await git(folder, 'config', 'user.name', 'Test User'); await git(folder, 'config', 'user.email', 'test@example.com')
+    await createProject(folder, 'Safe Project')
+    await writeFile(join(outside, 'owned.sql'), 'untouched')
+    await symlink(outside, join(folder, 'linked'))
+    await expect(writeProjectScript(folder, 'linked/owned.sql', 'DROP DATABASE production;')).rejects.toThrow('links simbólicos')
+    expect(await readFile(join(outside, 'owned.sql'), 'utf8')).toBe('untouched')
+
+    const marker = join(outside, 'hook-ran')
+    const hooks = join(folder, '.git', 'hooks')
+    await writeFile(join(hooks, 'pre-commit'), `#!/bin/sh\nprintf ran > '${marker}'\n`)
+    await chmod(join(hooks, 'pre-commit'), 0o700)
+    await writeFile(join(folder, 'safe.sql'), 'SELECT 1;\n')
+    await expect(repository.commit('No hook execution', ['safe.sql'])).resolves.toMatchObject({ message: 'No hook execution' })
+    await expect(readFile(marker, 'utf8')).rejects.toMatchObject({ code: 'ENOENT' })
   })
 
   it('exports schema objects as per-object scripts and reports failures without executing them', async () => {

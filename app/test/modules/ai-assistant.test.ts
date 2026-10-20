@@ -22,21 +22,29 @@ afterEach(async () => {
 })
 
 describe('AI Assistant provider client', () => {
-  it('calls an OpenAI-compatible endpoint and sends only whitelisted, approved schema metadata', async () => {
-    let headers: import('node:http').IncomingHttpHeaders = {}; let requestBody = ''
-    const endpoint = await serve((request, response) => {
-      headers = request.headers
-      request.on('data', (chunk: Buffer) => { requestBody += chunk.toString() })
-      request.on('end', () => { response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify({ choices: [{ message: { content: 'SELECT 1;' } }] })) })
-    })
-    const settings: AiAssistantSettings = { ...defaultAiAssistantSettings, provider: 'compatible', endpoint, model: 'fake-model' }
+  it('calls an HTTPS OpenAI-compatible endpoint and sends only whitelisted, approved schema metadata', async () => {
+    let headers: HeadersInit = {}; let requestBody = ''
+    const settings: AiAssistantSettings = { ...defaultAiAssistantSettings, provider: 'compatible', endpoint: 'https://api.example.test', model: 'fake-model' }
     const schema = sanitizeSchemaContext({ database: 'shop', tables: [{ name: 'orders', columns: [{ name: 'id', type: 'INT', primaryKey: true }], rows: [{ id: 'PRIVATE_ROW_VALUE' }] } as never] })
-    const output = await callAiProvider(settings, 'fake-test-key', [{ role: 'user', content: 'Generate a query.' }], schema, new AbortController().signal)
+    const output = await callAiProvider(settings, 'fake-test-key', [{ role: 'user', content: 'Generate a query.' }], schema, new AbortController().signal, async (_url, init) => { headers = init?.headers ?? {}; requestBody = String(init?.body ?? ''); return new Response(JSON.stringify({ choices: [{ message: { content: 'SELECT 1;' } }] }), { status: 200, headers: { 'content-type': 'application/json' } }) })
     expect(output).toBe('SELECT 1;')
-    expect(headers.authorization).toBe('Bearer fake-test-key')
+    expect(new Headers(headers).get('authorization')).toBe('Bearer fake-test-key')
     expect(requestBody).toContain('orders')
     expect(requestBody).toContain('INT')
     expect(requestBody).not.toContain('PRIVATE_ROW_VALUE')
+  })
+
+  it('rejects remote HTTP and non-loopback local endpoints before sending credentials', async () => {
+    await expect(callAiProvider({ ...defaultAiAssistantSettings, provider: 'compatible', endpoint: 'http://127.0.0.1:8181', model: 'x' }, 'secret', [{ role: 'user', content: 'x' }], undefined, new AbortController().signal)).rejects.toThrow('require HTTPS')
+    await expect(callAiProvider({ ...defaultAiAssistantSettings, provider: 'local', endpoint: 'http://metadata.internal', model: 'x' }, null, [{ role: 'user', content: 'x' }], undefined, new AbortController().signal)).rejects.toThrow('localhost or a loopback')
+  })
+
+  it('caps outbound conversation and inbound provider response sizes', async () => {
+    const settings = { ...defaultAiAssistantSettings, provider: 'compatible' as const, endpoint: 'https://api.example.test' }
+    const longConversation = Array.from({ length: 11 }, () => ({ role: 'user' as const, content: 'x'.repeat(100_000) }))
+    await expect(callAiProvider(settings, 'key', longConversation, undefined, new AbortController().signal)).rejects.toThrow('1 MB request limit')
+    const fetcher: typeof fetch = async () => new Response('x'.repeat(5 * 1024 * 1024 + 1), { status: 200 })
+    await expect(callAiProvider(settings, 'key', [{ role: 'user', content: 'Hi' }], undefined, new AbortController().signal, fetcher)).rejects.toThrow('5 MB limit')
   })
 
   it('supports local Ollama responses and honors cancellation', async () => {
@@ -48,8 +56,9 @@ describe('AI Assistant provider client', () => {
   })
 
   it('times out slow providers with a safe message', async () => {
-    const endpoint = await serve((_request, response) => { setTimeout(() => { response.writeHead(200); response.end('{}') }, 1200) })
-    await expect(callAiProvider({ ...defaultAiAssistantSettings, endpoint, timeoutMs: 500 }, 'not-logged-key', [{ role: 'user', content: 'Hello' }], undefined, new AbortController().signal)).rejects.toThrow('timed out')
+    const settings = { ...defaultAiAssistantSettings, provider: 'compatible' as const, endpoint: 'https://api.example.test', timeoutMs: 500 }
+    const fetcher: typeof fetch = async (_input, init) => new Promise((_resolve, reject) => init?.signal?.addEventListener('abort', () => reject(new DOMException('timeout', 'TimeoutError')), { once: true }))
+    await expect(callAiProvider(settings, 'not-logged-key', [{ role: 'user', content: 'Hello' }], undefined, new AbortController().signal, fetcher)).rejects.toThrow('timed out')
   })
 
   it('stores provider metadata without persisting an API key', async () => {

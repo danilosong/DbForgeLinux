@@ -130,7 +130,10 @@ export async function writeXlsx(rows: AsyncIterable<Row>, out: Writable, signal?
 }
 
 export async function readXlsx(buffer: Buffer): Promise<{ columns: string[]; rows: Row[] }> {
+  const maxEntrySize = 50 * 1024 * 1024
+  const maxXmlSize = 100 * 1024 * 1024
   const entries = new Map<string, Buffer>()
+  let expandedXmlBytes = 0
   const eocd = buffer.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]))
   if (eocd < 0) throw new Error('Arquivo XLSX inválido.')
   const count = buffer.readUInt16LE(eocd + 10)
@@ -150,7 +153,13 @@ export async function readXlsx(buffer: Buffer): Promise<{ columns: string[]; row
     const raw = buffer.subarray(dataStart, dataStart + compressed)
     if (name.endsWith('.xml')) {
       const zlib = await import('node:zlib')
-      entries.set(name, method === 0 ? raw : method === 8 ? zlib.inflateRawSync(raw) : Buffer.alloc(0))
+      let expanded: Buffer
+      try {
+        expanded = method === 0 ? raw : method === 8 ? zlib.inflateRawSync(raw, { maxOutputLength: maxEntrySize }) : Buffer.alloc(0)
+      } catch (error) { throw new Error('XLSX XML entry is invalid or exceeds the 50 MB safety limit.', { cause: error }) }
+      if (expanded.length > maxEntrySize || expandedXmlBytes + expanded.length > maxXmlSize) throw new Error('XLSX XML data exceeds the safety limit.')
+      expandedXmlBytes += expanded.length
+      entries.set(name, expanded)
     }
     offset += 46 + nameLength + extraLength + commentLength
   }

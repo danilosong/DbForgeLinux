@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "dbForgeLinux desktop client",
+  "desktopName": "dbforgelinux",
   "homepage": "https://github.com/danilosong/DbForgeLinux",
   "license": "MIT",
   "author": {
@@ -17,13 +18,16 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
     "test": "vitest run",
-    "dist:deb": "pnpm build && electron-builder --linux deb --config packaging/electron-builder.yml"
+    "perf:benchmark": "vitest run test/performance-benchmark.test.ts --reporter=verbose",
+    "dist:deb": "pnpm build && electron-builder --linux deb --config packaging/electron-builder.yml",
+    "smoke:e2e": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/smoke-e2e.mjs"
   },
   "dependencies": {
     "mysql2": "^3.15.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "ssh2": "^1.17.0"
+    "ssh2": "^1.17.0",
+    "undici": "^6.29.1"
   },
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^1.0.1",
@@ -42,6 +46,7 @@
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.4.0",
     "monaco-editor": "^0.54.0",
+    "playwright": "^1.64.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.1",
     "vite": "^7.1.12",

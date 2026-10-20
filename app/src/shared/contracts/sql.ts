@@ -1,6 +1,9 @@
 export interface QueryResult {
   columns: string[]
   rows: Array<Record<string, unknown>>
+  /** Set for disk-backed results; rows are fetched by window from the main process. */
+  resultStoreId?: string
+  rowCount?: number
   affectedRows: number
   insertId: number
   warningStatus: number

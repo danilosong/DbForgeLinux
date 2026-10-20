@@ -60,7 +60,6 @@ export async function buildMysqlOptions(
   endpoint?: { host: string; port: number }
 ): Promise<ConnectionOptions> {
   if (config.ssh.enabled && config.http.enabled) throw new Error('SSH e HTTP tunneling são mutuamente exclusivos.')
-  if (config.http.enabled) throw new Error('HTTP tunneling ainda não está disponível para MySQL.')
 
   const options: ConnectionOptions = {
     host: endpoint?.host ?? config.host,

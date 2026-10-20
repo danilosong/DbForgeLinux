@@ -48,7 +48,7 @@ function stripInlineSecrets(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stripInlineSecrets)
   if (value === null || typeof value !== 'object') return value
   return Object.fromEntries(
-    Object.entries(value).filter(([key]) => !/(password|passphrase|privatekey|secret)$/i.test(key))
+    Object.entries(value).filter(([key]) => !/(password|passphrase|privatekey|secret|token|api.?key|credential)$/i.test(key))
       .map(([key, nested]) => [key, stripInlineSecrets(nested)])
   )
 }

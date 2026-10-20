@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { access, constants, lstat, mkdir, open, readFile, realpath } from 'node:fs/promises'
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 import { createTable } from '../schema/ddl.js'
@@ -14,7 +14,8 @@ export type { ExportSchemaReport, ProjectMetadata, RepositoryBranch, RepositoryC
 export class GitRepository {
   constructor(readonly path: string) {}
   private async git(...args: string[]): Promise<string> {
-    const result = await execFileAsync('git', ['-C', this.path, ...args], { encoding: 'utf8', maxBuffer, shell: false })
+    const safeConfig = ['-c', 'core.hooksPath=/dev/null', '-c', 'core.fsmonitor=false', '-c', 'core.pager=cat', '-c', 'commit.gpgsign=false', '-c', 'protocol.ext.allow=never']
+    const result = await execFileAsync('git', [...safeConfig, '-C', this.path, ...args], { encoding: 'utf8', maxBuffer, shell: false, env: { ...process.env, GIT_PAGER: 'cat', GIT_TERMINAL_PROMPT: '0' } })
     return result.stdout
   }
   async root(): Promise<string> { return (await this.git('rev-parse', '--show-toplevel')).trim() }
@@ -34,11 +35,11 @@ export class GitRepository {
     if (file && !staged) {
       const status = await this.status()
       if (status.changes.some((change) => change.path === file && change.state === 'untracked')) {
-        try { const result = await execFileAsync('git', ['-C', this.path, 'diff', '--no-index', '--no-ext-diff', '--no-color', '--', '/dev/null', resolve(this.path, file)], { encoding: 'utf8', maxBuffer, shell: false }); return result.stdout }
+        try { const result = await execFileAsync('git', ['-c', 'core.hooksPath=/dev/null', '-c', 'core.fsmonitor=false', '-c', 'core.pager=cat', '-c', 'protocol.ext.allow=never', '-C', this.path, 'diff', '--no-index', '--no-ext-diff', '--no-textconv', '--no-color', '--', '/dev/null', resolve(this.path, file)], { encoding: 'utf8', maxBuffer, shell: false, env: { ...process.env, GIT_PAGER: 'cat', GIT_TERMINAL_PROMPT: '0' } }); return result.stdout }
         catch (error) { if (String((error as NodeJS.ErrnoException & { stdout?: string }).code) === '1') return String((error as { stdout?: string }).stdout ?? ''); throw error }
       }
     }
-    return this.git('diff', '--no-ext-diff', '--no-color', ...(staged ? ['--cached'] : []), '--', ...(file ? [file] : []))
+    return this.git('diff', '--no-ext-diff', '--no-textconv', '--no-color', ...(staged ? ['--cached'] : []), '--', ...(file ? [file] : []))
   }
   async diffCommit(hash: string, file?: string): Promise<string> {
     if (!/^[0-9a-f]{7,40}$/i.test(hash)) throw new Error('Commit hash inválido.')
@@ -103,12 +104,43 @@ function parseCommit(record: string): RepositoryCommit {
 }
 
 function metadataPath(root: string): string { return join(root, '.dbproj.json') }
-function projectFilePath(root: string, file: string): string {
+function isWithin(root: string, target: string): boolean {
+  const rel = relative(root, target)
+  return rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel))
+}
+
+async function projectFilePath(root: string, file: string): Promise<string> {
   if (!file.trim() || isAbsolute(file)) throw new Error('O caminho do arquivo deve ser relativo ao projeto.')
-  const resolved = resolve(root, file)
-  const rel = relative(root, resolved)
-  if (rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) throw new Error('O arquivo deve permanecer dentro da pasta do projeto.')
+  const rootAbsolute = resolve(root)
+  const resolved = resolve(rootAbsolute, file)
+  const rootReal = await realpath(root)
+  if (!isWithin(rootAbsolute, resolved)) throw new Error('O arquivo deve permanecer dentro da pasta do projeto.')
+  const rel = relative(rootAbsolute, resolved)
+  let cursor = rootReal
+  for (const part of rel.split(sep).slice(0, -1)) {
+    cursor = join(cursor, part)
+    try {
+      const info = await lstat(cursor)
+      if (info.isSymbolicLink() || !info.isDirectory() || !isWithin(rootReal, await realpath(cursor))) throw new Error('O caminho do arquivo não pode atravessar links simbólicos.')
+    } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') break; throw error }
+  }
+  try {
+    const info = await lstat(resolved)
+    if (info.isSymbolicLink() || !isWithin(rootReal, await realpath(resolved))) throw new Error('O arquivo não pode ser um link simbólico.')
+  } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
   return resolved
+}
+
+async function writeProjectFile(root: string, file: string, contents: string): Promise<void> {
+  let path = await projectFilePath(root, file)
+  await mkdir(dirname(path), { recursive: true })
+  path = await projectFilePath(root, file)
+  const handle = await open(path, constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | constants.O_NOFOLLOW, 0o600)
+  try { await handle.writeFile(contents, 'utf8') } finally { await handle.close() }
+}
+
+async function writeProjectMetadata(root: string, project: ProjectMetadata): Promise<void> {
+  await writeProjectFile(root, '.dbproj.json', `${JSON.stringify(project, null, 2)}\n`)
 }
 
 export async function createProject(root: string, name: string): Promise<ProjectMetadata> {
@@ -118,7 +150,7 @@ export async function createProject(root: string, name: string): Promise<Project
   await mkdir(absoluteRoot, { recursive: true })
   try { await access(metadataPath(absoluteRoot)); throw new Error('Já existe um projeto nesta pasta.') } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
   const metadata: ProjectMetadata = { version: 1, name: cleanName, root: absoluteRoot, connections: [], files: [], createdAt: new Date().toISOString() }
-  await writeFile(metadataPath(absoluteRoot), JSON.stringify(metadata, null, 2), { encoding: 'utf8', mode: 0o600 })
+  await writeProjectMetadata(absoluteRoot, metadata)
   return metadata
 }
 
@@ -138,23 +170,22 @@ export async function openProject(root: string): Promise<ProjectMetadata> {
 
 export async function addProjectFile(root: string, file: string): Promise<ProjectMetadata> {
   const project = await openProject(root)
-  const path = projectFilePath(project.root, file)
+  const path = await projectFilePath(project.root, file)
   await access(path)
   const relativePath = relative(project.root, path).split(sep).join('/')
   if (!project.files.includes(relativePath)) project.files.push(relativePath)
-  await writeFile(metadataPath(project.root), JSON.stringify(project, null, 2), { encoding: 'utf8', mode: 0o600 })
+  await writeProjectMetadata(project.root, project)
   return project
 }
 
 export async function writeProjectScript(root: string, file: string, contents: string): Promise<ProjectMetadata> {
   const project = await openProject(root)
-  const path = projectFilePath(project.root, file)
+  const path = await projectFilePath(project.root, file)
   if (!path.toLowerCase().endsWith('.sql')) throw new Error('Scripts do projeto devem usar a extensão .sql.')
-  await mkdir(dirname(path), { recursive: true })
-  await writeFile(path, contents, { encoding: 'utf8', mode: 0o600 })
+  await writeProjectFile(project.root, file, contents)
   const relativePath = relative(project.root, path).split(sep).join('/')
   if (!project.files.includes(relativePath)) project.files.push(relativePath)
-  await writeFile(metadataPath(project.root), JSON.stringify(project, null, 2), { encoding: 'utf8', mode: 0o600 })
+  await writeProjectMetadata(project.root, project)
   return project
 }
 
@@ -185,9 +216,8 @@ export async function exportSchemaToFolder(database: DatabaseModel, folder: stri
     const fileName = item.object.name.replaceAll('/', '_').replaceAll('\\', '_')
     const relativePath = `${item.category}/${fileName}.sql`
     try {
-      const path = projectFilePath(root, relativePath)
-      await mkdir(dirname(path), { recursive: true })
-      await writeFile(path, `${objectSql(database, item.object)}\n`, { encoding: 'utf8', mode: 0o600 })
+      await projectFilePath(root, relativePath)
+      await writeProjectFile(root, relativePath, `${objectSql(database, item.object)}\n`)
       report.written.push(relativePath)
     } catch (error) { report.errors.push({ object: `${item.object.kind} ${item.object.name}`, error: error instanceof Error ? error.message : 'Falha ao exportar DDL.' }) }
   }

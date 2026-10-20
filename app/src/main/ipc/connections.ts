@@ -8,4 +8,5 @@ export function registerConnectionsIpc({connectionsStore,vault}: IpcDeps): void 
  ipcMain.handle('connections:delete',async(_e,id:string)=>{const all=await connectionsStore.list();const removed=all.find(x=>x.id===id);await connectionsStore.delete(id);if(removed){const inUse=new Set((await connectionsStore.list()).flatMap(secretRefs));for(const ref of secretRefs(removed))if(!inUse.has(ref))await vault.delete(ref)}})
  ipcMain.handle('vault:save',(_e,key:string,password:string)=>vault.save(key,password))
  ipcMain.handle('vault:delete',(_e,key:string)=>vault.delete(key))
+ ipcMain.handle('vault:status',()=>vault.getStatus())
 }

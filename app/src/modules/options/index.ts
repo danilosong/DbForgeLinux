@@ -1,6 +1,7 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { defaultSettings, normalizeShortcut, type AppSettings, type KeyBinding } from './types.js'
+import { defaultSettings, type AppSettings, type KeyBinding } from './types.js'
+import { findKeymapConflicts } from '../keymap/registry.js'
 
 export { defaultKeyBindings, defaultSettings, normalizeShortcut } from './types.js'
 export type { AppSettings, KeyBinding, ThemeOption } from './types.js'
@@ -8,7 +9,9 @@ export type { AppSettings, KeyBinding, ThemeOption } from './types.js'
 export function mergeSettings(value: unknown): AppSettings {
   const data = value && typeof value === 'object' ? value as Partial<AppSettings> : {}
   if (typeof data.schemaVersion === 'number' && data.schemaVersion > 1) throw new Error(`Settings schema ${data.schemaVersion} is newer than supported schema 1.`)
-  const bindings = Array.isArray(data.shortcuts?.bindings) ? data.shortcuts.bindings.filter(isBinding).map((item) => ({ ...item })) : defaultSettings.shortcuts.bindings.map((item) => ({ ...item }))
+  const storedBindings = Array.isArray(data.shortcuts?.bindings) ? data.shortcuts.bindings.filter(isBinding).map((item) => ({ ...item })) : []
+  const bindings = defaultSettings.shortcuts.bindings.map((defaultBinding) => storedBindings.find((item) => item.command === defaultBinding.command) ?? { ...defaultBinding })
+  bindings.push(...storedBindings.filter((item) => !bindings.some((defaultBinding) => defaultBinding.command === item.command)))
   const merged: AppSettings = {
     schemaVersion: 1,
     environment: { ...defaultSettings.environment, ...safeObject(data.environment) },
@@ -50,16 +53,11 @@ export function validateSettings(settings: AppSettings): void {
   if (!/^#[0-9a-f]{6}$/i.test(settings.appearance.accent)) throw new Error('Accent color must be a six digit hex color.')
   if (!['auto', 'light', 'dark', 'high-contrast'].includes(settings.appearance.theme)) throw new Error('Invalid theme.')
   if (!['system', 'en', 'pt-BR', 'es'].includes(settings.language.locale)) throw new Error('Invalid language.')
-  const seen = new Map<string, string>()
   for (const item of settings.shortcuts.bindings) {
     if (!item.command.trim() || !item.context.trim()) throw new Error('Shortcut command and context are required.')
-    const shortcut = normalizeShortcut(item.shortcut)
-    if (!shortcut) continue
-    const key = `${item.context.toLowerCase()}:${shortcut}`
-    const conflict = seen.get(key)
-    if (conflict && conflict !== item.command) throw new Error(`Shortcut conflict: ${item.shortcut} is assigned to ${conflict} and ${item.command}.`)
-    seen.set(key, item.command)
   }
+  const conflict = findKeymapConflicts(settings.shortcuts.bindings)[0]
+  if (conflict) throw new Error(`Shortcut conflict: ${conflict.shortcut} is assigned to ${conflict.commands.join(' and ')}.`)
 }
 
 export class SettingsStore {
