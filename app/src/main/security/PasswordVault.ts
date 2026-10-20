@@ -6,7 +6,13 @@ export class PasswordVault {
   constructor(private readonly directory: string) {}
 
   async save(key: string, password: string): Promise<void> {
-    if (!safeStorage.isEncryptionAvailable()) throw new Error('Sistema de armazenamento seguro indisponível')
+    if (!safeStorage.isEncryptionAvailable()) {
+      throw new Error('Armazenamento seguro indisponível. Instale e desbloqueie gnome-keyring ou kwallet.')
+    }
+    const backend = safeStorage.getSelectedStorageBackend()
+    if (backend === 'basic_text' || backend === 'unknown') {
+      throw new Error('Backend de armazenamento inseguro. Instale e desbloqueie gnome-keyring ou kwallet.')
+    }
     await fs.mkdir(this.directory, { recursive: true, mode: 0o700 })
     const encrypted = safeStorage.encryptString(password)
     await fs.writeFile(this.fileFor(key), encrypted, { mode: 0o600 })
