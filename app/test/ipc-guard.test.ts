@@ -49,6 +49,9 @@ describe('IPC runtime guard', () => {
     expect(() => validateIpcArguments('import-export:script', ['test_db.imported', 'csv', 'append', [], { ...newTableOptions, createTable: { ...newTableOptions.createTable, columns: [{ name: 'id', type: 'INT; DROP TABLE x', primaryKey: true }] } }, 'job'])).toThrow(/invalid/)
     expect(() => validateIpcArguments('import-export:select-source', ['job', 'csv', { skipLines: -1 }])).toThrow(/skipLines/)
     expect(() => validateIpcArguments('import-export:import', ['c', 'test_db.imported', 'csv', 'append', [], { ...newTableOptions, createTable: { ...newTableOptions.createTable, extra: true } }, 'job'])).toThrow(/not allowed/)
+    expect(() => validateIpcArguments('tasks:recent:record', [{ kind: 'backup', title: 'Nightly', detail: 'shop' }])).not.toThrow()
+    expect(() => validateIpcArguments('tasks:recent:record', [{ kind: 'backup', title: 'Nightly', detail: 'shop', password: 'secret' }])).toThrow(/not allowed/)
+    expect(() => validateIpcArguments('tasks:recent:record', [{ kind: 'shell', title: 'Nightly', detail: 'shop' }])).toThrow(/metadata is invalid/)
   })
 
   it('allows explicit NULL routine parameters while rejecting other debugger argument types', () => {

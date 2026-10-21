@@ -44,5 +44,6 @@ export const panelRegistry: PanelRegistration[] = [
   { id: 'schema-view', titleKey: 'nav.schemaView', icon: '◇', component: lazy(() => import('./schema-view/Panel')), presentation: 'document' },
   { id: 'schema-update', titleKey: 'extras.schema.title', icon: '⇄', component: lazy(() => import('./schema-update/Panel')), presentation: 'document' },
   { id: 'snippets-manager', titleKey: 'extras.snippets.title', icon: '❝', component: lazy(() => import('./snippets/Panel')), presentation: 'document' },
-  { id: 'toolbox', titleKey: 'extras.toolbox.title', icon: '▦', component: lazy(() => import('./toolbox/Panel')), presentation: 'dock' }
+  { id: 'toolbox', titleKey: 'extras.toolbox.title', icon: '▦', component: lazy(() => import('./toolbox/Panel')), presentation: 'dock' },
+  { id: 'tasks', titleKey: 'tasks.title', icon: '◷', component: lazy(() => import('./tasks/Panel')), presentation: 'dock' }
 ]

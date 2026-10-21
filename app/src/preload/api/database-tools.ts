@@ -12,6 +12,7 @@ export const databaseToolsApi: DatabaseToolsApi = {
   onBackupProgress: (listener) => { const handler = (_event: Electron.IpcRendererEvent, value: Parameters<typeof listener>[0]) => listener(value); ipcRenderer.on('database-tools:backup:progress', handler); return () => ipcRenderer.removeListener('database-tools:backup:progress', handler) },
   selectBackupToRestore: () => ipcRenderer.invoke('database-tools:select-backup'),
   selectBackupFile: () => ipcRenderer.invoke('database-tools:restore:select-file'),
+  saveRestoreCommandLine: (selectionId, connection, database) => ipcRenderer.invoke('database-tools:restore:save-command-line', selectionId, connection, database),
   previewSelectedBackup: (selectionId, password) => ipcRenderer.invoke('database-tools:restore:preview', selectionId, password),
   restoreSelectedBackup: (connectionId, database, confirmation, selectionId, password, errorPolicy, jobId) => ipcRenderer.invoke('database-tools:restore:run-selected', connectionId, database, confirmation, selectionId, password, errorPolicy, jobId),
   cancelRestore: (jobId) => ipcRenderer.invoke('database-tools:restore:cancel', jobId),

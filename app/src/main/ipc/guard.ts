@@ -26,6 +26,8 @@ const outputFormat = enumOf('csv', 'text', 'json', 'xml', 'sql', 'xlsx', 'html',
 /** Runtime argument contracts for every invoke channel. Structured records are recursively size/type checked below. */
 export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'app:renderer-ready': [],
+  'document:float-sql': [text, sql],
+  'tasks:recent:list': [], 'tasks:recent:record': [object], 'tasks:recent:delete': [id],
   'about:info': [], 'about:open-link': [enumOf('documentation', 'repository', 'license')],
   'ai-assistant:settings:load': [], 'ai-assistant:settings:save': [object, opt(s('text'))], 'ai-assistant:settings:test': [object, opt(s('text'))],
   'ai-assistant:complete': [object], 'ai-assistant:cancel': [id], 'code-analysis:run': [sql],
@@ -35,7 +37,7 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'data-generator:inspect': [id, ident], 'data-generator:preview': [id, ident, ident, object, opt(s('string-number'))], 'data-generator:generate': [object],
   'report-pivot:load': [id, sql], 'report-pivot:build': [id, object], 'report-pivot:export': [object, enumOf('csv', 'xlsx')],
   'database-tools:search': [id, ident, text, object], 'database-tools:invalid': [id, ident], 'database-tools:backup': [id, ident, bool], 'database-tools:select-backup': [],
-  'database-tools:backup-directory': [], 'database-tools:backup-project:save': [object], 'database-tools:backup-project:load': [], 'database-tools:backup:run': [id, ident, object, id], 'database-tools:backup:cancel': [id], 'database-tools:restore:select-file': [], 'database-tools:restore:preview': [id, text], 'database-tools:restore:run-selected': [id, ident, text, id, text, enumOf('abort', 'ignore', 'log'), id], 'database-tools:restore:cancel': [id],
+  'database-tools:backup-directory': [], 'database-tools:backup-project:save': [object], 'database-tools:backup-project:load': [], 'database-tools:backup:run': [id, ident, object, id], 'database-tools:backup:cancel': [id], 'database-tools:restore:select-file': [], 'database-tools:restore:save-command-line': [id, object, ident], 'database-tools:restore:preview': [id, text], 'database-tools:restore:run-selected': [id, ident, text, id, text, enumOf('abort', 'ignore', 'log'), id], 'database-tools:restore:cancel': [id],
   'database-tools:format-select': [bool], 'database-tools:format-run': [s('array-text', { maxItems: 1000 }), bool, bool, object], 'database-tools:format-preview': [s('array-text', { maxItems: 1000 }), bool, object], 'database-tools:large-select': [], 'database-tools:large-run': [id, text, path, enumOf('utf8', 'utf16le', 'latin1', 'windows1252'), id], 'database-tools:large-cancel': [id], 'database-tools:large-error-action': [id, enumOf('stop', 'continue', 'ignore-all')],
   'database-tools:maintenance': [id, ident, enumOf('ANALYZE', 'OPTIMIZE', 'CHECK', 'REPAIR', 'CHECKSUM'), strings],
   'database-tools:restore': [id, ident, text, sql, opt(bool)], 'database-tools:copy': [id, ident, id, ident, text, bool, opt(bool)],
@@ -163,7 +165,10 @@ function assertStringArray(value: unknown, label: string, maximum = 1000): asser
   if (!Array.isArray(value) || value.length > maximum || value.some((item) => typeof item !== 'string' || item.length > 256)) fail(`${label} must be a bounded string array`)
 }
 function assertDomainPayload(channel: string, args: readonly unknown[]): void {
-  if (channel.startsWith('object-editor:')) {
+  if (channel === 'tasks:recent:record') {
+    const task = assertRecord(args[0], 'task', ['kind', 'title', 'detail'], ['kind', 'title', 'detail'])
+    if (!['backup', 'export', 'import', 'schema-compare', 'data-compare'].includes(String(task.kind)) || typeof task.title !== 'string' || !task.title.trim() || task.title.length > 120 || typeof task.detail !== 'string' || task.detail.length > 240) fail('task metadata is invalid')
+  } else if (channel.startsWith('object-editor:')) {
     const index = channel === 'object-editor:apply-table' ? -1 : 0
     if (index >= 0) assertObjectEditorTarget(args[index], 'target')
     else {

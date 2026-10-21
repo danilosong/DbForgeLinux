@@ -76,6 +76,7 @@ export default function Panel(): React.JSX.Element {
 
   useEffect(() => { void window.dbforge.getConnections().then((items) => { const selected = items.find((item) => item.id === activeConnection?.recordId || item.name === activeConnection?.name)?.id ?? items[0]?.id ?? ''; setRecords(items); setSource(selected); setTarget(selected) }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar conexões.')) }, [activeConnection?.name, activeConnection?.recordId])
   useEffect(() => { const handler = (event: Event) => { const action = (event as CustomEvent<string>).detail; if (action === 'edit') setSetupStep('source'); else if (action === 'filter') { setSearch(''); setSetupStep('results') } else if (action === 'refresh') void runCompare(); else if (action === 'script') setScriptPreview(true); else if (action === 'report') exportReport(); else if (action === 'sync') { setSyncStep('output'); setConfirmOpen(true) } }; window.addEventListener('schema-compare:action', handler); return () => window.removeEventListener('schema-compare:action', handler) })
+  useEffect(() => { const listener = (): void => setSetupStep('source'); window.addEventListener('dbforge:task:restore', listener); return () => window.removeEventListener('dbforge:task:restore', listener) }, [])
   function invalidate(): void { if (result) { setResult(null); setMessage('Resultados desatualizados — Compare novamente.') } }
   async function loadOffline(side: 'source' | 'target', kind: string): Promise<void> {
     invalidate()
@@ -113,7 +114,7 @@ export default function Panel(): React.JSX.Element {
       setMessage('Reading schema sources…')
       const [sourceModel, targetModel] = await Promise.all([inspectSide(sourceType, source, sourceDb, offlineSource), inspectSide(targetType, target, targetDb, offlineTarget)])
       const next = await window.dbforge.compareSchemaModels(sourceModel, targetModel, includeDrops)
-      setResult(next); markDefaults(next); setMessage(next.differences.length ? `${next.differences.length} diferenças: ${next.differences.filter((d) => d.change === 'added').length} novos, ${next.differences.filter((d) => d.change === 'changed').length} alterados, ${next.differences.filter((d) => d.change === 'removed').length} removidos` : 'Os esquemas são idênticos.')
+      setResult(next); markDefaults(next); void window.dbforge.recordRecentTask({ kind: 'schema-compare', title: t('tasks.schemaCompare'), detail: `${sourceDb || t('tasks.offline')} → ${targetDb || t('tasks.offline')}` }).catch(() => undefined); setMessage(next.differences.length ? `${next.differences.length} diferenças: ${next.differences.filter((d) => d.change === 'added').length} novos, ${next.differences.filter((d) => d.change === 'changed').length} alterados, ${next.differences.filter((d) => d.change === 'removed').length} removidos` : 'Os esquemas são idênticos.')
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Comparison failed.') }
     finally { if (sourceConnection) void window.dbforge.disconnect(sourceConnection); if (targetConnection && targetConnection !== sourceConnection) void window.dbforge.disconnect(targetConnection); setBusy(false) }
   }

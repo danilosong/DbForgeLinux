@@ -1,4 +1,4 @@
-/* global process, console, setTimeout, clearTimeout, window, document */
+/* global process, console, setTimeout, clearTimeout, window, document, CustomEvent */
 import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -43,7 +43,12 @@ try {
   await admin.query(`CREATE TABLE \`${database}\`.\`${docTable}\` (id INT PRIMARY KEY, label VARCHAR(40) NOT NULL)`)
   await admin.query(`CREATE TABLE \`${database}\`.\`${childTable}\` (id INT PRIMARY KEY, document_id INT NOT NULL, CONSTRAINT fk_smoke_document FOREIGN KEY (document_id) REFERENCES \`${docTable}\`(id))`)
   await admin.query(`CREATE TABLE \`${database}\`.\`${dragTable}\` (id INT PRIMARY KEY, note VARCHAR(40))`)
+  await admin.query(`INSERT INTO \`${database}\`.\`${docTable}\` VALUES (1, 'Smoke card')`)
   await admin.query(`CREATE TABLE \`${targetDatabase}\`.\`${docTable}\` (id INT PRIMARY KEY)`)
+  await admin.query(`CREATE TABLE \`${database}\`.\`custom_compare_rows\` (id INT PRIMARY KEY, label VARCHAR(40), changed_at DATETIME(6))`)
+  await admin.query(`CREATE TABLE \`${targetDatabase}\`.\`custom_compare_rows\` (id INT PRIMARY KEY, label VARCHAR(40), changed_at DATETIME(6))`)
+  await admin.query(`INSERT INTO \`${database}\`.\`custom_compare_rows\` VALUES (1, 'same', '2025-01-01 12:00:00.100000'), (2, 'source', '2025-01-01 12:00:00.100000')`)
+  await admin.query(`INSERT INTO \`${targetDatabase}\`.\`custom_compare_rows\` VALUES (1, 'same', '2025-01-01 12:00:00.900000'), (3, 'target', '2025-01-01 12:00:00.900000')`)
   const [debugSchemas] = await admin.query("SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = 'dbforge_linux_debug'")
   debugSchemaExisted = debugSchemas.length > 0
   await admin.query(`CREATE PROCEDURE \`${database}\`.\`${debugRoutine}\`()
@@ -308,15 +313,39 @@ END`)
   await syncDialog.getByText(/Summary|Resumo/i).waitFor()
   await syncDialog.getByRole('button', { name: /Cancel|Cancelar/ }).click()
 
+  // Custom Query Data Compare runs each bounded read-only query against its endpoint.
+  const comparisonMenu = page.locator('.menu-row > details').filter({ has: page.locator(':scope > summary').filter({ hasText: /^Comparison$/ }) })
+  await comparisonMenu.evaluate((element) => { element.open = true })
+  await comparisonMenu.getByRole('button', { name: 'New Data Comparison…' }).click()
+  const dataComparePanel = page.locator('.compare-panel').filter({ hasText: 'Data Compare' })
+  await dataComparePanel.waitFor()
+  await dataComparePanel.locator('.compare-endpoints fieldset').nth(0).getByLabel('Database').fill(database)
+  await dataComparePanel.locator('.compare-endpoints fieldset').nth(1).getByLabel('Database').fill(targetDatabase)
+  await dataComparePanel.getByLabel('Compare by Custom Queries').check()
+  await dataComparePanel.getByLabel('Source query').fill('SELECT id, label, changed_at FROM custom_compare_rows')
+  await dataComparePanel.getByLabel('Target query').fill('SELECT id, label, changed_at FROM custom_compare_rows')
+  await dataComparePanel.getByRole('button', { name: /Next/ }).click()
+  await dataComparePanel.getByLabel('Search options').fill('microseconds')
+  await dataComparePanel.getByLabel('Ignore microseconds').check()
+  await dataComparePanel.getByRole('button', { name: /Next/ }).click()
+  await dataComparePanel.getByLabel('Comparison key').fill('id')
+  await dataComparePanel.getByRole('button', { name: 'Compare', exact: true }).click()
+  try { await dataComparePanel.locator('.compare-results').waitFor({ timeout: 30_000 }) }
+  catch { throw new Error(`Custom query comparison did not finish: ${await dataComparePanel.innerText()}`) }
+  const customCompareSummary = await dataComparePanel.locator('p[role="status"]').innerText()
+  if (!/3 rows · 1 Only in Source · 0 Different · 1 Identical · 1 Only in Target/.test(customCompareSummary)) throw new Error(`Custom query comparison counts differ: ${customCompareSummary}`)
+
   // Table Designer sections remain accessible in the actual object editor.
   await smokeObject.click({ button: 'right' })
   await page.getByRole('menuitem', { name: 'Open Editor', exact: true }).click()
-  const designer = page.locator('.object-editor')
+  const designer = page.locator('.object-editor:visible')
   await designer.waitFor()
   for (const pageName of ['General', 'Columns', 'Constraints', 'Indexes', 'Options', 'Triggers', 'Partitioning', 'Data', 'SQL']) {
     const tab = designer.locator('.object-editor-nav').getByRole('button', { name: new RegExp(`^${pageName}$`, 'i') }).first()
     if (await tab.count()) { await tab.click(); await tab.waitFor() }
   }
+  await designer.locator('.object-editor-nav').getByRole('button', { name: /^Data$/i }).click()
+  if (!(await designer.locator('.object-editor-nav').getByRole('button', { name: /^Data$/i }).count())) throw new Error('Table Designer Data page is not available.')
   await page.locator('.document-tab.selected .tab-close').click()
 
   // Query Builder opens from a real table, then adds its foreign-key parent and creates a JOIN.
@@ -367,6 +396,10 @@ END`)
     const [schemaRows] = await admin.query('SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?', [database])
     throw new Error(`ER Explorer drop did not add ${dragTable} (test database exists: ${schemaRows.length > 0}): ${await erDiagram.innerText()}`)
   }
+  await erDiagram.getByTestId('er-diagram-overview').waitFor()
+  await erDiagram.getByRole('button', { name: 'Virtual Relation Manager' }).click()
+  await erDiagram.getByRole('dialog', { name: 'Virtual Relation Manager' }).waitFor()
+  await erDiagram.getByRole('dialog').getByRole('button', { name: /Close|Fechar/ }).click()
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => { document.documentElement.dataset.theme = value }, theme)
     await page.screenshot({ path: join(evidenceDirectory, `er-diagram-explorer-drop-${theme}.png`) })
@@ -406,9 +439,48 @@ END`)
   await restoreWizard.getByRole('button', { name: 'Restore backup', exact: true }).click()
   if (await restoreWizard.locator('.backup-wizard-steps button').count() !== 3) throw new Error('Restore wizard should expose three steps.')
   await restoreWizard.getByRole('button', { name: /Choose backup file/ }).click()
+  const restoreCommandPath = join(dataRoot, 'restore-command.sh')
+  await app.evaluate(({ dialog }, filePath) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath }) }, restoreCommandPath)
+  await restoreWizard.getByRole('button', { name: /Save Command Line/ }).click()
+  const restoreCommand = await readFile(restoreCommandPath, 'utf8')
+  if (!restoreCommand.includes('mysql --host=') || !restoreCommand.includes('--password ') || restoreCommand.includes('integration-only')) throw new Error('Restore command should use the mysql client and prompt for credentials without embedding a password.')
   await restoreWizard.getByRole('button', { name: 'Next' }).click()
   if (await restoreWizard.getByRole('button', { name: 'Start' }).isEnabled()) throw new Error('Restore must require destination confirmation before execution.')
   await page.locator('.document-tab.selected .tab-close').click()
+
+  // Link wizard UI proof uses a temporary .git-shaped fixture and in-page API stubs;
+  // no Git executable or repository mutation is invoked by this test.
+  const sourceRepo = join(dataRoot, 'source-control-fixture')
+  await mkdir(join(sourceRepo, '.git'), { recursive: true })
+  await app.evaluate(({ ipcMain }, repo) => {
+    const sourceModels = []
+    ipcMain.__sourceLinkModels = sourceModels
+    const handlers = {
+      'source-control:choose-repository': () => repo,
+      'source-control:status': () => ({ branch: 'main', changes: [] }),
+      'source-control:branches': () => ['main'],
+      'source-control:log': () => [],
+      'source-control:has-remote': () => false,
+      'source-control:project-files': () => [],
+      'source-control:link-database': (_event, input) => { sourceModels.push(input.model); return { root: input.root, name: input.name, files: [], linkedDatabase: { connectionId: input.connectionId, connectionName: input.connectionName, database: input.database, model: input.model } } }
+    }
+    for (const [channel, handler] of Object.entries(handlers)) { ipcMain.removeHandler(channel); ipcMain.handle(channel, handler) }
+  }, sourceRepo)
+  await page.locator('.project-explorer-tab').click()
+  await page.locator('.project-explorer-dock').waitFor()
+  for (const model of ['dedicated', 'shared']) {
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('dbforge:source-control:link')))
+    const linkWizard = page.locator('.sc-wizard')
+    await linkWizard.waitFor()
+    const modelInputs = linkWizard.locator('fieldset input[type="radio"]')
+    await modelInputs.nth(model === 'dedicated' ? 0 : 1).check()
+    await linkWizard.locator('.sc-project-actions button').first().click()
+    await linkWizard.getByRole('button', { name: /Link/ }).click()
+    await linkWizard.getByRole('button', { name: /Finish/ }).click()
+  }
+  const linkedModels = await app.evaluate(({ ipcMain }) => ipcMain.__sourceLinkModels ?? [])
+  if (JSON.stringify(linkedModels) !== JSON.stringify(['dedicated', 'shared'])) throw new Error(`Source Control wizard did not persist both models: ${JSON.stringify(linkedModels)}`)
+  await page.locator('.project-explorer-dock header button[aria-label="Close"]').click().catch(() => undefined)
 
   // Security user list and debugger deployment / stepping run against this disposable schema.
   await page.locator('.menu-row summary').filter({ hasText: /^Database$/ }).click()

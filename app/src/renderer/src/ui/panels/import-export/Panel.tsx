@@ -59,6 +59,7 @@ export default function Panel(): React.JSX.Element {
     return true
   }, [direction, step, query, sourceFile, table, mapping, mode, keys, rowMode, selectedGridRows, destinationMode, selectedDatabase])
   useEffect(() => { void window.dbforge.getConnections().then((items) => { const selected = items.find((item) => item.id === activeConnection?.recordId || item.name === activeConnection?.name)?.id ?? items[0]?.id ?? ''; setRecords(items); setConnection(selected) }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar conexões.')); void window.dbforge.listImportExportTemplates().then(setTemplates).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar templates.')) }, [activeConnection?.name, activeConnection?.recordId])
+  useEffect(() => { const listener = (event: Event): void => { const kind = (event as CustomEvent<{ kind?: string }>).detail?.kind; if (kind !== 'import' && kind !== 'export') return; setDirection(kind); setStep(0); setMessage(''); setReport('') }; window.addEventListener('dbforge:task:restore', listener); return () => window.removeEventListener('dbforge:task:restore', listener) }, [])
   useEffect(() => window.dbforge.onImportExportProgress(jobId, setProgress), [jobId])
   useEffect(() => {
     const record = records.find((item) => item.id === connection)
@@ -129,6 +130,7 @@ export default function Panel(): React.JSX.Element {
           const saved = await window.dbforge.exportData(connectedId, sourceQuery, exportFormat, { delimiter, quote, header, forceQuotes, encoding: encoding as 'utf8' | 'utf16le' | 'latin1', fileName: sourceName || fileName, appendTimestamp: timestamp, autoDeleteDays: autoDelete ? deleteDays : undefined, autoDeleteCount: autoDelete ? deleteCount : undefined, rowStart, rowCount, columnTypes, compress: zipEnabled, zipLevel, zipPassword: zipPassword || undefined, zipComment }, jobId)
           savedReports.push(`${sourceName || fileName}: ${saved.report.rows} rows · ${formatBytes(saved.report.bytes)}\n${saved.path}`)
         }
+        void window.dbforge.recordRecentTask({ kind: 'export', title: `${exportFormat.toUpperCase()} export`, detail: selectedDatabase || t('tasks.allData') }).catch(() => undefined)
         setReport(`Data Export finished successfully.\n${savedReports.join('\n\n')}`)
       } else {
         const keyColumns = keys.split(',').map((value) => value.trim()).filter(Boolean)
@@ -144,6 +146,7 @@ export default function Panel(): React.JSX.Element {
             await window.dbforge.openSqlPath(generated.path)
           }
           setReport(`${importOutput === 'editor' ? 'Import script opened in the SQL editor.' : 'SQL script saved.'}\n${generated.rows} rows\n${generated.path}`)
+          void window.dbforge.recordRecentTask({ kind: 'import', title: `${importFormat.toUpperCase()} import script`, detail: targetTable }).catch(() => undefined)
           setStep(steps.length - 1); setMessage(''); return
         }
         if (newTableSchema) {
@@ -151,6 +154,7 @@ export default function Panel(): React.JSX.Element {
           await window.dbforge.executeSql(connectedId, buildCreateTableSql(selectedDatabase, table, importColumns), crypto.randomUUID(), selectedDatabase)
         }
         const result = await window.dbforge.importData(connectedId, targetTable, importFormat, mode, keyColumns, importOptions, jobId)
+        void window.dbforge.recordRecentTask({ kind: 'import', title: `${importFormat.toUpperCase()} import`, detail: targetTable }).catch(() => undefined)
         let reportText = `Import complete\nRows imported: ${result.inserted}\nErrors: ${result.errors}\nWarnings: 0\n${result.read} rows read · ${result.inserted} inserted · ${result.updated} updated · ${result.deleted} deleted${result.rowErrors.length ? `\n\n${result.rowErrors.map((item) => `Row ${item.row}: ${item.message}`).join('\n')}` : ''}`
         if (writeLog && result.rowErrors.length) { const logPath = await window.dbforge.saveImportExportLog(reportText); if (logPath) reportText += `\n\nError log: ${logPath}` }
         setReport(reportText)

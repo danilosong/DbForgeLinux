@@ -5,6 +5,8 @@ import type { ConnectionsStore } from '../connections/ConnectionsStore.js'
 import type { PasswordVault } from '../security/PasswordVault.js'
 import type { ConnectionRecord } from '../../shared/contracts.js'
 import { registerConnectionsIpc } from './connections.js'
+import { registerTasksIpc } from './tasks.js'
+import { RecentTasksStore } from '../modules/tasks/RecentTasksStore.js'
 import { registerSqlIpc } from './sql.js'
 import { registerSchemaIpc } from './schema.js'
 import { registerSecurityIpc } from './security.js'
@@ -57,6 +59,7 @@ export function registerIpcRegistry(deps: IpcDeps): void {
     return { ready: true }
   })
   registerEditorIpc(deps)
+  registerTasksIpc(new RecentTasksStore(join(deps.userDataDir, 'recent-tasks.json')))
   registerConnectionsIpc(deps)
   registerSqlIpc(deps)
   registerSchemaIpc(deps)

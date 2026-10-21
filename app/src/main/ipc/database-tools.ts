@@ -10,6 +10,7 @@ import type { DatabaseObject } from '../../shared/contracts/sql.js'
 import type { IpcDeps } from './registry.js'
 import { formatSqlFiles, previewSqlFiles } from '../../modules/editor/batchFormatter.js'
 import { executeLargeScript, type ScriptErrorAction, type ScriptEncoding } from '../../modules/database-tools/largeScript.js'
+import { buildRestoreCommandLine } from '../../modules/database-tools/restoreCommand.js'
 
 const quote = (identifier: string): string => `\`${identifier.replaceAll('`', '``')}\``
 const SAFE_BACKUP_NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,100}(?:\.sql|\.zip)?$/i
@@ -23,6 +24,7 @@ export function registerDatabaseToolsIpc(deps: IpcDeps): void {
   const approvedLargeScripts = new Set<string>()
   const approvedBackupDirectories = new Set<string>()
   const selectedRestoreFiles = new Map<string, Buffer>()
+  const selectedRestorePaths = new Map<string, string>()
   const backupJobs = new Map<string, AbortController>()
   const restoreJobs = new Map<string, { controller: AbortController; connectionId: string; executionId: string }>()
   const ownedBackupManifest = join(userDataDir, 'assistant-backup-files.json')
@@ -228,10 +230,20 @@ export function registerDatabaseToolsIpc(deps: IpcDeps): void {
     const window = BrowserWindow.getFocusedWindow(); const selected = window ? await dialog.showOpenDialog(window, { title: 'Select backup file', properties: ['openFile'], filters: [{ name: 'Backup files', extensions: ['sql', 'zip'] }] }) : await dialog.showOpenDialog({ title: 'Select backup file', properties: ['openFile'], filters: [{ name: 'Backup files', extensions: ['sql', 'zip'] }] })
     if (selected.canceled || !selected.filePaths[0]) return null
     const filePath = selected.filePaths[0]; const info = await lstat(filePath); if (!info.isFile() || info.isSymbolicLink() || info.size > 50 * 1024 * 1024) throw new Error('Restore file must be a regular file under 50 MB.')
-    const selectionId = randomUUID(); const contents = await readFile(filePath); selectedRestoreFiles.set(selectionId, contents)
+    const selectionId = randomUUID(); const contents = await readFile(filePath); selectedRestoreFiles.set(selectionId, contents); selectedRestorePaths.set(selectionId, filePath)
     let preview: string | undefined
     try { preview = await decodeBackupFile(contents) } catch (error) { if (!(error instanceof Error && error.message.includes('password'))) throw error }
     return { name: filePath.split(/[\\/]/).at(-1) ?? filePath, contents: preview, selectionId }
+  })
+  ipcMain.handle('database-tools:restore:save-command-line', async (_event, selectionId: string, connection: { host: string; port: number; user: string }, database: string) => {
+    const backupPath = selectedRestorePaths.get(selectionId)
+    if (!backupPath || !connection) throw new Error('Select a backup and valid connection details first.')
+    const command = buildRestoreCommandLine({ host: connection.host, port: connection.port, user: connection.user, database, backupPath })
+    const window = BrowserWindow.getFocusedWindow(); const options = { title: 'Save Restore Command Line', defaultPath: 'restore-command.sh', filters: [{ name: 'Shell script', extensions: ['sh'] }] }
+    const selected = window ? await dialog.showSaveDialog(window, options) : await dialog.showSaveDialog(options)
+    if (selected.canceled || !selected.filePath) return null
+    await writeFile(selected.filePath, command, { encoding: 'utf8', mode: 0o700 }); await chmod(selected.filePath, 0o700)
+    return selected.filePath
   })
   ipcMain.handle('database-tools:restore:preview', async (_event, selectionId: string, password: string) => { const file = selectedRestoreFiles.get(selectionId); if (!file) throw new Error('Select a backup file again before previewing.'); return decodeBackupFile(file, password || undefined) })
   ipcMain.handle('database-tools:restore:run-selected', async (event, connectionId: string, database: string, confirmation: string, selectionId: string, password: string, errorPolicy: 'abort' | 'ignore' | 'log', jobId: string) => {

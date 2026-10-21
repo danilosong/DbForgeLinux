@@ -3,11 +3,11 @@
 > **Data de Emissão (Rodada 1):** 21 de outubro de 2026  
 > **Data de Revisão (Rodada 2):** 21 de outubro de 2026  
 > **Data de Calibração (Rodada 3 — Pós-Varredura VM):** 21 de outubro de 2026  
-> **Data de Medição (Rodada 4 — Consolidação Gaps 1–30):** 21 de outubro de 2026  
+> **Data de Medição (Rodada 4 — Recalibrada com Refatoração do Editor):** 21 de outubro de 2026  
 > **Avaliador:** Agente Prisma (Especialista UX/UI)  
 > **Referência Comparativa:** Observação em laboratório do dbForge Studio for MySQL v2026.2.82 (`re/original-observation/NOTES.md` seções 00–27 e acervo de 116+ capturas originais na VM)  
-> **Documento de Lacunas da VM:** `document/paridade/GAPS-VARREDURA-VM.md` (Gaps 1 a 30)  
-> **Alvo Avaliado:** dbForgeLinux v0.1.0 (evidências em `document/evidence/ui/` e suítes de testes em `app/test/`)  
+> **Documento de Lacunas da VM:** `document/paridade/GAPS-VARREDURA-VM.md` (Gaps 1 a 30) e `document/paridade/DIVERGENCIAS-ORIGINAL.md`  
+> **Alvo Avaliado:** dbForgeLinux v0.1.0 (evidências em `document/evidence/ui/` e suítes de testes em `app/test/` e `app/src/modules/`)  
 > **Critério de Rigor:** Todo item exige evidência concreta (screenshot do clone ou teste automatizado executado). Item sem evidência recebe nota zero (`0,0`).
 
 ---
@@ -24,18 +24,18 @@ Cada funcionalidade observada no produto de referência é decomposta em critér
 
 ---
 
-## 2. Checagem por Amostra Lado a Lado (Rodada 4)
+## 2. Checagem por Amostra Lado a Lado (Rodada 4 — Recalibrada)
 
-Para validar a integridade e precisão das novas notas de paridade contra evidências reais e evitar viés de benevolência, foram selecionados **12 itens de 12 módulos distintos**, confrontando a evidência do clone contra a respectiva captura original feita na VM do laboratório.
+Para validar a integridade e precisão das notas de paridade contra evidências reais e evitar viés de benevolência, foram selecionados **12 itens de 12 módulos distintos**, confrontando a evidência do clone contra a respectiva captura original feita na VM do laboratório.
 
 | # | Módulo | Item Verificável | Evidência no Clone | Evidência no Original | Confirmação |
 |:---:|---|---|---|---|:---:|
-| 1 | **02 Explorer** | Menus contextuais especializados por nível de nó (Servidor, Database, Pastas) | `document/evidence/ui/explorer-table-menu-dark.png` | `re/original-observation/02-explorer/` (`menu-tabela.png`) | **CONFIRMADO (1,0)** |
-| 2 | **10 Query Builder**| Traçado de JOIN arrastando colunas e abas Root/SubQuery no canvas | `document/evidence/ui/query-builder-joins-dark.png`, `app/test/modules/query-builder.test.ts:24` | `re/original-observation/10-query-builder/qb-1.png` | **CONFIRMADO (1,0)** |
-| 3 | **18 Report** | Report Designer WYSIWYG com 7 bandas, Group & Sort e Properties | `document/evidence/ui/report-designer-wysiwyg-dark.png`, `app/test/modules/data-report-pivot.test.ts:40` | `re/original-observation/18-misc/report.png`, `23-deep/rp-a.png` | **CONFIRMADO (1,0)** |
-| 4 | **18 Pivot Table**| Tabela dinâmica com hierarquia temporal (Year/Quarter/Month) e Grand Total | `document/evidence/ui/pivot-date-grand-total-dark.png`, `app/test/modules/data-report-pivot.test.ts:23` | `re/original-observation/18-misc/pivot.png` | **CONFIRMADO (1,0)** |
-| 5 | **19 Backup** | Backup com opções granulares (Structure/Data, árvore por tipo, contadores) | `app/test/modules/database-backup.test.ts` | `re/original-observation/17-tasks/backup.png`, `23-deep/bk-1.png` | **CONFIRMADO (1,0)** |
-| 6 | **04 SQL Editor** | Janela flutuante unificada Find and Replace com suporte a regex | `document/evidence/ui/find-replace-dark.png` | `re/original-observation/23-deep/replace.png` | **CONFIRMADO (1,0)** |
+| 1 | **04 SQL Editor** | Comandos de Refatoração no menu de contexto (Expand wildcards por alias, Add Backticks) | `document/evidence/ui/04-sql-editor/editor-context-dark.png`, `app/src/modules/editor/refactoring.test.ts` | `re/original-observation/04-sql-editor/editor-1.png`, `21-sweep/` | **CONFIRMADO (1,0)** |
+| 2 | **02 Explorer** | Menus contextuais especializados por nível de nó (Servidor, Database, Pastas) | `document/evidence/ui/explorer-table-menu-dark.png` | `re/original-observation/02-explorer/` (`menu-tabela.png`) | **CONFIRMADO (1,0)** |
+| 3 | **10 Query Builder**| Traçado de JOIN arrastando colunas e abas Root/SubQuery no canvas | `document/evidence/ui/query-builder-joins-dark.png`, `app/test/modules/query-builder.test.ts:24` | `re/original-observation/10-query-builder/qb-1.png` | **CONFIRMADO (1,0)** |
+| 4 | **18 Report** | Report Designer WYSIWYG com 7 bandas, Group & Sort e Properties | `document/evidence/ui/report-designer-wysiwyg-dark.png`, `app/test/modules/data-report-pivot.test.ts:40` | `re/original-observation/18-misc/report.png`, `23-deep/rp-a.png` | **CONFIRMADO (1,0)** |
+| 5 | **18 Pivot Table**| Tabela dinâmica com hierarquia temporal (Year/Quarter/Month) e Grand Total | `document/evidence/ui/pivot-date-grand-total-dark.png`, `app/test/modules/data-report-pivot.test.ts:23` | `re/original-observation/18-misc/pivot.png` | **CONFIRMADO (1,0)** |
+| 6 | **19 Backup** | Backup com opções granulares (Structure/Data, árvore por tipo, contadores) | `app/test/modules/database-backup.test.ts` | `re/original-observation/17-tasks/backup.png`, `23-deep/bk-1.png` | **CONFIRMADO (1,0)** |
 | 7 | **07 Import/Export** | Inferência automática de tipos na importação com padrão utf8mb4 | `app/test/modules/data-export-import.integration.test.ts`, `import-new-table-source-dark.png` | `re/original-observation/23-deep/import-mapping-types.png` | **CONFIRMADO [MELHOR] (1,0)** |
 | 8 | **08 Security** | Global Privileges com Granted e With Grant Option por privilégio | `document/evidence/ui/08-13-modules/security-manager-dark.png`, `app/test/ipc-guard.test.ts` | `re/original-observation/08-security/global-privileges.png` | **CONFIRMADO (1,0)** |
 | 9 | **13 Debugger** | Depuração instrumentada de Triggers com checkpoints e locks | `app/test/modules/routine-debugger.test.ts:41` | `re/original-observation/13-debugger/debug-1.png` | **CONFIRMADO (1,0)** |
@@ -48,7 +48,7 @@ Para validar a integridade e precisão das novas notas de paridade contra evidê
 
 ---
 
-## 3. Avaliação Detalhada por Módulo (Rodada 4 — Consolidação Gaps 1–30)
+## 3. Avaliação Detalhada por Módulo (Rodada 4 — Recalibrada)
 
 ### 3.0. Módulo 00 — Shell, Menus e Janelas Acopláveis
 *Peso Ponderado: 6 | Referência: NOTES.md (Seções 00, 05 e 21) | Gaps VM: 7, 8, 10, 11, 26*
@@ -101,7 +101,7 @@ Para validar a integridade e precisão das novas notas de paridade contra evidê
 | 6 | Filtro rápido de busca na árvore do Explorer | PARCIAL | 0,5 | `document/evidence/ui/ui-corrections-dark.png` (busca textual sem máscara avançada) |
 | 7 | Interação de drag/drop de nós da árvore para o Diagrama e Query Builder | IGUAL | 1,0 | `er-diagram-explorer-drop-dark.png`, `app/test/modules/query-builder.test.ts:24` *(implementado em R4)* |
 
-- **Subtotal Módulo 02:** 6,5 / 7,0 = **92,86%** *(R3: 78,57% | Dif: **+14,29%**)*
+- **Subtotal Módulo 02:** 6,5 / 7,0 = **92,86%**
 
 ---
 
@@ -137,10 +137,10 @@ Para validar a integridade e precisão das novas notas de paridade contra evidê
 | 6 | Modos de execução (F5, F8, Ctrl+Enter) e diálogo de erro Stop/Continue/Ignore | IGUAL | 1,0 | `app/test/modules/editor.test.ts` |
 | 7 | Janela flutuante unificada de Find and Replace com regex e Find Results | IGUAL | 1,0 | `find-replace-dark.png`, `find-results-dark.png` |
 | 8 | Diálogo Go To Line com validação de intervalo (1 - N) | IGUAL | 1,0 | `app/test/modules/keymap-parity.test.ts` |
-| 9 | Comandos de refatoração avançada (Expand wildcards por alias, Add Backticks, Qualify names) | PARCIAL | 0,5 | `GAPS-VARREDURA-VM.md:10` (formatador existe; Expand wildcards por alias em fila) |
-| 10 | Marcadores de navegação Bookmarks (Ctrl+B,x) e dobras de código Outlining (Ctrl+M,x) | PARCIAL | 0,5 | `GAPS-VARREDURA-VM.md:12` (folding básico ativo no Monaco) |
+| 9 | Comandos de refatoração avançada (Expand wildcards por alias, Add Backticks, Qualify names, Rename F2) | IGUAL | 1,0 | `document/evidence/ui/04-sql-editor/editor-context-dark.png`, `app/src/modules/editor/refactoring.test.ts` *(confirmado em R4)* |
+| 10 | Marcadores de navegação Bookmarks (Ctrl+B,x) e dobras de código Outlining (Ctrl+M,x) | PARCIAL | 0,5 | `GAPS-VARREDURA-VM.md:12` (folding ativo no Monaco) |
 
-- **Subtotal Módulo 04:** 9,0 / 10,0 = **90,00%**
+- **Subtotal Módulo 04:** 9,5 / 10,0 = **95,00%** *(R3: 90,00% | Dif: **+5,00%**)*
 
 ---
 
@@ -222,7 +222,7 @@ Para validar a integridade e precisão das novas notas de paridade contra evidê
 | 5 | Traçado gráfico de JOIN arrastando coluna para coluna entre cartões no canvas | IGUAL | 1,0 | `query-builder-joins-dark.png`, `app/test/modules/query-builder.test.ts:24`, `:43` *(implementado em R4)* |
 | 6 | Subconsultas visuais (Root Query / SubQuery em abas, Wrap to Subquery/Insert) | IGUAL | 1,0 | `app/test/modules/query-builder.test.ts:33`, `GAPS-VARREDURA-VM.md:59` *(implementado em R4)* |
 
-- **Subtotal Módulo 10:** 6,0 / 6,0 = **100,00%** *(R3: 70,00% | Dif: **+30,00%**)*
+- **Subtotal Módulo 10:** 6,0 / 6,0 = **100,00%**
 
 ---
 
@@ -266,9 +266,9 @@ Para validar a integridade e precisão das novas notas de paridade contra evidê
 | 2 | Diálogo Edit Parameters (direção IN/OUT e flag NULL) antes do início da sessão | IGUAL | 1,0 | `app/test/modules/routine-debugger.test.ts` |
 | 3 | Interface de depuração com indicador de linha corrente e painéis Watches, Call Stack e Breakpoints | IGUAL | 1,0 | `08-13-modules/routine-debugger-dark.png` |
 | 4 | Ações Step Over (F10), Step Into (F11), Step Out, Run e Break All | IGUAL | 1,0 | `app/test/modules/routine-debugger.test.ts` |
-| 5 | Depuração instrumentada de Triggers disparados por operações DML via advisory locks | PARCIAL | 0,5 | `app/test/modules/routine-debugger.test.ts:41`, `GAPS-VARREDURA-VM.md:51` *(suportado em R4)* |
+| 5 | Depuração instrumentada de Triggers disparados por operações DML via advisory locks | PARCIAL | 0,5 | `app/test/modules/routine-debugger.test.ts:41`, `GAPS-VARREDURA-VM.md:51` |
 
-- **Subtotal Módulo 13:** 4,5 / 5,0 = **90,00%** *(R3: 80,00% | Dif: **+10,00%**)*
+- **Subtotal Módulo 13:** 4,5 / 5,0 = **90,00%**
 
 ---
 
@@ -319,11 +319,11 @@ Para validar a integridade e precisão das novas notas de paridade contra evidê
 | # | Item Verificável | Avaliação | Nota | Evidência no Clone |
 |---|---|---|:---:|---|
 | 1 | Master-Detail com detecção automática de relação por FK e aba Data com detalhe filtrado pelo mestre | IGUAL | 1,0 | `NOTES.md:197`, `app/test/modules/data-report-pivot.test.ts` *(gap 19)* |
-| 2 | Pivot Table: hierarquia temporal de datas (Year/Quarter/Month/Day), soma automática e linha "Grand Total" | IGUAL | 1,0 | `pivot-date-grand-total-dark.png`, `app/test/modules/data-report-pivot.test.ts:23` *(gap 20 implementado em R4)* |
-| 3 | Data Report: abertura direta do Report Designer WYSIWYG com 7 bandas, painéis Data Source / Group & Sort / Properties, prévia paginada e persistência JSON | IGUAL | 1,0 | `report-designer-wysiwyg-dark.png`, `app/test/modules/data-report-pivot.test.ts:40`, `:52` *(gap 21 implementado em R4)* |
-| 4 | Gráficos dinâmicos acoplados à tabela dinâmica (Pivot Chart) | PARCIAL | 0,5 | `app/test/modules/data-report-pivot.test.ts:32` *(suporta dados de gráficos e filtros)* |
+| 2 | Pivot Table: hierarquia temporal de datas (Year/Quarter/Month/Day), soma automática e linha "Grand Total" | IGUAL | 1,0 | `pivot-date-grand-total-dark.png`, `app/test/modules/data-report-pivot.test.ts:23` *(gap 20)* |
+| 3 | Data Report: abertura direta do Report Designer WYSIWYG com 7 bandas, painéis Data Source / Group & Sort / Properties, prévia paginada e persistência JSON | IGUAL | 1,0 | `report-designer-wysiwyg-dark.png`, `app/test/modules/data-report-pivot.test.ts:40`, `:52` *(gap 21)* |
+| 4 | Gráficos dinâmicos acoplados à tabela dinâmica (Pivot Chart) | PARCIAL | 0,5 | `app/test/modules/data-report-pivot.test.ts:32` |
 
-- **Subtotal Módulo 18:** 3,5 / 4,0 = **87,50%** *(R3: 50,00% | Dif: **+37,50%**)*
+- **Subtotal Módulo 18:** 3,5 / 4,0 = **87,50%**
 
 ---
 
@@ -339,10 +339,10 @@ Para validar a integridade e precisão das novas notas de paridade contra evidê
 | 5 | Execute Large Script em streaming de 64 KiB com diálogo Stop/Continue/Ignore | IGUAL | 1,0 | `utilities-large-script-dark.png` |
 | 6 | Copy Databases com seleção de múltiplos bancos de usuário, progresso e tempo decorrido | IGUAL | 1,0 | `copy-databases-dark.png` |
 | 7 | Find Invalid Objects com barra Analyze, Script as ALTER/DROP e seleção múltipla de bancos | IGUAL | 1,0 | `find-invalid-objects-dark.png`, `app/test/modules/code-analysis.test.ts` *(gap 28)* |
-| 8 | Backup Wizard granular com estrutura/dados separados, árvore por tipo, contagem e abrir script | IGUAL | 1,0 | `app/test/modules/database-backup.test.ts`, `GAPS-VARREDURA-VM.md:27` *(gap 18 implementado em R4)* |
+| 8 | Backup Wizard granular com estrutura/dados separados, árvore por tipo, contagem e abrir script | IGUAL | 1,0 | `app/test/modules/database-backup.test.ts`, `GAPS-VARREDURA-VM.md:27` *(gap 18)* |
 | 9 | Restore com 3 etapas estruturadas e confirmação de destino | PARCIAL | 0,5 | `app/test/modules/database-backup.test.ts`, `GAPS-VARREDURA-VM.md:76` *(gap 29)* |
 
-- **Subtotal Módulo 19:** 8,5 / 9,0 = **94,44%** *(R3: 92,86% | Dif: **+1,58%**)*
+- **Subtotal Módulo 19:** 8,5 / 9,0 = **94,44%**
 
 ---
 
@@ -360,17 +360,17 @@ Para validar a integridade e precisão das novas notas de paridade contra evidê
 
 ---
 
-## 4. Tabela-Resumo e Evolução Histórica (Rodadas 1 a 4)
+## 4. Tabela-Resumo e Evolução Histórica (Rodadas 1 a 4 Recalibrada)
 
-$$\text{Fidelidade Global Ponderada (Rodada 4)} = \frac{\sum (\text{Nota Módulo} \times \text{Peso})}{\sum \text{Pesos}} = \frac{11432,49}{131} = \mathbf{87,27\%}$$
+$$\text{Fidelidade Global Ponderada (Rodada 4 Recalibrada)} = \frac{\sum (\text{Nota Módulo} \times \text{Peso})}{\sum \text{Pesos}} = \frac{11507,49}{131} = \mathbf{87,84\%}$$
 
-| Módulo | Nome do Componente | Peso | % R1 | % R2 | % R3 | % R4 (Atual) | Variação (R4 - R3) | Entregas Verificadas em R4 |
+| Módulo | Nome do Componente | Peso | % R1 | % R2 | % R3 | % R4 (Recalibrada) | Variação (R4 - R3) | Entregas Verificadas em R4 |
 |:---:|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
 | **00** | Shell, Menus e Janelas | 6 | 93,75% | 93,75% | 88,89% | **88,89%** | 0,00% | Estável |
 | **01** | Database Connection Properties | 10 | 88,89% | 88,89% | 88,89% | **88,89%** | 0,00% | Estável |
 | **02** | Database Explorer & Menus | 10 | 68,75% | 87,50% | 78,57% | **92,86%** | **+14,29%** | Menus contextuais por nó e drop p/ canvas |
 | **03** | Table Designer & Criação | 15 | 88,89% | 88,89% | 88,89% | **88,89%** | 0,00% | Estável |
-| **04** | Editor SQL, Refatoração & Busca | 15 | 88,89% | 100,00% | 90,00% | **90,00%** | 0,00% | Estável |
+| **04** | Editor SQL, Refatoração & Busca | 15 | 88,89% | 100,00% | 90,00% | **95,00%** | **+5,00%** | Refatoração (Expand wildcards, Backticks) |
 | **06** | Schema Compare & Synchronization | 10 | 88,89% | 100,00% | 92,86% | **92,86%** | 0,00% | Estável |
 | **07** | Import & Export Wizard | 8 | 77,78% | 88,89% | 81,25% | **81,25%** | 0,00% | Inferência de tipos e charset utf8mb4 |
 | **08** | Security, Sessions & Properties | 5 | 100,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Granted/With Grant Option e IPC blindado |
@@ -385,10 +385,10 @@ $$\text{Fidelidade Global Ponderada (Rodada 4)} = \frac{\sum (\text{Nota Módulo
 | **18** | Master-Detail, Report & Pivot | 4 | 62,50% | 62,50% | 50,00% | **87,50%** | **+37,50%** | Report Designer WYSIWYG e Pivot Grand Total |
 | **19** | Utilities & Ferramentas Extras | 5 | 94,44% | 94,44% | 92,86% | **94,44%** | **+1,58%** | Backup com opções granulares |
 | **20** | Source Control & Project Explorer | 6 | — | 87,50% | 75,00% | **75,00%** | 0,00% | Estável |
-| **TOTAL** | — | **131** | **79,23%** | **90,32%** | **83,68%** | **87,27%** | **+3,59%** | — |
+| **TOTAL** | — | **131** | **79,23%** | **90,32%** | **83,68%** | **87,84%** | **+4,16%** | — |
 
-- **Média Simples (não ponderada):** **86,74%** (R1: 80,58% | R2: 86,17% | R3: 81,83% | R4: 86,74%)  
-- **Média Global Ponderada:** **87,27%** (R1: 79,23% | R2: 90,32% | R3: 83,68% | R4: 87,27%)
+- **Média Simples (não ponderada):** **87,00%** (R1: 80,58% | R2: 86,17% | R3: 81,83% | R4: 87,00%)  
+- **Média Global Ponderada:** **87,84%** (R1: 79,23% | R2: 90,32% | R3: 83,68% | R4: 87,84%)
 
 ---
 
@@ -396,18 +396,18 @@ $$\text{Fidelidade Global Ponderada (Rodada 4)} = \frac{\sum (\text{Nota Módulo
 
 | # | Área / Módulo | O que falta para paridade absoluta com a referência | Prioridade | Esforço (P/M/G) |
 |:---:|---|---|:---:|:---:|
-| 1 | **04 Editor** | Comandos de refatoração: **Expand wildcards** (`*` → colunas qualificadas por alias) e **Add Backticks** a identificadores | **A** | **M** |
-| 2 | **16/17 Tasks** | Gerenciador visual de tarefas agendadas integrado na interface do usuário (**Tasks Explorer** com calendário e lista) | **B** | **M** |
-| 3 | **15 Data Compare** | Mapeamento e comparação de dados baseados em consultas SQL customizadas arbitrárias (*Custom Queries*) | **B** | **M** |
-| 4 | **11 ER Diagram** | Janela acoplável **Diagram Overview** (miniatura navegável) e suporte a *Virtual Foreign Keys* | **B** | **M** |
-| 5 | **03 Table Designer**| Modo de visualização **Card View** (exibição de registro individual em formulário vertical na grade de dados) | **B** | **M** |
-| 6 | **00 Shell (Abas)** | Menu de contexto de abas de documentos: *Close All But This/Pinned*, *Copy Full Path*, *Pin Tab* e grupos de abas | **B** | **G** |
-| 7 | **07 Import** | Tela final de assistentes padronizada com ações diretas *Open result file/folder* e *Import more* | **A** | **P** |
-| 8 | **04 Editor** | Marcadores de navegação *Bookmarks* (Ctrl+B,x) e atalhos completos de *Outlining* (Ctrl+M,x) | **B** | **M** |
-| 9 | **18 Pivot Table**| Gráficos dinâmicos acoplados interativamente à tabela dinâmica (**Pivot Chart**) | **B** | **G** |
-| 10 | **00 Shell** | Sistema de ancoragem flutuante livre de painéis com guias direcionais em cruz (*docking guides*) | **B** | **G** |
-| 11 | **12 Query Profiler** | Visualizador comparativo dedicado em duas colunas para histórico de execuções de perfil | **B** | **P** |
-| 12 | **09 Data Generator** | Catálogo estendido com centenas de perfis pré-definidos para ramos de indústrias específicos | **B** | **P** |
-| 13 | **01 Conexão** | Suporte a biblioteca embarcada libmysqld local no Linux (se viável na plataforma) | **C** | **G** |
-| 14 | **07 Import/Export** | Conectores diretos para serviços em nuvem (Google Sheets) e formatos ODBC legados | **C** | **M** |
-| 15 | **20 Source Control** | Integração com controle de versão legado centralizado (TFS / SVN / Mercurial) | **C** | **M** |
+| 1 | **16/17 Tasks** | Gerenciador visual de tarefas agendadas integrado na interface do usuário (**Tasks Explorer** com calendário e lista) | **A** | **M** |
+| 2 | **15 Data Compare** | Mapeamento e comparação de dados baseados em consultas SQL customizadas arbitrárias (*Custom Queries*) | **A** | **M** |
+| 3 | **11 ER Diagram** | Janela acoplável **Diagram Overview** (miniatura navegável) e suporte a *Virtual Foreign Keys* | **B** | **M** |
+| 4 | **03 Table Designer**| Modo de visualização **Card View** (exibição de registro individual em formulário vertical na grade de dados) | **B** | **M** |
+| 5 | **00 Shell (Abas)** | Menu de contexto de abas de documentos: *Close All But This/Pinned*, *Copy Full Path*, *Pin Tab* e grupos de abas | **B** | **G** |
+| 6 | **07 Import** | Tela final de assistentes padronizada com ações diretas *Open result file/folder* e *Import more* | **A** | **P** |
+| 7 | **04 Editor** | Marcadores de navegação *Bookmarks* (Ctrl+B,x) e atalhos completos de *Outlining* (Ctrl+M,x) | **B** | **M** |
+| 8 | **18 Pivot Table**| Gráficos dinâmicos acoplados interativamente à tabela dinâmica (**Pivot Chart**) | **B** | **G** |
+| 9 | **00 Shell** | Sistema de ancoragem flutuante livre de painéis com guias direcionais em cruz (*docking guides*) | **B** | **G** |
+| 10 | **12 Query Profiler** | Visualizador comparativo dedicado em duas colunas para histórico de execuções de perfil | **B** | **P** |
+| 11 | **09 Data Generator** | Catálogo estendido com centenas de perfis pré-definidos para ramos de indústrias específicos | **B** | **P** |
+| 12 | **01 Conexão** | Suporte a biblioteca embarcada libmysqld local no Linux (se viável na plataforma) | **C** | **G** |
+| 13 | **07 Import/Export** | Conectores diretos para serviços em nuvem (Google Sheets) e formatos ODBC legados | **C** | **M** |
+| 14 | **20 Source Control** | Integração com controle de versão legado centralizado (TFS / SVN / Mercurial) | **C** | **M** |
+| 15 | **19 Utilities (Restore)** | Ação *Save Command Line...* no assistente de Restauração de banco de dados | **C** | **P** |

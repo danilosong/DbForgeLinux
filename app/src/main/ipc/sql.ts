@@ -74,4 +74,11 @@ export function registerSqlIpc({driver,resolveConnectionConfig,userDataDir}:IpcD
   paths.add(dest)
   return dest
  })
+ ipcMain.handle('document:float-sql', async (_event, title: string, contents: string) => {
+  if (typeof title !== 'string' || title.length > 180 || typeof contents !== 'string' || Buffer.byteLength(contents, 'utf8') > 1_000_000) throw new Error('Floating SQL document is invalid or too large.')
+  const escapeHtml = (value: string): string => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;')
+  const window = new BrowserWindow({ width: 860, height: 620, title, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true } })
+  const html = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(title)}</title><style>body{margin:0;padding:16px;background:#1e1e1e;color:#ddd;font:14px system-ui}h1{font-size:16px;margin:0 0 12px}pre{white-space:pre-wrap;overflow:auto;font:13px ui-monospace,monospace}</style><h1>${escapeHtml(title)}</h1><pre>${escapeHtml(contents)}</pre>`
+  await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+ })
 }

@@ -15,6 +15,7 @@ import type { DatabaseToolsApi } from './database-tools.js'
 import type { ReportPivotApi } from './data-report-pivot.js'
 import type { AiAssistantApi } from './ai-assistant.js'
 import type { RoutineDebugContract } from './routine-debugger.js'
+import type { TasksApi } from './tasks.js'
 import type { ServiceControlApi } from './service-control.js'
 import type { CodeAnalysisApi } from './code-analysis.js'
 import type { GridEditingApi } from './grid-editing.js'
@@ -22,7 +23,8 @@ import type { GridDataApi } from './grid-data.js'
 import type { ExtraToolsApi } from './extra-tools.js'
 import type { AboutApi } from './about.js'
 import type { UpdaterApi } from './updater.js'
-export interface DbForgeApi extends SecurityApi, SessionsApi, SchemaCompareApi, DataCompareApi, ImportExportApi, ERDiagramApi, QueryBuilderApi, EditorApi, HistoryApi, SourceControlApi, ObjectEditorApi, OptionsApi, DatabaseToolsApi, ReportPivotApi, AiAssistantApi, RoutineDebugContract, ServiceControlApi, CodeAnalysisApi, GridEditingApi, GridDataApi, ExtraToolsApi, AboutApi, UpdaterApi {
+export interface DbForgeApi extends SecurityApi, SessionsApi, SchemaCompareApi, DataCompareApi, ImportExportApi, ERDiagramApi, QueryBuilderApi, EditorApi, HistoryApi, SourceControlApi, ObjectEditorApi, OptionsApi, DatabaseToolsApi, ReportPivotApi, AiAssistantApi, RoutineDebugContract, TasksApi, ServiceControlApi, CodeAnalysisApi, GridEditingApi, GridDataApi, ExtraToolsApi, AboutApi, UpdaterApi {
+  floatSqlDocument(title: string, contents: string): Promise<void>
   initializeNonCriticalIpc(): Promise<{ ready: true }>
   getConnections(): Promise<ConnectionRecord[]>
   saveConnection(record: ConnectionRecord): Promise<void>

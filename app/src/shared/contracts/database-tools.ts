@@ -16,6 +16,7 @@ export interface DatabaseToolsApi {
   onBackupProgress(listener: (event: { jobId: string; progress: BackupProgress }) => void): () => void
   selectBackupToRestore(): Promise<{ name: string; contents: string } | null>
   selectBackupFile(): Promise<{ name: string; contents?: string; selectionId: string } | null>
+  saveRestoreCommandLine(selectionId: string, connection: { host: string; port: number; user: string }, database: string): Promise<string | null>
   previewSelectedBackup(selectionId: string, password: string): Promise<string>
   restoreSelectedBackup(connectionId: string, database: string, confirmation: string, selectionId: string, password: string, errorPolicy: 'abort' | 'ignore' | 'log', jobId: string): Promise<RestoreReport>
   cancelRestore(jobId: string): Promise<void>

@@ -71,9 +71,23 @@ A tela de relatório preview usa as linhas retornadas pelo limite do carregament
 | 24 | Parcial | Smoke existente exercita construção de JOIN e agora inclui navegação entre Root Query/SubQuery. |
 | 25 | Implementação parcial | Global Privileges tem Granted e With Grant Option por privilégio; smoke passou pelas abas principais e cabeçalhos. Create User e Script Changes já estavam disponíveis. |
 | 26 | Implementado em parte | Skin Blue/Office, Customize e Reset Toolbar Layout agora funcionam; smoke comprovou Skin Blue e ocultação de Results. Import/Export Settings continua indisponível. |
-| 27 | Parcial implementado | Database > Flush confirma e abre um script revisável; smoke verificou o script sem executar. Um submenu Tasks dedicado ainda não foi criado. |
-| 28 | Existente | Find Invalid Objects não mudou nesta rodada. |
-| 29 | Parcial implementado | Restore tem três etapas e confirmação de destino; smoke passou pela revisão sem executar. Save Command Line ainda falta. |
-| 30 | Existente, evidência parcial | Dedicated/Shared e Link/Progress/Finish já são expostos; smoke dedicado do vínculo continua pendente. |
+| 27 | Parcial implementado | Database > Tasks reúne os fluxos; View > Tasks mantém uma lista persistida das últimas execuções de Backup/Export/Import/Compare e permite reabrir o fluxo correspondente. Projetos de backup e templates seguem carregados nos seus assistentes; a lista não reabre parâmetros sigilosos nem caminho de arquivo. |
+| 28 | Implementado | Barra de Find Invalid Objects apresenta Analyze, Script as ALTER e Script as DROP; seletor acessível oferece busca, Check All e Uncheck All. Script ALTER permanece habilitado apenas para views com definição recuperada. |
+| 29 | Parcial implementado | Restore tem três etapas, confirmação de destino e Save Command Line: grava script mysql com quoting shell, modo 0700 e prompt de senha. Smoke verifica o conteúdo sem executar a restauração. |
+| 30 | Parcial | O wizard existente oferece Dedicated/Shared e Link/Progress/Finish; a prova e2e dedicada usando repositório Git temporário não foi concluída nesta rodada. |
 
-A trilha de startup foi adicionada como marca de renderização/pintura e observação de long tasks; isso não equivale a um perfil completo de CPU/memória. Float real e grupos de editores divididos permanecem pendentes e não são marcados como concluídos.
+A trilha de startup foi adicionada como marca de renderização/pintura e observação de long tasks; isso não equivale a um perfil completo de CPU/memória. Float agora abre janela nativa independente para uma cópia de leitura do SQL selecionado; sincronização/edição bidirecional está pendente. Arrastar uma aba para outra atribui ambas ao mesmo grupo e orientação, mas painéis divididos reais ainda estão pendentes.
+
+## Rodada de implementação — gaps 31–33
+
+| Gap | Estado | Evidência nesta rodada |
+|---|---|---|
+| 31 — Data Compare | Implementado parcialmente, com Custom Queries executável | Opções pesquisáveis e agrupadas, carregar/salvar defaults locais, ignorar microssegundos, filtros de mapeamento, contagem N of M, consulta SELECT de cada lado validada como somente leitura e limitada a 50 mil linhas. Testes unitários para chaves duplicadas/ausentes, diferenças, precisão e bloqueio de escrita. Sincronização permanece indisponível para resultados arbitrários de consultas. |
+| 32 — ER Diagram | Implementado | Overview existente ganhou retângulo de viewport e navegação pelo canvas; gerenciador de relações virtuais existente continua disponível. O teste smoke verifica o minimapa e abre o gerenciador sem criar relações persistentes. |
+| 33 — Table Designer Card View | Implementado | A página Data alterna Grid/Card, mostra um registro por vez com navegação e apresenta valores NULL explicitamente. Teste unitário cobre a transformação e formatação do cartão; smoke abre o designer sobre tabela descartável. |
+
+O compare por Custom Queries exige uma chave explícita e aceita apenas um SELECT/WITH de leitura por lado. Ele não gera DML de sincronização; a prévia de diferenças fica disponível para análise.
+
+## Tasks Explorer e acessibilidade dos assistentes
+
+O Tasks Explorer é um dock em View e reabre o assistente associado à tarefa recente. A persistência grava apenas tipo, título, detalhe limitado e data; não armazena SQL, senha, caminho local ou arquivo selecionado. Os projetos de backup e templates de Import/Export continuam sendo carregados dentro dos respectivos assistentes, mas ainda não aparecem como itens separados no Tasks Explorer. A barra de Find Invalid Objects e o grupo de seleção de bancos foram reorganizados para navegação por teclado e leitores de tela.

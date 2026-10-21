@@ -29,5 +29,6 @@ import { extraToolsApi } from './api/extra-tools.js'
 import { aboutApi } from './api/about.js'
 import { updaterApi } from './api/updater.js'
 import { startupApi } from './api/startup.js'
-const api:DbForgeApi={...connectionsApi,...sqlApi,...securityApi,...sessionsApi,...profilerApi,...dataGeneratorApi,...documenterApi,...schemaCompareApi,...dataCompareApi,...importExportApi,...erDiagramApi,...queryBuilderApi,...editorApi,...historyApi,...sourceControlApi,...objectEditorsApi,...optionsApi,...databaseToolsApi,...dataReportPivotApi,...aiAssistantApi,...routineDebuggerApi,...serviceControlApi,...codeAnalysisApi,...gridEditingApi,...gridDataApi,...extraToolsApi,...aboutApi,...updaterApi,...startupApi}
+import { tasksApi } from './api/tasks.js'
+const api:DbForgeApi={...connectionsApi,...sqlApi,...securityApi,...sessionsApi,...profilerApi,...dataGeneratorApi,...documenterApi,...schemaCompareApi,...dataCompareApi,...importExportApi,...erDiagramApi,...queryBuilderApi,...editorApi,...historyApi,...sourceControlApi,...objectEditorsApi,...optionsApi,...databaseToolsApi,...dataReportPivotApi,...aiAssistantApi,...routineDebuggerApi,...tasksApi,...serviceControlApi,...codeAnalysisApi,...gridEditingApi,...gridDataApi,...extraToolsApi,...aboutApi,...updaterApi,...startupApi}
 contextBridge.exposeInMainWorld('dbforge',api)

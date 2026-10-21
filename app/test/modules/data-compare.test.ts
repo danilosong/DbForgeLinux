@@ -70,6 +70,15 @@ describe('data compare', () => {
     expect(differences[0]?.source?.amount).toBe(1.2341)
   })
 
+  it('ignora frações de segundo quando a opção está ativa', async () => {
+    const report = await compareData({
+      source: endpoint([{ id: 1, changed_at: '2025-04-05 10:11:12.123456' }]),
+      target: endpoint([{ id: 1, changed_at: '2025-04-05 10:11:12.999999' }]),
+      keyColumns: ['id'], options: { ignoreMicroseconds: true }
+    })
+    expect(report).toMatchObject({ compared: 1, same: 1, different: 0 })
+  })
+
   it('ignora colunas LOB por metadados sem removê-las dos valores originais', async () => {
     const source = endpoint([{ id: 1, body: 'one' }]); const target = endpoint([{ id: 1, body: 'two' }])
     source.driver.streamRows = async function* () { yield { id: 1 } }; target.driver.streamRows = async function* () { yield { id: 1 } }
