@@ -53,7 +53,9 @@ describe.skipIf(!enabled)('security, sessions and profiler integration', () => {
 
     const plan = await explainQuery(security, 'SELECT 1 AS value', 'JSON')
     expect(plan.roots.length).toBeGreaterThan(0)
-    const analyzed = await explainQuery(security, 'SELECT 1 AS value', 'ANALYZE', { confirmAnalyze: true, serverFamily: 'mysql' })
+    const [{ version }] = await driver.queryRows(ownerConnection, 'SELECT VERSION() AS version') as Array<{ version: string }>
+    const serverFamily = /mariadb/i.test(version) ? 'mariadb' : 'mysql'
+    const analyzed = await explainQuery(security, 'SELECT 1 AS value', 'ANALYZE', { confirmAnalyze: true, serverFamily })
     expect(analyzed.roots.length).toBeGreaterThan(0)
 
     workerConnection = await driver.connect(config)

@@ -12,7 +12,12 @@ describe('Devart-style HTTP tunnel client', () => {
   afterEach(async () => {
     socket?.destroy(); socket = undefined
     if (tunnel) { await tunnel.close(); tunnel = undefined }
-    if (endpoint?.listening) { endpoint.close(); await once(endpoint, 'close') }
+    if (endpoint?.listening) {
+      const server = endpoint
+      const closed = new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))
+      server.closeAllConnections()
+      await closed
+    }
     endpoint = undefined
   })
 
@@ -20,6 +25,7 @@ describe('Devart-style HTTP tunnel client', () => {
     let received = Buffer.alloc(0)
     const requests: Array<{ action: string | null; query: Record<string, string>; body: Buffer }> = []
     endpoint = createServer(async (request, response) => {
+      response.setHeader('connection', 'close')
       const url = new URL(request.url ?? '/', 'http://localhost')
       const action = url.searchParams.get('a')
       const chunks: Buffer[] = []
@@ -36,8 +42,10 @@ describe('Devart-style HTTP tunnel client', () => {
       if (action === 'r') { response.end(Buffer.concat([Buffer.from('OK:'), received])); received = Buffer.alloc(0); return }
       response.end('OK:')
     })
-    endpoint.listen(0, '127.0.0.1')
-    await once(endpoint, 'listening')
+    await new Promise<void>((resolve, reject) => {
+      endpoint!.once('error', reject)
+      endpoint!.listen(0, '127.0.0.1', () => { endpoint!.off('error', reject); resolve() })
+    })
     const address = endpoint.address()
     if (!address || typeof address === 'string') throw new Error('fake HTTP server did not bind')
     tunnel = await createHttpTunnel({ enabled: true, url: `http://127.0.0.1:${address.port}/tunnel.php`, timeoutSeconds: 3, rejectUnauthorized: true }, 'db.internal', 3306)

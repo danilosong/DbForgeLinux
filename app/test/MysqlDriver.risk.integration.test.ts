@@ -31,7 +31,7 @@ describe.skipIf(!enabled)('MySQL driver risk-flow integration', () => {
     }
     expect(active).toBe(true)
     controller.abort()
-    await expect(result).rejects.toBeTruthy()
+    await expect(result).rejects.toMatchObject({ name: 'AbortError' })
 
     const remaining = await driver.queryRows(connectionId, "SELECT ID FROM information_schema.PROCESSLIST WHERE INFO = 'SELECT SLEEP(30) AS sleeping'")
     expect(remaining).toEqual([])

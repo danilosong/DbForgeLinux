@@ -341,6 +341,12 @@ export class MysqlDriver implements DbDriver {
         if (signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
         yield row
       }
+    } catch (error) {
+      // MariaDB can report KILL QUERY before the stream destroy callback runs.
+      // Normalize only after an explicit caller abort; preserve other DB errors.
+      const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
+      if (signal?.aborted && code === 'ER_QUERY_INTERRUPTED') throw new DOMException('A operação foi cancelada.', 'AbortError')
+      throw error
     } finally {
       signal?.removeEventListener('abort', abort)
       if (timeout) clearTimeout(timeout)
