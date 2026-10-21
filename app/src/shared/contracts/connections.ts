@@ -19,6 +19,7 @@ export interface SshConfig {
   port: number
   user: string
   authMethod: SshAuthMethod
+  keyboardInteractive?: boolean
   passwordRef?: string
   privateKeyFile?: string
   passphraseRef?: string

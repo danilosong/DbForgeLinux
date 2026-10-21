@@ -32,6 +32,7 @@ describe('connection option builders', () => {
   it('maps SSH password, key and agent authentication options', () => {
     const base = { enabled: true, host: 'ssh.example', port: 22, user: 'db-user', remoteHost: 'db', remotePort: 3306, keepAliveSeconds: 30 }
     expect(buildSshOptions({ ...base, authMethod: 'password', password: 'ssh-secret' })).toMatchObject({ host: 'ssh.example', username: 'db-user', password: 'ssh-secret', keepaliveInterval: 30000 })
+    expect(buildSshOptions({ ...base, authMethod: 'password', password: 'ssh-secret', keyboardInteractive: true })).toMatchObject({ tryKeyboard: true, password: 'ssh-secret' })
     expect(buildSshOptions({ ...base, authMethod: 'private-key', privateKey: Buffer.from('key'), passphrase: 'phrase' })).toMatchObject({ privateKey: Buffer.from('key'), passphrase: 'phrase' })
     expect(buildSshOptions({ ...base, authMethod: 'agent' }, '/tmp/ssh-agent.sock')).toMatchObject({ agent: '/tmp/ssh-agent.sock' })
     expect(() => buildSshOptions({ ...base, authMethod: 'agent' }, '')).toThrow('SSH_AUTH_SOCK')

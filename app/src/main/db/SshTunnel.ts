@@ -34,6 +34,13 @@ export async function createSshTunnel(config: OpenSshTunnelConfig): Promise<Acti
     }
 
     client.on('error', (error) => fail(hostKeyError ?? mapSshError(error)))
+    if (config.keyboardInteractive) {
+      client.on('keyboard-interactive', (_name, _instructions, _language, prompts, finish) => {
+        const response = config.password ?? ''
+        if (!response) return fail(new Error('Keyboard Interactive requer uma credencial SSH armazenada no cofre do sistema.'))
+        finish(prompts.map(() => response))
+      })
+    }
     client.on('ready', () => {
       server.once('error', fail)
       server.listen(config.localPort ?? 0, '127.0.0.1', () => {

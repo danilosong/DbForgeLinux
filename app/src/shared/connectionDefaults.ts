@@ -17,6 +17,7 @@ export function createDefaultConnection(id: string, name = ''): ConnectionRecord
       port: 22,
       user: '',
       authMethod: 'password',
+      keyboardInteractive: false,
       remoteHost: 'localhost',
       remotePort: 3306,
       keepAliveSeconds: 30,

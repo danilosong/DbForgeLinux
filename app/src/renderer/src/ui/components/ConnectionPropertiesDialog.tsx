@@ -103,6 +103,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
   }
 
   async function runAction(action: ConnectionAction, attempted = record): Promise<void> {
+    if (action === 'connect' && !attempted.database?.trim() && !window.confirm('You have not specified a default database for this connection. Specifying a default database is not required to create a connection, but it is strongly recommended.\n\nOK: connect without a default database.\nCancel: choose a database first.')) return
     if (Object.keys(validate()).length > 0) return
     setBusy(true)
     setStatus(action === 'test' ? { kind: 'loading', text: t('conn.testing', [`${attempted.host}:${attempted.port}`]) } : null)
@@ -189,6 +190,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
           <Field label={t('conn.ssh.remoteHost')}><input value={record.ssh.remoteHost || record.host} onChange={(event) => updateSsh({ remoteHost: event.target.value })} /></Field>
           <Field label={t('conn.ssh.remotePort')}><input type="number" value={record.ssh.remotePort} onChange={(event) => updateSsh({ remotePort: Number(event.target.value) })} /></Field>
           <Field label={t('conn.ssh.bindPort')} help={t('conn.ssh.bindPort.help')}><input type="number" min="0" max="65535" value={record.ssh.localPort ?? 0} onChange={(event) => updateSsh({ localPort: Number(event.target.value) || undefined })} /></Field>
+          <label className="check-field wide"><input type="checkbox" checked={Boolean(record.ssh.keyboardInteractive)} onChange={(event) => updateSsh({ keyboardInteractive: event.target.checked })} /> Keyboard Interactive Mode</label>
           <Field label={t('conn.ssh.keepAlive')}><input type="number" min="0" value={record.ssh.keepAliveSeconds} onChange={(event) => updateSsh({ keepAliveSeconds: Number(event.target.value) })} /></Field>
           </>}
         </div>}

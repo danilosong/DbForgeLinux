@@ -24,7 +24,7 @@ Módulos implementados e testados            ███████████�
 Specs de UX verificadas contra evidência    ████████████████████   100%  (20 de 20)
 ```
 
-<sub>Implementação independente, não é cópia nem produto afiliado a terceiros (ver LEGAL.md). A cobertura é medida por um agente de UX com checagem por amostra de 12 itens e cobre apenas os fluxos observados no produto de referência; a verificação do arquiteto estima algo entre 90% e 92% porque o sistema de ancoragem direcional em cruz livre segue simplificado.</sub>
+<sub>Implementação independente, não é cópia nem produto afiliado a terceiros (ver LEGAL.md). A cobertura é medida por um agente de UX com checagem por amostra de 12 itens e cobre apenas os fluxos observados no produto de referência; o docking direcional em quatro direções passou a ter prova visual (claro/escuro e posição persistida), e a verificação do arquiteto segue conservadora porque falta medir de novo os módulos em andamento (rodada 10).</sub>
 <!-- PROGRESS:END -->
 
 ---

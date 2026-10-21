@@ -22,10 +22,12 @@ export function buildSshOptions(config: ResolvedSshConfig, agentSocket = process
   if (config.authMethod === 'password') {
     if (!config.password) throw new Error('A senha SSH é obrigatória para este método de autenticação.')
     options.password = config.password
+    if (config.keyboardInteractive) options.tryKeyboard = true
   } else if (config.authMethod === 'private-key') {
     if (!config.privateKey) throw new Error('O arquivo de chave privada SSH não pôde ser lido.')
     options.privateKey = config.privateKey
     if (config.passphrase) options.passphrase = config.passphrase
+    if (config.keyboardInteractive) options.tryKeyboard = true
   } else {
     if (!agentSocket) throw new Error('SSH_AUTH_SOCK não está definido; inicie um ssh-agent ou escolha outro método.')
     options.agent = agentSocket

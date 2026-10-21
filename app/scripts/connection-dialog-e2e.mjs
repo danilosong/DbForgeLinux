@@ -60,6 +60,12 @@ try {
   await databaseSelect.locator('option[value="mysql"]').waitFor({ state: 'attached' })
   assert.ok(await dialog.getByRole('button', { name: 'Connect', exact: true }).count() >= 1)
   assert.ok(await dialog.locator('.dialog-footer').getByRole('button', { name: 'Cancel' }).count())
+  await databaseSelect.selectOption('')
+  const warningPromise = page.waitForEvent('dialog')
+  page.once('dialog', (warning) => { assert.match(warning.message(), /not specified a default database/i); void warning.dismiss() })
+  await dialog.getByRole('button', { name: 'Connect', exact: true }).click()
+  await warningPromise
+  await databaseSelect.selectOption(database)
 
   for (const theme of ['Light', 'Dark']) {
     await page.evaluate((value) => { document.documentElement.dataset.theme = value }, theme.toLowerCase())
@@ -73,7 +79,10 @@ try {
       }
       await tabButton.click()
       if (tab === 'General') assert.ok(await page.getByLabel('Show all databases').count())
-      if (tab === 'Security') assert.ok(await page.getByText('SSH tunnel', { exact: true }).count())
+      if (tab === 'Security') {
+        await page.locator('.connection-page-content select').nth(0).selectOption('ssh')
+        assert.ok(await page.getByRole('checkbox', { name: 'Keyboard Interactive Mode' }).count())
+      }
       if (tab === 'HTTP') assert.ok(await page.getByLabel('Use Base64 encoding').count())
       await page.screenshot({ path: join(evidenceRoot, `connection-${tab.toLowerCase()}-${theme.toLowerCase()}.png`) })
     }
