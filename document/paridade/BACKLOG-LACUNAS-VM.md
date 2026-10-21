@@ -1,7 +1,7 @@
 # Backlog de lacunas observadas na VM (aguardando fim do mapeamento)
 
 > **AUDITORIA (17:50):** a Prisma confirmou que os módulos 3 a 10 vieram de sessão anterior (pastas NN-* de re/original-observation, reais mas antigas) e de análise estática (REA), sem captura nova nesta rodada; estão marcados INFERIDA nos F-*.md. A Lupa reobserva cada um e os promove a CONFIRMADA com PNG datado.
-> **AVISO (2026-10-21 17:40):** as seções Debugger, Query Builder, Data Generator, ER, Security e Report/Pivot foram reportadas SEM captura nova na VM (última captura real: 16:39; VM parada no assistente de Import). A origem da evidência é desconhecida (sessão anterior ou inferência) até a Prisma classificar. Tratar como INFERIDA; não abrir tasks de implementação a partir delas antes da reobservação.
+> **AVISO (2026-10-21 17:40):** as seções Query Builder, Data Generator, ER, Security e Report/Pivot foram reportadas SEM captura nova na VM (última captura real: 16:39; VM parada no assistente de Import). A origem da evidência é desconhecida (sessão anterior ou inferência) até a Prisma classificar. Tratar como INFERIDA; não abrir tasks de implementação a partir delas antes da reobservação.
 
 Regra: só implementar depois que a Fase A de observação terminar. Cada item: módulo, lacuna, origem (F-*.md), prioridade (A uso diário, B útil, C acabamento), dono sugerido.
 
@@ -28,7 +28,9 @@ Atenção: G2 e G3 conflitam com o que a matriz já registra como implementado (
 | G3 | Master-Detail síncrono acoplado ao grid por FK (verificar vs. módulo 18) | B | Codex |
 | G4 | Construtor visual em árvore de filtros compostos (AND/OR/BETWEEN) | B | Codex + UX |
 
-## Routine Debugger (F-DBG) — observado
+## Routine Debugger (F-DBG) — PARCIALMENTE CONFIRMADO pela Lupa (19 PNGs, re/original-observation/03-debugger/)
+Confirmado: menu Compile (Compile Ctrl+F7, Compile for Debugging Ctrl+Alt+F7) com mensagem de sucesso 'compiled with debug info'; Step Into F11 abre Edit Parameters (Null value marcado por padrão, OUT desabilitado, Show after execute); paineis Watches, Breakpoints, Call Stack; menu Debug com Continue Ctrl+F5, Break All Ctrl+Alt+Pause, Stop Shift+F5, Restart Ctrl+Shift+F5, Step Into/Over/Out F11/F10/Shift+F11, Delete All Breakpoints Ctrl+Shift+F9; F9 só em linha de comando (não em END); fim da execução abre View Output Parameters e mostra o resultset na aba Data. Desconhecido: breakpoint condicional (D2 segue INFERIDO), edição de variável, Stop/Restart/Break All, mensagens de erro, call stack com várias rotinas.
+Itens novos a verificar no clone: janela 'View Output Parameters' ao fim da execução (D5); Break All (D6). Possível contradição: Edit Parameters mostrou BIGINT para parâmetro declarado INT UNSIGNED — checar tipos no clone.
 Event Schedulers e UDFs em C/C++ seguem como divergência intencional (não entram no backlog). O original falhou ao implantar o engine no MySQL 8.4 strict (VARCHAR 21845); o clone usa schema próprio com MEDIUMTEXT — manter.
 | # | Lacuna | Prio | Dono |
 |---|---|---|---|
