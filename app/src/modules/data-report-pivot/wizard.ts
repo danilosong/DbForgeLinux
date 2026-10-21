@@ -1,4 +1,5 @@
 import { validateReportQuery } from './query-validation.js'
+import type { ConnectionSummary } from '../../shared/contracts/connections.js'
 
 export type WizardReportType = 'standard' | 'label' | 'blank'
 export type WizardLayout = 'columnar' | 'tabular' | 'justified'
@@ -8,6 +9,7 @@ export type WizardStyle = 'Aurora' | 'Slate' | 'Cedar' | 'Ocean' | 'Ember'
 export interface DataReportWizardResult {
   reportType: WizardReportType
   connectionId: string
+  connectionRecordId?: string
   database: string
   query: string
   columns: string[]
@@ -32,15 +34,27 @@ export function validateWizardResult(value: DataReportWizardResult): DataReportW
   return { ...value, columns, grouping, title: value.title.trim().slice(0, 120) || 'TuxSQL Report' }
 }
 
+/** Returns an existing session only when the selected saved profile is already active. */
+export function activeSessionForSavedProfile(profileId: string, active?: ConnectionSummary): string {
+  return profileId && active?.recordId === profileId ? active.id : ''
+}
+
 export interface MasterDetailDocument {
   version: 1
   connectionId: string
+  connectionRecordId?: string
   database: string
   table: string
   fetchLimit: number
   where: string
   orderBy: string
   selectedColumns: string[]
+}
+
+/** Legacy documents store a session ID; new documents also store the durable profile ID. */
+export function masterDetailMatchesConnection(document: MasterDetailDocument, active?: ConnectionSummary): boolean {
+  if (!active) return false
+  return document.connectionRecordId ? document.connectionRecordId === active.recordId : document.connectionId === active.id
 }
 
 export function serializeMasterDetailDocument(document: MasterDetailDocument): string {
@@ -53,5 +67,6 @@ export function parseMasterDetailDocument(contents: string): MasterDetailDocumen
   if (!value || typeof value !== 'object') throw new Error('Invalid Master-Detail document.')
   const candidate = value as Partial<MasterDetailDocument>
   if (candidate.version !== 1 || typeof candidate.connectionId !== 'string' || typeof candidate.database !== 'string' || typeof candidate.table !== 'string' || !Number.isInteger(candidate.fetchLimit) || (candidate.fetchLimit ?? 0) < 1 || (candidate.fetchLimit ?? 0) > 5000 || typeof candidate.where !== 'string' || typeof candidate.orderBy !== 'string' || !Array.isArray(candidate.selectedColumns) || candidate.selectedColumns.some((column) => typeof column !== 'string')) throw new Error('Invalid Master-Detail document.')
+  if (candidate.connectionRecordId !== undefined && (typeof candidate.connectionRecordId !== 'string' || candidate.connectionRecordId.length > 256)) throw new Error('Invalid Master-Detail document.')
   return candidate as MasterDetailDocument
 }

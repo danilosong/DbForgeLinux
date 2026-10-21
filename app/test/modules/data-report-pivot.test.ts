@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildPivot, buildPivotChart, buildPivotConfigFromRoles, exportPivot, validateReportQuery, type PivotConfig } from '../../src/modules/data-report-pivot/index.js'
-import { createReportDesign, exportDesignedReport, parseReportDesign, placeReportField, reportPages } from '../../src/modules/data-report-pivot/report-design.js'
-import { parseMasterDetailDocument, serializeMasterDetailDocument, validateWizardResult } from '../../src/modules/data-report-pivot/wizard.js'
+import { createReportDesign, exportDesignedReport, parseReportDesign, placeReportField, reportPages, reportPresentation } from '../../src/modules/data-report-pivot/report-design.js'
+import { activeSessionForSavedProfile, masterDetailMatchesConnection, parseMasterDetailDocument, serializeMasterDetailDocument, validateWizardResult } from '../../src/modules/data-report-pivot/wizard.js'
 
 describe('Data Report Pivot', () => {
   const rows = [
@@ -96,8 +96,9 @@ describe('Data Report Pivot', () => {
   })
 
   it('validates the eight-step report setup and keeps its preferences in the designer model', () => {
-    const wizard = validateWizardResult({ reportType: 'standard', connectionId: 'conn-1', database: 'sales', query: 'SELECT id, total FROM orders', columns: ['id', 'total', 'id'], grouping: ['total', 'missing'], layout: 'tabular', orientation: 'landscape', fitPage: true, style: 'Ocean', title: '   ' })
+    const wizard = validateWizardResult({ reportType: 'standard', connectionId: 'session-1', connectionRecordId: 'profile-1', database: 'sales', query: 'SELECT id, total FROM orders', columns: ['id', 'total', 'id'], grouping: ['total', 'missing'], layout: 'tabular', orientation: 'landscape', fitPage: true, style: 'Ocean', title: '   ' })
     expect(wizard).toMatchObject({ columns: ['id', 'total'], grouping: ['total'], title: 'TuxSQL Report', layout: 'tabular', orientation: 'landscape', style: 'Ocean' })
+    expect(wizard.connectionRecordId).toBe('profile-1')
     expect(() => validateWizardResult({ ...wizard, query: 'SELECT 1; DELETE FROM orders' })).toThrow(/one SELECT/)
     expect(() => validateWizardResult({ ...wizard, query: "SELECT * FROM orders FOR UPDATE" })).toThrow(/read-only SELECT/)
     expect(validateWizardResult({ ...wizard, reportType: 'blank', connectionId: '', database: '', query: '', columns: [], grouping: [] })).toMatchObject({ reportType: 'blank', title: 'TuxSQL Report', query: '' })
@@ -105,8 +106,29 @@ describe('Data Report Pivot', () => {
     expect(design).toMatchObject({ layout: 'tabular', orientation: 'landscape', fitPage: true, style: 'Ocean', groupField: 'total', groupFields: ['total'] })
   })
 
+  it('uses only the already-active session for a saved profile and matches Master-Detail by durable profile identity', () => {
+    const active = { id: 'session-1', recordId: 'profile-1', name: 'Primary', host: 'localhost', port: 3306, user: 'user', environment: 'development' as const }
+    expect(activeSessionForSavedProfile('profile-1', active)).toBe('session-1')
+    expect(activeSessionForSavedProfile('profile-2', active)).toBe('')
+    const document = { version: 1 as const, connectionId: 'session-old', connectionRecordId: 'profile-1', database: 'sales', table: 'orders', fetchLimit: 100, where: '', orderBy: '', selectedColumns: [] }
+    expect(masterDetailMatchesConnection(document, active)).toBe(true)
+    expect(masterDetailMatchesConnection({ ...document, connectionRecordId: 'profile-2' }, active)).toBe(false)
+    expect(masterDetailMatchesConnection({ ...document, connectionRecordId: undefined, connectionId: 'session-1' }, active)).toBe(true)
+  })
+
+  it('resolves all report layout, orientation, page-fit and style combinations for the designer preview', () => {
+    const layouts = ['columnar', 'tabular', 'justified'] as const
+    const orientations = ['portrait', 'landscape'] as const
+    const styles = ['Aurora', 'Slate', 'Cedar', 'Ocean', 'Ember'] as const
+    for (const layout of layouts) for (const orientation of orientations) for (const style of styles) {
+      const presentation = reportPresentation({ ...createReportDesign('Visual matrix', ['name']), layout, orientation, style, fitPage: false })
+      expect(presentation).toEqual({ layout, orientation, style, fitPage: false })
+    }
+    expect(reportPresentation(createReportDesign('Defaults', []))).toEqual({ layout: 'tabular', orientation: 'portrait', style: 'Aurora', fitPage: true })
+  })
+
   it('round-trips bounded Master-Detail documents and rejects malformed settings', () => {
-    const document = { version: 1 as const, connectionId: 'conn-1', database: 'sales', table: 'orders', fetchLimit: 250, where: 'status = 1', orderBy: 'id', selectedColumns: ['id', 'total'] }
+    const document = { version: 1 as const, connectionId: 'session-1', connectionRecordId: 'profile-1', database: 'sales', table: 'orders', fetchLimit: 250, where: 'status = 1', orderBy: 'id', selectedColumns: ['id', 'total'] }
     expect(parseMasterDetailDocument(serializeMasterDetailDocument(document))).toEqual(document)
     expect(() => parseMasterDetailDocument(JSON.stringify({ ...document, fetchLimit: 50_001 }))).toThrow(/Invalid Master-Detail/)
     expect(() => parseMasterDetailDocument('{')).toThrow(/Invalid Master-Detail/)

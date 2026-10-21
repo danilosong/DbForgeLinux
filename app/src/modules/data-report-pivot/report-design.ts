@@ -2,6 +2,19 @@ export const REPORT_BANDS = ['Report Header', 'Page Header', 'Group Header', 'De
 export type ReportBand = typeof REPORT_BANDS[number]
 export interface ReportDesign { version: 1; title: string; pageSize: 'A4' | 'Letter'; bands: Record<ReportBand, string[]>; dataSourceQuery?: string; groupField?: string; groupFields?: string[]; sortField?: string; sortDirection?: 'ASC' | 'DESC'; layout?: 'columnar' | 'tabular' | 'justified'; orientation?: 'portrait' | 'landscape'; fitPage?: boolean; style?: 'Aurora' | 'Slate' | 'Cedar' | 'Ocean' | 'Ember' }
 
+export const REPORT_LAYOUTS = ['columnar', 'tabular', 'justified'] as const
+export const REPORT_ORIENTATIONS = ['portrait', 'landscape'] as const
+export const REPORT_STYLES = ['Aurora', 'Slate', 'Cedar', 'Ocean', 'Ember'] as const
+
+export function reportPresentation(design: ReportDesign): { layout: typeof REPORT_LAYOUTS[number]; orientation: typeof REPORT_ORIENTATIONS[number]; style: typeof REPORT_STYLES[number]; fitPage: boolean } {
+  return {
+    layout: design.layout && REPORT_LAYOUTS.includes(design.layout) ? design.layout : 'tabular',
+    orientation: design.orientation && REPORT_ORIENTATIONS.includes(design.orientation) ? design.orientation : 'portrait',
+    style: design.style && REPORT_STYLES.includes(design.style) ? design.style : 'Aurora',
+    fitPage: design.fitPage ?? true
+  }
+}
+
 export function createReportDesign(title: string, fields: string[]): ReportDesign {
   return { version: 1, title: title.trim().slice(0, 120) || 'Data Report', pageSize: 'A4', bands: Object.fromEntries(REPORT_BANDS.map((band) => [band, band === 'Detail' ? [...fields] : []])) as Record<ReportBand, string[]> }
 }

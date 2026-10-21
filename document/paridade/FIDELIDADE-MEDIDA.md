@@ -190,7 +190,7 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | # | Item Verificável | Avaliação | Nota | Evidência no Clone |
 |---|---|---|:---:|---|
 | 1 | Security Manager com árvore hierárquica por HOST e seção própria de Roles | IGUAL | 1,0 | `08-13-modules/security-manager-dark.png` |
-| 2 | Global Privileges com colunas Granted e With Grant Option por privilégio com validação estrita de IPC | MELHOR | 1,0 [MELHOR] | `08-13-modules/security-manager-dark.png`, `app/test/ipc-guard.test.ts` |
+| 2 | Global Privileges com colunas Granted e With Grant Option por privilégio, incluindo lista dinâmica da build MySQL conectada | MELHOR | 1,0 [MELHOR] | `document/evidence/ui/security-dynamic-privileges-{light,dark}.png`, `app/test/modules/security.test.ts`, `app/test/ipc-guard.test.ts` |
 | 3 | Session Manager com auto-refresh, query completa e bloqueio de threads de sistema | IGUAL | 1,0 | `08-13-modules/session-manager-dark.png`, `app/test/modules/sessions.test.ts` |
 | 4 | Server Variables com seletor System/Status, coluna Description e edição in-place | IGUAL | 1,0 | `08-13-modules/server-variables-dark.png` |
 | 5 | Janela acoplável Properties (Ctrl+W,P) com categorização e ordenação alfabética | IGUAL | 1,0 | `object-viewer-dark.png`, `NOTES.md:168` |
@@ -273,8 +273,9 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 3 | Interface de depuração com indicador de linha corrente e painéis Watches, Call Stack e Breakpoints | IGUAL | 1,0 | `08-13-modules/routine-debugger-dark.png` |
 | 4 | Ações Step Over (F10), Step Into (F11), Step Out, Run e Break All | IGUAL | 1,0 | `app/test/modules/routine-debugger.test.ts` |
 | 5 | Depuração instrumentada de Triggers disparados por operações DML via advisory locks | PARCIAL | 0,5 | `app/test/modules/routine-debugger.test.ts:41`, `GAPS-VARREDURA-VM.md:51` |
+| 6 | Exibição automática após execução de parâmetros OUT/INOUT e do resultset retornado | IGUAL | 1,0 | Capturas E2E `document/evidence/ui/debugger-output-parameters-{light,dark}.png`; `app/scripts/routine-security-screenshots.mjs`; `app/test/modules/routine-debugger.test.ts` |
 
-- **Subtotal Módulo 13:** 4,5 / 5,0 = **90,00%**
+- **Subtotal Módulo 13:** 5,5 / 6,0 = **91,67%**
 
 ---
 
@@ -373,7 +374,7 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 
 ## 4. Tabela-Resumo e Evolução Histórica (Rodadas 1 a 6 — Reconciliada)
 
-$$\text{Fidelidade Global Ponderada (Rodada 6 revisada)} = \frac{\sum (\text{Nota Módulo} \times \text{Peso})}{\sum \text{Pesos}} = \frac{12140,55}{131} = \mathbf{92,68\%}$$
+$$\text{Fidelidade Global Ponderada (Rodada 6 revisada)} = \frac{\sum (\text{Nota Módulo} \times \text{Peso})}{\sum \text{Pesos}} = \frac{12148,88}{131} = \mathbf{92,74\%}$$
 
 | Módulo | Nome do Componente | Peso | % R1 | % R2 | % R3 | % R4 | % R5 | % R6 (Reconciliado) | Variação (R6 - R5) | Entregas Verificadas em R6 |
 |:---:|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
@@ -389,17 +390,17 @@ $$\text{Fidelidade Global Ponderada (Rodada 6 revisada)} = \frac{\sum (\text{Not
 | **10** | Query Builder | 4 | 62,50% | 68,75% | 70,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
 | **11** | Database Diagram (ER) | 4 | 75,00% | 87,50% | 66,67% | 66,67% | 100,00% | **78,57%** | **-21,43%** | Minimapa flutuante testado; exportação BMP parcial; relações virtuais sem evidência validada |
 | **12** | Query Profiler | 4 | 87,50% | 87,50% | 90,00% | 90,00% | 90,00% | **80,00%** | **-10,00%** | Canvas 2D capturado claro/escuro; descrições parciais dos contadores |
-| **13** | Stored Procedure Debugger | 5 | 81,25% | 81,25% | 80,00% | 90,00% | 90,00% | **90,00%** | 0,00% | Estável |
+| **13** | Stored Procedure Debugger | 5 | 81,25% | 81,25% | 80,00% | 90,00% | 90,00% | **91,67%** | **+1,67%** | D5: captura do modal com OUT/INOUT e resultset em claro/escuro |
 | **14** | Options & Settings | 3 | 87,50% | 87,50% | 100,00% | 100,00% | 100,00% | **87,50%** | **-12,50%** | Timeout do Debugging não configurável |
 | **15** | Data Compare & Synchronization | 10 | 83,33% | 88,89% | 75,00% | 75,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
 | **16/17** | Documenter & Tasks Explorer | 3 | 62,50% | 68,75% | 62,50% | 62,50% | 87,50% | **75,00%** | **-12,50%** | Prévia da capa e paletas; PDF CLI headless e metadados de privilégios |
 | **18** | Master-Detail, Report & Pivot | 4 | 62,50% | 62,50% | 50,00% | 87,50% | 87,50% | **100,00%** | **+12,50%** | Pivot Chart acoplado & SVG |
 | **19** | Utilities & Backup/Restore | 5 | 94,44% | 94,44% | 92,86% | 94,44% | 100,00% | **100,00%** | 0,00% | Paridade plena |
 | **20** | Source Control & Project Explorer | 6 | — | 87,50% | 75,00% | 75,00% | 75,00% | **83,33%** | **+8,33%** | Editor de merge por bloco e grafo DAG |
-| **TOTAL** | — | **131** | **79,23%** | **90,32%** | **83,68%** | **87,84%** | **92,83%** | **92,68%** | **-0,15%** | — |
+| **TOTAL** | — | **131** | **79,23%** | **90,32%** | **83,68%** | **87,84%** | **92,83%** | **92,74%** | **-0,09%** | — |
 
-- **Média Simples (não ponderada):** **90,81%** (R1: 80,58% | R2: 86,17% | R3: 81,83% | R4: 87,00% | R5: 92,27% | R6 revisada: 90,81%)
-- **Média Global Ponderada:** **92,68%** (R1: 79,23% | R2: 90,32% | R3: 83,68% | R4: 87,84% | R5: 92,83% | R6 revisada: 92,68%)
+- **Média Simples (não ponderada):** **90,90%** (R1: 80,58% | R2: 86,17% | R3: 81,83% | R4: 87,00% | R5: 92,27% | R6 revisada: 90,90%)
+- **Média Global Ponderada:** **92,74%** (R1: 79,23% | R2: 90,32% | R3: 83,68% | R4: 87,84% | R5: 92,83% | R6 revisada: 92,74%)
 
 > [!NOTE]
 > Sete módulos atingiram **100,00%** de fidelidade comprovada por testes e capturas reais: **Database Explorer (02)**, **Table Designer & Grid (03)**, **Security Manager (08)**, **Query Builder (10)**, **Data Compare (15)**, **Master-Detail/Report/Pivot (18)** e **Utilities & Backup/Restore (19)**.
