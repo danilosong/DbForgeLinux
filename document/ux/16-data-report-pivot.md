@@ -107,6 +107,41 @@ Confirmado via capturas completas `re/original-observation/08-report-pivot-maste
   - Barra de formatação de fonte (Família, Tamanho, Negrito, Itálico, Sublinhado, Alinhamento e Cores).
   - Aba **Preview (`18-report-preview-1757.png`)**: renderiza as páginas finais paginadas com navegação, busca, zoom e botões de exportação (PDF, HTML, CSV).
 
+### 4.1 Especificação de Acabamento Visual e Espaçamento de Bandas (Layout Justified)
+
+> **Diagnóstico Visual em `document/evidence/ui/16-data-report-pivot/data-report-justified-light.png`:**
+> A captura do clone exibe a lista de bandas com o texto `'idstatustotal'` colado horizontalmente sem espaçamento dentro da banda `Detail`, e a régua/cabeçalho de banda encostando diretamente sobre o conteúdo superior sem área de respiro, comprometendo a legibilidade visual.
+
+#### Proposta de Ajustes de Espaçamento e Tipografia para Bandas:
+
+1. **Separação e Delimitação dos Campos na Banda `Detail`:**
+   - **Gutter Horizontal Obrigatório:** Os elementos da banda `Detail` não podem ser concatenados em texto contínuo. Devem utilizar contêiner flexível com espaçamento explícito:
+     ```css
+     display: flex;
+     flex-wrap: wrap;
+     gap: 12px 16px; /* gap horizontal de 16px, vertical de 12px */
+     align-items: center;
+     ```
+   - **Formatação de Badges/Chips de Campo:** Cada coluna (`id`, `status`, `total`) deve ser renderizada em um chip individual delimitado:
+     - `padding: 4px 10px;`
+     - `border-radius: 4px;`
+     - `background-color: var(--surface-sunken);`
+     - `border: 1px solid var(--border-subtle);`
+     - `font-family: var(--font-mono); font-size: 12px;`
+     - Rótulo formatado: `id` | `status` | `total` (com separação nítida entre nome do campo e metadado de tipo).
+
+2. **Espaçamento e Respiro do Cabeçalho de Banda (`Band Header`):**
+   - **Margem de Respiro Superior/Inferior:**
+     - O cabeçalho de banda (`ReportHeader` ou a aba indicadora da banda `Detail`) deve possuir espaçamento inferior dedicado: `margin-bottom: 12px;`.
+     - Padding interno da área útil da banda: `padding: 12px 16px;`.
+   - **Divisor Visual de Banda:**
+     - A linha de divisão de banda deve utilizar `border-bottom: 1px solid var(--border-subtle);`.
+     - O identificador textual da banda (ex.: tag roxa/cinza com o nome `Detail`) fica posicionado em aba externa superior, nunca sobrepondo o primeiro campo de dados da lista.
+
+3. **Altura Mínima e Estados Responsivos:**
+   - Altura mínima da banda `Detail`: `min-height: 48px;` garantindo que os elementos não fiquem achatados.
+   - No tema Escuro (`data-report-justified-dark.png`), o fundo da folha do designer mantém alto contraste com bordas delimitadoras `var(--border-strong)` e badges com contraste mínimo de 4.5:1.
+
 ## 5. O que o TuxSQL ainda NÃO faz (Diferenças Objetivas em relação ao Original)
 1. **Designer WYSIWYG com Bandas Vetoriais em Tempo Real:** No TuxSQL as exportações de relatórios são geradas de forma declarativa e renderizadas em HTML/PDF sanitizado, sem o canvas de desenho vetorial com réguas físicas do Windows Forms.
 2. **Exportação em Formato Proprietário `.rdb` / Word DOCX:** TuxSQL utiliza formatos abertos interoperáveis (JSON, HTML, CSV e PDF).

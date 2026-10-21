@@ -1,7 +1,8 @@
 # UX 02 — Conexões
 
-**Fidelidade REA & Observação VM:** rótulos conferidos contra REA ui-text e **observação direta da VM de referência `dbforge-ref`** (dbForge Studio for MySQL v2026.2.82, capturas em `/tmp/vm_tab_*.png` e `re/original-observation/01-conexao/`).
+**Fidelidade REA & Observação VM:** rótulos conferidos contra REA ui-text e **observação direta da VM de referência `dbforge-ref`** (dbForge Studio for MySQL v2026.2.82, capturas em `/tmp/vm_tab_*.png`, `re/original-observation/01-conexao/` e `re/original-observation/p2-01-erros-conexao/`).
 - **[C]** (Confirmada na VM e REA ui-text): Database Connection Properties, Test Connection, Connection Manager, Allow saving password, Allow saving passphrase, Use security protocol (SSL / SSH), Fingerprint:, Key file:, Private key:, Passphrase:, Authentication type: (Password authentication / Public key authentication), Keyboard Interactive Mode, Keep connection alive, Ping timeout, Connection timeout:, Execute timeout:, Detect MySQL character set, Use compression, Environment Category, Show all databases, HTTP tunnel (Base64, Keep alive, credentials, proxy).
+- **[C] Erros e Mensagens Reais de Conexão (`p2-01`):** Erro 1045 com senha incorreta (`re/original-observation/p2-01-erros-conexao/05-wrong-password-result-1812.png`), Erro 2003 de porta recusada (`re/original-observation/p2-01-erros-conexao/03-erro-2003-porta-3-recusada-1811.png`), Erro 2003 de host desconhecido (`re/original-observation/p2-01-erros-conexao/07-host-result-1812.png`), Erro 2003 de timeout com spinner de espera (`re/original-observation/p2-01-erros-conexao/13-timeout-waiting-1813.png`, `14-timeout-result-1813.png`), Aviso modal sem database padrão (`re/original-observation/p2-01-erros-conexao/15-connect-wrong-password-1814.png`), criação do nó no Explorer após falha de Connect (`re/original-observation/p2-01-erros-conexao/17-after-cancel-1814.png`), menu de contexto (`re/original-observation/p2-01-erros-conexao/18-failed-connection-node-context-1814.png`) e diálogo de confirmação de exclusão (`re/original-observation/p2-01-erros-conexao/19-delete-connection-confirm-1815.png`).
 - Atalho original de New Connection: `Ctrl+D, Ctrl+N` (**REA shortcuts**); `Ctrl+Shift+N` no clone mantido como atalho universal Linux alternativo.
 
 Depende de `01-shell.md` (tokens, componentes). Driver: MySQL/MariaDB (mysql2 + ssh2). Credenciais nunca em texto puro (libsecret/safeStorage).
@@ -133,33 +134,56 @@ Tunelamento via script HTTP (`tunnel.php`):
 ## 3. Comportamento de Test Connection
 
 1. Validação local dos campos obrigatórios antes do envio de rede.
-2. Estado de carregamento: indicador visual com tempo decorrido e possibilidade de cancelamento.
-3. **Resultado com Sucesso:**
+2. **Estado de carregamento [C]:**
+   - Diálogo com campos desabilitados e spinner central girando sobre a interface (`re/original-observation/p2-01-erros-conexao/13-timeout-waiting-1813.png`). O diálogo de propriedades fica visível e esmaecido ao fundo.
+3. **Resultado com Sucesso [C]:**
    - Diálogo / status exibindo a versão exata do MySQL:
-     `Successfully connected. Server version: MySQL 8.4.11`
+     `Successfully connected. Server version: MySQL 8.4.11` (`re/original-observation/01-conexao/teste-ok.png`).
    - Opção de prosseguir diretamente com a conexão (`[ Connect ]`) ou fechar o diálogo (`[ Cancel ]`).
-4. **Resultado com Erro:**
-   - Exibe o código numérico de erro e a mensagem crua original do servidor MySQL (ex.: `1045: Access denied for user 'root'@'...' (using password: YES)`).
+4. **Mensagens e Diálogos de Erro Reais [C] (`re/original-observation/p2-01-erros-conexao/`):**
+   - Renderizadas em caixa modal de diálogo intitulada `"dbForge Studio for MySQL"` (no TuxSQL: `"TuxSQL"`) com ícone de erro vermelho e botão único `[ OK ]`.
+   - **Senha Incorreta (`05-wrong-password-result-1812.png`):**
+     `1045: Access denied for user 'obs'@'172.19.0.1' (using password: YES)`
+   - **Porta sem serviço / Recusada (`03-erro-2003-porta-3-recusada-1811.png`):**
+     `2003: Can't connect to MySQL server on '10.0.2.2' (10061): Nenhuma ligação pôde ser feita porque o computador de destino as recusou ativamente 10.0.2.2:3`
+   - **Host Inexistente / DNS (`07-host-result-1812.png`):**
+     `2003: Can't connect to MySQL server on 'hostquenaoexiste.invalid' (10061): Este anfitrião não é conhecido`
+   - **Timeout de Conexão (`14-timeout-result-1813.png`):**
+     Após aguardar o intervalo configurado (padrão 15s na aba Advanced), emite:
+     `2003: Can't connect to MySQL server on '10.255.255.1' (10061): Server did not respond within the specified timeout interval`
    - Sanitização de segurança: strings de senha digitadas são expurgadas da mensagem de erro antes da renderização.
 
 ---
 
 ## 4. Fluxo de conexão (Connect)
 
-1. Salva (se novo). 2. Se senha ausente → diálogo "Enter password for user@host" (campo + "Remember" + OK/Cancel). 3. Conecta (status bar "Connecting…", nó do Explorer com spinner, cancelável). 4. Sucesso: nó expande, toast breve, Output registra. 5. Erro: nó vermelho com ícone de aviso e tooltip; toast de erro com [Editar conexão] [Tentar de novo].
+1. **Aviso de Banco Padrão Não Especificado [C] (`re/original-observation/p2-01-erros-conexao/15-connect-wrong-password-1814.png`):**
+   - Ao clicar em `[ Connect ]` sem selecionar um database padrão no combo, abre caixa modal com ícone de alerta amarelo e botões `[ OK ]` e `[ Cancel ]`:
+     *"You have not specified a default database for this connection. Specifying a default database is not required to create a connection, but it is strongly recommended."*
+   - Clicar `Cancel` aborta a tentativa mantendo o diálogo aberto; clicar `OK` avança com a conexão ao host.
+2. **Tentativa de Autenticação e Erro [C] (`re/original-observation/p2-01-erros-conexao/16-connect-after-ok-1814.png`):**
+   - Se a autenticação falhar, exibe o modal de erro (ex.: código 1045).
+3. **Persistência da Conexão após Falha [C] (`re/original-observation/p2-01-erros-conexao/17-after-cancel-1814.png`):**
+   - **Comportamento Notável Original:** Ao clicar em `[ Cancel ]` após a falha de conexão, o registro da conexão **não é descartado**; ele é adicionado na árvore do Database Explorer como nó desconectado no final da lista, e o cabeçalho do Database Explorer é atualizado para exibir `Database Explorer - {host}:{port}`.
+4. **Menu de Contexto do Nó no Explorer [C] (`re/original-observation/p2-01-erros-conexao/18-failed-connection-node-context-1814.png`):**
+   - Itens na ordem exata: `New Connection...`, `Modify Connection...`, `Open`, `Create Connection Like...`, `New Database`, `New SQL`, `Source Control >`, `Tasks >`, `Find Object... Ctrl+D,F`, `Show Details`, `Edit Privileges`, `Rename F2`, `Delete Delete`, `Refresh F5`, `Properties Ctrl+W,P`.
+5. **Confirmação de Exclusão de Conexão [C] (`re/original-observation/p2-01-erros-conexao/19-delete-connection-confirm-1815.png`, `20-after-delete-1815.png`):**
+   - Acionar `Delete` abre modal com ícone de interrogação e botões `[ Yes ]` e `[ No ]`:
+     *"Are you sure you want to remove database connection '{connection_name}'?"*
+   - Ao confirmar `Yes`, o nó é removido do Explorer e a seleção retorna à conexão anterior.
 
 ---
 
 ## 5. Estados do nó de conexão (Explorer)
 
-| Estado | Ícone/indicador |
-|---|---|
-| Desconectado | servidor cinza |
-| Conectando | spinner âmbar |
-| Conectado | servidor com ponto verde |
-| Erro | servidor com triângulo vermelho |
-| Somente leitura | cadeado pequeno |
-| Ambiente Prod | faixa vermelha lateral 3px |
+| Estado | Ícone/indicador | Evidência |
+|---|---|---|
+| Desconectado | servidor cinza | `re/original-observation/p2-01-erros-conexao/17-after-cancel-1814.png` |
+| Conectando | spinner âmbar / indicador de carga | `re/original-observation/p2-01-erros-conexao/13-timeout-waiting-1813.png` |
+| Conectado | servidor com ponto verde | `re/original-observation/01-conexao/general.png` |
+| Erro | servidor com triângulo vermelho / alerta | `re/original-observation/p2-01-erros-conexao/05-wrong-password-result-1812.png` |
+| Somente leitura | cadeado pequeno | `document/ux/01-shell.md` |
+| Ambiente Prod | faixa vermelha lateral 3px | `document/evidence/ui/01-connection/connection-general-dark.png` |
 
 ---
 

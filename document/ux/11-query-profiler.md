@@ -2,7 +2,17 @@
 
 Reusa `01-shell.md`, `03` (editor/grid/resultados). **[C]** CONFIRMADO / **[I]** INFERIDO.
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Query Profiler; SQL Query History), catálogo interno `re/ui-strings/ui-text.txt` e **observação direta da VM de referência `dbforge-ref`** (dbForge Studio for MySQL v2026.2.82, capturas em `re/original-observation/12-profiler/` `antes-exec.png`, `perfil-*.png`, `plan.png`, `profile.png` e `session-stats.png`).
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Query Profiler; SQL Query History), catálogo interno `re/ui-strings/ui-text.txt`, **observação direta da VM de referência `dbforge-ref`** (dbForge Studio for MySQL v2026.2.82, capturas em `re/original-observation/12-profiler/` e varredura completa em `re/original-observation/p2-05-query-profiler/`).
+- **[C] Ponto de entrada e Menu:** Menu principal `SQL > Query Profiling Mode` (`re/original-observation/p2-05-query-profiler/13-menu-sql-1939.png`). O menu `Tools` NÃO possui opção de profiler (`00-menu-tools-1934.png`). Ícone fica emoldurado/destacado quando ativo (`14-profiling-mode-1939.png`, `18-sql-menu-estado-1939.png`, `30-menu-sql-toggle-off-1941.png`).
+- **[C] Aviso Real de Paginal Mode (`19-execute-profiling-on-1940.png`, `29-aviso-completo-1941.png`):** Ao executar consulta com profiling ativo e modo paginado habilitado, a barra de status exibe *"Query completed with warnings."* e a Error List emite aviso com o texto exato: *"Query profiling has been completed with the paginal mode turned on. Turn the paginal mode off to get the correct results."*.
+- **[C] Estrutura da Árvore e Sub-nós (`19` a `23`):** Raiz `Query Profiler` -> nó de execução `HH:MM:SS DD/MM/YYYY (duracao)` -> filhos `Profile`, `Plan`, `Plan Diagram`, `Session statistics`.
+- **[C] Detalhes dos Sub-nós:**
+  - `Profile` (`20-profiler-profile-1940.png`): Colunas `State | Summed Duration, sec. | Percentage, %`, etapas e linha consolidada `Sum: total / 100%`.
+  - `Plan` (`21-profiler-plan-1940.png`): Colunas do EXPLAIN clássico e painel descritivo do acesso.
+  - `Plan Diagram` (`23-profiler-plan-diagram-1940.png`): Grafo visual com cabeçalho `"Total Cost: {custo}"`, caixas de operação com ícones (`SELECT` -> `Table Scan`), rótulo de aresta e percentual em vermelho (ex.: `"100,00%"`) acima do nó de maior custo.
+  - `Session statistics` (`22-profiler-session-stats-1940.png`): Colunas `Name | Value | Description`.
+- **[C] Dropdown de Comparação na Toolbar (`26-profiler-dropdown-1940.png`):** Opções reais: `Not compare` (marcado por padrão), `Compare last two results`, `Compare last three results`, `Compare last four results`, `Compare last five results`.
+- **[C] Menu Dinâmico Data (`24-segunda-execucao-1940.png`):** Focar no painel do Profiler insere `Data` no menu principal com ações de cópia formatada (CSV, XML, HTML, JSON, EXCEL) e exportação.
 
 ## 1. Query Profiler [C: observado na VM]
 

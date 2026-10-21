@@ -1,6 +1,19 @@
 # UX 05 — Editores de objetos: View, Procedure, Function, Trigger, Event
 
-**Fidelidade REA:** rótulos conferidos contra REA ui-text. **[C]** (REA ui-text): Definer, Deterministic, Check Option, Parameters, Event, Status:, ON COMPLETION, Order, Expression, Table:, Add Parameter, Edit Parameters, Alter event, Create/Drop procedure {0}, Drop Trigger, "Do you want to drop procedure '{0}'?". Atalhos **[C] (REA shortcuts)**: Execute F5/F9, Format Document Ctrl+K Ctrl+D, Properties F4. Demais rótulos (Algorithm, SQL Security, Data access, Returns, Starts/Ends, Preview Data) permanecem **[I]** (ver `fidelidade-parts/A.md`).
+**Fidelidade REA & Observação VM:** rótulos conferidos contra REA ui-text e **observação direta da VM de referência `dbforge-ref`** (dbForge Studio for MySQL v2026.2.82, capturas completas em `re/original-observation/p2-02-table-designer/`).
+- **[C] Sub-abas reais por tipo de objeto:**
+  - View: `General | Query Design | Data | SQL` (`re/original-observation/p2-02-table-designer/38-new-view-1823.png` a `43-view-query-design-1824.png`).
+  - Procedure: `General | Data | SQL` (`re/original-observation/p2-02-table-designer/44-new-procedure-1824.png`).
+  - Function: `General | Data | SQL` (`re/original-observation/p2-02-table-designer/49-new-function-1826.png`).
+  - Trigger: `General | SQL` (sem aba Data) (`re/original-observation/p2-02-table-designer/55-new-trigger-1827.png`).
+  - Event: `General | SQL` (`re/original-observation/p2-02-table-designer/59-new-event-1828.png`).
+- **[C] Validações e Modais Reais:**
+  - View vazia: modal de erro *"View query cannot be empty."* (`re/original-observation/p2-02-table-designer/39-view-apply-empty-1823.png`).
+  - Procedure com erro sintático: sublinhado vermelho no editor, erros no painel Error List com link *"Show errors"* (`re/original-observation/p2-02-table-designer/45-proc-bad-body-1825.png`), e no Apply modal nativo com erro MySQL 1064 (`46-proc-apply-error-1825.png`).
+  - Function original com Erro 1418: template do dbForge omite `DETERMINISTIC` e falha sob binary logging com modal *"Object has been created with error(s): This function has none of DETERMINISTIC, NO SQL, or READS SQL DATA..."* (`50-function-applied-or-error-1826.png`, `51-function-after-error-1826.png`).
+  - Trigger: validação imediata no DDL sem tabela selecionada (`55-new-trigger-1827.png`); combo de tabela popula e viabiliza Apply (`57-trigger-table-chosen-1827.png`, `58-trigger-applied-1827.png`).
+  - Event: painéis Start/End/Recurrence (`60-event-panels-1828.png`); Apply converte Start Immediately para At time (`61-event-applied-1828.png`).
+- Atalhos **[C] (REA shortcuts)**: Execute F5/F9, Format Document Ctrl+K Ctrl+D, Properties F4.
 
 
 Reusa `01-shell.md` e o CodeEditor de `03`. Abertos em aba (ícone do tipo). Entradas: Explorer > objeto > "Edit"/Enter, ou Create > <tipo> (modo novo).
@@ -38,41 +51,87 @@ Reusa `01-shell.md` e o CodeEditor de `03`. Abertos em aba (ícone do tipo). Ent
 | Erro de Apply | Aba Messages foca: `Error 1064…` linha/coluna clicáveis; Error List recebe entrada; estado original preservado/restaurado |
 Conexão Prod: Apply pede confirmação digitando o nome do objeto.
 
-## 3. View
+## 3. View [C: observado na VM]
 
-Template: `CREATE OR REPLACE VIEW name AS SELECT ...`.
-Properties: Name, Algorithm (UNDEFINED/MERGE/TEMPTABLE), Definer (current_user ou usuário), SQL SECURITY (DEFINER/INVOKER), Check option (None/LOCAL/CASCADED), Comment (somente informativo, MySQL não guarda).
-Abas inferiores: Messages, **Columns** (preview das colunas resultantes — roda `SELECT ... LIMIT 0` ao clicar [Validate]), Dependencies (tabelas usadas), DDL. Botão extra **Preview Data** abre os primeiros 1000 registros em aba de resultado inline (aba "Preview"). Estado do Validate: loading/ok verde/erro vermelho.
+- **Sub-abas:** `General | Query Design | Data | SQL` (`re/original-observation/p2-02-table-designer/38-new-view-1823.png` a `43-view-query-design-1824.png`).
+- **Campos General:** Name (texto), Database (combo), "Query Text:" (editor Monaco de SQL), Options (checkbox "With check option" + Cascaded/Local), Security (rádio Invoker / Definer + combo de usuário, ex.: `obs@%`).
+- **Validação de Query Vazia (`39-view-apply-empty-1823.png`):** Tentar Apply com query em branco aciona caixa modal com ícone vermelho e texto exato: *"View query cannot be empty."*
+- **Sub-aba Query Design (`43-view-query-design-1824.png`):** Reusa o motor visual do Query Builder com canvas para tabelas e checkboxes de colunas, abas de junção e condições (`Selection | Joins | Where | Group By | Having | Order By`).
+- **Sub-aba SQL (`41-view-sql-tab-1824.png`):** Exibe o DDL dinâmico formatado. Após o Apply (`42-view-applied-1824.png`), o script é recarregado e normalizado pelo servidor MySQL com backticks explícitos e aliases em colunas.
 
-## 4. Stored Procedure
+## 4. Stored Procedure [C: observado na VM]
 
-Template:
-```
-CREATE PROCEDURE name(IN p1 INT)
+- **Sub-abas:** `General | Data | SQL` (`re/original-observation/p2-02-table-designer/44-new-procedure-1824.png`).
+- **Campos General:** Name, Database, Comment, grade Parameters (colunas Name \| Type \| Direction; botões Add, Remove, Move Up, Move Down), Options (Definer combo).
+- **Template inicial:**
+```sql
+CREATE
+DEFINER = 'obs'@'%'
+PROCEDURE obs_p2.procedure1()
 BEGIN
-  -- ...
+
 END
 ```
-Properties: Name, Definer, SQL Security, Deterministic (None/Yes/No), Data access (CONTAINS SQL/NO SQL/READS SQL DATA/MODIFIES SQL DATA), Comment.
-Aba **Parameters**: grid (Direction IN/OUT/INOUT | Name | Type | Length) editável; sincroniza com o cabeçalho do script.
-**Execute/Test** (F9): se há parâmetros abre diálogo "Execute Procedure" (campo por parâmetro, checkbox NULL, valores lembrados) e roda `CALL`; resultado em abas de resultado (03 §3) + Messages (OUT via variáveis de sessão exibidas num bloco "Output parameters"). Execução usa transação com opção [Rollback after execute] (padrão marcado em Prod).
-Debugger: fora do escopo (P3).
+- **Validação Sintática Local e Error List (`45-proc-bad-body-1825.png`):**
+  - Ao digitar instruções inválidas no corpo (ex.: `selec 1;`), o editor Monaco exibe sublinhado ondulado vermelho no trecho e popula o painel `Error List` com contagem e mensagens descritivas (ex.: `":" expected`, Location `Procedure:obs_p2.procedure1(mysql-teste)`), acompanhado do link *"Show errors"*.
+- **Apply com Erro no Servidor (`46-proc-apply-error-1825.png`):**
+  - Caso o usuário force o Apply com sintaxe inválida, a solicitação é enviada ao servidor e gera caixa modal com erro nativo do MySQL:
+    *"You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '...' at line N"* e registro `1064: You have an error in your SQL syntax...` na Error List.
+- **Sucesso no Apply (`47-proc-fixed-1825.png`, `48-proc-applied-1825.png`):**
+  - DDL normalizado relido do MySQL com delimitadores e status bar limpa.
 
-## 5. Function
+## 5. Function [C: observado na VM / Divergência Virtuosa do TuxSQL]
 
-Template: `CREATE FUNCTION name(p1 INT) RETURNS INT DETERMINISTIC BEGIN RETURN ...; END`.
-Properties: iguais à procedure + **Returns** (tipo/tamanho). Parâmetros só IN (coluna Direction oculta). Execute abre diálogo com parâmetros e mostra o valor retornado num painel (aba **Result**) com tipo.
+- **Sub-abas:** `General | Data | SQL` (`re/original-observation/p2-02-table-designer/49-new-function-1826.png`).
+- **Comportamento Falho do Original (dbForge Studio):**
+  - O template gerado pelo dbForge original é:
+    ```sql
+    CREATE
+    DEFINER = 'obs'@'%'
+    FUNCTION obs_p2.function1()
+    RETURNS INT
+    BEGIN
 
-## 6. Trigger
+      RETURN 1;
+    END
+    ```
+  - Em instâncias modernas com binary logging ativo (`log_bin=ON`), a execução desse template padrão FALHA com erro 1418 do MySQL (`re/original-observation/p2-02-table-designer/50-function-applied-or-error-1826.png`):
+    *"Object has been created with error(s): This function has none of DETERMINISTIC, NO SQL, or READS SQL DATA in its declaration and binary logging is enabled (you \*might\* want to use the less safe log_bin_trust_function_creators variable)"*, seguido de *"Object 'obs_p2.function1' does not exist."* (`51-function-after-error-1826.png`).
+  - Para funcionar no dbForge original, o usuário precisa manualmente inserir a cláusula `DETERMINISTIC` no script (`53-function-deterministic-1826.png`, `54-function-applied-1827.png`).
+- **Solução TuxSQL (Divergência Virtuosa):**
+  - O TuxSQL **inclui obrigatoriamente `DETERMINISTIC`** no template padrão de criação de Function:
+    ```sql
+    CREATE DEFINER = CURRENT_USER
+    FUNCTION `function1`()
+    RETURNS INT
+    DETERMINISTIC
+    BEGIN
+      RETURN 1;
+    END
+    ```
+  - Isso garante que qualquer função criada a partir do assistente compile com sucesso imediato sem exigir configuração de variáveis globais inseguras no servidor.
 
-Template: `CREATE TRIGGER name BEFORE INSERT ON table FOR EACH ROW BEGIN ... END`.
-Properties: Name, Table (combo, obrigatório; bloqueado após criação — alterar tabela exige recriar, aviso), Timing (BEFORE/AFTER), Event (INSERT/UPDATE/DELETE), Order (FOLLOWS/PRECEDES + trigger), Definer. Editor: autocomplete de `NEW.`/`OLD.` com colunas da tabela. Validação: combinação timing/evento duplicada gera aviso com opção FOLLOWS/PRECEDES. Aba extra **Table**: link "Abrir tabela". Sem Execute.
-Habilitar/desabilitar: não suportado pelo MySQL; item oculto.
+## 6. Trigger [C: observado na VM]
 
-## 7. Event
+- **Sub-abas:** Apenas `General | SQL` (sem sub-aba Data) (`re/original-observation/p2-02-table-designer/55-new-trigger-1827.png`).
+- **Campos General:** Name, Database, Table (combo com validação obrigatória), Definer, Timing (rádio After / Before), Order (combos `Follows trigger:` e `Precedes trigger:`).
+- **Validação de Tabela Obrigatória (`55-new-trigger-1827.png`):** Enquanto a tabela não for selecionada no combo ("Choose a table"), o DDL permanece inválido gerando 2 erros na Error List (`Unexpected symbol 'FOR'`, `Unexpected symbol 'END'`). Ao selecionar a tabela (`57-trigger-table-chosen-1827.png`), o DDL se completa automaticamente (`AFTER INSERT ON db.table`) e os erros são zerados.
+- **Sucesso no Apply (`58-trigger-applied-1827.png`):** Aplicação cria o trigger mesmo com corpo vazio `BEGIN END`.
 
-Template: `CREATE EVENT name ON SCHEDULE EVERY 1 DAY DO BEGIN ... END`.
-Properties: Name, Status (ENABLE/DISABLE/DISABLE ON SLAVE), On completion (PRESERVE/NOT PRESERVE), Definer, Comment, **Schedule**: tipo (AT / EVERY), para AT: date-time picker; para EVERY: número + unidade (YEAR, QUARTER, MONTH, DAY, HOUR, MINUTE, WEEK, SECOND), Starts (opcional), Ends (opcional). Preview textual: "Executa a cada 1 dia a partir de 2026-10-21 00:00" . Aviso quando `event_scheduler` está OFF: banner âmbar "Event Scheduler desligado no servidor" com link para Server Variables (08). Botão **Enable/Disable** rápido na toolbar (ALTER EVENT).
+## 7. Event [C: observado na VM]
+
+- **Sub-abas:** `General | SQL` (`re/original-observation/p2-02-table-designer/59-new-event-1828.png`).
+- **Campos General:** Name, Database, Comment, Status (`ENABLE` combo), `[x] Recurrent`, Definer, `[x] Drop on completion`.
+- **Painéis de Agendamento (`60-event-panels-1828.png`):**
+  - **Start:** rádio `(•) Immediately` / `( ) After interval` / `( ) At time` (com campo de data/hora).
+  - **End:** rádio `(•) No end time` / `( ) After interval` / `( ) At time`.
+  - **Recurrence:** combo (padrão `Daily`, campo `Every: 1 days`).
+- **DDL Padrão:**
+  ```sql
+  CREATE DEFINER = 'obs'@'%' EVENT obs_p2.event1 ON SCHEDULE EVERY '1' DAY DO BEGIN END;
+  ```
+- **Apply e Persistência (`61-event-applied-1828.png`):**
+  - Ao aplicar, o MySQL converte o agendamento `Immediately` para `STARTS 'YYYY-MM-DD HH:MM:SS'` e o formulário atualiza o rádio Start para `At time`.
 
 ## 8. Aba Dependencies e DDL
 
