@@ -1,10 +1,11 @@
 # Backlog de lacunas observadas na VM (aguardando fim do mapeamento)
 
-> **AVISO (2026-10-21 17:40):** as seções Editor, Grid, Debugger, Query Builder, Data Generator, ER, Security e Report/Pivot foram reportadas SEM captura nova na VM (última captura real: 16:39; VM parada no assistente de Import). A origem da evidência é desconhecida (sessão anterior ou inferência) até a Prisma classificar. Tratar como INFERIDA; não abrir tasks de implementação a partir delas antes da reobservação.
+> **AVISO (2026-10-21 17:40):** as seções Grid, Debugger, Query Builder, Data Generator, ER, Security e Report/Pivot foram reportadas SEM captura nova na VM (última captura real: 16:39; VM parada no assistente de Import). A origem da evidência é desconhecida (sessão anterior ou inferência) até a Prisma classificar. Tratar como INFERIDA; não abrir tasks de implementação a partir delas antes da reobservação.
 
 Regra: só implementar depois que a Fase A de observação terminar. Cada item: módulo, lacuna, origem (F-*.md), prioridade (A uso diário, B útil, C acabamento), dono sugerido.
 
-## Editor SQL e Autocomplete (F-SQL, F-AC) — observado
+## Editor SQL e Autocomplete (F-SQL, F-AC) — CONFIRMADO pela Lupa (20 PNGs, 2026-10-21 17:34-17:38, re/original-observation/01-editor-sql/)
+Confirmado com captura: Execute To Cursor Ctrl+Shift+F10, Run To Cursor Ctrl+F10, Jump Between Syntax Pairs Ctrl+F12, Go To Definition F12, Insert Snippet Ctrl+K,X, submenus Format e Refactoring. Com Code Completion desativada o menu perde Insert Snippet/Go To Definition/Jump/Refactoring. Pendente: execução com vários statements, abas Messages, Active Format Profile, Ctrl+Space.
 | # | Lacuna | Prio | Dono |
 |---|---|---|---|
 | E1 | Execute To Cursor (Ctrl+Shift+F10) e Run To Cursor (Ctrl+F10) | A | Codex |

@@ -3,7 +3,7 @@
 import json, os, socket, sys, time
 
 SOCK = os.environ.get("VM_QMP", os.path.expanduser("~/vm/tuxsql-ref/qmp.sock"))
-W, H = int(os.environ.get("VM_W", 1280)), int(os.environ.get("VM_H", 800))  # resolução do convidado (ajuste no Windows para coincidir)
+W, H = int(os.environ.get("VM_W", 1024)), int(os.environ.get("VM_H", 768))  # resolução do convidado (ajuste no Windows para coincidir)
 
 KEYS = {" ": "spc", "\n": "ret", "\t": "tab", "-": "minus", "=": "equal", "[": "bracket_left", "]": "bracket_right",
         ";": "semicolon", "'": "apostrophe", "`": "grave_accent", "\\": "backslash", ",": "comma", ".": "dot", "/": "slash"}
