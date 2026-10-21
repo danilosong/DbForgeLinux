@@ -1,8 +1,9 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
-import { readFile, writeFile } from 'node:fs/promises'
+import { writeFile } from 'node:fs/promises'
 import type { IpcDeps } from './registry.js'
 import { inspectDatabase, compareSchemas, assertSchemaUpdateScript } from '../../modules/schema/index.js'
 import { parseSchemaSnapshot, readScriptsFolder, createSchemaSnapshot, assertDatabaseModel } from '../../modules/schema/offline.js'
+import { readBoundedRegularFile } from '../../modules/security/boundedFile.js'
 
 export function registerSchemaCompareIpc({ driver }: IpcDeps): void {
   ipcMain.handle('schema-compare:inspect', (_event, connectionId: string, database: string) => {
@@ -27,7 +28,7 @@ export function registerSchemaCompareIpc({ driver }: IpcDeps): void {
       : { title: 'Open schema snapshot', properties: ['openFile'] as Array<'openFile'>, filters: [{ name: 'Schema snapshot', extensions: ['snap', 'json'] }] }
     const selection = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
     if (selection.canceled || !selection.filePaths[0]) return null
-    return kind === 'Scripts Folder' ? readScriptsFolder(selection.filePaths[0]) : parseSchemaSnapshot(await readFile(selection.filePaths[0], 'utf8'))
+    return kind === 'Scripts Folder' ? readScriptsFolder(selection.filePaths[0]) : parseSchemaSnapshot((await readBoundedRegularFile(selection.filePaths[0], 32 * 1024 * 1024)).toString('utf8'))
   })
   ipcMain.handle('schema-compare:compare-models', async (_event, source: unknown, target: unknown, includeDrops = false) => {
     assertDatabaseModel(source); assertDatabaseModel(target)

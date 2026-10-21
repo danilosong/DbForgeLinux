@@ -112,6 +112,20 @@ textarea { resize: vertical; }
 .menu-row summary::-webkit-details-marker { display: none; }
 .menu-row details[open] > summary, .menu-row summary:hover { background: var(--bg-hover); }
 .menu-popup { position: absolute; z-index: 20; top: 23px; left: 0; min-width: 240px; padding: 4px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 3px; box-shadow: 0 8px 24px rgb(0 0 0 / .2); }
+.menu-nested { position: relative; }
+.menu-nested > summary { cursor: pointer; padding: 4px 7px; list-style: none; }
+.menu-nested > summary::after { content: '›'; float: right; color: var(--text-secondary); }
+.menu-submenu { display: none; position: absolute; z-index: 21; left: calc(100% - 3px); top: -5px; min-width: 275px; max-height: min(70vh, 620px); overflow: auto; padding: 4px; background: var(--bg-surface); border: 1px solid var(--border); border-radius: 3px; box-shadow: 0 8px 24px rgb(0 0 0 / .2); }
+.menu-nested[open] > .menu-submenu, .menu-nested:focus-within > .menu-submenu { display: block; }
+.monaco-editor .sql-bookmark-glyph { background: var(--accent); width: 8px !important; height: 8px !important; margin-left: 5px; border-radius: 50%; }
+.sql-editor-context { position: fixed; z-index: 10050; min-width: 230px; max-width: 340px; max-height: min(75vh, 680px); overflow: auto; padding: 4px; color: var(--text); background: var(--bg-surface); border: 1px solid var(--border); border-radius: 5px; box-shadow: 0 8px 26px rgb(0 0 0 / .32); }
+.sql-editor-context > button, .sql-editor-context details > div > button { display: flex; width: 100%; align-items: center; justify-content: flex-start; text-align: left; padding: 5px 8px; border: 0; background: transparent; color: inherit; }
+.sql-editor-context button:hover, .sql-editor-context summary:hover { background: var(--bg-hover); }
+.sql-editor-context details > summary { list-style: none; cursor: pointer; padding: 5px 8px; }
+.sql-editor-context details > summary::after { content: '›'; float: right; color: var(--text-secondary); }
+.sql-editor-context details > div { padding-left: 8px; border-left: 1px solid var(--border); margin-left: 8px; }
+.sql-editor-context hr { border: 0; border-top: 1px solid var(--border); margin: 4px 0; }
+.sql-editor-context button:focus-visible, .sql-editor-context summary:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .menu-action { width: 100%; display: flex; justify-content: space-between; text-align: left; border: 0; background: transparent; padding: 3px 7px; }
 .menu-row summary:focus-visible, .menu-action:focus-visible, .menubar-ai:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .menubar-ai { margin-left: auto; border: 1px solid var(--border); background: var(--bg-surface); color: var(--text-primary); border-radius: 3px; padding: 2px 7px; font-size: 11px; }
@@ -488,3 +502,12 @@ th { position: sticky; top: 0; background: var(--bg-surface-alt); }
 .editor-completion-details th:nth-child(2),.editor-completion-details td:nth-child(2) { width: 44%; }
 .editor-completion-details th:last-child,.editor-completion-details td:last-child { width: 28%; }
 .editor-completion-details th,.editor-completion-details td { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.database-create-editor { height: 100%; min-height: 0; display: flex; flex-direction: column; gap: 12px; padding: 14px; overflow: auto; box-sizing: border-box; }
+.database-create-editor > header { display: flex; align-items: center; gap: 8px; }
+.database-create-editor > header button[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 1px; }
+.database-create-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.database-create-form label { display: flex; flex-direction: column; gap: 5px; }
+.database-create-form input,.database-create-editor textarea { padding: 7px; color: var(--text); background: var(--bg-surface); border: 1px solid var(--border); }
+.database-create-editor textarea { min-height: 180px; resize: vertical; font-family: var(--font-mono, monospace); }
+.database-create-preview { margin-top: auto; min-height: 80px; padding: 10px; border: 1px solid var(--border); background: var(--bg-surface-alt); }
+.database-create-preview pre { white-space: pre-wrap; margin-bottom: 0; }

@@ -654,3 +654,41 @@ Object.assign(ptBrMessages, {
   'extras.erd.dropContextMismatch': 'O objeto solto pertence a outra conexão ou database.'
 })
 Object.assign(ptBrCatalog, Object.fromEntries(Object.entries(ptBrMessages).filter(([key]) => key.startsWith('qb.dragJoin.') || key.startsWith('extras.erd.drop'))))
+const editorCommandEn = {
+  'editor.context.editing': 'Editing', 'editor.context.refactoring': 'Refactoring', 'editor.context.format': 'Format', 'editor.context.settings': 'Settings',
+  'editor.command.rename': 'Rename…', 'editor.command.format-document': 'Format Document', 'editor.command.format-selection': 'Format Selection', 'editor.command.format-current-statement': 'Format Current Statement',
+  'editor.command.select-current-statement': 'Select Current Statement', 'editor.command.add-backticks-to-all-identifiers': 'Add Backticks to All Identifiers', 'editor.command.remove-unnecessary-backticks': 'Remove Unnecessary Backticks',
+  'editor.command.qualify-object-names': 'Qualify Object Names', 'editor.command.expand-wildcards': 'Expand Wildcards', 'editor.command.make-uppercase': 'Make Uppercase', 'editor.command.make-lowercase': 'Make Lowercase',
+  'editor.command.view-white-space': 'View White Space', 'editor.command.word-wrap': 'Word Wrap', 'editor.command.show-line-numbers': 'Show Line Numbers', 'editor.command.toggle-block-comment': 'Toggle Block Comment',
+  'editor.command.comment-selection': 'Comment Selection', 'editor.command.uncomment-selection': 'Uncomment Selection', 'editor.command.incremental-search': 'Incremental Search', 'editor.command.increase-line-indent': 'Increase Line Indent',
+  'editor.command.decrease-line-indent': 'Decrease Line Indent', 'editor.command.move-selected-lines-up': 'Move Selected Lines Up', 'editor.command.move-selected-lines-down': 'Move Selected Lines Down', 'editor.command.remove-line': 'Remove Line', 'editor.command.join-lines': 'Join Lines',
+  'editor.command.toggle-bookmark': 'Toggle Bookmark', 'editor.command.previous-bookmark': 'Previous Bookmark', 'editor.command.next-bookmark': 'Next Bookmark', 'editor.command.clear-bookmarks': 'Clear Bookmarks',
+  'editor.command.toggle-outline-expansion': 'Toggle Outline Expansion', 'editor.command.toggle-all-outlining': 'Toggle All Outlining', 'editor.command.stop-outlining': 'Stop Outlining', 'editor.command.start-automatic-outlining': 'Start Automatic Outlining',
+  'editor.command.cut': 'Cut', 'editor.command.copy': 'Copy', 'editor.command.paste': 'Paste', 'editor.command.execute-sql': 'Execute', 'editor.command.execute-current-statement': 'Execute Current Statement', 'editor.command.execute-to-cursor': 'Execute To Cursor',
+  'editor.command.run-to-cursor': 'Run To Cursor', 'editor.command.insert-breakpoint': 'Insert Breakpoint', 'editor.command.insert-snippet': 'Insert Snippet…', 'editor.command.go-to-definition': 'Go To Definition', 'editor.command.jump-between-syntax-pairs': 'Jump Between Syntax Pairs',
+  'editor.command.disable-code-completion': 'Disable Code Completion', 'editor.command.list-members': 'List Members', 'editor.command.parameter-info': 'Parameter Info', 'editor.command.quick-info': 'Quick Info', 'editor.command.complete-word': 'Complete Word', 'editor.command.refresh-suggestions': 'Refresh Suggestions'
+}
+const editorCommandPtBr = {
+  'editor.context.editing': 'Edição', 'editor.context.refactoring': 'Refatoração', 'editor.context.format': 'Formatação', 'editor.context.settings': 'Configurações',
+  'editor.command.rename': 'Renomear…', 'editor.command.format-document': 'Formatar documento', 'editor.command.format-selection': 'Formatar seleção', 'editor.command.format-current-statement': 'Formatar instrução atual',
+  'editor.command.select-current-statement': 'Selecionar instrução atual', 'editor.command.add-backticks-to-all-identifiers': 'Adicionar crases aos identificadores', 'editor.command.remove-unnecessary-backticks': 'Remover crases desnecessárias',
+  'editor.command.qualify-object-names': 'Qualificar nomes de objetos', 'editor.command.expand-wildcards': 'Expandir curingas', 'editor.command.make-uppercase': 'Converter para maiúsculas', 'editor.command.make-lowercase': 'Converter para minúsculas',
+  'editor.command.view-white-space': 'Exibir espaços em branco', 'editor.command.word-wrap': 'Quebra automática de linha', 'editor.command.show-line-numbers': 'Exibir números de linha', 'editor.command.toggle-block-comment': 'Alternar comentário de bloco',
+  'editor.command.comment-selection': 'Comentar seleção', 'editor.command.uncomment-selection': 'Remover comentário da seleção', 'editor.command.incremental-search': 'Pesquisa incremental', 'editor.command.increase-line-indent': 'Aumentar recuo',
+  'editor.command.decrease-line-indent': 'Diminuir recuo', 'editor.command.move-selected-lines-up': 'Mover linhas selecionadas para cima', 'editor.command.move-selected-lines-down': 'Mover linhas selecionadas para baixo', 'editor.command.remove-line': 'Remover linha', 'editor.command.join-lines': 'Juntar linhas',
+  'editor.command.toggle-bookmark': 'Alternar marcador', 'editor.command.previous-bookmark': 'Marcador anterior', 'editor.command.next-bookmark': 'Próximo marcador', 'editor.command.clear-bookmarks': 'Limpar marcadores',
+  'editor.command.toggle-outline-expansion': 'Alternar expansão', 'editor.command.toggle-all-outlining': 'Alternar todas as dobras', 'editor.command.stop-outlining': 'Parar dobras', 'editor.command.start-automatic-outlining': 'Iniciar dobras automáticas',
+  'editor.command.cut': 'Recortar', 'editor.command.copy': 'Copiar', 'editor.command.paste': 'Colar', 'editor.command.execute-sql': 'Executar', 'editor.command.execute-current-statement': 'Executar instrução atual', 'editor.command.execute-to-cursor': 'Executar até o cursor',
+  'editor.command.run-to-cursor': 'Executar até o cursor (depuração)', 'editor.command.insert-breakpoint': 'Inserir ponto de interrupção', 'editor.command.insert-snippet': 'Inserir trecho…', 'editor.command.go-to-definition': 'Ir para definição', 'editor.command.jump-between-syntax-pairs': 'Alternar entre pares de sintaxe',
+  'editor.command.disable-code-completion': 'Desativar conclusão de código', 'editor.command.list-members': 'Listar membros', 'editor.command.parameter-info': 'Informações de parâmetros', 'editor.command.quick-info': 'Informações rápidas', 'editor.command.complete-word': 'Completar palavra', 'editor.command.refresh-suggestions': 'Atualizar sugestões'
+}
+Object.assign(enMessages, editorCommandEn)
+Object.assign(ptBrMessages, editorCommandPtBr)
+Object.assign(ptBrCatalog, editorCommandPtBr)
+Object.assign(enMessages, {
+  'backup.wizard.includeStructure': 'Include structure', 'backup.wizard.includeDefiner': 'Include DEFINER', 'backup.wizard.includeDrop': 'Include DROP statements', 'backup.wizard.dropIfExists': 'Use IF EXISTS in DROP', 'backup.wizard.includeUse': 'Include USE database statement', 'backup.wizard.noAutoValueOnZero': 'Include NO_AUTO_VALUE_ON_ZERO', 'backup.wizard.lockTables': 'Lock selected tables for read', 'backup.wizard.flushLogs': 'Flush logs before dump', 'backup.wizard.totalObjects': 'Total objects', 'backup.wizard.openScript': 'Open script in editor'
+})
+Object.assign(ptBrMessages, {
+  'backup.wizard.includeStructure': 'Incluir estrutura', 'backup.wizard.includeDefiner': 'Incluir DEFINER', 'backup.wizard.includeDrop': 'Incluir comandos DROP', 'backup.wizard.dropIfExists': 'Usar IF EXISTS no DROP', 'backup.wizard.includeUse': 'Incluir comando USE database', 'backup.wizard.noAutoValueOnZero': 'Incluir NO_AUTO_VALUE_ON_ZERO', 'backup.wizard.lockTables': 'Bloquear tabelas selecionadas para leitura', 'backup.wizard.flushLogs': 'Atualizar logs antes do dump', 'backup.wizard.totalObjects': 'Total de objetos', 'backup.wizard.openScript': 'Abrir script no editor'
+})
+Object.assign(ptBrCatalog, Object.fromEntries(Object.entries(ptBrMessages).filter(([key]) => key.startsWith('backup.wizard.'))))

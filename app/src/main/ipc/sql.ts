@@ -1,4 +1,4 @@
-import { app, ipcMain, BrowserWindow, dialog, type OpenDialogOptions, type SaveDialogOptions } from 'electron'
+import { app, ipcMain, BrowserWindow, dialog, shell, type OpenDialogOptions, type SaveDialogOptions } from 'electron'
 import { chmod, readFile, stat, writeFile } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import type { IpcDeps } from './registry.js'
@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url'
 import { describeGridResult } from './grid-editing.js'
 const openedSqlFiles = new Map<number, Set<string>>()
 export function registerSqlIpc({driver,resolveConnectionConfig,userDataDir}:IpcDeps):void {
+ ipcMain.handle('file:reveal-path',(_event,path:string)=>{if(!path.trim())throw new Error('Path is required.');shell.showItemInFolder(resolve(path))})
  const resultSpools=new ResultSpoolRegistry(join(userDataDir,'query-results'))
  const spoolCleanup=resultSpools.cleanStaleFiles().catch(()=>{})
  let cleaningSpools=false

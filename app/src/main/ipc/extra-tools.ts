@@ -1,5 +1,5 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron'
-import { chmod, readFile, writeFile } from 'node:fs/promises'
+import { chmod, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { IpcDeps } from './registry.js'
 import { createTable, diffTables } from '../../modules/schema/ddl.js'
@@ -8,6 +8,7 @@ import { UserSnippetStore } from '../../modules/editor/snippetStore.js'
 import type { SchemaUpdateInput } from '../../modules/schema-update/index.js'
 import type { UserSnippet } from '../../modules/editor/snippetStore.js'
 import type { TableModel } from '../../modules/schema/model.js'
+import { readBoundedRegularFile } from '../../modules/security/boundedFile.js'
 
 export function registerExtraToolsIpc(deps: IpcDeps): void {
   const { driver, userDataDir } = deps
@@ -53,7 +54,8 @@ export function registerExtraToolsIpc(deps: IpcDeps): void {
     const window = BrowserWindow.getFocusedWindow(); const selected = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
     const path = selected.filePaths[0]
     if (selected.canceled || !path) return null
-    const count = await snippets.import(await readFile(path, 'utf8')); return { count }
+    const source = await readBoundedRegularFile(path, 5 * 1024 * 1024)
+    const count = await snippets.import(source.toString('utf8')); return { count }
   })
   ipcMain.handle('snippets:export', async (_event, locale: 'en' | 'pt-BR') => {
     const portuguese = locale === 'pt-BR'

@@ -3,7 +3,7 @@ import type { ConnectionRecord, ConnectionSummary, DatabaseObject, DatabaseObjec
 import { databaseObjectDragType } from '../../../../shared/databaseObjectDrag.js'
 import { Button } from './Button'
 import { useI18n } from '../i18n/useI18n.js'
-import { explorerContextMenu, type ExplorerMenuItem } from './explorerContextMenu.js'
+import { explorerContextMenu, explorerFolderContextMenu, type ExplorerMenuItem } from './explorerContextMenu.js'
 
 export type ExplorerContext = { connection: ConnectionSummary; database?: string; object?: DatabaseObject; target: 'server' | 'database' | DatabaseObjectKind }
 
@@ -50,6 +50,7 @@ export function DatabaseExplorer(props: Props): React.JSX.Element {
   const [expanded, setExpanded] = useState<string[]>([])
   const [expandedDatabases, setExpandedDatabases] = useState<string[]>([])
   const [expandedKinds, setExpandedKinds] = useState<string[]>([])
+  const [folderFilters, setFolderFilters] = useState<Record<string, string>>({})
   const [context, setContext] = useState<{ x: number; y: number; value: ExplorerContext }>()
   const contextMenuRef = useRef<HTMLDivElement>(null)
   const visible = useMemo(() => records.filter((record) => `${record.name} ${record.host} ${record.category ?? ''}`.toLowerCase().includes(filter.toLowerCase())), [records, filter])
@@ -93,12 +94,12 @@ export function DatabaseExplorer(props: Props): React.JSX.Element {
     setContext({ x: Math.min(event.clientX, window.innerWidth - 280), y: Math.min(event.clientY, window.innerHeight - 520), value })
   }
 
-  function renderMenu(items: ExplorerMenuItem[], path: string[] = []): React.JSX.Element[] {
+  function renderMenu(items: ExplorerMenuItem[], path: string[] = [], intercept?: (action: string) => boolean): React.JSX.Element[] {
     return items.map((item, index) => item.type === 'separator'
       ? <div key={`separator-${index}`} className="explorer-context-separator" role="separator" />
       : item.type === 'submenu'
-        ? <details key={item.id} className="explorer-context-submenu"><summary>{t(`explorer.menu.${item.id}`)}<span>›</span></summary><div className="explorer-context-nested">{renderMenu(item.items, [...path, item.id])}</div></details>
-        : <button key={item.id} type="button" role="menuitem" onClick={() => { onContextAction([...path, item.id].join('.'), context!.value); setContext(undefined) }}><span>{t(`explorer.menu.${item.id}`)}</span>{item.shortcut && <small>{item.shortcut}</small>}</button>)
+        ? <details key={item.id} className="explorer-context-submenu"><summary>{t(`explorer.menu.${item.id}`)}<span>›</span></summary><div className="explorer-context-nested">{renderMenu(item.items, [...path, item.id], intercept)}</div></details>
+        : <button key={item.id} type="button" role="menuitem" onClick={() => { const action = [...path, item.id].join('.'); if (!intercept?.(action)) onContextAction(action, context!.value); setContext(undefined) }}><span>{t(`explorer.menu.${item.id}`)}</span>{item.shortcut && <small>{item.shortcut}</small>}</button>)
   }
 
   const titleConnection = active.find((item) => item.recordId === selectedConnectionId) ?? active[0]
@@ -133,8 +134,9 @@ export function DatabaseExplorer(props: Props): React.JSX.Element {
                   {dbExpanded && <div className="object-groups">{loadingObjects.includes(dbKey) ? <small>{t('common.loading')}</small> : kinds.map(({ kind, icon }) => {
                     const members = dbObjects.filter((object) => object.kind === kind)
                     const groupKey = `${dbKey}:${kind}`
-                    return <div className="object-group" key={kind}><div className="object-group-heading"><button className="object-group-name" onClick={() => toggleKind(groupKey)}>{expandedKinds.includes(groupKey) ? '▾' : '▸'} {t(`explorer.kind.${kind}`)} ({members.length})</button><button className="object-create" title={t('explorer.menu.newObject')} onClick={() => onCreateObject(connection, database, kind)}>＋</button></div>
-                      {expandedKinds.includes(groupKey) && members.map((object) => <button key={`${kind}:${object.name}`} className="object-name" draggable={kind === 'table' || kind === 'view'} onDragStart={(event) => { if (kind !== 'table' && kind !== 'view') return; event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData(databaseObjectDragType, JSON.stringify({ connectionId: connection.recordId, database, kind, name: object.name })); event.dataTransfer.setData('text/plain', `${database}.${object.name}`) }} onClick={() => onSelectObject(connection, database, object)} onDoubleClick={() => kind === 'table' || kind === 'view' ? onSelectTop(connection, database, object) : onGenerateScript(connection, database, object)} onContextMenu={(event) => { onSelectObject(connection, database, object); showContextMenu(event, { connection, database, object, target: kind }) }}>{icon} {object.name}</button>)}
+                    const matchingMembers = members.filter((object) => object.name.toLowerCase().includes((folderFilters[groupKey] ?? '').toLowerCase()))
+                    return <div className="object-group" key={kind}><div className="object-group-heading" onContextMenu={(event) => showContextMenu(event, { connection, database, target: kind })}><button className="object-group-name" onClick={() => toggleKind(groupKey)}>{expandedKinds.includes(groupKey) ? '▾' : '▸'} {t(`explorer.kind.${kind}`)} ({members.length})</button><button className="object-create" title={t('explorer.menu.newObject')} onClick={() => onCreateObject(connection, database, kind)}>＋</button></div>
+                      {expandedKinds.includes(groupKey) && matchingMembers.map((object) => <button key={`${kind}:${object.name}`} className="object-name" draggable={kind === 'table' || kind === 'view'} onDragStart={(event) => { if (kind !== 'table' && kind !== 'view') return; event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData(databaseObjectDragType, JSON.stringify({ connectionId: connection.recordId, database, kind, name: object.name })); event.dataTransfer.setData('text/plain', `${database}.${object.name}`) }} onClick={() => onSelectObject(connection, database, object)} onDoubleClick={() => kind === 'table' || kind === 'view' ? onSelectTop(connection, database, object) : onGenerateScript(connection, database, object)} onContextMenu={(event) => { onSelectObject(connection, database, object); showContextMenu(event, { connection, database, object, target: kind }) }}>{icon} {object.name}</button>)}
                     </div>
                   })}</div>}
                 </div>
@@ -145,6 +147,6 @@ export function DatabaseExplorer(props: Props): React.JSX.Element {
         })}
       </div>)}
     </div>
-    {context && <div ref={contextMenuRef} className="object-context explorer-context-menu" style={{ left: context.x, top: context.y }} role="menu" aria-label={t('explorer.contextMenu')} onPointerDown={(event) => event.stopPropagation()} onKeyDown={(event) => { if (event.key === 'Escape') setContext(undefined) }}>{renderMenu(explorerContextMenu(context.value.target))}</div>}
+    {context && <div ref={contextMenuRef} className="object-context explorer-context-menu" style={{ left: context.x, top: context.y }} role="menu" aria-label={t('explorer.contextMenu')} onPointerDown={(event) => event.stopPropagation()} onKeyDown={(event) => { if (event.key === 'Escape') setContext(undefined) }}>{renderMenu(context.value.target !== 'server' && context.value.target !== 'database' && !context.value.object ? explorerFolderContextMenu(context.value.target) : explorerContextMenu(context.value.target), [], (action) => { if (action === 'filter') { const key = `${context.value.connection.recordId}:${context.value.database}:${context.value.target}`; const value = window.prompt(t('explorer.menu.filterPrompt'), folderFilters[key] ?? ''); if (value !== null) setFolderFilters((current) => ({ ...current, [key]: value })); return true } return false })}</div>}
   </aside>
 }

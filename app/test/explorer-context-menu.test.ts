@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildExplorerSql, explorerContextMenu, type ExplorerMenuItem } from '../src/renderer/src/ui/components/explorerContextMenu.js'
+import { buildExplorerSql, explorerContextMenu, explorerFolderContextMenu, type ExplorerMenuItem } from '../src/renderer/src/ui/components/explorerContextMenu.js'
 import { navigationEnMessages, navigationPtBrMessages } from '../src/renderer/src/i18n/navigationMessages.js'
 
 function menuPaths(items: ExplorerMenuItem[], prefix = ''): string[] {
@@ -33,8 +33,9 @@ describe('Database Explorer context menus', () => {
       expect(menuPaths(explorerContextMenu(kind))).toContain('openEditor')
       expect(menuPaths(explorerContextMenu(kind))).toContain('deleteObject')
     }
-    expect(menuPaths(explorerContextMenu('database'))).toContain('backup')
-    expect(menuPaths(explorerContextMenu('server'))).toContain('newDatabase')
+    expect(menuPaths(explorerContextMenu('database'))).toEqual(['newObject>', 'newObject.createTable', 'newObject.createView', 'newObject.createProcedure', 'newObject.createFunction', 'newObject.createTrigger', 'newObject.createEvent', 'openEditor', 'generateScriptAs>', 'generateScriptAs.create>', 'generateScriptAs.create.newSqlWindow', 'generateScriptAs.create.file', 'generateScriptAs.create.clipboard', 'generateScriptAs.drop>', 'generateScriptAs.drop.newSqlWindow', 'generateScriptAs.drop.file', 'generateScriptAs.drop.clipboard', 'generateScriptAs.dropAndCreate>', 'generateScriptAs.dropAndCreate.newSqlWindow', 'generateScriptAs.dropAndCreate.file', 'generateScriptAs.dropAndCreate.clipboard', 'generateScriptAs.select>', 'generateScriptAs.select.newSqlWindow', 'generateScriptAs.select.file', 'generateScriptAs.select.clipboard', 'generateScriptAs.insert>', 'generateScriptAs.insert.newSqlWindow', 'generateScriptAs.insert.file', 'generateScriptAs.insert.clipboard', 'generateScriptAs.update>', 'generateScriptAs.update.newSqlWindow', 'generateScriptAs.update.file', 'generateScriptAs.update.clipboard', 'generateScriptAs.delete>', 'generateScriptAs.delete.newSqlWindow', 'generateScriptAs.delete.file', 'generateScriptAs.delete.clipboard', 'generateScriptAs.crud>', 'generateScriptAs.crud.newSqlWindow', 'generateScriptAs.crud.file', 'generateScriptAs.crud.clipboard', '|', 'backup', 'showDetails', 'refresh'])
+    expect(menuPaths(explorerContextMenu('server'))).toEqual(['modifyConnection', 'createConnectionLike', 'newDatabase', '|', 'close'])
+    expect(menuPaths(explorerFolderContextMenu('procedure'))).toEqual(['createProcedure', 'filter', 'showDetails', 'refresh'])
   })
 
   it('offers full script generation and send-to destinations across object contexts', () => {
@@ -44,13 +45,14 @@ describe('Database Explorer context menus', () => {
       expect(paths).toContain('generateScriptAs.crud.file')
       expect(paths).toContain('sendTo.databaseDiagram')
     }
-    expect(menuPaths(explorerContextMenu('server'))).toContain('sendTo.queryBuilder')
+    expect(menuPaths(explorerContextMenu('server'))).toContain('createConnectionLike')
   })
 
   it('has translated labels for every menu item in English and Brazilian Portuguese', () => {
     const ids = new Set<string>()
     const collect = (items: ExplorerMenuItem[]): void => { for (const item of items) { if (item.type === 'separator') continue; ids.add(item.id); if (item.type === 'submenu') collect(item.items) } }
     for (const kind of ['table', 'view', 'procedure', 'function', 'trigger', 'event', 'database', 'server'] as const) collect(explorerContextMenu(kind))
+    collect(explorerFolderContextMenu('table'))
     for (const id of ids) {
       expect(navigationEnMessages[`explorer.menu.${id}`], `missing en label for ${id}`).toBeTruthy()
       expect(navigationPtBrMessages[`explorer.menu.${id}`], `missing pt-BR label for ${id}`).toBeTruthy()

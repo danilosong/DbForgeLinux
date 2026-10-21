@@ -127,8 +127,11 @@ export default function Panel(): React.JSX.Element {
     try {
       const record = records.find((item) => item.id === target); if (!record) throw new Error('Escolha uma conexão de destino.')
       const connected = await window.dbforge.connect(record)
-      try { const summary = await window.dbforge.synchronizeSchema(connected.id, targetDb, fullSyncScript, destructive && riskAccepted); setMessage(`Synchronization complete: ${summary.succeeded} succeeded, ${summary.failed} failed${summary.errors.length ? ` — ${summary.errors.join('; ')}` : ''}`) }
+      let summary: Awaited<ReturnType<typeof window.dbforge.synchronizeSchema>>
+      try { summary = await window.dbforge.synchronizeSchema(connected.id, targetDb, fullSyncScript, destructive && riskAccepted) }
       finally { await window.dbforge.disconnect(connected.id) }
+      await runCompare()
+      setMessage(`Synchronization complete: ${summary.succeeded} succeeded, ${summary.failed} failed${summary.errors.length ? ` — ${summary.errors.join('; ')}` : ''}. Comparison refreshed.`)
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Falha na sincronização.') }
     finally { setBusy(false); setConfirmOpen(false); setRiskAccepted(false) }
   }

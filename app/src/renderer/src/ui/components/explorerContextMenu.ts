@@ -35,14 +35,14 @@ export function explorerContextMenu(kind: 'table' | 'view' | 'procedure' | 'func
     action('deleteObject', 'Delete'), separator, action('refresh', 'F5'), action('properties', 'Ctrl+W, P')
   ]
   if (kind === 'database') return [
-    action('newTable'), action('exportData'), action('importData'), action('generateData'), separator,
-    scriptItem('create'), action('backup'), sendTo(), action('editPrivileges'), action('showDetails'), separator,
-    action('refresh', 'F5'), action('properties', 'Ctrl+W, P')
+    submenu('newObject', [action('createTable'), action('createView'), action('createProcedure'), action('createFunction'), action('createTrigger'), action('createEvent')]),
+    action('openEditor'), scriptMenu(), separator, action('backup'), action('showDetails'), action('refresh', 'F5')
   ]
-  return [
-    action('newDatabase'), action('newConnection'), separator, action('refresh', 'F5'), action('tableMaintenance'), action('flush'), sendTo(), separator,
-    action('editPrivileges'), action('serverDetails'), action('properties', 'Ctrl+W, P')
-  ]
+  return [action('modifyConnection'), action('createConnectionLike'), action('newDatabase'), separator, action('close')]
+}
+
+export function explorerFolderContextMenu(kind: DatabaseObjectKind): ExplorerMenuItem[] {
+  return [action(`create${kind[0].toUpperCase()}${kind.slice(1)}`), action('filter'), action('showDetails'), action('refresh', 'F5')]
 }
 
 export type ScriptKind = 'create' | 'drop' | 'dropAndCreate' | 'select' | 'insert' | 'update' | 'delete' | 'crud'
@@ -61,3 +61,5 @@ export function buildExplorerSql(kind: ScriptKind, objectKind: string, database:
   }
   return statements[kind]
 }
+import type { DatabaseObjectKind } from '../../../../shared/contracts.js'
+

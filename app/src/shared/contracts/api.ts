@@ -46,6 +46,7 @@ export interface DbForgeApi extends SecurityApi, SessionsApi, SchemaCompareApi, 
   rollbackTransaction(connectionId: string): Promise<void>
   openSqlFile(): Promise<SqlFile | null>
   openSqlPath(path: string): Promise<SqlFile>
+  revealPath(path: string): Promise<void>
   onOpenSqlPath(handler: (path: string) => void): () => void
   saveSqlFile(path: string | undefined, contents: string): Promise<string | null>
 }
