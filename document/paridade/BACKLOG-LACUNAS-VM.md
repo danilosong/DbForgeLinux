@@ -57,3 +57,12 @@ Virtual→FK física: o assistente deve detectar linhas órfãs e exigir confirm
 | R3 | Containers de agrupamento e notas adesivas no canvas | C | Codex + UX |
 | R4 | Painel docado Diagram Overview (Ctrl+W,V) com viewport em miniatura | B | Codex + UX |
 | R5 | Assistente Virtual Relation → FK física com detecção de órfãos | B | Codex |
+
+## Security, Sessions e Server Variables (F-SEC) — observado
+Segurança: SET PERSIST/PERSIST_ONLY e privilégios globais são operações perigosas; exigir ação explícita, preview do SQL e confirmação forte; nunca logar senhas.
+| # | Lacuna | Prio | Dono |
+|---|---|---|---|
+| S1 | Todos os privilégios dinâmicos do MySQL 8 (35+) no Global Privileges, por versão do servidor | A | Codex |
+| S2 | Aba Locks no Session Manager (transações concorrentes, deadlocks InnoDB) | B | Codex |
+| S3 | Server Variables: SET PERSIST / SET PERSIST_ONLY com confirmação | B | Codex |
+| S4 | Gráfico de variação por segundo dos contadores de status | C | Codex + UX |
