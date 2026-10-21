@@ -50,7 +50,9 @@ Atenção: o print do README (build f885a5f) já mostra menus Query/Layout, bot�
 | Q3 | Menus Layout e Query na barra principal (aparentemente existem; verificar) | — | verificar |
 | Q4 | Minimapa de navegação no canto do canvas | C | Codex |
 
-## Data Generator (F-GEN) — observado
+## Data Generator (F-GEN) — PARCIALMENTE CONFIRMADO pela Lupa (11 PNGs, re/original-observation/05-data-generator/)
+Confirmado: entrada por clique direito na tabela > Generate Data... (não está no menu Tools); abre DOCUMENTO .dgen (não wizard linear) com árvore Tables and columns, painel Table generation settings (Row distribution: specified number / proportion of existing data / by time / proportion from lookup table; Truncate before generation; Related tables Parent/Child) e Column generation settings (Generator, Set values unique, Include NULL/empty, Random by timestamp/seed); preview das 50 primeiras linhas; Project Properties com defaults (1.000 linhas, truncate marcado, seed 1, Include NULL 10%). N1 passa a CONFIRMADO. Desconhecido: execução da geração, lista completa de geradores, mensagens finais.
+Menu Database capturado: Security Manager Ctrl+D,Q, Session Manager Ctrl+D,S, Server Variables Ctrl+D,V, Service Control Ctrl+D,R, Find Object Ctrl+D,F, Diagram, Master-Detail Browser, Report Designer, Pivot Table, Execute Large Script, Table Maintenance, Flush. Verificar no clone: Service Control, Find Object, Execute Large Script, Table Maintenance (N4). Comparar o desenho do clone (se for wizard por passos) com o documento único do original (N5).
 Geradores scriptáveis em C#/Python: NÃO implementar como no original (execução de código arbitrário em app que toca bancos reais). Registrar como diferença intencional; alternativa segura = expressões declarativas/lookup, sem executar código do usuário.
 | # | Lacuna | Prio | Dono |
 |---|---|---|---|
