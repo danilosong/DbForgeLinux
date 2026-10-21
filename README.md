@@ -15,6 +15,18 @@
   <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
 </p>
 
+<!-- PROGRESS:START -->
+**Progresso do projeto** · atualizado em 2026-10-21
+
+```text
+Fidelidade ao original (medida)           ████████████████░░░░  79,2%
+Módulos implementados e testados          ████████████████████   100%  (19 de 19)
+Specs de UX verificadas contra evidência  ████████████████████   100%  (19 de 19)
+```
+
+<sub>A fidelidade mede apenas os fluxos observados no original; o restante não observado não entra no cálculo.</sub>
+<!-- PROGRESS:END -->
+
 ---
 
 ### What is dbForgeLinux?

@@ -7,3 +7,9 @@
 5. Atualize documentação e evidências quando o comportamento de uso mudar. Seja explícito sobre limites: consulte `document/03-matriz-paridade.md`.
 
 Use mensagens de commit curtas e descritivas quando abrir uma contribuição. Não inclua senhas ou arquivos de ambiente.
+
+## Barra de progresso do README
+
+O bloco "Progresso do projeto" no topo do `README.md` é gerado a partir de `document/progress.json`.
+**Antes de cada commit**: atualize os valores em `document/progress.json` (data e porcentagens; a fidelidade vem de
+`document/paridade/FIDELIDADE-MEDIDA.md`) e rode `node tools/update-progress.mjs`. Nunca edite o bloco à mão.

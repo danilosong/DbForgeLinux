@@ -1,0 +1,9 @@
+{
+  "updated": "2026-10-21",
+  "bars": [
+    { "label": "Fidelidade ao original (medida)", "value": 79.2, "source": "document/paridade/FIDELIDADE-MEDIDA.md" },
+    { "label": "Módulos implementados e testados", "value": 100, "detail": "19 de 19" },
+    { "label": "Specs de UX verificadas contra evidência", "value": 100, "detail": "19 de 19" }
+  ],
+  "note": "A fidelidade mede apenas os fluxos observados no original; o restante não observado não entra no cálculo."
+}
