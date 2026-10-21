@@ -235,7 +235,9 @@ async function runTarget(live: LiveSession, args: Array<string | null>, autocomm
     if (live.snapshot.status === 'error') live.snapshot.output.push(`Routine failed: ${message}`)
   } finally {
     clearInterval(poller)
-    try { await pollSnapshot(live) } catch { /* keep the terminal event */ }
+    if (!['finished', 'stopped', 'error'].includes(live.snapshot.status)) {
+      try { await pollSnapshot(live) } catch { /* keep the terminal event */ }
+    }
     let restored = false
       try { await restoreObject(live.executor, live.target.database, live.target.name, live.target.kind ?? 'procedure', live.originalSql); restored = true }
     catch (targetRestoreError) {
