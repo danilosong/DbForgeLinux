@@ -47,3 +47,13 @@ Geradores scriptáveis em C#/Python: NÃO implementar como no original (execuç�
 | N1 | Modos de distribuição de linhas: por proporção de volume, série temporal, lookup table (hoje: contagem fixa) | B | Codex |
 | N2 | Painel docado Schema Update Script sincronizado com a geração | C | Codex |
 | N3 | Gerador por expressão declarativa/lookup (alternativa segura aos scripts C#/Python) | C | Codex |
+
+## Diagrama ER e Virtual Relation Manager (F-ER) — observado
+Virtual→FK física: o assistente deve detectar linhas órfãs e exigir confirmação forte, preview do ALTER e transação quando suportada (regra de segurança do projeto).
+| # | Lacuna | Prio | Dono |
+|---|---|---|---|
+| R1 | Seções recolhíveis no cartão (Constraints, Indexes, Triggers) | B | Codex |
+| R2 | Rótulo com o nome da constraint desenhado sobre a linha da relação (hoje só tooltip) | B | Codex |
+| R3 | Containers de agrupamento e notas adesivas no canvas | C | Codex + UX |
+| R4 | Painel docado Diagram Overview (Ctrl+W,V) com viewport em miniatura | B | Codex + UX |
+| R5 | Assistente Virtual Relation → FK física com detecção de órfãos | B | Codex |
