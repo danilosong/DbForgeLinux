@@ -21,6 +21,7 @@
     "mysql:clean-test": "node scripts/mysql-clean-test.mjs",
     "test:integration": "pnpm mysql:clean-test && MYSQL_INTEGRATION=1 vitest run",
     "perf:benchmark": "vitest run test/performance-benchmark.test.ts --reporter=verbose",
+    "perf:metadata": "node scripts/metadata-scale-benchmark.mjs",
     "perf:startup": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/startup-benchmark.mjs",
     "dist:deb": "DBFORGE_RELEASE_BUILD=1 pnpm build && electron-builder --linux deb --config packaging/electron-builder.yml",
     "smoke:e2e": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/smoke-e2e.mjs",

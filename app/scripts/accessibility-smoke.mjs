@@ -26,8 +26,8 @@ try {
   async function scan(label) {
     const results = await page.evaluate(async () => window.axe.run(document, { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'] } }))
     for (const violation of results.violations) {
-      issues.push({ label, id: violation.id, impact: violation.impact, count: violation.nodes.length, description: violation.help, nodes: violation.nodes.map((node) => node.target) })
-      console.log(`${label}: ${violation.id} (${violation.impact}) ${violation.help} · ${violation.nodes.map((node) => node.target.join(',')).join('; ')}`)
+      issues.push({ label, id: violation.id, impact: violation.impact, count: violation.nodes.length, description: violation.help, nodes: violation.nodes.map((node) => ({ target: node.target, summary: node.failureSummary })) })
+      console.log(`${label}: ${violation.id} (${violation.impact}) ${violation.help} · ${violation.nodes.map((node) => `${node.target.join(',')} ${node.failureSummary ?? ''}`).join('; ')}`)
     }
     console.log(`${label}: ${results.violations.length} axe violations`)
   }
@@ -38,6 +38,8 @@ try {
     await page.locator('.tool-document .tool-panel').first().waitFor()
     await page.waitForTimeout(100)
     await scan(`${menu} / ${action}`)
+    const dialogClose = page.locator('.panel-dialog-backdrop .panel-dialog-close')
+    if (await dialogClose.count()) await dialogClose.click()
   }
 
   await scan('Start Page')
@@ -45,8 +47,8 @@ try {
   await page.locator('.monaco-editor').waitFor()
   await scan('SQL Editor')
   await openPanel('View', 'Query Builder')
-  await openPanel('Comparison', 'New Schema Compare')
-  await openPanel('Comparison', 'New Data Compare')
+  await openPanel('Comparison', 'Schema Comparison')
+  await openPanel('Comparison', 'Data Comparison')
   await openPanel('Database', 'Security Manager')
   await openPanel('Tools', 'Options')
   if (issues.length) {

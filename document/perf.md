@@ -21,8 +21,8 @@ Em 2026-10-21 a suíte completa voltou a medir os fluxos sintéticos de spool e 
 
 | Meta | Evidência nesta rodada | Estado |
 | --- | --- | --- |
-| Explorer abre com ~3.000 tabelas em menos de 1 s | Fixture de 3.000 tabelas/200 views/300 rotinas/50 databases não foi criada nesta rodada. | SEM MEDIÇÃO |
-| Autocomplete com cache quente responde em menos de 100 ms | O benchmark atual não mede sugestões contra catálogo grande. | SEM MEDIÇÃO |
+| Explorer abre com ~3.000 tabelas em menos de 1 s | SELECT da lista de objetos: mediana 8 ms; abertura e pintura React não foram medidas. | CONSULTA OK; UI SEM MEDIÇÃO |
+| Autocomplete com cache quente responde em menos de 100 ms | Consulta de metadata e montagem em memória de 3.000 objetos/9.000 colunas: mediana 49 ms; IPC quente não isolado. | CAMINHO DE CARGA OK; IPC QUENTE SEM MEDIÇÃO |
 | Nenhum bloqueio perceptível da UI acima de 200 ms | Não foi coletada trace de renderização com catálogo em escala. | SEM MEDIÇÃO |
 
 O pipeline de resultados continua paginado pelo spool; isso não comprova o comportamento do Explorer, Find Object, Schema Compare ou Documenter com milhares de objetos. As metas acima ficam pendentes de uma fixture de metadados descartável e de trace de UI. Não foram usados nem alterados `sample` ou `sample_b`.
@@ -43,6 +43,18 @@ Medição em 2026-10-21 no mesmo ambiente Linux, com o executável empacotado, `
 As metas observadas nesta máquina foram atingidas: janela visível abaixo de 1,5 s e editor interativo abaixo de 3 s, em ambas as rodadas. Não atribuí as variações inferiores a algumas centenas de milissegundos a uma melhoria consistente.
 
 O renderer agora monta editores de SQL e objetos sob demanda; o registro de painéis usa imports dinâmicos e o painel do explorador de projetos só é montado quando aberto. O Monaco configura workers ESM para editor e JSON sob demanda e importa apenas as contribuições SQL, JSON e Markdown usadas pelo app. O IPC não essencial (histórico, ferramentas extras e atualização) é carregado após a primeira pintura, por um evento de renderer validado pelo guard. A janela não abre o diálogo do atualizador automaticamente.
+
+### Repetição com catálogo de 3.000 tabelas
+
+Em 2026-10-21, `app/scripts/metadata-scale-benchmark.mjs` criou um database descartável com nome `dbforge_test_scale_<PID>_<UUID>` e 3.000 tabelas com três colunas cada. O script mede cinco execuções das consultas de catálogo usadas pelo Explorer e pelo IPC de metadata do editor, incluindo a montagem em memória do catálogo de 9.000 colunas. As consultas não carregam dados de tabela. O database é removido no `finally`; `pnpm mysql:clean-test` também remove schemas com o prefixo `dbforge_test_` se o processo for interrompido.
+
+| Medição (5 amostras, mediana) | Resultado | Interpretação |
+| --- | ---: | --- |
+| Consulta da lista de objetos de um database | 8 ms | SELECT de metadados para 3.000 tabelas; não inclui pintura React nem conexão inicial. |
+| Queries do autocomplete + construção do índice de 9.000 colunas | 49 ms | Dentro de 100 ms no caminho frio do backend, com cache de metadados disponível por conexão/database. |
+| Consulta de colunas de uma tabela selecionada | <1 ms | Acesso sob demanda ao detalhe de um objeto. |
+
+O teste não mediu o tempo de tela do Explorer nem o bloqueio máximo do renderer; portanto a meta visual de Explorer abaixo de 1 s e a meta de frame abaixo de 200 ms seguem sem comprovação direta. O cache de autocomplete evita repetir as consultas durante seu TTL, mas esta medição não isolou o custo de um IPC quente no processo Electron.
 
 | Artefato | Antes observado | Depois |
 | --- | ---: | ---: |
