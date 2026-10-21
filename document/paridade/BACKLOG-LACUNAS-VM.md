@@ -60,7 +60,9 @@ Geradores scriptáveis em C#/Python: NÃO implementar como no original (execuç�
 | N2 | Painel docado Schema Update Script sincronizado com a geração | C | Codex |
 | N3 | Gerador por expressão declarativa/lookup (alternativa segura aos scripts C#/Python) | C | Codex |
 
-## Diagrama ER e Virtual Relation Manager (F-ER) — observado
+## Diagrama ER (F-ER) — PARCIALMENTE CONFIRMADO pela Lupa (16 PNGs, re/original-observation/06-diagrama-er/)
+Confirmado: Database > Database Diagram abre Diagram1.dbd; cartões com ícones PK/FK, tipos sem tamanho, selo NOT NULL e seções recolhíveis Constraints/Indexes/Triggers (R1 confirmado); relações IE (pé-de-galinha) com RÓTULO do nome da FK sobre a linha, inclusive auto-relação (R2 confirmado); menu do canvas (New Table/View/Procedure/Function/Container/Note/Stamp/Image, Zoom 10-400%, Preserve Routing, Layout Diagram, Export to Image, Select All, Synchronize Document Outline, Options); Layout Diagram organiza em linha; Diagram Overview = MINI-MAPA FLUTUANTE pela lupa no canto inferior direito (R4 confirmado, mas é flutuante, não painel docado); Export to Image BMP/JPG/GIF/PNG/TIF/EMF; Options com 4 abas (General, Notation, Page, Print). Containers e Notes confirmados (R3).
+Desconhecido: Virtual Relations — a Lupa NÃO achou em nenhum menu. R5 (assistente Virtual→FK) fica sem evidência; não implementar até haver prova.
 Virtual→FK física: o assistente deve detectar linhas órfãs e exigir confirmação forte, preview do ALTER e transação quando suportada (regra de segurança do projeto).
 | # | Lacuna | Prio | Dono |
 |---|---|---|---|
