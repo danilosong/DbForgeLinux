@@ -27,6 +27,17 @@ describe('resolvePnpm', () => {
     expect(command.prefix).toEqual([pnpmJs])
   })
 
+  it('runs a standalone pnpm executable directly instead of through node', async () => {
+    const node = join(home, 'bin', 'node')
+    const pnpm = join(home, 'lib', 'pnpm')
+    await fakeBinary(node)
+    await mkdir(join(home, 'lib'), { recursive: true })
+    await writeFile(pnpm, Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0, 0, 0, 0]))
+    const command = await resolvePnpm({ commit: 'abcdef1', branch: 'master', builtAt: 'now', toolchain: { nodePath: node, pnpmExecPath: pnpm } }, { PATH: '/nonexistent' }, home)
+    expect(command.file).toBe(pnpm)
+    expect(command.prefix).toEqual([])
+  })
+
   it('finds pnpm under nvm when the launcher PATH has no node tools', async () => {
     const pnpm = join(home, '.nvm', 'versions', 'node', 'v20.1.0', 'bin', 'pnpm')
     await fakeBinary(pnpm)

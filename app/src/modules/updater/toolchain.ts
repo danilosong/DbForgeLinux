@@ -1,5 +1,5 @@
 import { constants } from 'node:fs'
-import { access, readdir } from 'node:fs/promises'
+import { access, open, readdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { delimiter, dirname, isAbsolute, join } from 'node:path'
 import type { BuildInfo } from './types.js'
@@ -22,6 +22,17 @@ async function nvmCandidates(home: string): Promise<string[]> {
   } catch { return [] }
 }
 
+/** pnpm 11+ ships a standalone executable; running it through `node` fails with a syntax error. */
+async function isNativeBinary(path: string): Promise<boolean> {
+  try {
+    const handle = await open(path, 'r')
+    try {
+      const { bytesRead, buffer } = await handle.read(Buffer.alloc(4), 0, 4, 0)
+      return bytesRead === 4 && buffer[0] === 0x7f && buffer[1] === 0x45 && buffer[2] === 0x4c && buffer[3] === 0x46
+    } finally { await handle.close() }
+  } catch { return false }
+}
+
 /**
  * Finds pnpm when the app was started from a desktop launcher (no shell profile, so no nvm/volta PATH).
  * Order: toolchain recorded at build time -> DBFORGE_PNPM -> PATH -> common install locations.
@@ -31,6 +42,7 @@ export async function resolvePnpm(build: BuildInfo | undefined, env: NodeJS.Proc
   const recorded = build?.toolchain
   if (recorded?.nodePath && recorded.pnpmExecPath && isAbsolute(recorded.nodePath) && isAbsolute(recorded.pnpmExecPath)
     && await isExecutable(recorded.nodePath) && await exists(recorded.pnpmExecPath)) {
+    if (await isNativeBinary(recorded.pnpmExecPath)) return { file: recorded.pnpmExecPath, prefix: [], path: `${dirname(recorded.nodePath)}${delimiter}${basePath}` }
     return { file: recorded.nodePath, prefix: [recorded.pnpmExecPath], path: `${dirname(recorded.nodePath)}${delimiter}${basePath}` }
   }
   const candidates: string[] = []
