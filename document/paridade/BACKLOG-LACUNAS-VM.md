@@ -140,3 +140,8 @@ Alerta: a sincronização do original gera DROP em massa sem confirmação adici
 Verificar no clone (C3): Action Plan agrupado (19 grupos neste cenário), Warning de objeto que exige DETERMINISTIC/NO SQL/READS SQL DATA, e que o painel Schema Update Script reflete o plano.
 Desconhecido: se o botão Synchronize executa ou só abre o script; nome exato do evento em sample_b.
 Atenção operacional: sample_b foi alterado pela sincronização; recompor antes de novas observações de Schema Compare.
+
+## Segunda passada — P2-05 Query Profiler (F-PRF) — CONFIRMADO pela Lupa2 (32 PNGs, re/original-observation/p2-05-query-profiler/)
+Confirmado: SQL > Query Profiling Mode (o mesmo item liga e desliga; o nome 'Toggle Profiling Mode' do roteiro NÃO existe no menu); com o modo ligado, executar abre a aba Profiler com árvore Query Profiler > hora (duração) > Profile | Plan | Plan Diagram | Session statistics; Profile = variáveis de status com Summed Duration/Percentage por estágio; Plan = EXPLAIN (tipo e acesso); Plan Diagram = custo total com árvore SELECT -> Table Scan; Session statistics = Name/Value/Description; aviso quando o modo paginado está ligado (resultados incorretos até desligar); comparação por dropdown (Not compare, Compare last two/three/four/five results).
+Clone: já tem Profile/Plan/Plan Diagram em canvas 2D e comparador em duas colunas (rodada 11). Verificar (P1): item de menu único Query Profiling Mode, histórico configurável (10), aviso de modo paginado e comparação dos 2 a 5 últimos resultados (hoje só 2 colunas).
+Desconhecido: aparência da comparação lado a lado, ícones da barra, Display Estimated Execution Plan.
