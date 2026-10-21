@@ -11,6 +11,7 @@ const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-editor-designer-'))
 const evidenceRoot = join(process.cwd(), '..', 'document', 'evidence', 'ui')
 const sqlEvidence = join(evidenceRoot, '04-sql-editor')
 const tableEvidence = join(evidenceRoot, '03-table-designer')
+const shellEvidence = join(evidenceRoot, '01-shell')
 const admin = await mysql.createConnection({ host: '127.0.0.1', port: 33067, user: 'root', password: process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only' })
 const database = mysqlTestPrefix('editor_designer_ui')
 const tableName = `${database}_customers`
@@ -19,6 +20,7 @@ let app
 try {
   await mkdir(sqlEvidence, { recursive: true })
   await mkdir(tableEvidence, { recursive: true })
+  await mkdir(shellEvidence, { recursive: true })
   await admin.query(`CREATE DATABASE \`${database}\``)
   await admin.query(`CREATE USER '${dbUser}'@'%' IDENTIFIED BY ''`)
   await admin.query(`GRANT ALL PRIVILEGES ON \`${database}\`.* TO '${dbUser}'@'%'`)
@@ -34,7 +36,8 @@ try {
   await page.getByLabel('Host').fill('127.0.0.1')
   await page.getByLabel('Port').fill('33067')
   await page.getByLabel('User').fill(dbUser)
-  await page.getByRole('textbox', { name: 'Database' }).fill(database)
+  await page.getByRole('button', { name: 'Test Connection' }).click()
+  await page.getByLabel('Database', { exact: true }).selectOption(database)
   await page.getByRole('button', { name: 'Connect', exact: true }).click()
   await page.getByRole('heading', { name: 'Database Connection Properties' }).waitFor({ state: 'detached', timeout: 30000 })
   console.log('Connection active.')
@@ -56,6 +59,23 @@ try {
     if (await close.count()) await close.click().catch(() => undefined)
     await page.screenshot({ path })
   }
+  for (const theme of ['Light', 'Dark']) {
+    await chooseTheme(theme)
+    await page.locator('.node-line').filter({ hasText: 'Martelo UI MySQL' }).click({ button: 'right' })
+    await page.screenshot({ path: join(shellEvidence, `explorer-server-menu-${theme.toLowerCase()}.png`) })
+    await page.locator('.document-tabs').click({ position: { x: 700, y: 5 } })
+  }
+  await page.locator('.node-line').filter({ hasText: 'Martelo UI MySQL' }).click({ button: 'right' })
+  await page.locator('.explorer-context-menu').getByRole('menuitem', { name: 'New Database' }).click()
+  await page.locator('.database-create-editor').waitFor()
+  for (const theme of ['Light', 'Dark']) {
+    await chooseTheme(theme)
+    await capture(join(shellEvidence, `new-database-editor-${theme.toLowerCase()}.png`))
+    await page.locator('.document-tab').filter({ hasText: 'New Database' }).click({ button: 'right' })
+    await page.screenshot({ path: join(shellEvidence, `document-tab-menu-${theme.toLowerCase()}.png`) })
+    await page.locator('.document-tabs').click({ position: { x: 700, y: 5 } })
+  }
+  await page.locator('.document-tab').filter({ hasText: 'New Database' }).locator('.tab-close').click()
   await page.keyboard.press('Control+n')
   const editor = page.locator('.monaco-editor').last()
   for (const theme of ['Light', 'Dark']) {
@@ -68,8 +88,14 @@ try {
     await page.keyboard.press('ArrowDown')
     await page.waitForTimeout(600)
     await capture(join(sqlEvidence, `editor-completion-${theme.toLowerCase()}.png`))
+    await page.keyboard.press('Escape')
+    await editor.click({ position: { x: 300, y: 14 }, button: 'right' })
+    await page.locator('.sql-editor-context').waitFor({ state: 'visible' })
+    await page.getByRole('menuitem', { name: 'Execute To Cursor' }).waitFor({ state: 'visible' })
+    await page.screenshot({ path: join(sqlEvidence, `editor-context-${theme.toLowerCase()}.png`) })
+    await page.keyboard.press('Escape')
   }
-  console.log('Autocomplete captured.')
+  console.log('Autocomplete and editor context menus captured.')
   await page.keyboard.press('Escape')
   await page.locator('.node-name').filter({ hasText: 'Martelo UI MySQL' }).click()
   const db = page.locator('.database-name').filter({ hasText: database }).first()

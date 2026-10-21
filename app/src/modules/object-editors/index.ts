@@ -12,6 +12,27 @@ export function buildObjectTemplate(target: ObjectEditorTarget): string {
   throw new Error(`Não há template para ${target.kind}.`)
 }
 
+export interface RoutineParameter { name: string; mode: 'IN' | 'OUT' | 'INOUT'; type: string }
+export interface RoutineOptions { definer: string; sqlAccess: 'CONTAINS SQL' | 'NO SQL' | 'READS SQL DATA' | 'MODIFIES SQL DATA'; deterministic: boolean; parameters: RoutineParameter[] }
+
+export function buildRoutineTemplate(target: ObjectEditorTarget, options: RoutineOptions): string {
+  if (target.kind !== 'procedure' && target.kind !== 'function') throw new Error('Routine options are only available for procedures and functions.')
+  const name = `${quoteIdentifier(target.database)}.${quoteIdentifier(target.name)}`
+  const definer = options.definer.trim()
+  if (definer && definer !== 'CURRENT_USER' && !/^[A-Za-z0-9_.%$-]+@[A-Za-z0-9_.%$-]+$/.test(definer)) throw new Error('Definer must be CURRENT_USER or user@host.')
+  const params = options.parameters.map((parameter) => {
+    const parameterName = parameter.name.trim()
+    const type = parameter.type.trim().toUpperCase()
+    if (!/^[A-Za-z_$][\w$]*$/.test(parameterName)) throw new Error('Routine parameter name is invalid.')
+    if (!/^(?:TINYINT|SMALLINT|MEDIUMINT|INT|INTEGER|BIGINT|DECIMAL|NUMERIC|FLOAT|DOUBLE|REAL|BIT|BOOL|BOOLEAN|CHAR|VARCHAR|BINARY|VARBINARY|TINYTEXT|TEXT|MEDIUMTEXT|LONGTEXT|DATE|DATETIME|TIMESTAMP|TIME|YEAR|JSON)(?:\(\d{1,5}(?:,\s*\d{1,5})?\))?(?:\s+UNSIGNED)?$/.test(type)) throw new Error(`Invalid routine parameter type: ${parameter.type}`)
+    return `${parameter.mode} ${quoteIdentifier(parameterName)} ${type}`
+  }).join(', ')
+  const prefix = `CREATE${definer ? ` DEFINER = ${definer === 'CURRENT_USER' ? definer : `'${definer.split('@')[0]}'@'${definer.split('@')[1]}'`}` : ''}`
+  const signature = `${prefix} ${target.kind.toUpperCase()} ${name}(${params})`
+  if (target.kind === 'procedure') return `${signature}\n${options.sqlAccess}\nBEGIN\n  SELECT 1;\nEND;`
+  return `${signature} RETURNS INT\n${options.deterministic ? 'DETERMINISTIC' : 'NOT DETERMINISTIC'}\n${options.sqlAccess}\nBEGIN\n  RETURN 1;\nEND;`
+}
+
 export function validateTableDraft(table: TableModel): void {
   if (!table.name.trim() || table.name.length > 64) throw new Error('Nome de tabela vazio ou maior que 64 caracteres.')
   if (!table.columns.length) throw new Error('Adicione ao menos uma coluna.')

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildObjectTemplate, buildTableDdlPreview, normalizeObjectDefinition, validateTableDraft } from '../../src/modules/object-editors/index.js'
+import { buildObjectTemplate, buildRoutineTemplate, buildTableDdlPreview, normalizeObjectDefinition, validateTableDraft } from '../../src/modules/object-editors/index.js'
 import type { ObjectEditorTarget } from '../../src/shared/contracts/object-editors.js'
 import type { TableModel } from '../../src/modules/schema/model.js'
 
@@ -29,5 +29,14 @@ describe('object editor drafts', () => {
     expect(normalizeObjectDefinition('CREATE VIEW `sample`.`active_customers` AS SELECT 1;', view)).toContain('CREATE VIEW')
     expect(() => normalizeObjectDefinition('DROP VIEW `sample`.`active_customers`;', view)).toThrow('CREATE')
     expect(() => normalizeObjectDefinition('CREATE VIEW `sample`.`other` AS SELECT 1;', view)).toThrow('coincidir')
+  })
+
+  it('generates validated routine metadata and parameters into the live DDL', () => {
+    const options = { definer: 'CURRENT_USER', sqlAccess: 'READS SQL DATA' as const, deterministic: true, parameters: [{ name: 'customer_id', mode: 'IN' as const, type: 'INT' }] }
+    expect(buildRoutineTemplate(target('function', 'customer_label'), options)).toContain('IN `customer_id` INT')
+    expect(buildRoutineTemplate(target('function', 'customer_label'), options)).toContain('DETERMINISTIC\nREADS SQL DATA')
+    expect(buildRoutineTemplate(target('procedure', 'load_customer'), options)).toContain('CREATE DEFINER = CURRENT_USER PROCEDURE')
+    expect(() => buildRoutineTemplate(target('function'), { ...options, definer: 'root; DROP USER x' })).toThrow(/Definer/)
+    expect(() => buildRoutineTemplate(target('procedure'), { ...options, parameters: [{ name: 'id', mode: 'IN', type: 'INT); DROP TABLE x;--' }] })).toThrow(/parameter type/)
   })
 })

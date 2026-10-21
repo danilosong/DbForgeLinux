@@ -448,6 +448,7 @@ export default function App(): React.JSX.Element {
   }
 
   function updateDatabaseDraft(change: Partial<DatabaseDraft>, regenerate = false): void {
+    setDatabaseEditorStatus('')
     setDatabaseDrafts((current) => {
       const draft = current[selectedDocument]
       if (!draft) return current
@@ -471,6 +472,7 @@ export default function App(): React.JSX.Element {
     if (!window.confirm(t('database.editor.confirm', [draft.name]))) return
     const record = records.find((item) => item.id === tab.databaseEditor!.recordId)
     if (!record) { setDatabaseEditorStatus(t('database.editor.connectionMissing')); return }
+    if (record.advanced.readOnly) { setDatabaseEditorStatus(t('explorer.readOnly')); return }
     let connected: ConnectionSummary | undefined
     try {
       connected = await window.dbforge.connect(record)
