@@ -82,3 +82,8 @@ Segurança: SET PERSIST/PERSIST_ONLY e privilégios globais são operações per
 | S2 | Aba Locks no Session Manager (transações concorrentes, deadlocks InnoDB) | B | Codex |
 | S3 | Server Variables: SET PERSIST / SET PERSIST_ONLY com confirmação | B | Codex |
 | S4 | Gráfico de variação por segundo dos contadores de status | C | Codex + UX |
+
+## Report, Pivot e Master-Detail (F-RPT) — CONFIRMADO pela Lupa (21 PNGs, re/original-observation/08-report-pivot-masterdetail/)
+Confirmado: Master-Detail Browser como documento .mdet (mestre roxo, detalhe cinza, seta de FK, Browse Data com detalhe filtrado, Fetch Limit e Where Condition, abas Design/Data); Data Report Wizard em 8 passos (tipo Standard/Label/Blank, conexão + tabela/Custom Query, colunas, agrupamento com prioridade, layout Columnar/Tabular/Justified + orientação, estilo Bold/Casual/Compact/Corporate/Formal) que termina em documento Report1.rdb com Designer/Preview, Report Explorer, Properties, Data Source, Toolbox, Group and Sort; Pivot Table como documento com zonas Filter/Data Items/Column/Row, soma + Grand Total.
+Resolve G2 e G3: o original TEM esses recursos, e o clone também (gaps 19, 20 e 21 já implementados). Falta apenas comparar fluxo a fluxo (verificar: assistente de 8 passos vs entrada direta no designer do clone; título padrão do relatório deve ser 'TuxSQL Report', nunca o do original).
+Desconhecido: relatório Label/Blank, salvar/exportar, opções do pivot, Custom Query.
