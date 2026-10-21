@@ -12,7 +12,7 @@ const evidenceDirectory = join(process.cwd(), '..', 'document', 'evidence', 'ui'
 let app
 try {
   await mkdir(evidenceDirectory, { recursive: true })
-  app = await electron.launch({ executablePath: appPath, args: [], env: { ...process.env, XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
+  app = await electron.launch({ executablePath: appPath, args: [], env: { ...process.env, LANGUAGE: 'en', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
   const page = await app.firstWindow()
   await page.locator('.workbench').waitFor()
   const chooseTheme = async (theme) => {
@@ -21,8 +21,14 @@ try {
     await page.locator('.workbench').waitFor()
   }
   const openDatabaseAction = async (title, selector) => {
-    await page.locator('summary').filter({ hasText: /^Database$/ }).click()
-    await page.locator('.menu-popup .menu-action').filter({ hasText: new RegExp(title, 'i') }).last().click()
+    const databaseMenu = page.locator('.menu-row > details').filter({ has: page.locator(':scope > summary').filter({ hasText: /^Database$/ }) })
+    await databaseMenu.evaluate((element) => { element.open = true })
+    const taskAction = ['Database documentation', 'Copy Databases', 'Find Invalid Objects'].includes(title)
+    const actionMenu = taskAction ? databaseMenu.locator('.menu-nested').filter({ has: page.locator(':scope > summary').filter({ hasText: /^Tasks$/ }) }) : databaseMenu
+    if (taskAction) await actionMenu.evaluate((element) => { element.open = true })
+    const label = title === 'Find Invalid Objects' ? /Invalid Objects/i : new RegExp(`^${title}`, 'i')
+    const actionContainer = taskAction ? actionMenu.locator(':scope > .menu-submenu') : actionMenu.locator(':scope > .menu-popup')
+    await actionContainer.locator(':scope > .menu-action').filter({ hasText: label }).click()
     await page.locator(selector).waitFor()
   }
   const capture = async (menuTitle, selector, basename, prepare) => {
@@ -31,10 +37,12 @@ try {
     if (prepare) await prepare(page)
     if (basename === 'backup-restore') await page.locator('.backup-wizard').screenshot({ path: join(evidenceDirectory, `${basename}-light.png`) })
     else await page.screenshot({ path: join(evidenceDirectory, `${basename}-light.png`) })
+    if (basename === 'documenter-cover') await page.screenshot({ path: join(evidenceDirectory, 'documenter-light.png') })
     await chooseTheme('dark')
     if (prepare) await prepare(page)
     if (basename === 'backup-restore') await page.locator('.backup-wizard').screenshot({ path: join(evidenceDirectory, `${basename}-dark.png`) })
     else await page.screenshot({ path: join(evidenceDirectory, `${basename}-dark.png`) })
+    if (basename === 'documenter-cover') await page.screenshot({ path: join(evidenceDirectory, 'documenter-dark.png') })
   }
   await capture('Database documentation', '.documenter-panel', 'documenter-cover')
   await capture('Master-Detail Browser', '.master-detail-panel', 'master-detail-browser')

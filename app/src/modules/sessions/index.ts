@@ -78,7 +78,7 @@ export async function killSessions(client: SqlClient, ids: readonly number[], mo
 export async function getServerVariables(client: SqlClient, scope: 'GLOBAL' | 'SESSION' = 'GLOBAL', metadata: Record<string, VariableMetadata> = {}): Promise<VariableSnapshot> {
   const rows = await client.query(`SHOW ${scope} VARIABLES`)
   const variables = rows.map((row) => {
-    const name = String(row.Variable ?? row.variable_name ?? row.name)
+    const name = String(row.Variable_name ?? row.Variable ?? row.variable_name ?? row.name)
     const value = String(row.Value ?? row.variable_value ?? row.value ?? '')
     const definition = { ...inferVariable(name, value), ...metadata[name.toLowerCase()] }
     return { name, value, scope, dynamic: !staticVariables.has(name.toLowerCase()), ...definition, category: definition.category ?? categoryFor(name) } satisfies VariableInfo
@@ -88,7 +88,7 @@ export async function getServerVariables(client: SqlClient, scope: 'GLOBAL' | 'S
 
 export async function getServerStatus(client: SqlClient, scope: 'GLOBAL' | 'SESSION' = 'GLOBAL'): Promise<Record<string, string>> {
   const rows = await client.query(`SHOW ${scope} STATUS`)
-  return Object.fromEntries(rows.map((row) => [String(row.Variable ?? row.variable_name ?? row.name), String(row.Value ?? row.variable_value ?? row.value ?? '')]))
+  return Object.fromEntries(rows.map((row) => [String(row.Variable_name ?? row.Variable ?? row.variable_name ?? row.name), String(row.Value ?? row.variable_value ?? row.value ?? '')]))
 }
 
 export async function setServerVariable(client: SqlClient, name: string, value: string | number | boolean, scope: 'GLOBAL' | 'SESSION', options: { confirm: true; dynamic: boolean; persist?: boolean; type?: VariableInfo['type']; enumValues?: string[]; min?: number; max?: number }): Promise<void> {

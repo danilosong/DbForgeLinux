@@ -7,6 +7,7 @@ import { setSelectedGridRows } from './gridSelection.js'
 
 const ROW_HEIGHT = 26
 const OVERSCAN = 8
+const RESULT_PAGE_LIMIT = 500
 
 export function ResultGrid({ result, index, onLoadMore, fetchRows, currentConnection, autoCommit, transactionRevision, transactionCommitted, columnTypes, nullLabel = 'NULL' }: { result: QueryResult; index: number; onLoadMore?(): Promise<void>; fetchRows?(offset: number, limit: number): Promise<Array<Record<string, unknown>>>; currentConnection?: { id: string; environment?: string; database?: string }; autoCommit: boolean; transactionRevision: number; transactionCommitted: boolean; columnTypes?: Record<string, string>; nullLabel?: string }): React.JSX.Element {
   const { t } = useI18n()
@@ -88,11 +89,12 @@ export function ResultGrid({ result, index, onLoadMore, fetchRows, currentConnec
   useEffect(() => { if (lastTransactionRevision.current === transactionRevision) return; lastTransactionRevision.current = transactionRevision; if (!transactionCommitted) { setSavedRows(new Map()); setSavedInserts(new Set()); setSavedDeletes(new Set()) } }, [transactionCommitted, transactionRevision])
   useEffect(() => {
     if (!remote || remoteSortedRows || !fetchRows || last <= first) return
-    const offset = Math.floor(first / gridPreferences.pageSize) * gridPreferences.pageSize
+    const fetchPageSize = Math.min(gridPreferences.pageSize, RESULT_PAGE_LIMIT)
+    const offset = Math.floor(first / fetchPageSize) * fetchPageSize
     visiblePage.current = offset
     if (requested.current.has(offset)) return
     requested.current.add(offset)
-    void fetchRows(offset, gridPreferences.pageSize).then((loaded) => {
+    void fetchRows(offset, fetchPageSize).then((loaded) => {
       requested.current.delete(offset)
       if (visiblePage.current !== offset) return
       setRemoteRows(() => { const next = new Map<number, Record<string, unknown>>(); loaded.forEach((row, position) => next.set(offset + position, row)); return next })
@@ -156,7 +158,7 @@ export function ResultGrid({ result, index, onLoadMore, fetchRows, currentConnec
     if (count > maxRows) throw new Error(t('grid.limit.rows', [maxRows.toLocaleString()]))
     if (!remote || !fetchRows) return rows
     const collected: Array<Record<string, unknown>> = []
-    for (let offset = 0; offset < count; offset += 500) collected.push(...await fetchRows(offset, Math.min(500, count - offset)))
+    for (let offset = 0; offset < count; offset += RESULT_PAGE_LIMIT) collected.push(...await fetchRows(offset, Math.min(RESULT_PAGE_LIMIT, count - offset)))
     return collected
   }
   async function copyFormat(format: CopyAsFormat, withHeaders = true): Promise<void> {
@@ -227,8 +229,9 @@ export function ResultGrid({ result, index, onLoadMore, fetchRows, currentConnec
   }
   async function refreshCurrentPage(): Promise<void> {
     if (!remote || !fetchRows) { setGridMessage(t('grid.context.refreshLocal')); setContextMenu(undefined); return }
-    const offset = Math.floor(Math.max(0, scrollTop) / ROW_HEIGHT / gridPreferences.pageSize) * gridPreferences.pageSize
-    try { const loaded = await fetchRows(offset, gridPreferences.pageSize); setRemoteRows((current) => { const next = new Map(current); loaded.forEach((row, index) => next.set(offset + index, row)); return next }); setGridMessage(t('grid.context.refreshed')) }
+    const fetchPageSize = Math.min(gridPreferences.pageSize, RESULT_PAGE_LIMIT)
+    const offset = Math.floor(Math.max(0, scrollTop) / ROW_HEIGHT / fetchPageSize) * fetchPageSize
+    try { const loaded = await fetchRows(offset, fetchPageSize); setRemoteRows((current) => { const next = new Map(current); loaded.forEach((row, index) => next.set(offset + index, row)); return next }); setGridMessage(t('grid.context.refreshed')) }
     catch (error) { setGridMessage(error instanceof Error ? error.message : t('grid.copy.error')) }
     setContextMenu(undefined)
   }

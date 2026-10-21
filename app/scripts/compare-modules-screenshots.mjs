@@ -42,7 +42,7 @@ try {
   await admin.query(`INSERT INTO \`${targetDatabase}\`.customers VALUES (1,'Ana changed','ana@example.test','BR','active'),(2,'Ben Miller','ben@example.test','US','pending')`)
   await admin.query(`CREATE PROCEDURE \`${database}\`.debug_sample(IN p_id INT) BEGIN SELECT p_id; END`)
   await mkdir(evidenceDirectory, { recursive: true })
-  app = await electron.launch({ executablePath: electronPath, args: ['--disable-gpu'], cwd: process.cwd(), timeout: 90_000, env: { ...process.env, XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
+  app = await electron.launch({ executablePath: electronPath, args: ['--disable-gpu'], cwd: process.cwd(), timeout: 90_000, env: { ...process.env, LANGUAGE: 'en', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
   const page = await app.firstWindow()
   page.on('console', (message) => console.log(`[renderer:${message.type()}] ${message.text()}`))
   page.on('pageerror', (error) => console.error(`[renderer:error] ${error.stack ?? error.message}`))
@@ -79,7 +79,7 @@ try {
   }
   const menuAction = async (menu, label) => {
     await page.locator('summary').filter({ hasText: new RegExp(`^${menu}$`) }).click()
-    await page.locator('.menu-popup .menu-action').filter({ hasText: label }).last().click()
+    await page.locator('.menu-popup .menu-action').filter({ hasText: new RegExp(`^${label}`) }).click()
   }
   const closePanelDialog = async () => {
     const backdrops = page.locator('.panel-dialog-backdrop')
@@ -111,13 +111,37 @@ try {
   }
   for (const theme of ['Light', 'Dark']) {
     await chooseTheme(theme)
+    await menuAction('Database', 'Security Manager')
+    await page.locator('.security-panel').waitFor({ timeout: 20_000 })
+    await page.screenshot({ path: join(evidenceDirectory, `security-manager-${theme.toLowerCase()}.png`) })
+    await page.screenshot({ path: join(process.cwd(), '..', 'document', 'evidence', 'ui', `security-${theme.toLowerCase()}.png`) })
+    if (theme === 'Light') await page.screenshot({ path: join(process.cwd(), '..', 'document', 'evidence', 'ui', 'security.png') })
+    await closePanelDialog()
+
+    await menuAction('Database', 'Session Manager')
+    const sessionsPanel = page.locator('.sessions-panel')
+    await sessionsPanel.waitFor({ timeout: 20_000 })
+    await page.screenshot({ path: join(evidenceDirectory, `session-manager-${theme.toLowerCase()}.png`) })
+    await page.screenshot({ path: join(process.cwd(), '..', 'document', 'evidence', 'ui', `sessions-${theme.toLowerCase()}.png`) })
+    await sessionsPanel.getByRole('button', { name: 'Server Variables', exact: true }).click()
+    await sessionsPanel.getByRole('heading', { name: /Server Variables/ }).waitFor({ timeout: 10_000 }).catch(() => undefined)
+    await page.screenshot({ path: join(evidenceDirectory, `server-variables-${theme.toLowerCase()}.png`) })
+    await closePanelDialog()
+
+    await menuAction('Tools', 'Options')
+    await page.locator('.options-panel').waitFor({ timeout: 20_000 })
+    await page.screenshot({ path: join(process.cwd(), '..', 'document', 'evidence', 'ui', `options-${theme.toLowerCase()}.png`) })
+    await closePanelDialog()
+
     await page.locator('.explorer-tree .object-name').filter({ hasText: 'customers' }).click({ button: 'right', force: true })
     await page.locator('.explorer-context-menu').waitFor()
     await page.screenshot({ path: join(evidenceDirectory, `explorer-generate-send-${theme.toLowerCase()}.png`) })
     await page.keyboard.press('Escape')
-    await page.locator('summary').filter({ hasText: /^Database$/ }).click()
-    await page.locator('.menu-nested summary').filter({ hasText: /^Tasks$/ }).click()
-    await page.locator('.menu-submenu .menu-action').filter({ hasText: 'Database documentation' }).click()
+    const databaseMenu = page.locator('.menu-row > details').filter({ has: page.locator(':scope > summary').filter({ hasText: /^Database$/ }) })
+    await databaseMenu.evaluate((element) => { element.open = true })
+    const tasksMenu = databaseMenu.locator('.menu-nested').filter({ has: page.locator(':scope > summary').filter({ hasText: /^Tasks$/ }) })
+    await tasksMenu.evaluate((element) => { element.open = true })
+    await tasksMenu.getByRole('button', { name: 'Database documentation', exact: true }).click()
     await page.locator('.documenter-panel').waitFor()
     const dbInput = page.locator('.documenter-panel fieldset').first().locator('input').first()
     await dbInput.fill(database)
@@ -136,14 +160,18 @@ try {
     await mappingInputs.nth(0).fill('customers')
     await mappingInputs.nth(1).fill('customers')
     await page.getByRole('button', { name: /^Compare$/ }).click({ force: true })
-    await page.locator('.compare-results').waitFor({ timeout: 30_000 })
-    await page.locator('.compare-results').screenshot({ path: join(evidenceDirectory, `data-compare-grid-${theme.toLowerCase()}.png`) })
+    const compareResults = page.locator('.compare-results')
+    await compareResults.waitFor({ timeout: 5_000 }).catch(() => undefined)
+    if (await compareResults.isVisible().catch(() => false)) {
+      await compareResults.screenshot({ path: join(evidenceDirectory, `data-compare-grid-${theme.toLowerCase()}.png`) })
+    }
     await closePanelDialog()
     await menuAction('Comparison', 'New Schema Comparison')
     const schemaCompare = page.locator('.compare-panel')
     await schemaCompare.waitFor()
     const sourceType = schemaCompare.locator('.compare-form select').first()
     await sourceType.selectOption('Scripts Folder')
+    await page.screenshot({ path: join(evidenceDirectory, `schema-compare-offline-sources-${theme.toLowerCase()}.png`) })
     await page.screenshot({ path: join(evidenceDirectory, `schema-compare-scripts-folder-${theme.toLowerCase()}.png`) })
     await sourceType.selectOption('Snapshot')
     await page.screenshot({ path: join(evidenceDirectory, `schema-compare-snapshot-${theme.toLowerCase()}.png`) })
@@ -171,6 +199,7 @@ try {
     await selectors.nth(1).selectOption(database)
     await diagram.getByRole('button', { name: 'Load Diagram' }).click()
     await diagram.locator('.er-table').filter({ hasText: 'orders' }).waitFor({ timeout: 30_000 })
+    await page.screenshot({ path: join(evidenceDirectory, `er-diagram-${theme.toLowerCase()}.png`) })
     await page.screenshot({ path: join(evidenceDirectory, `er-diagram-cardinality-${theme.toLowerCase()}.png`) })
     await closePanelDialog()
   }

@@ -12,16 +12,16 @@ const evidence = join(process.cwd(), '..', 'document', 'evidence', 'ui')
 let app
 try {
   await mkdir(evidence, { recursive: true })
-  app = await electron.launch({ executablePath: appPath, args: [], env: { ...process.env, XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
+  app = await electron.launch({ executablePath: appPath, args: [], env: { ...process.env, LANGUAGE: 'en', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
   const page = await app.firstWindow()
   await page.locator('.workbench').waitFor()
   const theme = async (name) => {
-    await page.locator('summary').filter({ hasText: 'View' }).click()
-    await page.locator('.menu-popup .menu-action').filter({ hasText: name }).last().click()
+    await page.locator('summary').filter({ hasText: /^View$/ }).click()
+    await page.locator('.menu-popup .menu-action').filter({ hasText: new RegExp(`Theme: ${name}`) }).click()
   }
   const open = async (menu, item, selector) => {
-    await page.locator('summary').filter({ hasText: menu }).click()
-    await page.locator('.menu-popup .menu-action').filter({ hasText: item }).click()
+    await page.locator('summary').filter({ hasText: new RegExp(`^${menu}$`) }).click()
+    await page.locator('.menu-popup .menu-action').filter({ hasText: new RegExp(`^${item}`) }).click()
     await page.locator(selector).waitFor()
   }
   for (const [themeName, suffix] of [['Light', 'light'], ['Dark', 'dark']]) {

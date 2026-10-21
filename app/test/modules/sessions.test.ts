@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { compareStatus, compareVariableSnapshots, getServerVariables, killSessions, listSessions, setServerVariable } from '../../src/modules/sessions/index.js'
+import { compareStatus, compareVariableSnapshots, getServerStatus, getServerVariables, killSessions, listSessions, setServerVariable } from '../../src/modules/sessions/index.js'
 import type { SqlClient } from '../../src/modules/sql.js'
 
 function client(overrides: Partial<SqlClient> = {}): SqlClient {
@@ -49,8 +49,9 @@ describe('sessions and server variables backend', () => {
 
   it('marks static variables and validates global SET values', async () => {
     const execute = vi.fn(async () => undefined)
-    const db = client({ execute, query: vi.fn(async () => [{ Variable: 'port', Value: '3306' }, { Variable: 'max_connections', Value: '151' }, { Variable: 'sql_mode', Value: 'STRICT_TRANS_TABLES,ANSI' }]) })
+    const db = client({ execute, query: vi.fn(async () => [{ Variable_name: 'port', Value: '3306' }, { Variable_name: 'max_connections', Value: '151' }, { Variable_name: 'sql_mode', Value: 'STRICT_TRANS_TABLES,ANSI' }]) })
     const snapshot = await getServerVariables(db, 'GLOBAL')
+    expect(await getServerStatus(db, 'GLOBAL')).toEqual({ port: '3306', max_connections: '151', sql_mode: 'STRICT_TRANS_TABLES,ANSI' })
     expect(snapshot.variables.find((item) => item.name === 'port')?.dynamic).toBe(false)
     expect(snapshot.variables.find((item) => item.name === 'max_connections')?.type).toBe('number')
     await expect(setServerVariable(db, 'max_connections', 200, 'GLOBAL', { confirm: true, dynamic: true, type: 'number', min: 1, max: 100 })).rejects.toThrow('intervalo')

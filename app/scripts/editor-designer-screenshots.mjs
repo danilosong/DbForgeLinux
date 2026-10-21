@@ -26,7 +26,7 @@ try {
   await admin.query(`GRANT ALL PRIVILEGES ON \`${database}\`.* TO '${dbUser}'@'%'`)
   await admin.query(`CREATE TABLE \`${database}\`.\`${tableName}\` (id INT PRIMARY KEY AUTO_INCREMENT, customer_name VARCHAR(80) NOT NULL, note VARCHAR(100) NULL) ENGINE=InnoDB`)
   await admin.query(`INSERT INTO \`${database}\`.\`${tableName}\` (customer_name, note) VALUES ('Ada', NULL)`)
-  app = await electron.launch({ executablePath: join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql'), args: [], env: { ...process.env, XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
+  app = await electron.launch({ executablePath: join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql'), args: [], env: { ...process.env, LANGUAGE: 'en', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
   const page = await app.firstWindow()
   page.setDefaultTimeout(10000)
   page.on('console', (message) => console.log(`[renderer] ${message.type()}: ${message.text()}`))
@@ -103,7 +103,7 @@ try {
   await db.locator('span').click()
   await page.locator('.object-group-name').filter({ hasText: 'Tables' }).click()
   await page.locator('.object-name').filter({ hasText: tableName }).click({ button: 'right' })
-  await page.locator('.explorer-context-menu').getByRole('menuitem').nth(1).click()
+  await page.locator('.explorer-context-menu').getByRole('menuitem', { name: 'Open Editor', exact: true }).click()
   await page.locator('.object-editor').waitFor()
   console.log('Table Designer opened:', await page.locator('.object-editor-toolbar strong').innerText())
   for (const theme of ['Light', 'Dark']) {
@@ -125,6 +125,7 @@ try {
   for (const theme of ['Light', 'Dark']) {
     await chooseTheme(theme)
     await capture(join(shellEvidence, `new-procedure-editor-${theme.toLowerCase()}.png`))
+    await capture(join(evidenceRoot, `procedure-editor-${theme.toLowerCase()}.png`))
   }
   console.log(`Editor and Table Designer screenshots saved under ${evidenceRoot}`)
 } finally {

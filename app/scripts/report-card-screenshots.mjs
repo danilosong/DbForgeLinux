@@ -22,7 +22,7 @@ try {
   await admin.query(`CREATE TABLE \`${prefix}\`.\`${table}\` (id INT PRIMARY KEY, region VARCHAR(40), amount DECIMAL(10,2))`)
   await admin.query(`INSERT INTO \`${prefix}\`.\`${table}\` VALUES (1,'North',18.5),(2,'South',22),(3,'West',14.25)`)
   const executablePath = join(process.cwd(), 'dist', 'linux-unpacked', existsSync(join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql')) ? 'tuxsql' : 'electron')
-  app = await electron.launch({ executablePath, args: ['--disable-gpu'], timeout: 90_000, env: { ...process.env, XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
+  app = await electron.launch({ executablePath, args: ['--disable-gpu'], timeout: 90_000, env: { ...process.env, LANGUAGE: 'en', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
   const page = await app.firstWindow()
   page.on('pageerror', (error) => pageErrors.push(error.message))
   await page.addLocatorHandler(page.locator('.panel-dialog-backdrop:has(.update-dialog)'), async () => {
@@ -105,6 +105,10 @@ try {
   await designer.waitFor({ state: 'detached' })
   const panel = page.getByTestId('report-pivot-panel')
   await panel.waitFor({ state: 'visible' })
+  for (const theme of ['Light', 'Dark']) {
+    await selectTheme(theme)
+    await page.screenshot({ path: join(evidence, `data-report-pivot-${theme.toLowerCase()}.png`) })
+  }
 
   for (let iteration = 0; iteration < repeats; iteration += 1) {
     phase = `report/pivot/card render cycle ${iteration + 1}/${repeats}`

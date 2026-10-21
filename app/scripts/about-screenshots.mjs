@@ -16,6 +16,7 @@ try {
   await mkdir(evidenceDirectory, { recursive: true })
   app = await electron.launch({ executablePath: appPath, args: [], env: {
     ...process.env,
+    LANGUAGE: 'en', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8',
     XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'),
     XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'),
     ELECTRON_DISABLE_SECURITY_WARNINGS: 'true'
@@ -32,7 +33,7 @@ try {
   for (const theme of ['light', 'dark']) {
     await selectTheme(theme)
     await page.locator('summary').filter({ hasText: /^Help$/ }).click()
-    await page.locator('.menu-action').filter({ hasText: /About TuxSQL|Sobre o TuxSQL/i }).click()
+    await page.locator('.menu-popup').getByRole('button', { name: /^About/i }).click()
     await page.locator('.about-panel').waitFor()
     await page.waitForFunction(() => {
       const versions = [...document.querySelectorAll('.about-versions dd')]

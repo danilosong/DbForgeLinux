@@ -17,7 +17,7 @@ let app
 try {
   await admin.query(`CREATE DATABASE \`${database}\``)
   await mkdir(evidenceRoot, { recursive: true })
-  app = await electron.launch({ executablePath: join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql'), args: [], env: { ...process.env, XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
+  app = await electron.launch({ executablePath: join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql'), args: [], env: { ...process.env, LANGUAGE: 'en', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
   const page = await app.firstWindow()
   page.setDefaultTimeout(15000)
   await page.locator('.workbench').waitFor()
@@ -80,7 +80,7 @@ try {
       await tabButton.click()
       if (tab === 'General') assert.ok(await page.getByLabel('Show all databases').count())
       if (tab === 'Security') {
-        await page.locator('.connection-page-content select').nth(0).selectOption('ssh')
+        await page.locator('.connection-page-content .form-field').filter({ has: page.getByText('Protocol', { exact: true }) }).locator('select').selectOption('ssh')
         assert.ok(await page.getByRole('checkbox', { name: 'Keyboard Interactive Mode' }).count())
       }
       if (tab === 'HTTP') assert.ok(await page.getByLabel('Use Base64 encoding').count())

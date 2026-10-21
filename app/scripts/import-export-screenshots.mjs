@@ -20,7 +20,7 @@ try {
   const executablePath = join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql')
   app = await electron.launch({
     executablePath, args: [], cwd: process.cwd(), timeout: 90_000,
-    env: { ...process.env, XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' }
+    env: { ...process.env, LANGUAGE: 'en', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' }
   })
   const page = await app.firstWindow()
   await page.locator('.workbench').waitFor()
@@ -55,6 +55,7 @@ try {
     await menu.getByRole('menuitem', { name: /Export Data/ }).click()
     await page.locator('.io-wizard').waitFor()
     await page.screenshot({ path: join(evidenceDirectory, `import-export-format-${theme.toLowerCase()}.png`) })
+    await page.screenshot({ path: join(evidenceDirectory, `import-export-${theme.toLowerCase()}.png`) })
     await page.locator('.io-format-grid button').filter({ hasText: /^CSV/ }).first().click()
     await page.locator('.io-footer button.button-primary').click()
     await page.locator('.io-source-list').waitFor()

@@ -1,3 +1,4 @@
+/* global document */
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -31,11 +32,24 @@ try {
     executablePath: join(projectRoot, 'dist', 'linux-unpacked', 'tuxsql'),
     args: [`--user-data-dir=${join(dataRoot, 'profile')}`, pathToFileURL(sqlFile).href],
     timeout: 60_000,
-    env: { ...process.env, TUXSQL_LINUX_BACKEND: 'x11', ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' }
+    env: { ...process.env, LANGUAGE: 'en', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', TUXSQL_LINUX_BACKEND: 'x11', ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' }
   })
   const page = await application.firstWindow()
   await page.locator('.monaco-editor').waitFor({ state: 'visible', timeout: 30_000 })
   await mkdir(join(projectRoot, '..', 'document', 'evidence', 'ui'), { recursive: true })
+  const evidenceDirectory = join(projectRoot, '..', 'document', 'evidence', 'ui')
+  const viewMenu = page.locator('.menu-row > details').filter({ has: page.locator(':scope > summary').filter({ hasText: /^View$/ }) })
+  for (const theme of ['Light', 'Dark']) {
+    await viewMenu.evaluate((element) => { element.open = true })
+    const themeAction = viewMenu.getByRole('button', { name: new RegExp(`Theme: ${theme}|Tema: ${theme === 'Light' ? 'Claro' : 'Escuro'}`) })
+    await themeAction.click()
+    await page.waitForFunction((value) => document.documentElement.dataset.theme === value.toLowerCase(), theme)
+    await page.screenshot({ path: join(evidenceDirectory, `shell-${theme.toLowerCase()}.png`) })
+  }
+  await viewMenu.evaluate((element) => { element.open = true })
+  await viewMenu.getByRole('button', { name: /Theme: Light|Tema: Claro/ }).click()
+  await page.waitForFunction(() => document.documentElement.dataset.theme === 'light')
+  await page.screenshot({ path: join(evidenceDirectory, 'shell.png') })
   await page.screenshot({ path: output, fullPage: false })
   process.stdout.write(`Saved ${output}\n`)
 } finally {
