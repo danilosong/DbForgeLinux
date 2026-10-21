@@ -1,4 +1,4 @@
--- Schema de exemplo para observar/comparar o dbForge original e o TuxSQL Song (dados 100% fictícios).
+-- Schema de exemplo para observar/comparar o dbForge original e o TuxSQL (dados 100% fictícios).
 DROP DATABASE IF EXISTS sample;
 CREATE DATABASE sample CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 USE sample;

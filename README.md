@@ -1,7 +1,7 @@
-# TuxSQL Song
+# TuxSQL
 
 <p align="center">
-  <img src="document/evidence/ui/ui-corrections-light.png" alt="TuxSQL Song Preview" width="850">
+  <img src="document/evidence/ui/ui-corrections-light.png" alt="TuxSQL Preview" width="850">
 </p>
 
 <p align="center">
@@ -29,20 +29,20 @@ Specs de UX verificadas contra evidência    ███████████�
 
 ---
 
-### What is TuxSQL Song?
+### What is TuxSQL?
 
-> **TuxSQL Song** is an independent, native Linux desktop IDE and database management client for **MySQL and MariaDB**, created by **Danilo Song**. Built on **Electron, React 19, TypeScript, and the Monaco Editor**, it delivers a comprehensive development workspace tailored specifically for the Linux ecosystem. It provides professional SQL editing with autocompletion, query formatting and execution history, an interactive MDI workspace for visual query building, ER diagrams, schema & data synchronization, stored procedure stepping debugging, native SSH and HTTP tunneling, and an integrated AI Assistant with streaming and Bring-Your-Own-Key (BYOK) privacy.
+> **TuxSQL** is an independent, native Linux desktop IDE and database management client for **MySQL and MariaDB**, created by **Danilo Song**. Built on **Electron, React 19, TypeScript, and the Monaco Editor**, it delivers a comprehensive development workspace tailored specifically for the Linux ecosystem. It provides professional SQL editing with autocompletion, query formatting and execution history, an interactive MDI workspace for visual query building, ER diagrams, schema & data synchronization, stored procedure stepping debugging, native SSH and HTTP tunneling, and an integrated AI Assistant with streaming and Bring-Your-Own-Key (BYOK) privacy.
 
-> **Aviso importante / Important notice:** o TuxSQL Song é um projeto **independente e de código aberto**. **Não é um clone, cópia, fork ou porte do dbForge Studio**, **não é afiliado, patrocinado nem endossado pela Devart**, e não contém código, binários, ícones ou imagens dela. "dbForge" e "Devart" são marcas de seus titulares, citadas aqui apenas de forma descritiva. Veja o [Aviso Legal completo](LEGAL.md) e a seção [Aviso Legal (Disclaimer)](#aviso-legal-disclaimer).
-> *TuxSQL Song is an independent open-source project. It is not a clone, copy, fork or port of dbForge Studio, and is not affiliated with or endorsed by Devart. See [LEGAL.md](LEGAL.md).*
+> **Aviso importante / Important notice:** o TuxSQL é um projeto **independente e de código aberto**. **Não é um clone, cópia, fork ou porte do dbForge Studio**, **não é afiliado, patrocinado nem endossado pela Devart**, e não contém código, binários, ícones ou imagens dela. "dbForge" e "Devart" são marcas de seus titulares, citadas aqui apenas de forma descritiva. Veja o [Aviso Legal completo](LEGAL.md) e a seção [Aviso Legal (Disclaimer)](#aviso-legal-disclaimer).
+> *TuxSQL is an independent open-source project. It is not a clone, copy, fork or port of dbForge Studio, and is not affiliated with or endorsed by Devart. See [LEGAL.md](LEGAL.md).*
 
 ---
 
 ## Visão Geral
 
-O **TuxSQL Song** nasceu para preencher a carência de um ambiente integrado de desenvolvimento e administração de banco de dados no ecossistema Linux que ofereça a ergonomia, a riqueza de ferramentas e os recursos visuais tradicionalmente encontrados apenas em ferramentas comerciais para Windows.
+O **TuxSQL** nasceu para preencher a carência de um ambiente integrado de desenvolvimento e administração de banco de dados no ecossistema Linux que ofereça a ergonomia, a riqueza de ferramentas e os recursos visuais tradicionalmente encontrados apenas em ferramentas comerciais para Windows.
 
-Totalmente empacotado para distribuições baseadas em Debian/Ubuntu (`.deb`) e projetado com suporte nativo a **X11 e Wayland**, o TuxSQL Song combina performance de ponta com respeito absoluto à privacidade e à segurança dos dados:
+Totalmente empacotado para distribuições baseadas em Debian/Ubuntu (`.deb`) e projetado com suporte nativo a **X11 e Wayland**, o TuxSQL combina performance de ponta com respeito absoluto à privacidade e à segurança dos dados:
 - **Tudo local ou privado:** Suas credenciais são guardadas no keyring do sistema operacional (`libsecret`) com fallback em cofre cifrado em disco (AES-256-GCM).
 - **Sem telemetria oculta:** Chaves de API de IA e credenciais de túnel permanecem sob total controle do desenvolvedor.
 - **Arquitetura MDI genuína:** Trabalhe com múltiplos editores SQL, designers de tabelas, construtores visuais de consulta, comparadores de schema e depuradores abertos simultaneamente em abas independentes.
@@ -51,7 +51,7 @@ Totalmente empacotado para distribuições baseadas em Debian/Ubuntu (`.deb`) e 
 
 ## Galeria de Recursos
 
-Abaixo estão capturas reais da interface gráfica do TuxSQL Song executando em ambiente Linux x86_64 nos temas Claro e Escuro:
+Abaixo estão capturas reais da interface gráfica do TuxSQL executando em ambiente Linux x86_64 nos temas Claro e Escuro:
 
 ### 1. Ambiente Integrado e Construtor Visual (MDI Shell & Query Builder)
 
@@ -147,7 +147,7 @@ Para instalar o pacote oficial no Ubuntu, Debian, Linux Mint ou Pop!_OS:
 sudo apt install /caminho/para/tuxsql_0.1.0_amd64.deb
 ```
 
-Após a instalação, o aplicativo estará disponível no menu do sistema como **TuxSQL Song** ou pode ser iniciado via terminal:
+Após a instalação, o aplicativo estará disponível no menu do sistema como **TuxSQL** ou pode ser iniciado via terminal:
 
 ```bash
 tuxsql
@@ -225,7 +225,7 @@ A coluna **Situação** separa o que foi **verificado de verdade** do que é ape
 
 ## Como Testar e Validar
 
-A suíte de testes do TuxSQL Song abrange testes unitários, validações de contrato IPC, testes de estresse de streaming e testes de integração com instâncias reais de MySQL e MariaDB.
+A suíte de testes do TuxSQL abrange testes unitários, validações de contrato IPC, testes de estresse de streaming e testes de integração com instâncias reais de MySQL e MariaDB.
 
 Executando a partir da pasta `app/`:
 
@@ -275,7 +275,7 @@ docker compose -f test/docker-compose.yml down -v
 
 ## Arquitetura do Software
 
-O TuxSQL Song segue o padrão de segurança e isolamento de processos recomendado pelo Electron:
+O TuxSQL segue o padrão de segurança e isolamento de processos recomendado pelo Electron:
 
 ```
 ├── app/src/main/               # Processo Principal (Node.js)
@@ -333,7 +333,7 @@ Para o registro detalhado de comportamento de handshakes TLS e fallbacks, veja [
 
 ## Estado do Projeto e Paridade (Declaração Honesta)
 
-O TuxSQL Song é um projeto de código aberto em desenvolvimento ativo.
+O TuxSQL é um projeto de código aberto em desenvolvimento ativo.
 
 - **O que está feito:** Todos os 18 módulos listados no inventário inicial de engenharia reversa estão implementados no código e contam com cobertura de testes unitários, testes de integração e evidências visuais registradas.
 - **O que NÃO afirmamos:** **Não afirmamos paridade formal ou funcional certificada com nenhum produto comercial**, em especial com o dbForge Studio for MySQL da Devart, que serviu apenas como referência de *categoria de funcionalidades* (o que uma boa IDE de banco de dados oferece). As implementações são **código original**, escritas a partir de especificações próprias do projeto e de observação de comportamento, **sem uso de código, binários ou recursos do produto de referência**. Os desvios conhecidos estão documentados na [Matriz de Paridade](document/03-matriz-paridade.md).
@@ -346,7 +346,7 @@ Para total transparência com os usuários e a comunidade de desenvolvimento:
 
 1. **Depurador de Rotinas:** O mecanismo de debugging funciona exclusivamente com **Stored Procedures** por meio de injeção temporária de código de instrumentação e variáveis de sessão. Não há suporte a depuração passo a passo de Stored Functions, Triggers ou comandos dinâmicos `PREPARE/EXECUTE`.
 2. **Edição Direta na Grade:** A edição inline de células no Result Grid é suportada apenas em consultas simples do tipo `SELECT * FROM tabela` sobre uma única tabela que possua **chave primária (PK) ou índice com constraint UNIQUE**. Consultas complexas com `JOIN`, subqueries, agregações (`GROUP BY`) ou colunas calculadas operam em modo somente-leitura.
-3. **Formatos e Serviços Fora de Escopo:** O TuxSQL Song foi desenvolvido exclusivamente para ecossistemas modernos e abertos em Linux. Funcionalidades legadas de ecossistemas Windows (como importação/exportação direta para Microsoft Access, drivers genéricos ODBC de 32 bits, conectores Google Sheets legados, e integração com servidores de versão descontinuados como Team Foundation Server/TFS e Mercurial/Hg) estão expressamente fora do escopo do projeto.
+3. **Formatos e Serviços Fora de Escopo:** O TuxSQL foi desenvolvido exclusivamente para ecossistemas modernos e abertos em Linux. Funcionalidades legadas de ecossistemas Windows (como importação/exportação direta para Microsoft Access, drivers genéricos ODBC de 32 bits, conectores Google Sheets legados, e integração com servidores de versão descontinuados como Team Foundation Server/TFS e Mercurial/Hg) estão expressamente fora do escopo do projeto.
 
 ---
 
@@ -364,17 +364,17 @@ Para total transparência com os usuários e a comunidade de desenvolvimento:
 
 ## Aviso Legal (Disclaimer)
 
-**TuxSQL Song** é um software livre de código aberto (licença MIT) e de desenvolvimento independente, criado por **Danilo Song** e mantido pela comunidade.
+**TuxSQL** é um software livre de código aberto (licença MIT) e de desenvolvimento independente, criado por **Danilo Song** e mantido pela comunidade.
 
 - **Não é um clone.** É uma implementação independente, para Linux, de funcionalidades comuns a IDEs de banco de dados. Funcionalidades, ideias, métodos e algoritmos não são protegidos por direito autoral; a *expressão* (código, imagens, textos, identidade visual) é, e **nada disso foi copiado** (Lei nº 9.609/1998, art. 2º e art. 6º, III; Lei nº 9.610/1998, art. 8º).
 - Este projeto **não é afiliado, associado, autorizado, patrocinado ou de qualquer forma oficialmente conectado à Devart** ou a qualquer uma de suas subsidiárias ou afiliadas.
 - O código-fonte, componentes, folhas de estilo e recursos visuais deste repositório foram criados do zero para este projeto; **nenhum código-fonte proprietário, biblioteca fechada, binário, ícone, imagem ou texto de ajuda pertencente ao dbForge Studio foi copiado ou incluído neste repositório**. Materiais extraídos de outros produtos não são versionados nem distribuídos.
-- As capturas de tela deste README mostram **exclusivamente o TuxSQL Song**.
+- As capturas de tela deste README mostram **exclusivamente o TuxSQL**.
 - *dbForge*, *dbForge Studio* e *Devart* são marcas de seus legítimos titulares, sem qualquer direito reivindicado aqui. Aparecem apenas de forma **nominativa e descritiva** (Lei nº 9.279/1996, art. 132), para informar a relação de equivalência de funcionalidades e a ausência de vínculo.
 - **Titulares de direitos:** se achar que algo aqui viola seus direitos, abra uma issue ou contate o mantenedor; o conteúdo será analisado e, havendo fundamento, removido ou substituído, inclusive com renomeação do projeto. Detalhes em [LEGAL.md](LEGAL.md).
 - Este texto não é aconselhamento jurídico. O software é fornecido "como está", sem garantias (veja o [`LICENSE`](LICENSE)).
 
-*English:* TuxSQL Song is an independent MIT-licensed project. It is not a clone or derivative of dbForge Studio, contains none of its code or assets, and is not affiliated with, sponsored or endorsed by Devart. Trademarks belong to their owners and are mentioned only descriptively. Rights holders may contact the maintainer to request review or removal (see [LEGAL.md](LEGAL.md)).
+*English:* TuxSQL is an independent MIT-licensed project. It is not a clone or derivative of dbForge Studio, contains none of its code or assets, and is not affiliated with, sponsored or endorsed by Devart. Trademarks belong to their owners and are mentioned only descriptively. Rights holders may contact the maintainer to request review or removal (see [LEGAL.md](LEGAL.md)).
 
 ---
 

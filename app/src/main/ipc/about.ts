@@ -14,7 +14,7 @@ export function registerAboutIpc(): void {
     const packageRequire = createRequire(join(app.getAppPath(), 'package.json'))
     const mysql2Version = String((packageRequire('mysql2/package.json') as { version?: string }).version ?? 'unknown')
     return {
-      name: 'TuxSQL Song',
+      name: 'TuxSQL',
       version: app.getVersion(),
       creator: 'Danilo Song',
       license: 'MIT',

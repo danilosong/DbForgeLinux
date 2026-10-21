@@ -1,7 +1,7 @@
 import { cpSync, existsSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-// Config directories used before the project was renamed to TuxSQL Song, newest first.
+// Config directories used before the project was renamed to TuxSQL, newest first.
 const legacyDirectoryNames = ['dbforge-linux', 'dbForgeLinux', 'dbforgelinux']
 // Portable user data. The password vault is deliberately not copied: system-keyring entries are bound to the old
 // application name and cannot be decrypted after the rename, so saved passwords are asked for again.

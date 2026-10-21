@@ -1,5 +1,5 @@
 export const aboutEnMessages: Record<string, string> = {
-  'about.title': 'About TuxSQL Song',
+  'about.title': 'About TuxSQL',
   'about.creator': 'Created by',
   'about.license': 'Project license',
   'about.electron': 'Electron',
@@ -19,7 +19,7 @@ export const aboutEnMessages: Record<string, string> = {
 }
 
 export const aboutPtBrMessages: Record<string, string> = {
-  'about.title': 'Sobre o TuxSQL Song',
+  'about.title': 'Sobre o TuxSQL',
   'about.creator': 'Criado por',
   'about.license': 'Licença do projeto',
   'about.electron': 'Electron',

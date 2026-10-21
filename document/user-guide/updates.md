@@ -1,6 +1,6 @@
 # Updates
 
-TuxSQL Song has development and release update channels. Open **Help → Check for Updates…** to check at any time. The status bar shows when a check is running or an update is ready. The update window lists the version summary, progress, and recent log messages; a download can be cancelled.
+TuxSQL has development and release update channels. Open **Help → Check for Updates…** to check at any time. The status bar shows when a check is running or an update is ready. The update window lists the version summary, progress, and recent log messages; a download can be cancelled.
 
 Open **Tools → Options → Updates** to choose the channel, startup behavior, and check interval. Startup checks wait briefly after the window opens and do not block database work. Network failures during the automatic check are silent; use the Help command to see the error. Automatic installation is off by default. The updater asks before replacing a build while a query or transaction is active.
 

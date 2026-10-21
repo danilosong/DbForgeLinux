@@ -1,5 +1,5 @@
 appId: com.tuxsql.app
-productName: TuxSQLSong
+productName: TuxSQL
 directories:
   output: dist
   buildResources: packaging
@@ -24,10 +24,10 @@ linux:
     - AppImage
     - deb
   category: Development;Database;
-  maintainer: TuxSQL Song contributors <noreply@github.com>
+  maintainer: TuxSQL contributors <noreply@github.com>
   desktop:
     entry:
-      Name: TuxSQL Song
+      Name: TuxSQL
       Icon: tuxsql
       StartupWMClass: tuxsql
       StartupNotify: 'true'

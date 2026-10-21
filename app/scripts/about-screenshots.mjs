@@ -32,7 +32,7 @@ try {
   for (const theme of ['light', 'dark']) {
     await selectTheme(theme)
     await page.locator('summary').filter({ hasText: /^Help$/ }).click()
-    await page.locator('.menu-action').filter({ hasText: /About TuxSQL Song|Sobre o TuxSQL Song/i }).click()
+    await page.locator('.menu-action').filter({ hasText: /About TuxSQL|Sobre o TuxSQL/i }).click()
     await page.locator('.about-panel').waitFor()
     await page.waitForFunction(() => {
       const versions = [...document.querySelectorAll('.about-versions dd')]

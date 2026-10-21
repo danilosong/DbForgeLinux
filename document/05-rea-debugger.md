@@ -18,7 +18,7 @@ Fonte: strings embutidas em `Devart.DbForge.Debugger.MySql.dll` (script `Debuggi
 4. Limitações a documentar: locks/tx, rotinas com SQL dinâmico, recursão, triggers em tabelas em uso.
 Tarefa de implementação: M16 (após UX 14 e módulo `sql-parser`). Risco: ALTO.
 
-## Limitações da implementação TuxSQL Song
+## Limitações da implementação TuxSQL
 
 - A primeira versão depura **procedures** com checkpoints em statements de nível superior e blocos `IF` inteiros. Funções não são instrumentadas: o checkpoint atual é uma procedure com escrita e espera, operações que MySQL proíbe em stored functions. Triggers e events também ficam fora do escopo inicial porque executam como parte de outro statement/ator e não permitem controlar seu ciclo de pausa com segurança equivalente.
 - Os watches aceitam nomes simples de variáveis locais declaradas no bloco principal; expressões, parâmetros e variáveis declaradas em blocos internos ainda não são avaliados. A call stack contém o frame da procedure selecionada. Chamadas a outras rotinas não instrumentadas não geram frames adicionais.

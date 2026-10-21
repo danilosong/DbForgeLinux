@@ -1,6 +1,6 @@
 # VM Windows simples (QEMU/KVM)
 
-Ambiente descartável para **observar o comportamento do dbForge original** e comparar com o TuxSQL Song.
+Ambiente descartável para **observar o comportamento do dbForge original** e comparar com o TuxSQL.
 Uso apenas para estudo comportamental, com licença ou trial oficial do próprio usuário. Nada aqui contorna licenciamento.
 
 ```bash

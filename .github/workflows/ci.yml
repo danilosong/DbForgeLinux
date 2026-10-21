@@ -139,7 +139,7 @@ jobs:
                 apt-get update
                 DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends /tmp/tuxsql.deb
                 dpkg -c /tmp/tuxsql.deb >/tmp/package-files.txt
-                executable=/opt/TuxSQLSong/tuxsql
+                executable=/opt/TuxSQL/tuxsql
                 test -x \"\$executable\"
                 ldd \"\$executable\" | tee /tmp/ldd.txt
                 if grep -q \"not found\" /tmp/ldd.txt; then

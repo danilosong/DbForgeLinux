@@ -27,7 +27,7 @@ export function AboutDialog({ onClose }: { onClose(): void }): React.JSX.Element
   return <PanelDialog title={t('about.title')} closeLabel={t('about.close')} onClose={onClose}>
     <div className="about-panel">
       <h2>{t('about.title')}</h2>
-      <p className="about-product-name">{info?.name ?? 'TuxSQL Song'} <span>{info ? `v${info.version}` : '…'}</span></p>
+      <p className="about-product-name">{info?.name ?? 'TuxSQL'} <span>{info ? `v${info.version}` : '…'}</span></p>
       <dl className="about-versions">
         <dt>{t('about.creator')}</dt><dd>{info?.creator ?? 'Danilo Song'}</dd>
         <dt>{t('about.license')}</dt><dd>{info?.license ?? 'MIT'}</dd>

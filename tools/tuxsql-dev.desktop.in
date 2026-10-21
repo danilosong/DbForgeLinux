@@ -1,7 +1,7 @@
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=TuxSQL Song (Development)
+Name=TuxSQL (Development)
 Comment=Run the development build from this repository
 Exec=@REPO_ROOT@/tools/tuxsql-dev
 Icon=@REPO_ROOT@/app/packaging/icon.png

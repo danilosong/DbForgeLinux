@@ -18,7 +18,7 @@ describe('About IPC', () => {
   it('returns product and runtime versions without exposing environment values', async () => {
     const getInfo = handlers.get('about:info')!
     const info = await getInfo() as Record<string, unknown>
-    expect(info).toMatchObject({ name: 'TuxSQL Song', version: '1.2.3', creator: 'Danilo Song', license: 'MIT', electron: process.versions.electron ?? 'unknown', chromium: process.versions.chrome ?? 'unknown', node: process.versions.node ?? 'unknown', platform: process.platform, architecture: process.arch })
+    expect(info).toMatchObject({ name: 'TuxSQL', version: '1.2.3', creator: 'Danilo Song', license: 'MIT', electron: process.versions.electron ?? 'unknown', chromium: process.versions.chrome ?? 'unknown', node: process.versions.node ?? 'unknown', platform: process.platform, architecture: process.arch })
     expect(info.mysql2).toMatch(/^\d+\.\d+\.\d+$/)
     expect(JSON.stringify(info)).not.toMatch(/password|secret|token|credential/i)
   })

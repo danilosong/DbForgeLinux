@@ -1,6 +1,6 @@
 # Aviso Legal e Posicionamento de Propriedade Intelectual / Legal Notice
 
-> Este documento descreve a posição do projeto **TuxSQL Song** sobre propriedade intelectual.
+> Este documento descreve a posição do projeto **TuxSQL** sobre propriedade intelectual.
 > Não é parecer jurídico nem substitui a consulta a um advogado.
 > *This document states the project's intellectual-property position. It is not legal advice.*
 
@@ -11,13 +11,13 @@
 - **Não é** afiliado, patrocinado, endossado ou autorizado pela **Devart** ou por qualquer empresa citada neste repositório.
 - **Não** pretende ser confundido com o produto da Devart e **não** o substitui como produto oficial nem usa sua marca para promover ou vender o software.
 
-*English:* TuxSQL Song is an independent open-source (MIT) database client for Linux. It is not a copy, fork, port or derivative of dbForge Studio. It has no affiliation with, and is not endorsed by, Devart.
+*English:* TuxSQL is an independent open-source (MIT) database client for Linux. It is not a copy, fork, port or derivative of dbForge Studio. It has no affiliation with, and is not endorsed by, Devart.
 
 ## 2. Marcas
 
 - *dbForge*, *dbForge Studio* e *Devart* são marcas de seus respectivos titulares. Nenhum direito sobre elas é reivindicado.
 - Essas marcas aparecem neste repositório apenas de forma **nominativa e descritiva** (para dizer, com verdade, que o projeto oferece funcionalidade equivalente à de outro produto e que não tem relação com ele), sem logotipo, sem identidade visual e sem sugerir origem comum. Base legal brasileira de referência: Lei nº 9.279/1996 (Lei da Propriedade Industrial), art. 132, I e IV (uso de sinal alheio para referência/identificação e citação da marca em publicação sem conotação comercial).
-- **Nome do projeto:** o projeto foi originalmente publicado com um nome que continha o elemento "dbForge". Para eliminar o risco de confusão e de infração de marca, foi **renomeado para TuxSQL Song** (repositório, pacote `tuxsql`, executável e documentação). Menções antigas ao nome anterior podem subsistir apenas no histórico do Git e no CHANGELOG.
+- **Nome do projeto:** o projeto foi originalmente publicado com um nome que continha o elemento "dbForge". Para eliminar o risco de confusão e de infração de marca, foi **renomeado para TuxSQL** (repositório, pacote `tuxsql`, executável e documentação). Menções antigas ao nome anterior podem subsistir apenas no histórico do Git e no CHANGELOG.
 
 ## 3. Software: o que a lei brasileira protege
 
@@ -34,7 +34,7 @@ A base é a **Lei nº 9.609/1998 (Lei do Software)** e a **Lei nº 9.610/1998 (D
 2. **Sem material extraído versionado.** Instaladores, binários, recursos e listagens extraídas do produto de referência ficam **fora do Git** (`re/extracted/`, `re/ui-strings/`, `re/original-observation/` e arquivos em `re/evidence/` são ignorados via `.gitignore`).
 3. **Sem decompilação de lógica.** O comportamento foi estudado por **observação do produto em uso** e por especificações escritas pelo próprio projeto; a decompilação de lógica interna foi evitada (ver `document/01-rea-inventario.md`). Nenhuma proteção ou licenciamento foi contornado.
 4. **Especificação separada da implementação.** As especificações em `document/ux/` descrevem comportamento esperado em linguagem própria; o código é escrito a partir delas, não a partir do código do original.
-5. **Identidade visual própria.** O ícone, as cores, o tema e os textos de documentação são do projeto. Capturas de tela do repositório mostram **somente o TuxSQL Song**.
+5. **Identidade visual própria.** O ícone, as cores, o tema e os textos de documentação são do projeto. Capturas de tela do repositório mostram **somente o TuxSQL**.
 6. **Compatibilidade, não equivalência de marca.** Referências a "dbForge" em atalhos de teclado ou documentos têm finalidade de compatibilidade/interoperabilidade descritiva.
 7. **Contribuições.** Colaboradores declaram que não incluem código, strings ou assets de terceiros sem licença compatível (ver `CONTRIBUTING.md`).
 

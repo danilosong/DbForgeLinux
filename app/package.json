@@ -2,12 +2,12 @@
   "name": "tuxsql",
   "version": "0.1.0",
   "private": true,
-  "description": "TuxSQL Song desktop client",
+  "description": "TuxSQL desktop client",
   "desktopName": "tuxsql",
   "homepage": "https://github.com/danilosong/TuxSQL",
   "license": "MIT",
   "author": {
-    "name": "TuxSQL Song contributors",
+    "name": "TuxSQL contributors",
     "email": "noreply@github.com"
   },
   "main": "out/main/index.js",

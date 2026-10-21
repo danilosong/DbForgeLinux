@@ -1,4 +1,4 @@
-# TuxSQL Song
+# TuxSQL
 
 Scaffold I0 do cliente desktop para MySQL/MariaDB: Electron, TypeScript, React, Monaco e `mysql2`.
 
