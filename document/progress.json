@@ -3,7 +3,7 @@
   "bars": [
     {
       "label": "Fidelidade ao original (medida)",
-      "value": 92.8,
+      "value": 93.8,
       "source": "document/paridade/FIDELIDADE-MEDIDA.md"
     },
     {
@@ -17,5 +17,5 @@
       "detail": "20 de 20"
     }
   ],
-  "note": "A fidelidade é medida por um agente de UX com checagem por amostra de 12 itens e cobre apenas os fluxos observados no original; a verificação do arquiteto estima algo entre 88% e 90% porque algumas ferramentas visuais (multi-split sincronizado, Pivot Chart acoplado) seguem parciais."
+  "note": "A fidelidade é medida por um agente de UX com checagem por amostra de 12 itens e cobre apenas os fluxos observados no original; a verificação do arquiteto estima algo entre 88% e 90% porque algumas ferramentas visuais (multi-split sincronizado, grupos de abas de documentos) seguem em evolução."
 }

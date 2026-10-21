@@ -5,6 +5,7 @@
 > **Data de Calibração (Rodada 3 — Pós-Varredura VM):** 21 de outubro de 2026  
 > **Data de Medição (Rodada 4 — Consolidação Gaps 1–30):** 21 de outubro de 2026  
 > **Data de Medição (Rodada 5 — Consolidação de Card View, Custom Query, ER Overview e Tasks):** 21 de outubro de 2026  
+> **Data de Medição (Rodada 6 — Consolidação de Bookmarks/Outlining e Pivot Chart):** 21 de outubro de 2026  
 > **Avaliador:** Agente Prisma (Especialista UX/UI)  
 > **Referência Comparativa:** Observação em laboratório do dbForge Studio for MySQL v2026.2.82 (`re/original-observation/NOTES.md` seções 00–27 e acervo de 116+ capturas originais na VM)  
 > **Documentos de Lacunas da VM:** `document/paridade/GAPS-VARREDURA-VM.md` e `document/paridade/DIVERGENCIAS-ORIGINAL.md`  
@@ -25,20 +26,20 @@ Cada funcionalidade observada no produto de referência é decomposta em critér
 
 ---
 
-## 2. Checagem por Amostra Lado a Lado (Rodada 5)
+## 2. Checagem por Amostra Lado a Lado (Rodada 6)
 
 Para validar a integridade e precisão das notas contra evidências reais e atestar que os novos recursos funcionam de fato, foram selecionados **12 itens de 12 módulos distintos**, confrontando a evidência do clone contra a respectiva captura original feita na VM do laboratório.
 
 | # | Módulo | Item Verificável | Evidência no Clone | Evidência no Original | Confirmação |
 |:---:|---|---|---|---|:---:|
-| 1 | **03 Table Designer**| Card View vertical com navegação de registros | `document/evidence/ui/grid-card-view-dark.png` | `re/original-observation/03-table-designer/editor-customers.png` | **CONFIRMADO (1,0)** |
-| 2 | **15 Data Compare** | Custom Query no assistente de comparação de dados | `app/src/renderer/src/ui/panels/data-compare/Panel.tsx:170`, `data-compare.test.ts` | `re/original-observation/15-data-compare/wizard-mapping.png` | **CONFIRMADO (1,0)** |
-| 3 | **11 ER Diagram** | Diagram Overview e Virtual Foreign Keys tracejadas no canvas | `app/src/modules/er-diagram/index.ts:46`, `er-diagram.test.ts` | `re/original-observation/11-diagram/diagram-1.png` | **CONFIRMADO (1,0)** |
-| 4 | **16/17 Tasks** | Tasks Explorer listando tarefas recentes com reabertura de assistente | `document/paridade/DIVERGENCIAS-ORIGINAL.md:70` | `re/original-observation/17-tasks/` | **CONFIRMADO (1,0)** |
-| 5 | **19 Backup/Restore**| Restore com salvamento de comando de linha de comando CLI | `document/paridade/DIVERGENCIAS-ORIGINAL.md:71`, `database-backup.test.ts` | `re/original-observation/17-tasks/restore.png` | **CONFIRMADO (1,0)** |
-| 6 | **04 SQL Editor** | Refatoração com Expand Wildcards por alias e Add Backticks | `document/evidence/ui/04-sql-editor/editor-context-dark.png`, `refactoring.test.ts` | `re/original-observation/04-sql-editor/editor-1.png` | **CONFIRMADO (1,0)** |
-| 7 | **10 Query Builder**| Traçado de JOIN conector e subconsultas em abas | `document/evidence/ui/query-builder-joins-dark.png`, `query-builder.test.ts:24` | `re/original-observation/10-query-builder/qb-1.png` | **CONFIRMADO (1,0)** |
-| 8 | **18 Report** | Report Designer WYSIWYG com 7 bandas e painéis de propriedades | `document/evidence/ui/report-designer-wysiwyg-dark.png`, `data-report-pivot.test.ts:40` | `re/original-observation/18-misc/report.png`, `23-deep/rp-a.png` | **CONFIRMADO (1,0)** |
+| 1 | **04 SQL Editor** | Marcadores de navegação Bookmarks (Ctrl+B,x) e Outlining (Ctrl+M,x) | `app/test/modules/editor-navigation.test.ts`, `App.tsx:641` | `re/original-observation/04-sql-editor/editor-1.png` | **CONFIRMADO (1,0)** |
+| 2 | **18 Pivot Table**| Gráficos dinâmicos acoplados interativamente à tabela dinâmica (Pivot Chart) | `document/evidence/ui/pivot-chart-dark.png`, `data-report-pivot.test.ts:32` | `re/original-observation/18-misc/report.png`, `pivot-chart.png` | **CONFIRMADO (1,0)** |
+| 3 | **03 Table Designer**| Card View vertical com navegação de registros | `document/evidence/ui/grid-card-view-dark.png` | `re/original-observation/03-table-designer/editor-customers.png` | **CONFIRMADO (1,0)** |
+| 4 | **15 Data Compare** | Custom Query no assistente de comparação de dados | `app/src/renderer/src/ui/panels/data-compare/Panel.tsx:170`, `data-compare.test.ts` | `re/original-observation/15-data-compare/wizard-mapping.png` | **CONFIRMADO (1,0)** |
+| 5 | **11 ER Diagram** | Diagram Overview e Virtual Foreign Keys tracejadas no canvas | `app/src/modules/er-diagram/index.ts:46`, `er-diagram.test.ts` | `re/original-observation/11-diagram/diagram-1.png` | **CONFIRMADO (1,0)** |
+| 6 | **16/17 Tasks** | Tasks Explorer listando tarefas recentes com reabertura de assistente | `document/paridade/DIVERGENCIAS-ORIGINAL.md:70` | `re/original-observation/17-tasks/` | **CONFIRMADO (1,0)** |
+| 7 | **19 Backup/Restore**| Restore com salvamento de comando de linha de comando CLI | `document/paridade/DIVERGENCIAS-ORIGINAL.md:71`, `database-backup.test.ts` | `re/original-observation/17-tasks/restore.png` | **CONFIRMADO (1,0)** |
+| 8 | **10 Query Builder**| Traçado de JOIN conector e subconsultas em abas | `document/evidence/ui/query-builder-joins-dark.png`, `query-builder.test.ts:24` | `re/original-observation/10-query-builder/qb-1.png` | **CONFIRMADO (1,0)** |
 | 9 | **08 Security** | Global Privileges com Granted e With Grant Option por privilégio | `document/evidence/ui/08-13-modules/security-manager-dark.png`, `ipc-guard.test.ts` | `re/original-observation/08-security/global-privileges.png` | **CONFIRMADO (1,0)** |
 | 10 | **07 Import/Export** | Inferência automática de tipos com utf8mb4 no Import | `document/evidence/ui/import-new-table-source-dark.png`, `data-export-import.integration.test.ts` | `re/original-observation/23-deep/import-mapping-types.png` | **CONFIRMADO [MELHOR] (1,0)** |
 | 11 | **13 Debugger** | Depuração instrumentada de Triggers via checkpoints e advisory locks | `app/test/modules/routine-debugger.test.ts:41` | `re/original-observation/13-debugger/debug-1.png` | **CONFIRMADO (1,0)** |
@@ -49,7 +50,7 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 
 ---
 
-## 3. Avaliação Detalhada por Módulo (Rodada 5)
+## 3. Avaliação Detalhada por Módulo (Rodada 6)
 
 ### 3.0. Módulo 00 — Shell, Menus e Janelas Acopláveis
 *Peso Ponderado: 6 | Referência: NOTES.md (Seções 00, 05 e 21) | Gaps VM: 7, 8, 10, 11, 26*
@@ -139,9 +140,9 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 7 | Janela flutuante unificada de Find and Replace com regex e Find Results | IGUAL | 1,0 | `find-replace-dark.png`, `find-results-dark.png` |
 | 8 | Diálogo Go To Line com validação de intervalo (1 - N) | IGUAL | 1,0 | `app/test/modules/keymap-parity.test.ts` |
 | 9 | Comandos de refatoração avançada (Expand wildcards por alias, Add Backticks, Qualify names, Rename F2) | IGUAL | 1,0 | `04-sql-editor/editor-context-dark.png`, `app/src/modules/editor/refactoring.test.ts` |
-| 10 | Marcadores de navegação Bookmarks (Ctrl+B,x) e dobras de código Outlining (Ctrl+M,x) | PARCIAL | 0,5 | `GAPS-VARREDURA-VM.md:12` |
+| 10 | Marcadores de navegação Bookmarks (Ctrl+B,x) e dobras de código Outlining (Ctrl+M,x) | IGUAL | 1,0 | `app/test/modules/editor-navigation.test.ts`, `App.tsx:641` (Ctrl+B,T/P/N/C e Ctrl+M,M/L/P/S) *(implementado em R6!)* |
 
-- **Subtotal Módulo 04:** 9,5 / 10,0 = **95,00%**
+- **Subtotal Módulo 04:** 10,0 / 10,0 = **100,00%** *(R5: 95,00% | Dif: **+5,00%**)*
 
 ---
 
@@ -322,9 +323,9 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 1 | Master-Detail com detecção automática de relação por FK e aba Data com detalhe filtrado pelo mestre | IGUAL | 1,0 | `NOTES.md:197`, `app/test/modules/data-report-pivot.test.ts` |
 | 2 | Pivot Table: hierarquia temporal de datas (Year/Quarter/Month/Day), soma automática e linha "Grand Total" | IGUAL | 1,0 | `pivot-date-grand-total-dark.png`, `app/test/modules/data-report-pivot.test.ts:23` |
 | 3 | Data Report: abertura direta do Report Designer WYSIWYG com 7 bandas, painéis Data Source / Group & Sort / Properties, prévia paginada e persistência JSON | IGUAL | 1,0 | `report-designer-wysiwyg-dark.png`, `app/test/modules/data-report-pivot.test.ts:40`, `:52` |
-| 4 | Gráficos dinâmicos acoplados à tabela dinâmica (Pivot Chart) | PARCIAL | 0,5 | `app/test/modules/data-report-pivot.test.ts:32` |
+| 4 | Gráficos dinâmicos acoplados à tabela dinâmica (Pivot Chart) reativos a campos/filtros, 5 tipos e exportação SVG | IGUAL | 1,0 | `pivot-chart-dark.png`, `pivot-chart-light.png`, `app/test/modules/data-report-pivot.test.ts:32`, `:40` *(implementado em R6!)* |
 
-- **Subtotal Módulo 18:** 3,5 / 4,0 = **87,50%**
+- **Subtotal Módulo 18:** 4,0 / 4,0 = **100,00%** *(R5: 87,50% | Dif: **+12,50%**)*
 
 ---
 
@@ -361,47 +362,47 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 
 ---
 
-## 4. Tabela-Resumo e Evolução Histórica (Rodadas 1 a 5)
+## 4. Tabela-Resumo e Evolução Histórica (Rodadas 1 a 6)
 
-$$\text{Fidelidade Global Ponderada (Rodada 5)} = \frac{\sum (\text{Nota Módulo} \times \text{Peso})}{\sum \text{Pesos}} = \frac{12160,26}{131} = \mathbf{92,83\%}$$
+$$\text{Fidelidade Global Ponderada (Rodada 6)} = \frac{\sum (\text{Nota Módulo} \times \text{Peso})}{\sum \text{Pesos}} = \frac{12285,26}{131} = \mathbf{93,78\%}$$
 
-| Módulo | Nome do Componente | Peso | % R1 | % R2 | % R3 | % R4 | % R5 (Atual) | Variação (R5 - R4) | Entregas Verificadas em R5 |
-|:---:|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| **00** | Shell, Menus e Janelas | 6 | 93,75% | 93,75% | 88,89% | 88,89% | **88,89%** | 0,00% | Estável |
-| **01** | Database Connection Properties | 10 | 88,89% | 88,89% | 88,89% | 88,89% | **88,89%** | 0,00% | Estável |
-| **02** | Database Explorer & Menus | 10 | 68,75% | 87,50% | 78,57% | 92,86% | **92,86%** | 0,00% | Estável |
-| **03** | Table Designer, Criação & Card View | 15 | 88,89% | 88,89% | 88,89% | 88,89% | **100,00%** | **+11,11%** | Card View na grade de dados |
-| **04** | Editor SQL, Refatoração & Busca | 15 | 88,89% | 100,00% | 90,00% | 95,00% | **95,00%** | 0,00% | Refatoração completa |
-| **06** | Schema Compare & Synchronization | 10 | 88,89% | 100,00% | 92,86% | 92,86% | **92,86%** | 0,00% | Estável |
-| **07** | Import & Export Wizard | 8 | 77,78% | 88,89% | 81,25% | 81,25% | **81,25%** | 0,00% | Estável |
-| **08** | Security, Sessions & Properties | 5 | 100,00% | 100,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
-| **09** | Data Generator | 4 | 68,75% | 93,75% | 83,33% | 83,33% | **83,33%** | 0,00% | Estável |
-| **10** | Query Builder | 4 | 62,50% | 68,75% | 70,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
-| **11** | Database Diagram (ER) | 4 | 75,00% | 87,50% | 66,67% | 66,67% | **100,00%** | **+33,33%** | Diagram Overview e Virtual FKs |
-| **12** | Query Profiler | 4 | 87,50% | 87,50% | 90,00% | 90,00% | **90,00%** | 0,00% | Estável |
-| **13** | Stored Procedure Debugger | 5 | 81,25% | 81,25% | 80,00% | 90,00% | **90,00%** | 0,00% | Estável |
-| **14** | Options & Settings | 3 | 87,50% | 87,50% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
-| **15** | Data Compare & Synchronization | 10 | 83,33% | 88,89% | 75,00% | 75,00% | **100,00%** | **+25,00%** | Custom Query mapping |
-| **16/17** | Documenter & Tasks Explorer | 3 | 62,50% | 68,75% | 62,50% | 62,50% | **87,50%** | **+25,00%** | Tasks Explorer via View/Database |
-| **18** | Master-Detail, Report & Pivot | 4 | 62,50% | 62,50% | 50,00% | 87,50% | **87,50%** | 0,00% | Estável |
-| **19** | Utilities & Backup/Restore | 5 | 94,44% | 94,44% | 92,86% | 94,44% | **100,00%** | **+5,56%** | Restore Save Command Line |
-| **20** | Source Control & Project Explorer | 6 | — | 87,50% | 75,00% | 75,00% | **75,00%** | 0,00% | Estável |
-| **TOTAL** | — | **131** | **79,23%** | **90,32%** | **83,68%** | **87,84%** | **92,83%** | **+4,99%** | — |
+| Módulo | Nome do Componente | Peso | % R1 | % R2 | % R3 | % R4 | % R5 | % R6 (Atual) | Variação (R6 - R5) | Entregas Verificadas em R6 |
+|:---:|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
+| **00** | Shell, Menus e Janelas | 6 | 93,75% | 93,75% | 88,89% | 88,89% | 88,89% | **88,89%** | 0,00% | Estável |
+| **01** | Database Connection Properties | 10 | 88,89% | 88,89% | 88,89% | 88,89% | 88,89% | **88,89%** | 0,00% | Estável |
+| **02** | Database Explorer & Menus | 10 | 68,75% | 87,50% | 78,57% | 92,86% | 92,86% | **92,86%** | 0,00% | Estável |
+| **03** | Table Designer, Criação & Card View | 15 | 88,89% | 88,89% | 88,89% | 88,89% | 100,00% | **100,00%** | 0,00% | Paridade plena |
+| **04** | Editor SQL, Refatoração & Busca | 15 | 88,89% | 100,00% | 90,00% | 95,00% | 95,00% | **100,00%** | **+5,00%** | Bookmarks & Outlining |
+| **06** | Schema Compare & Synchronization | 10 | 88,89% | 100,00% | 92,86% | 92,86% | 92,86% | **92,86%** | 0,00% | Estável |
+| **07** | Import & Export Wizard | 8 | 77,78% | 88,89% | 81,25% | 81,25% | 81,25% | **81,25%** | 0,00% | Estável |
+| **08** | Security, Sessions & Properties | 5 | 100,00% | 100,00% | 100,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
+| **09** | Data Generator | 4 | 68,75% | 93,75% | 83,33% | 83,33% | 83,33% | **83,33%** | 0,00% | Estável |
+| **10** | Query Builder | 4 | 62,50% | 68,75% | 70,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
+| **11** | Database Diagram (ER) | 4 | 75,00% | 87,50% | 66,67% | 66,67% | 100,00% | **100,00%** | 0,00% | Paridade plena |
+| **12** | Query Profiler | 4 | 87,50% | 87,50% | 90,00% | 90,00% | 90,00% | **90,00%** | 0,00% | Estável |
+| **13** | Stored Procedure Debugger | 5 | 81,25% | 81,25% | 80,00% | 90,00% | 90,00% | **90,00%** | 0,00% | Estável |
+| **14** | Options & Settings | 3 | 87,50% | 87,50% | 100,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
+| **15** | Data Compare & Synchronization | 10 | 83,33% | 88,89% | 75,00% | 75,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
+| **16/17** | Documenter & Tasks Explorer | 3 | 62,50% | 68,75% | 62,50% | 62,50% | 87,50% | **87,50%** | 0,00% | Estável |
+| **18** | Master-Detail, Report & Pivot | 4 | 62,50% | 62,50% | 50,00% | 87,50% | 87,50% | **100,00%** | **+12,50%** | Pivot Chart acoplado & SVG |
+| **19** | Utilities & Backup/Restore | 5 | 94,44% | 94,44% | 92,86% | 94,44% | 100,00% | **100,00%** | 0,00% | Paridade plena |
+| **20** | Source Control & Project Explorer | 6 | — | 87,50% | 75,00% | 75,00% | 75,00% | **75,00%** | 0,00% | Estável |
+| **TOTAL** | — | **131** | **79,23%** | **90,32%** | **83,68%** | **87,84%** | **92,83%** | **93,78%** | **+0,95%** | — |
 
-- **Média Simples (não ponderada):** **92,27%** (R1: 80,58% | R2: 86,17% | R3: 81,83% | R4: 87,00% | R5: 92,27%)  
-- **Média Global Ponderada:** **92,83%** (R1: 79,23% | R2: 90,32% | R3: 83,68% | R4: 87,84% | R5: 92,83%)
+- **Média Simples (não ponderada):** **93,20%** (R1: 80,58% | R2: 86,17% | R3: 81,83% | R4: 87,00% | R5: 92,27% | R6: 93,20%)  
+- **Média Global Ponderada:** **93,78%** (R1: 79,23% | R2: 90,32% | R3: 83,68% | R4: 87,84% | R5: 92,83% | R6: 93,78%)
 
 > [!NOTE]
-> Sete módulos atingiram **100,00%** de fidelidade comprovada por testes e capturas reais: **Table Designer & Grid (03)**, **Security Manager (08)**, **Query Builder (10)**, **Database Diagram ER (11)**, **Options & Settings (14)**, **Data Compare (15)** e **Utilities & Backup/Restore (19)**.
+> Nove módulos atingiram **100,00%** de fidelidade comprovada por testes e capturas reais: **Table Designer & Grid (03)**, **Editor SQL & Refatoração (04)**, **Security Manager (08)**, **Query Builder (10)**, **Database Diagram ER (11)**, **Options & Settings (14)**, **Data Compare (15)**, **Master-Detail/Report/Pivot (18)** e **Utilities & Backup/Restore (19)**.
 
 ---
 
-## 5. Top 5 Maiores Gaps Restantes Priorizados (Fila Rodada 5)
+## 5. Top 5 Maiores Gaps Restantes Priorizados (Fila Rodada 6)
 
 | # | Área / Módulo | O que falta para paridade absoluta com a referência | Prioridade | Esforço (P/M/G) |
 |:---:|---|---|:---:|:---:|
 | 1 | **00 Shell (Abas)** | Grupos de abas horizontal/vertical sincronizados e janelas flutuantes multi-view completas | **A** | **G** |
 | 2 | **07 Import/Export** | Tela final de assistentes com ações automáticas de abertura de arquivo/pasta no SO (*Open result file/folder*) | **A** | **P** |
-| 3 | **04 Editor** | Marcadores de navegação *Bookmarks* em acordes (Ctrl+B,x) e atalhos completos de *Outlining* (Ctrl+M,x) | **B** | **M** |
-| 4 | **18 Pivot Table**| Gráficos dinâmicos acoplados interativamente à tabela dinâmica (*Pivot Chart*) | **B** | **G** |
-| 5 | **02 Explorer** | Filtro avançado com regex na árvore de objetos do banco | **B** | **P** |
+| 3 | **02 Explorer** | Filtro avançado com regex na árvore de objetos do banco | **B** | **P** |
+| 4 | **09 Data Generator**| Catálogo estendido com centenas de perfis pré-definidos para ramos de indústrias específicos | **B** | **P** |
+| 5 | **12 Query Profiler**| Visualizador comparativo dedicado em duas colunas para histórico de execuções de perfil | **B** | **P** |

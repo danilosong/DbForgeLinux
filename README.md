@@ -19,12 +19,12 @@
 **Progresso do projeto** · atualizado em 2026-10-21
 
 ```text
-Fidelidade ao original (medida)           ███████████████████░  92,8%
+Fidelidade ao original (medida)           ███████████████████░  93,8%
 Módulos implementados e testados          ████████████████████   100%  (20 de 20)
 Specs de UX verificadas contra evidência  ████████████████████   100%  (20 de 20)
 ```
 
-<sub>A fidelidade é medida por um agente de UX com checagem por amostra de 12 itens e cobre apenas os fluxos observados no original; a verificação do arquiteto estima algo entre 88% e 90% porque algumas ferramentas visuais (multi-split sincronizado, Pivot Chart acoplado) seguem parciais.</sub>
+<sub>A fidelidade é medida por um agente de UX com checagem por amostra de 12 itens e cobre apenas os fluxos observados no original; a verificação do arquiteto estima algo entre 88% e 90% porque algumas ferramentas visuais (multi-split sincronizado, grupos de abas de documentos) seguem em evolução.</sub>
 <!-- PROGRESS:END -->
 
 ---
