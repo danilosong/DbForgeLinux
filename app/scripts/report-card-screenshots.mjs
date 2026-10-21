@@ -92,10 +92,19 @@ try {
   phase = 'open report designer and pivot panel'
   await page.locator('summary').filter({ hasText: 'Database' }).click()
   await page.locator('.menu-popup .menu-action').filter({ hasText: 'Report Designer' }).click()
+  const designer = page.getByTestId('report-designer')
+  await designer.waitFor({ state: 'visible' })
+  await designer.locator('.rp-designer-side textarea').fill(`SELECT id, region, amount FROM \`${table}\``)
+  await designer.getByRole('button', { name: 'Load data' }).click()
+  await page.waitForFunction(() => document.querySelector('[data-testid="report-designer"]')?.getAttribute('data-state') === 'ready' && document.querySelector('[data-testid="report-designer"]')?.getAttribute('aria-busy') === 'false', null, { timeout: 20_000 })
+  await designer.getByTestId('report-band-pageHeader').waitFor({ state: 'visible' })
+  await designer.locator('.rp-field').filter({ hasText: 'region' }).dragTo(designer.getByTestId('report-band-pageHeader'))
+  await designer.getByTestId('report-page-preview').waitFor({ state: 'visible' })
+  await captureThemePair('report-designer')
+  await designer.getByRole('button', { name: 'Close designer' }).click()
+  await designer.waitFor({ state: 'detached' })
   const panel = page.getByTestId('report-pivot-panel')
   await panel.waitFor({ state: 'visible' })
-  await panel.locator('.rp-query-label button').click()
-  await panel.locator('textarea').fill(`SELECT id, region, amount FROM \`${table}\``)
 
   for (let iteration = 0; iteration < repeats; iteration += 1) {
     phase = `report/pivot/card render cycle ${iteration + 1}/${repeats}`
@@ -109,13 +118,11 @@ try {
     await page.waitForFunction(() => document.querySelector('[data-testid="pivot-grid"] tbody tr') !== null && document.querySelector('[data-testid="report-pivot-panel"]')?.getAttribute('aria-busy') === 'false', null, { timeout: 20_000 })
 
     await panel.getByRole('button', { name: 'Report Designer' }).click()
-    const designer = page.getByTestId('report-designer')
     await designer.waitFor({ state: 'visible' })
     await designer.getByTestId('report-band-pageHeader').waitFor({ state: 'visible' })
-    await panel.locator('.rp-field').first().dragTo(designer.getByTestId('report-band-pageHeader'))
+    await designer.locator('.rp-field').first().dragTo(designer.getByTestId('report-band-pageHeader'))
     await designer.getByTestId('report-page-preview').waitFor({ state: 'visible' })
-    if (iteration === 0) await captureThemePair('report-designer')
-    await panel.getByRole('button', { name: 'Close designer' }).click()
+    await designer.getByRole('button', { name: 'Close designer' }).click()
     await designer.waitFor({ state: 'detached' })
 
     await panel.getByRole('button', { name: 'Show Chart' }).click()
