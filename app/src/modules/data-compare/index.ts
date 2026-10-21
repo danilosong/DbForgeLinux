@@ -24,9 +24,14 @@ function compareValues(left: unknown, right: unknown): number {
   const a = String(left); const b = String(right)
   return a < b ? -1 : a > b ? 1 : 0
 }
-function equalValues(left: unknown, right: unknown, roundFloats = 0): boolean {
+function equalValues(left: unknown, right: unknown, roundFloats = 0, ignoreMicroseconds = false): boolean {
   if (Buffer.isBuffer(left) && Buffer.isBuffer(right)) return left.equals(right)
+  if (ignoreMicroseconds && left instanceof Date && right instanceof Date) return Math.floor(left.getTime() / 1000) === Math.floor(right.getTime() / 1000)
   if (left instanceof Date && right instanceof Date) return left.getTime() === right.getTime()
+  if (ignoreMicroseconds && typeof left === 'string' && typeof right === 'string') {
+    const strip = (value: string): string => value.replace(/(T|\s)(\d{2}:\d{2}:\d{2})\.\d+(?=(?:Z|[+-]\d{2}:?\d{2})?$)/i, '$1$2')
+    return strip(left) === strip(right)
+  }
   if (typeof left === 'number' && typeof right === 'number') return roundFloats > 0 ? Number(left.toFixed(roundFloats)) === Number(right.toFixed(roundFloats)) : left === right
   if (typeof left === 'bigint' && typeof right === 'bigint') return left === right
   return left === right
@@ -35,7 +40,7 @@ function compareKeys(left: Record<string, unknown>, right: Record<string, unknow
   for (const key of keys) { const compared = compareValues(left[key], right[key]); if (compared) return compared }
   return 0
 }
-function sameRow(left: Record<string, unknown>, right: Record<string, unknown>, columns: string[], roundFloats = 0): boolean { return columns.every((column) => equalValues(left[column], right[column], roundFloats)) }
+function sameRow(left: Record<string, unknown>, right: Record<string, unknown>, columns: string[], roundFloats = 0, ignoreMicroseconds = false): boolean { return columns.every((column) => equalValues(left[column], right[column], roundFloats, ignoreMicroseconds)) }
 function keyObject(row: Record<string, unknown>, keys: string[]): Record<string, unknown> { return Object.fromEntries(keys.map((key) => [key, row[key]])) }
 
 async function next(iterator: AsyncIterator<Record<string, unknown>>): Promise<Record<string, unknown> | undefined> {
@@ -122,9 +127,9 @@ export async function compareData(job: DataCompareJob): Promise<DataCompareRepor
         } else {
           report.compared++
           const comparedColumns = job.columns?.length ? columns : [...new Set([...Object.keys(source), ...Object.keys(target)])]
-          if (sameRow(source, target, comparedColumns, job.options?.roundFloats ?? 0)) { report.same++; await emit({ kind: 'same', key: keyObject(source, job.keyColumns), source, target }) }
+          if (sameRow(source, target, comparedColumns, job.options?.roundFloats ?? 0, job.options?.ignoreMicroseconds ?? false)) { report.same++; await emit({ kind: 'same', key: keyObject(source, job.keyColumns), source, target }) }
           else {
-            const changedColumns = comparedColumns.filter((column) => !equalValues(source![column], target![column], job.options?.roundFloats ?? 0))
+            const changedColumns = comparedColumns.filter((column) => !equalValues(source![column], target![column], job.options?.roundFloats ?? 0, job.options?.ignoreMicroseconds ?? false))
             report.different++
             await emit({ kind: 'different', key: keyObject(source, job.keyColumns), source, target, changedColumns }, makeUpdate(job, source, job.keyColumns, comparedColumns))
           }

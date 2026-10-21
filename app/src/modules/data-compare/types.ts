@@ -5,7 +5,7 @@ export interface DataCompareEndpoint { driver: DbDriver; connectionId: string; d
 export type DataDifferenceKind = 'same' | 'different' | 'source-only' | 'target-only'
 export interface DataCompareDifference { kind: DataDifferenceKind; key: Record<string, unknown>; source?: Record<string, unknown>; target?: Record<string, unknown>; changedColumns?: string[]; objectName?: string }
 export interface SyncStatement { sql: string; values: readonly SqlValue[]; kind: 'INSERT' | 'UPDATE' | 'DELETE' }
-export interface DataCompareOptions { ignoreLob?: boolean; ignoreComputedColumns?: boolean; roundFloats?: number; includeColumns?: string; excludeColumns?: string }
+export interface DataCompareOptions { ignoreLob?: boolean; ignoreComputedColumns?: boolean; ignoreMicroseconds?: boolean; roundFloats?: number; includeColumns?: string; excludeColumns?: string }
 
 export interface DataCompareJob {
   source: DataCompareEndpoint
