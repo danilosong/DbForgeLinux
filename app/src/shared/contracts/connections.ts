@@ -1,6 +1,9 @@
 export type DatabaseType = 'mysql' | 'mariadb'
 export type SslMode = 'disabled' | 'preferred' | 'required' | 'verify-ca' | 'verify-identity'
 export type SshAuthMethod = 'password' | 'private-key' | 'agent'
+export interface SshInteractivePrompt { prompt: string; echo: boolean }
+export interface SshInteractiveChallenge { name: string; instructions: string; prompts: SshInteractivePrompt[] }
+export interface SshInteractiveRequest extends SshInteractiveChallenge { requestId: string }
 export type ConnectionEnvironment = 'none' | 'dev' | 'test' | 'prod' | 'sandbox' | 'custom'
 export type EnvironmentShape = 'square' | 'circle' | 'triangle' | 'diamond'
 

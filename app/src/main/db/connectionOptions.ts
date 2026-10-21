@@ -1,13 +1,14 @@
 import { readFile } from 'node:fs/promises'
 import type { ConnectConfig } from 'ssh2'
 import type { ConnectionOptions } from 'mysql2/promise'
-import type { ConnectionRecord, SshConfig } from '../../shared/contracts.js'
+import type { ConnectionRecord, SshConfig, SshInteractiveChallenge } from '../../shared/contracts.js'
 import type { DriverConnectionConfig } from './DbDriver.js'
 
 export type ResolvedSshConfig = SshConfig & {
   password?: string
   passphrase?: string
   privateKey?: Buffer
+  keyboardInteractivePrompt?: (challenge: SshInteractiveChallenge) => Promise<string[] | null>
 }
 
 export function buildSshOptions(config: ResolvedSshConfig, agentSocket = process.env.SSH_AUTH_SOCK): ConnectConfig {

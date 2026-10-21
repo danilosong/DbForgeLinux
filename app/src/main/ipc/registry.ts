@@ -33,6 +33,7 @@ import { registerCodeAnalysisIpc } from './code-analysis.js'
 import { registerGridEditingIpc } from './grid-editing.js'
 import { registerGridDataIpc } from './grid-data.js'
 import { registerAboutIpc } from './about.js'
+import { registerKeyboardInteractiveIpc } from './keyboard-interactive.js'
 import { join } from 'node:path'
 import { defaultTrustedRendererConfig, installIpcSecurity } from './guard.js'
 
@@ -45,6 +46,7 @@ export interface IpcDeps {
 }
 export function registerIpcRegistry(deps: IpcDeps): void {
   installIpcSecurity(defaultTrustedRendererConfig(join(__dirname, '../renderer/index.html')))
+  registerKeyboardInteractiveIpc()
   let deferredInitialization: Promise<void> | undefined
   ipcMain.handle('app:renderer-ready', async () => {
     deferredInitialization ??= (async () => {

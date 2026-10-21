@@ -35,10 +35,28 @@ export async function createSshTunnel(config: OpenSshTunnelConfig): Promise<Acti
 
     client.on('error', (error) => fail(hostKeyError ?? mapSshError(error)))
     if (config.keyboardInteractive) {
-      client.on('keyboard-interactive', (_name, _instructions, _language, prompts, finish) => {
-        const response = config.password ?? ''
-        if (!response) return fail(new Error('Keyboard Interactive requer uma credencial SSH armazenada no cofre do sistema.'))
-        finish(prompts.map(() => response))
+      client.on('keyboard-interactive', (name, instructions, _language, prompts, finish) => {
+        void (async () => {
+          const passwordIndices = prompts.map(({ prompt }, index) => /pass(?:word|phrase)|senha/i.test(prompt) ? index : -1).filter((index) => index >= 0)
+          if (passwordIndices.some(() => !config.password)) return fail(new Error('A credencial SSH armazenada no cofre está indisponível.'))
+          const answers: Array<string | undefined> = prompts.map(({ prompt }) => /pass(?:word|phrase)|senha/i.test(prompt) ? config.password : undefined)
+          const interactiveIndices = prompts.map((_, index) => index).filter((index) => answers[index] === undefined)
+          if (interactiveIndices.length) {
+            if (!config.keyboardInteractivePrompt) return fail(new Error('SSH authentication requires an interactive response.'))
+            const response = await config.keyboardInteractivePrompt({
+              name,
+              instructions,
+              prompts: interactiveIndices.map((index) => ({ prompt: prompts[index].prompt, echo: prompts[index].echo ?? false }))
+            })
+            if (settled) return
+            if (!response) return fail(new Error('SSH interactive authentication was cancelled.'))
+            if (response.length !== interactiveIndices.length || response.some((answer) => typeof answer !== 'string')) {
+              return fail(new Error('SSH interactive authentication returned an invalid response.'))
+            }
+            interactiveIndices.forEach((index, responseIndex) => { answers[index] = response[responseIndex] })
+          }
+          finish(answers as string[])
+        })().catch((error: unknown) => fail(error instanceof Error ? error : new Error('SSH interactive authentication failed.')))
       })
     }
     client.on('ready', () => {

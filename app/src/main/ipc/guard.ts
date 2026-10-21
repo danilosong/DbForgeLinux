@@ -32,6 +32,7 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'ai-assistant:settings:load': [], 'ai-assistant:settings:save': [object, opt(s('text'))], 'ai-assistant:settings:test': [object, opt(s('text'))],
   'ai-assistant:complete': [object], 'ai-assistant:cancel': [id], 'code-analysis:run': [sql],
   'connections:list': [], 'connections:save': [object], 'connections:delete': [id], 'vault:save': [ident, s('text')], 'vault:delete': [ident], 'vault:status': [],
+  'ssh:keyboard-interactive:respond': [object],
   'data-compare:compare': [id, ident, ident, id, ident, ident, strings, opt(strings), opt(bool), opt(object)],
   'data-compare:synchronize': [id, ident, ident, id, ident, ident, strings, strings, bool, trueOnly, opt(objects), opt(object)],
   'data-generator:inspect': [id, ident], 'data-generator:preview': [id, ident, ident, object, opt(s('string-number'))], 'data-generator:generate': [object],
@@ -165,7 +166,12 @@ function assertStringArray(value: unknown, label: string, maximum = 1000): asser
   if (!Array.isArray(value) || value.length > maximum || value.some((item) => typeof item !== 'string' || item.length > 256)) fail(`${label} must be a bounded string array`)
 }
 function assertDomainPayload(channel: string, args: readonly unknown[]): void {
-  if (channel === 'tasks:recent:record') {
+  if (channel === 'ssh:keyboard-interactive:respond') {
+    const response = assertRecord(args[0], 'response', ['requestId', 'answers'], ['requestId', 'answers'])
+    if (typeof response.requestId !== 'string' || response.requestId.length > 64) fail('keyboard-interactive request id is invalid')
+    if (response.answers !== null) assertStringArray(response.answers, 'answers', 16)
+    if (Array.isArray(response.answers) && response.answers.some((answer) => answer.length > 4096)) fail('keyboard-interactive answer is too long')
+  } else if (channel === 'tasks:recent:record') {
     const task = assertRecord(args[0], 'task', ['kind', 'title', 'detail'], ['kind', 'title', 'detail'])
     if (!['backup', 'export', 'import', 'schema-compare', 'data-compare'].includes(String(task.kind)) || typeof task.title !== 'string' || !task.title.trim() || task.title.length > 120 || typeof task.detail !== 'string' || task.detail.length > 240) fail('task metadata is invalid')
   } else if (channel.startsWith('object-editor:')) {

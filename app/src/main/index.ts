@@ -8,6 +8,7 @@ import type { DriverConnectionConfig } from './db/DbDriver.js'
 import { PasswordVault } from './security/PasswordVault.js'
 import type { ConnectionRecord } from '../shared/contracts.js'
 import { registerIpcRegistry } from './ipc/registry.js'
+import { requestSshKeyboardInteractive } from './ipc/keyboard-interactive.js'
 import { isTrustedRendererNavigation } from './security/windowPolicy.js'
 import { migrateLegacyUserData } from './legacyData.js'
 
@@ -35,7 +36,7 @@ app.on('second-instance', (_event, argv) => { const file=argv.find((arg)=>arg.to
 app.on('open-file', (event, path) => { event.preventDefault(); queueSqlPath(path) })
 async function resolveConnectionConfig(record: ConnectionRecord): Promise<DriverConnectionConfig> {
  const [password,sshPassword,sshPassphrase,httpPassword,proxyPassword]=await Promise.all([resolveSecret(record.passwordRef),resolveSecret(record.ssh.passwordRef),resolveSecret(record.ssh.passphraseRef),resolveSecret(record.http.passwordRef),resolveSecret(record.http.proxyPasswordRef)])
- return {...record,password:password??undefined,ssh:{...record.ssh,password:sshPassword??undefined,passphrase:sshPassphrase??undefined},http:{...record.http,password:httpPassword??undefined,proxyPassword:proxyPassword??undefined}}
+ return {...record,password:password??undefined,ssh:{...record.ssh,password:sshPassword??undefined,passphrase:sshPassphrase??undefined,keyboardInteractivePrompt:requestSshKeyboardInteractive},http:{...record.http,password:httpPassword??undefined,proxyPassword:proxyPassword??undefined}}
 }
 function resolveSecret(ref:string|undefined):Promise<string|null>{return ref?vault.get(ref):Promise.resolve(null)}
 function createWindow():void {

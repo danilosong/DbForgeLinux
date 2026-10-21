@@ -87,6 +87,12 @@ try {
   assert.equal(await steps.count(), 4)
   await steps.nth(3).click()
   await wizard.getByRole('heading', { name: /Action Plan/ }).waitFor()
+  const actionItems = wizard.locator('ol > li')
+  assert.equal(await actionItems.count(), 5)
+  assert.equal(await actionItems.locator('code').count(), 5)
+  assert.match(await actionItems.nth(0).innerText(), /Start transaction/)
+  assert.match(await actionItems.nth(1).innerText(), /Select database/)
+  assert.equal(await wizard.locator('.schema-danger-confirm input[type="checkbox"]').count(), 1)
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => { document.documentElement.dataset.theme = value }, theme)
     await page.screenshot({ path: join(evidenceRoot, `schema-sync-action-plan-${theme}.png`) })

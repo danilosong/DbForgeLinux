@@ -1,4 +1,4 @@
-import type { ConnectionRecord, ConnectionTestResult, DatabaseObject, HttpTunnelConfig, QueryResult, SshConfig } from '../../shared/contracts.js'
+import type { ConnectionRecord, ConnectionTestResult, DatabaseObject, HttpTunnelConfig, QueryResult, SshConfig, SshInteractiveChallenge } from '../../shared/contracts.js'
 
 export type SqlValue = string | number | bigint | boolean | Date | Buffer | null
 
@@ -8,7 +8,7 @@ export interface DbTransaction {
 
 export interface DriverConnectionConfig extends ConnectionRecord {
   password?: string
-  ssh: SshConfig & { password?: string; passphrase?: string; privateKey?: Buffer }
+  ssh: SshConfig & { password?: string; passphrase?: string; privateKey?: Buffer; keyboardInteractivePrompt?: (challenge: SshInteractiveChallenge) => Promise<string[] | null> }
   http: HttpTunnelConfig & { password?: string; proxyPassword?: string }
 }
 
