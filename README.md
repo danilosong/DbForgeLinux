@@ -186,7 +186,7 @@ env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a pnpm dev
 
 ## Requisitos de Sistema
 
-- **Sistema Operacional:** Linux x86_64 (Ubuntu 22.04+, Debian 12+, Fedora 39+, Arch Linux ou equivalentes).
+- **Sistema Operacional:** Linux x86_64 (amd64). Veja a [compatibilidade de distribuições](#compatibilidade-de-distribuições-linux) abaixo para o que foi testado.
 - **Servidor Gráfico:** X11 nativo ou Wayland (via XWayland ou flags do Chromium).
 - **Dependências Nativas do Sistema:**
   - `libsecret-1-0` (para integração com o chaveiro GNOME Keyring / KWallet).
@@ -194,6 +194,29 @@ env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a pnpm dev
 - **Servidores de Banco Suportados:**
   - **MySQL:** 5.7.x, 8.0.x, 8.4.x LTS.
   - **MariaDB:** 10.11.x LTS, 11.x.
+
+---
+
+## Compatibilidade de Distribuições Linux
+
+A coluna **Situação** separa o que foi **verificado de verdade** do que é apenas **esperado**. Não declaramos suporte sem teste.
+
+| Distribuição | Formato | Situação |
+|---|---|---|
+| Ubuntu 24.04 LTS | `.deb` | ✅ **Testada:** instalação limpa em contêiner (`dpkg -c`, `ldd`, início sob Xvfb) e smoke e2e contra o pacote |
+| Ubuntu 26.04 | `.deb` e código-fonte | ✅ **Testada:** ambiente de desenvolvimento (uso diário do app) |
+| Ubuntu 22.04 LTS, Debian 12+, Linux Mint 21+, Pop!_OS 22.04+, elementary OS 7+ | `.deb` | 🟡 **Esperada:** mesma família e mesmas dependências; ainda sem teste dedicado |
+| Fedora, openSUSE, Arch Linux, Manjaro e outras | AppImage ou código-fonte | 🟡 **Esperada:** sem `.deb`; use o AppImage da release ou `pnpm dev`; ainda sem teste dedicado |
+| Ubuntu 20.04 e anteriores, Debian 11 e anteriores | — | ❌ **Não verificada:** o Electron 38 exige uma glibc mais recente; provavelmente não funciona |
+
+**Detalhes que valem saber:**
+
+- **Arquitetura:** somente `amd64` por enquanto (sem pacotes ARM).
+- **Servidor gráfico:** X11 e Wayland.
+- **Chaveiro:** com `libsecret` as senhas usam o chaveiro do sistema; sem ele, ficam num cofre local cifrado (AES-256-GCM) com aviso visível, nunca em texto puro.
+- **Dependências do `.deb`:** `libgtk-3-0`, `libnotify4`, `libnss3`, `libxss1`, `libxtst6`, `xdg-utils`, `libatspi2.0-0`, `libuuid1`, `libsecret-1-0`, `libasound2t64` ou `libasound2`, `libgbm1`.
+- **Snap e Flatpak:** não são fornecidos.
+- Testou em outra distribuição? Abra uma issue com a distro, a versão e o resultado; ela passa para a tabela acima.
 
 ---
 
