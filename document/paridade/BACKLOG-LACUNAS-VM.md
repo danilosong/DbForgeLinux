@@ -1,5 +1,7 @@
 # Backlog de lacunas observadas na VM (aguardando fim do mapeamento)
 
+> **AVISO (2026-10-21 17:40):** as seções Editor, Grid, Debugger, Query Builder, Data Generator, ER, Security e Report/Pivot foram reportadas SEM captura nova na VM (última captura real: 16:39; VM parada no assistente de Import). A origem da evidência é desconhecida (sessão anterior ou inferência) até a Prisma classificar. Tratar como INFERIDA; não abrir tasks de implementação a partir delas antes da reobservação.
+
 Regra: só implementar depois que a Fase A de observação terminar. Cada item: módulo, lacuna, origem (F-*.md), prioridade (A uso diário, B útil, C acabamento), dono sugerido.
 
 ## Editor SQL e Autocomplete (F-SQL, F-AC) — observado
