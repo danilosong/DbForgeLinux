@@ -5,7 +5,7 @@
 > **Data de Calibração (Rodada 3 — Pós-Varredura VM):** 21 de outubro de 2026  
 > **Data de Medição (Rodada 4 — Consolidação Gaps 1–30):** 21 de outubro de 2026  
 > **Data de Medição (Rodada 5 — Consolidação de Card View, Custom Query, ER Overview e Tasks):** 21 de outubro de 2026  
-> **Data de Medição (Rodada 6 — Consolidação de Bookmarks/Outlining e Pivot Chart):** 21 de outubro de 2026  
+> **Data de Medição (Rodada 6 — Bookmarks, Pivot Chart, Split Sincronizado, Regex Explorer e Finish Wizard):** 21 de outubro de 2026  
 > **Avaliador:** Agente Prisma (Especialista UX/UI)  
 > **Referência Comparativa:** Observação em laboratório do dbForge Studio for MySQL v2026.2.82 (`re/original-observation/NOTES.md` seções 00–27 e acervo de 116+ capturas originais na VM)  
 > **Documentos de Lacunas da VM:** `document/paridade/GAPS-VARREDURA-VM.md` e `document/paridade/DIVERGENCIAS-ORIGINAL.md`  
@@ -38,12 +38,12 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 4 | **15 Data Compare** | Custom Query no assistente de comparação de dados | `app/src/renderer/src/ui/panels/data-compare/Panel.tsx:170`, `data-compare.test.ts` | `re/original-observation/15-data-compare/wizard-mapping.png` | **CONFIRMADO (1,0)** |
 | 5 | **11 ER Diagram** | Diagram Overview e Virtual Foreign Keys tracejadas no canvas | `app/src/modules/er-diagram/index.ts:46`, `er-diagram.test.ts` | `re/original-observation/11-diagram/diagram-1.png` | **CONFIRMADO (1,0)** |
 | 6 | **16/17 Tasks** | Tasks Explorer listando tarefas recentes com reabertura de assistente | `document/paridade/DIVERGENCIAS-ORIGINAL.md:70` | `re/original-observation/17-tasks/` | **CONFIRMADO (1,0)** |
-| 7 | **19 Backup/Restore**| Restore com salvamento de comando de linha de comando CLI | `document/paridade/DIVERGENCIAS-ORIGINAL.md:71`, `database-backup.test.ts` | `re/original-observation/17-tasks/restore.png` | **CONFIRMADO (1,0)** |
+| 7 | **00 Shell** | Split de documento sincronizado (horizontal/vertical) e abas | `App.tsx:88`, `:1401`, `:1487`, `navigationMessages.ts:2` | `re/original-observation/00-shell/` | **CONFIRMADO (1,0)** |
 | 8 | **10 Query Builder**| Traçado de JOIN conector e subconsultas em abas | `document/evidence/ui/query-builder-joins-dark.png`, `query-builder.test.ts:24` | `re/original-observation/10-query-builder/qb-1.png` | **CONFIRMADO (1,0)** |
 | 9 | **08 Security** | Global Privileges com Granted e With Grant Option por privilégio | `document/evidence/ui/08-13-modules/security-manager-dark.png`, `ipc-guard.test.ts` | `re/original-observation/08-security/global-privileges.png` | **CONFIRMADO (1,0)** |
-| 10 | **07 Import/Export** | Inferência automática de tipos com utf8mb4 no Import | `document/evidence/ui/import-new-table-source-dark.png`, `data-export-import.integration.test.ts` | `re/original-observation/23-deep/import-mapping-types.png` | **CONFIRMADO [MELHOR] (1,0)** |
+| 10 | **07 Import/Export** | Tela final Finish padronizada com ações Open file e Open folder | `AssistantFinish.tsx`, `app/test/systemOpenPath.test.ts`, `specMessages.ts:722` | `re/original-observation/23-deep/import-summary.png` | **CONFIRMADO (1,0)** |
 | 11 | **13 Debugger** | Depuração instrumentada de Triggers via checkpoints e advisory locks | `app/test/modules/routine-debugger.test.ts:41` | `re/original-observation/13-debugger/debug-1.png` | **CONFIRMADO (1,0)** |
-| 12 | **02 Explorer** | Menus por nível de nó e comando Flush com script revisável | `document/evidence/ui/explorer-table-menu-dark.png` | `re/original-observation/02-explorer/menu-tabela.png` | **CONFIRMADO (1,0)** |
+| 12 | **02 Explorer** | Filtro avançado com regex na árvore de conexões/objetos | `explorerFilter.ts`, `app/test/ui/explorerFilter.test.ts`, `smoke-e2e.mjs:149` | `re/original-observation/02-explorer/` | **CONFIRMADO (1,0)** |
 
 - **Taxa de Confirmação da Amostra:** **12 de 12 (100,0%)**.  
 - *Conclusão:* Todas as evidências foram rigorosamente checadas e validadas.
@@ -63,11 +63,11 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 4 | Barra de status inferior com informações contextuais completas | IGUAL | 1,0 | `document/evidence/ui/sql-editor-dark.png` |
 | 5 | Suporte a temas Claro, Escuro e Skins adicionais (Blue/Office) | IGUAL | 1,0 | `document/evidence/ui/shell-light.png`, `shell-dark.png`, `GAPS-VARREDURA-VM.md:73` |
 | 6 | Janelas Acopláveis (Document Outline, Schema View, Find Results, Object Viewer/Properties) | IGUAL | 1,0 | `document-outline-dark.png`, `schema-view-dark.png`, `find-results-dark.png`, `object-viewer-dark.png` |
-| 7 | Menu de contexto das abas de documento (Close All But This/Pinned, Copy Full Path, grupos) | PARCIAL | 0,5 | `DIVERGENCIAS-ORIGINAL.md:71` (Float abre janela SQL isolada e abas agrupam; divisão sincronizada pendente) |
+| 7 | Menu de contexto das abas de documento (Close All But This/Pinned, Copy Full Path, grupos horizontal/vertical sincronizados e split view) | IGUAL | 1,0 | `App.tsx:88`, `:1401`, `:1487`, `navigationMessages.ts:2` (splitView vertical/horizontal sincronizado) *(reconciliado em R6!)* |
 | 8 | Diálogo de confirmação para Reset Window Layout e Reset Toolbar Layout | IGUAL | 1,0 | `menus-window-dark.png`, `menus-tools-dark.png` |
 | 9 | Sistema de docas flutuantes livres com ancoragem direcional em cruz | PARCIAL | 0,5 | `document/evidence/ui/shell-dark.png` |
 
-- **Subtotal Módulo 00:** 8,0 / 9,0 = **88,89%**
+- **Subtotal Módulo 00:** 8,5 / 9,0 = **94,44%** *(R5: 88,89% | Dif: **+5,55%**)*
 
 ---
 
@@ -100,10 +100,10 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 3 | Menu contextual "Generate Script As" com os 8 tipos x 3 destinos (SQL, Arquivo, Clipboard) | IGUAL | 1,0 | `explorer-table-menu-dark.png` |
 | 4 | Submenu "Send to" encaminhando objeto para Query Builder, Diagrama, etc. | IGUAL | 1,0 | `explorer-table-menu-dark.png`, `app/test/explorer-context-menu.test.ts` |
 | 5 | Operações de manutenção e comando Flush (Database > Flush gerando script revisável) | IGUAL | 1,0 | `utilities-table-maintenance-dark.png`, `GAPS-VARREDURA-VM.md:74` |
-| 6 | Filtro rápido de busca na árvore do Explorer | PARCIAL | 0,5 | `document/evidence/ui/ui-corrections-dark.png` |
+| 6 | Filtro avançado com suporte a expressões regulares (regex) e case sensitive na árvore do Explorer | IGUAL | 1,0 | `explorerFilter.ts`, `app/test/ui/explorerFilter.test.ts`, `smoke-e2e.mjs:149` *(reconciliado em R6!)* |
 | 7 | Interação de drag/drop de nós da árvore para o Diagrama e Query Builder | IGUAL | 1,0 | `er-diagram-explorer-drop-dark.png`, `app/test/modules/query-builder.test.ts:24` |
 
-- **Subtotal Módulo 02:** 6,5 / 7,0 = **92,86%**
+- **Subtotal Módulo 02:** 7,0 / 7,0 = **100,00%** *(R5: 92,86% | Dif: **+7,14%**)*
 
 ---
 
@@ -173,11 +173,11 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 3 | Exportação de linhas selecionadas da grade ativa | IGUAL | 1,0 | `app/test/modules/data-export-import.test.ts` |
 | 4 | Criação de tabela nova no Import com inferência automática de tipos de dados | IGUAL | 1,0 | `app/test/modules/data-export-import.integration.test.ts`, `import-new-table-source-dark.png` |
 | 5 | Padrão técnico superior: criação de tabela em `utf8mb4` com PK (original gera `utf8mb3` obsoleto) | MELHOR | 1,0 [MELHOR] | `NOTES.md:180`, `GAPS-VARREDURA-VM.md:23` |
-| 6 | Tela final "Finish" padronizada com resumo, contadores e ações pós-geração | PARCIAL | 0,5 | `GAPS-VARREDURA-VM.md:24` (exibe resumo e contadores; falta botão direto Open result file/folder) |
+| 6 | Tela final "Finish" padronizada com resumo, contadores e ações pós-geração (Open file, Open folder validados) | IGUAL | 1,0 | `AssistantFinish.tsx`, `app/test/systemOpenPath.test.ts`, `specMessages.ts:722` *(reconciliado em R6!)* |
 | 7 | Modos de importação em tabela existente (Append, Update, Repopulate) com transação | IGUAL | 1,0 | `app/test/modules/data-export-import.integration.test.ts` |
 | 8 | Formatos legados proprietários (Access MDB, DBF, etc.) desabilitados | AUSENTE | 0,0 | `document/paridade/DIVERGENCIAS-ORIGINAL.md` |
 
-- **Subtotal Módulo 07:** 6,5 / 8,0 = **81,25%**
+- **Subtotal Módulo 07:** 7,0 / 8,0 = **87,50%** *(R5: 81,25% | Dif: **+6,25%**)*
 
 ---
 
@@ -362,19 +362,19 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 
 ---
 
-## 4. Tabela-Resumo e Evolução Histórica (Rodadas 1 a 6)
+## 4. Tabela-Resumo e Evolução Histórica (Rodadas 1 a 6 — Reconciliada)
 
-$$\text{Fidelidade Global Ponderada (Rodada 6)} = \frac{\sum (\text{Nota Módulo} \times \text{Peso})}{\sum \text{Pesos}} = \frac{12285,26}{131} = \mathbf{93,78\%}$$
+$$\text{Fidelidade Global Ponderada (Rodada 6)} = \frac{\sum (\text{Nota Módulo} \times \text{Peso})}{\sum \text{Pesos}} = \frac{12440,02}{131} = \mathbf{94,96\%} \approx \mathbf{95,0\%}$$
 
-| Módulo | Nome do Componente | Peso | % R1 | % R2 | % R3 | % R4 | % R5 | % R6 (Atual) | Variação (R6 - R5) | Entregas Verificadas em R6 |
+| Módulo | Nome do Componente | Peso | % R1 | % R2 | % R3 | % R4 | % R5 | % R6 (Reconciliado) | Variação (R6 - R5) | Entregas Verificadas em R6 |
 |:---:|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| **00** | Shell, Menus e Janelas | 6 | 93,75% | 93,75% | 88,89% | 88,89% | 88,89% | **88,89%** | 0,00% | Estável |
+| **00** | Shell, Menus e Janelas | 6 | 93,75% | 93,75% | 88,89% | 88,89% | 88,89% | **94,44%** | **+5,55%** | Split de documento sincronizado (811c9c8) |
 | **01** | Database Connection Properties | 10 | 88,89% | 88,89% | 88,89% | 88,89% | 88,89% | **88,89%** | 0,00% | Estável |
-| **02** | Database Explorer & Menus | 10 | 68,75% | 87,50% | 78,57% | 92,86% | 92,86% | **92,86%** | 0,00% | Estável |
+| **02** | Database Explorer & Menus | 10 | 68,75% | 87,50% | 78,57% | 92,86% | 92,86% | **100,00%** | **+7,14%** | Filtro regex e case sensitive |
 | **03** | Table Designer, Criação & Card View | 15 | 88,89% | 88,89% | 88,89% | 88,89% | 100,00% | **100,00%** | 0,00% | Paridade plena |
 | **04** | Editor SQL, Refatoração & Busca | 15 | 88,89% | 100,00% | 90,00% | 95,00% | 95,00% | **100,00%** | **+5,00%** | Bookmarks & Outlining |
 | **06** | Schema Compare & Synchronization | 10 | 88,89% | 100,00% | 92,86% | 92,86% | 92,86% | **92,86%** | 0,00% | Estável |
-| **07** | Import & Export Wizard | 8 | 77,78% | 88,89% | 81,25% | 81,25% | 81,25% | **81,25%** | 0,00% | Estável |
+| **07** | Import & Export Wizard | 8 | 77,78% | 88,89% | 81,25% | 81,25% | 81,25% | **87,50%** | **+6,25%** | Finish com Open file/folder (bd85925) |
 | **08** | Security, Sessions & Properties | 5 | 100,00% | 100,00% | 100,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
 | **09** | Data Generator | 4 | 68,75% | 93,75% | 83,33% | 83,33% | 83,33% | **83,33%** | 0,00% | Estável |
 | **10** | Query Builder | 4 | 62,50% | 68,75% | 70,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
@@ -387,22 +387,22 @@ $$\text{Fidelidade Global Ponderada (Rodada 6)} = \frac{\sum (\text{Nota Módulo
 | **18** | Master-Detail, Report & Pivot | 4 | 62,50% | 62,50% | 50,00% | 87,50% | 87,50% | **100,00%** | **+12,50%** | Pivot Chart acoplado & SVG |
 | **19** | Utilities & Backup/Restore | 5 | 94,44% | 94,44% | 92,86% | 94,44% | 100,00% | **100,00%** | 0,00% | Paridade plena |
 | **20** | Source Control & Project Explorer | 6 | — | 87,50% | 75,00% | 75,00% | 75,00% | **75,00%** | 0,00% | Estável |
-| **TOTAL** | — | **131** | **79,23%** | **90,32%** | **83,68%** | **87,84%** | **92,83%** | **93,78%** | **+0,95%** | — |
+| **TOTAL** | — | **131** | **79,23%** | **90,32%** | **83,68%** | **87,84%** | **92,83%** | **94,96%** | **+2,13%** | — |
 
-- **Média Simples (não ponderada):** **93,20%** (R1: 80,58% | R2: 86,17% | R3: 81,83% | R4: 87,00% | R5: 92,27% | R6: 93,20%)  
-- **Média Global Ponderada:** **93,78%** (R1: 79,23% | R2: 90,32% | R3: 83,68% | R4: 87,84% | R5: 92,83% | R6: 93,78%)
+- **Média Simples (não ponderada):** **94,19%** (R1: 80,58% | R2: 86,17% | R3: 81,83% | R4: 87,00% | R5: 92,27% | R6: 94,19%)  
+- **Média Global Ponderada:** **94,96%** $\approx$ **95,0%** (R1: 79,23% | R2: 90,32% | R3: 83,68% | R4: 87,84% | R5: 92,83% | R6: 94,96%)
 
 > [!NOTE]
-> Nove módulos atingiram **100,00%** de fidelidade comprovada por testes e capturas reais: **Table Designer & Grid (03)**, **Editor SQL & Refatoração (04)**, **Security Manager (08)**, **Query Builder (10)**, **Database Diagram ER (11)**, **Options & Settings (14)**, **Data Compare (15)**, **Master-Detail/Report/Pivot (18)** e **Utilities & Backup/Restore (19)**.
+> Dez módulos atingiram **100,00%** de fidelidade comprovada por testes e capturas reais: **Database Explorer (02)**, **Table Designer & Grid (03)**, **Editor SQL & Refatoração (04)**, **Security Manager (08)**, **Query Builder (10)**, **Database Diagram ER (11)**, **Options & Settings (14)**, **Data Compare (15)**, **Master-Detail/Report/Pivot (18)** e **Utilities & Backup/Restore (19)**.
 
 ---
 
-## 5. Top 5 Maiores Gaps Restantes Priorizados (Fila Rodada 6)
+## 5. Top 5 Maiores Gaps Restantes Priorizados (Fila Rodada 6 Reconciliada)
 
 | # | Área / Módulo | O que falta para paridade absoluta com a referência | Prioridade | Esforço (P/M/G) |
 |:---:|---|---|:---:|:---:|
-| 1 | **00 Shell (Abas)** | Grupos de abas horizontal/vertical sincronizados e janelas flutuantes multi-view completas | **A** | **G** |
-| 2 | **07 Import/Export** | Tela final de assistentes com ações automáticas de abertura de arquivo/pasta no SO (*Open result file/folder*) | **A** | **P** |
-| 3 | **02 Explorer** | Filtro avançado com regex na árvore de objetos do banco | **B** | **P** |
-| 4 | **09 Data Generator**| Catálogo estendido com centenas de perfis pré-definidos para ramos de indústrias específicos | **B** | **P** |
-| 5 | **12 Query Profiler**| Visualizador comparativo dedicado em duas colunas para histórico de execuções de perfil | **B** | **P** |
+| 1 | **00 Shell (Layout Livre)** | Sistema de ancoragem direcional em cruz livre para janelas acopláveis (*dockview/docking guides*) | **A** | **G** |
+| 2 | **09 Data Generator** | Catálogo estendido com centenas de perfis pré-definidos para ramos de indústrias específicos | **B** | **P** |
+| 3 | **12 Query Profiler** | Visualizador comparativo dedicado em duas colunas para histórico de execuções de perfil | **B** | **P** |
+| 4 | **13 Debugger** | Suporte estendido a depuração de Event Schedulers / UDFs compiladas | **B** | **M** |
+| 5 | **16/17 Documenter** | Cobertura de automação avançada de scripts em lote (.bat/.sh) via CLI além do export nativo | **C** | **P** |
