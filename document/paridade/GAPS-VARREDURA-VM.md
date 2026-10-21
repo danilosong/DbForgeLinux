@@ -112,3 +112,16 @@ O Tasks Explorer é um dock em View e reabre o assistente associado à tarefa re
 ### Gap 15 — Finish e abertura das saídas
 
 O bloco Finish comum agora é usado por Import/Export, Backup/Restore, Documenter e Link Database to Source Control. Saídas de arquivo exibem **Open file** e **Open folder** via IPC `file:open-in-system`; o processo principal valida caminho absoluto, tipo regular, existência e ausência de symlink antes de chamar `shell.openPath` (integração do Electron com o abridor do sistema, incluindo `xdg-open` em Linux). Restore sem arquivo de saída mostra o relatório sem ações de abertura. Os demais painéis de execução imediata ainda apresentam o relatório no próprio painel e não têm uma etapa Finish própria; o gap fica parcialmente implementado até que esses fluxos ganhem uma etapa final comum.
+
+## Auditoria de consistência para release v0.1.0
+
+- **Resolvido:** títulos do registry agora apontam para chaves de painel presentes em en e pt-BR; a verificação automatizada percorre todos os painéis registrados e confere chamadas estáticas de tradução.
+- **Resolvido nesta revisão:** mensagens de estado e erro embutidas em inglês nos painéis Code Analysis, Query Builder, Data Report/Pivot, AI Assistant e Service Control receberam entradas bilíngues. Mensagens técnicas retornadas pelo servidor continuam preservadas sem tradução para facilitar diagnóstico.
+- **A validar manualmente:** truncamento depende de tamanho/escala, idioma, tema e conteúdo real. O checklist `document/RELEASE-CHECKLIST.md` registra navegação por teclado, foco, Escape, estados vazio/carregando/erro e revisão por módulo; não existe prova automatizada de truncamento de cada rótulo em todos os painéis.
+
+## Follow-up — Data Generator e Profiler
+
+| Gap | Estado | Evidência / limite |
+|---|---|---|
+| Data Generator: perfis de domínio | Implementado | Perfis People, Addresses, Companies, E-commerce, Finance, Date/Time e Text podem ser escolhidos por coluna ou substituídos por um gerador manual. Teste cobre mapeamentos semânticos e repetibilidade da prévia com seed fixa. |
+| Profiler: histórico em duas colunas | Implementado | Lista de execuções selecionáveis fica ao lado dos detalhes e plano. Duas execuções podem ser marcadas para comparar duração, eventos, counters de sessão e estrutura do plano; variações de custo/estimativa não são consideradas mudança estrutural. Teste cobre deltas e mudança de plano. |

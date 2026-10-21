@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { executeProfiledQuery, explainQuery, normalizeQuery, parseExplain, ProfilerHistory } from '../../src/modules/profiler/index.js'
+import { compareProfileRuns, executeProfiledQuery, explainQuery, normalizeQuery, parseExplain, ProfilerHistory, type ProfileResult } from '../../src/modules/profiler/index.js'
 import type { SqlClient } from '../../src/modules/sql.js'
 
 function client(overrides: Partial<SqlClient> = {}): SqlClient {
@@ -7,6 +7,31 @@ function client(overrides: Partial<SqlClient> = {}): SqlClient {
 }
 
 describe('query profiler', () => {
+  it('compares selected runs by duration, events, session counters and structural plan shape', () => {
+    const make = (overrides: Partial<ProfileResult> = {}): ProfileResult => ({
+      query: 'SELECT * FROM items', normalizedQuery: 'select * from items', mode: 'JSON', startedAt: new Date().toISOString(),
+      durationMs: 12, plan: { format: 'JSON', roots: [{ operation: 'Index lookup', table: 'items', key: 'PRIMARY', rows: 4, cost: 1, children: [] }], warnings: [], raw: [] },
+      statusDelta: { Questions: 3, Rows_examined: 5 }, events: [{ eventId: 1 }, { eventId: 2 }], ...overrides
+    })
+    const first = make()
+    const second = make({
+      durationMs: 17,
+      statusDelta: { Questions: 5, Rows_sent: 2 },
+      events: [{ eventId: 3 }],
+      plan: { format: 'JSON', roots: [{ operation: 'Table scan', table: 'items', rows: 20, cost: 8, children: [] }], warnings: [], raw: [] }
+    })
+    expect(compareProfileRuns(first, second)).toEqual({
+      durationDeltaMs: 5, eventCountDelta: -1, planChanged: true,
+      statusCounters: [
+        { name: 'Questions', first: 3, second: 5, delta: 2 },
+        { name: 'Rows_examined', first: 5, second: 0, delta: -5 },
+        { name: 'Rows_sent', first: 0, second: 2, delta: 2 }
+      ]
+    })
+    const sameShape = make({ durationMs: 15, plan: { ...first.plan, roots: [{ ...first.plan.roots[0]!, rows: 90, cost: 12 }] } })
+    expect(compareProfileRuns(first, sameShape).planChanged).toBe(false)
+  })
+
   it('parses MySQL JSON explain into a tree with costs, rows, and keys', () => {
     const plan = parseExplain([{ EXPLAIN: JSON.stringify({ query_block: { nested_loop: [{ table: { table_name: 'parent', access_type: 'ALL', rows_examined_per_scan: 10, possible_keys: ['PRIMARY'], cost_info: { query_cost: '3.5' } } }, { table: { table_name: 'child', access_type: 'ref', key: 'fk_parent', rows_examined_per_scan: 2 } }] } }) }])
     expect(plan.roots[0].operation).toBe('Query block')

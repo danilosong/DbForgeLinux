@@ -8,6 +8,32 @@ export interface StatementEvent { eventId: number; sqlText?: string; timerWaitPs
 export interface ProfileResult { query: string; normalizedQuery: string; mode: ExplainMode; startedAt: string; durationMs: number; plan: ExplainPlan; statusDelta: Record<string, number>; events: StatementEvent[] }
 export interface ExecutionProfile<T> { query: string; normalizedQuery: string; startedAt: string; durationMs: number; statusDelta: Record<string, number>; events: StatementEvent[]; result: T }
 export interface ProfileOptions { mode?: ExplainMode; confirmAnalyze?: true; eventLimit?: number; serverFamily?: 'mysql' | 'mariadb' }
+export interface ProfileRunComparison {
+  durationDeltaMs: number
+  eventCountDelta: number
+  planChanged: boolean
+  statusCounters: Array<{ name: string; first: number; second: number; delta: number }>
+}
+
+export function compareProfileRuns(first: ProfileResult, second: ProfileResult): ProfileRunComparison {
+  const firstPlan = JSON.stringify({ format: first.plan.format, roots: planShape(first.plan.roots) })
+  const secondPlan = JSON.stringify({ format: second.plan.format, roots: planShape(second.plan.roots) })
+  const names = [...new Set([...Object.keys(first.statusDelta), ...Object.keys(second.statusDelta)])].sort((a, b) => a.localeCompare(b))
+  return {
+    durationDeltaMs: second.durationMs - first.durationMs,
+    eventCountDelta: second.events.length - first.events.length,
+    planChanged: firstPlan !== secondPlan,
+    statusCounters: names.map((name) => {
+      const firstValue = first.statusDelta[name] ?? 0
+      const secondValue = second.statusDelta[name] ?? 0
+      return { name, first: firstValue, second: secondValue, delta: secondValue - firstValue }
+    })
+  }
+}
+
+function planShape(nodes: ExplainNode[]): unknown[] {
+  return nodes.map((node) => ({ operation: node.operation, table: node.table, accessType: node.accessType, key: node.key, children: planShape(node.children) }))
+}
 
 export async function explainQuery(client: SqlClient, query: string, mode: ExplainMode = 'JSON', options: { confirmAnalyze?: true; serverFamily?: 'mysql' | 'mariadb' } = {}): Promise<ExplainPlan> {
   const trimmed = query.trim().replace(/;+$/, '')

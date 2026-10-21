@@ -4,6 +4,7 @@ import { generateValue, inferKind, isUniqueColumn, passesSimpleCheck, relevantCh
 import type { DataGenerationJob, DataGenerationPreviewJob, DataGenerationReport, GeneratorSpec } from './types.js'
 
 export type { DataGenerationJob, DataGenerationPreviewJob, DataGenerationReport, GeneratorKind, GeneratorSpec, Locale } from './types.js'
+export { dataDomainProfiles, generatorForDomainProfile, type DataDomainProfile } from './profiles.js'
 
 function quoteId(name: string): string {
   if (!name || name.includes('\0')) throw new Error('Identificador inválido.')

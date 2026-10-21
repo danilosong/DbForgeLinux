@@ -31,7 +31,7 @@ export default function DataReportPivotPanel(): React.JSX.Element {
   const [busy, setBusy] = useState(false)
   const [chartType, setChartType] = useState<PivotChartType>('bar')
   const [chartVisible, setChartVisible] = useState(false)
-  const [message, setMessage] = useState('Load a SELECT query to choose pivot fields.')
+  const [message, setMessage] = useState(t('audit.report.loadHint'))
   const [reportKind, setReportKind] = useState<ReportKind>('standard')
   const [editingSql, setEditingSql] = useState(false)
   const [designMode, setDesignMode] = useState(() => window.sessionStorage.getItem('dbforge:data-report-pivot:open-mode') === 'report')
@@ -64,9 +64,9 @@ export default function DataReportPivotPanel(): React.JSX.Element {
   }, [fields, query])
 
   async function loadQuery(): Promise<void> {
-    if (!active) { setMessage('Select an active database connection first.'); return }
-    if (!query.trim()) { setMessage('Enter a SELECT query.'); return }
-    setBusy(true); setMessage('Loading query fields…'); setDatasetId(''); setFields([]); setReportRows([]); setPivot(null); setChartVisible(false)
+    if (!active) { setMessage(t('audit.report.connectionRequired')); return }
+    if (!query.trim()) { setMessage(t('audit.report.queryRequired')); return }
+    setBusy(true); setMessage(t('audit.report.loadingFields')); setDatasetId(''); setFields([]); setReportRows([]); setPivot(null); setChartVisible(false)
     try {
       const loaded = await window.dbforge.loadReportQuery(active.id, query)
       setDatasetId(loaded.datasetId); setFields(loaded.columns); setSampleCount(loaded.rowCount); setTruncated(loaded.truncated); setReportRows(loaded.sample)
@@ -76,18 +76,18 @@ export default function DataReportPivotPanel(): React.JSX.Element {
       setReportDesign((current) => ({ ...current, dataSourceQuery: query, bands: current.bands.Detail.length ? current.bands : createReportDesign(current.title, loaded.columns).bands }))
       setRoles(Object.fromEntries(loaded.columns.map((field) => [field, 'none' as Role])))
       setAggregationByField(Object.fromEntries(loaded.columns.map((field) => [field, 'sum' as PivotAggregation])))
-      setConfig(emptyConfig()); setMessage(`${loaded.rowCount.toLocaleString()} rows loaded${loaded.truncated ? ' · partial result' : ''}. Drag fields into Rows, Columns, or Data below.`)
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to load the report query.') }
+      setConfig(emptyConfig()); setMessage(t('audit.report.loaded', [loaded.rowCount.toLocaleString(), loaded.truncated ? t('audit.report.partial') : '', t('audit.report.dragHint')]))
+    } catch (error) { setMessage(error instanceof Error ? error.message : t('audit.report.loadFailed')) }
     finally { setBusy(false) }
   }
 
   async function build(): Promise<void> {
-    if (!datasetId) { setMessage('Load a query before building the pivot.'); return }
+    if (!datasetId) { setMessage(t('audit.report.queryRequired')); return }
     const next = buildPivotConfigFromRoles(fields, roles, dateGrouping, aggregationByField, config)
     const request = ++pivotRequestRef.current
-    setBusy(true); setMessage('Building pivot…'); setDesignMode(false)
-    try { const result = await window.dbforge.buildPivot(datasetId, next); if (request !== pivotRequestRef.current) return; lastPivotConfigRef.current = JSON.stringify(next); setPivot(result); setConfig(next); setMessage(`${result.rowCount.toLocaleString()} rows${result.truncated ? ' · partial result' : ''}`) }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to build pivot.') }
+    setBusy(true); setMessage(t('audit.report.building')); setDesignMode(false)
+    try { const result = await window.dbforge.buildPivot(datasetId, next); if (request !== pivotRequestRef.current) return; lastPivotConfigRef.current = JSON.stringify(next); setPivot(result); setConfig(next); setMessage(t('audit.report.rowCount', [result.rowCount.toLocaleString(), result.truncated ? t('audit.report.partial') : ''])) }
+    catch (error) { setMessage(error instanceof Error ? error.message : t('audit.report.buildFailed')) }
     finally { setBusy(false) }
   }
 
@@ -103,18 +103,18 @@ export default function DataReportPivotPanel(): React.JSX.Element {
         lastPivotConfigRef.current = signature
         setPivot(result)
         setConfig(next)
-        setMessage(`${result.rowCount.toLocaleString()} rows${result.truncated ? ' · partial result' : ''}`)
+        setMessage(t('audit.report.rowCount', [result.rowCount.toLocaleString(), result.truncated ? t('audit.report.partial') : '']))
       }).catch((error: unknown) => {
-        if (request === pivotRequestRef.current) setMessage(error instanceof Error ? error.message : 'Unable to refresh the pivot chart.')
+        if (request === pivotRequestRef.current) setMessage(error instanceof Error ? error.message : t('audit.report.refreshFailed'))
       })
     }, 140)
     return () => window.clearTimeout(timer)
-  }, [aggregationByField, config, datasetId, dateGrouping, fields, pivot, roles])
+  }, [aggregationByField, config, datasetId, dateGrouping, fields, pivot, roles, t])
 
   async function exportResult(format: ReportExportFormat): Promise<void> {
     if (!pivot) return
-    try { const path = await window.dbforge.exportPivot(pivot, format); if (path) setMessage(`Report exported to ${path}`) }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not export the report.') }
+    try { const path = await window.dbforge.exportPivot(pivot, format); if (path) setMessage(t('audit.report.exported', [path])) }
+    catch (error) { setMessage(error instanceof Error ? error.message : t('audit.report.exportFailed')) }
   }
   function startDesign(): void { setReportDesign((current) => ({ ...current, dataSourceQuery: query, bands: current.bands.Detail.length || !fields.length ? current.bands : createReportDesign('Data Report', fields).bands })); setDesignMode(true); setPage(0) }
   function saveDesign(): void { const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([JSON.stringify(reportDesign, null, 2)], { type: 'application/json' })); link.download = `${reportDesign.title.toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'report'}.json`; link.click(); URL.revokeObjectURL(link.href) }

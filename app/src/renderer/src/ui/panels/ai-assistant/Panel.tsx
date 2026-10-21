@@ -24,10 +24,10 @@ export default function AiAssistantPanel(): React.JSX.Element {
 
   useEffect(() => {
     let cancelled = false
-    void window.dbforge.loadAiAssistantSettings().then((state) => { if (!cancelled) { setSettings(state.settings); setHasKey(state.hasApiKey) } }).catch((reason: unknown) => { if (!cancelled) setSettingsMessage(reason instanceof Error ? reason.message : 'Could not load AI settings.') })
+    void window.dbforge.loadAiAssistantSettings().then((state) => { if (!cancelled) { setSettings(state.settings); setHasKey(state.hasApiKey) } }).catch((reason: unknown) => { if (!cancelled) setSettingsMessage(reason instanceof Error ? reason.message : t('audit.ai.loadSettingsFailed')) })
     void window.dbforge.getConnections().then((items) => { if (!cancelled) { setConnections(items); setConnectionId((current) => items.some((item) => item.id === current) ? current : active?.recordId && items.some((item) => item.id === active.recordId) ? active.recordId : items[0]?.id ?? '') } }).catch(() => undefined)
     return () => { cancelled = true }
-  }, [active?.recordId])
+  }, [active?.recordId, t])
 
   useEffect(() => {
     let cancelled = false
@@ -48,7 +48,7 @@ export default function AiAssistantPanel(): React.JSX.Element {
 
   async function reviewSchema(): Promise<void> {
     const record = connections.find((item) => item.id === connectionId)
-    if (!record || !database) { setError('Choose a connection and database before attaching schema.'); return }
+    if (!record || !database) { setError(t('audit.ai.schemaRequired')); return }
     setSchemaBusy(true); setError('')
     try {
       const connected = await window.dbforge.connect(record)
@@ -57,14 +57,14 @@ export default function AiAssistantPanel(): React.JSX.Element {
       finally { await window.dbforge.disconnect(connected.id) }
       const payload: AiSchemaContext = { database, tables: schema.tables.map((table) => ({ name: table.name, columns: table.columns.map((column) => ({ name: column.name, type: column.type, primaryKey: column.primaryKey, nullable: column.nullable })), foreignKeys: table.foreignKeys.map((foreignKey) => ({ column: foreignKey.column, referencedTable: foreignKey.referencedTable, referencedColumn: foreignKey.referencedColumn })) })) }
       setSchemaReview(payload)
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not read schema metadata.') }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : t('audit.ai.schemaFailed')) }
     finally { setSchemaBusy(false) }
   }
 
   async function saveSettings(): Promise<void> {
     setSettingsBusy(true); setSettingsMessage('Saving securely…')
     try { const state = await window.dbforge.saveAiAssistantSettings(settings, apiKey); setSettings(state.settings); setHasKey(state.hasApiKey); setApiKey(''); setSettingsMessage('Settings saved. API keys are stored in the secure vault.') }
-    catch (reason) { setSettingsMessage(reason instanceof Error ? reason.message : 'Could not save AI settings.') }
+    catch (reason) { setSettingsMessage(reason instanceof Error ? reason.message : t('audit.ai.saveFailed')) }
     finally { setSettingsBusy(false) }
   }
 

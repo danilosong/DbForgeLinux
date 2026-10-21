@@ -37,14 +37,14 @@ export default function QueryBuilderPanel(): React.JSX.Element {
   const [diagramOptions, setDiagramOptions] = useState(defaultSettings.queryBuilder)
   const tables = model.tables
   const filterList = schema?.tables.filter((table) => table.name.toLowerCase().includes(search.toLowerCase())) ?? []
-  const compiled = useMemo(() => { try { return buildQuery(model) } catch (error) { return { error: error instanceof Error ? error.message : 'Could not build query.' } } }, [model])
+  const compiled = useMemo(() => { try { return buildQuery(model) } catch (error) { return { error: error instanceof Error ? error.message : t('audit.qb.buildFailed') } } }, [model, t])
   const loadSchema = useCallback(async (): Promise<void> => {
     if (!active || !database) return
     setSchemaBusy(true)
     try { setSchema(await window.dbforge.getQueryBuilderSchema(active.id, database)); setMessage('') }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not load schema.') }
+    catch (error) { setMessage(error instanceof Error ? error.message : t('audit.qb.schemaFailed')) }
     finally { setSchemaBusy(false) }
-  }, [active, database])
+  }, [active, database, t])
 
   useEffect(() => {
     const applySettings = (settings: AppSettings): void => setDiagramOptions(settings.queryBuilder)
@@ -60,16 +60,16 @@ export default function QueryBuilderPanel(): React.JSX.Element {
       if (cancelled) return
       setConnections(items)
       setConnectionId((current) => items.some((item) => item.id === current) ? current : contextualConnection?.id && items.some((item) => item.id === contextualConnection.id) ? contextualConnection.id : items[0]?.id ?? '')
-    }).catch((error: unknown) => { if (!cancelled) setMessage(error instanceof Error ? error.message : 'Could not load connections.') })
+    }).catch((error: unknown) => { if (!cancelled) setMessage(error instanceof Error ? error.message : t('audit.qb.connectionsFailed')) })
     return () => { cancelled = true }
-  }, [contextualConnection?.id])
+  }, [contextualConnection?.id, t])
 
   useEffect(() => {
     let cancelled = false
     let connectedId = ''
     setActive(undefined); setDatabases([]); setDatabase(''); setSchema(null); setModel(blankModel()); setRootModel(null); setSubqueryModel(null); setQueryPage('root')
     const record = connections.find((item) => item.id === connectionId)
-    if (!record) { setMessage('Select a connection to use Query Builder.'); return }
+    if (!record) { setMessage(t('audit.qb.connectionRequired')); return }
     void window.dbforge.connect(record).then(async (connected) => {
       connectedId = connected.id
       if (cancelled) { await window.dbforge.disconnect(connected.id); return }
@@ -77,9 +77,9 @@ export default function QueryBuilderPanel(): React.JSX.Element {
       const items = await window.dbforge.listDatabases(connected.id)
       if (cancelled) { await window.dbforge.disconnect(connected.id); return }
       setDatabases(items); setDatabase((current) => items.includes(current) ? current : record.database && items.includes(record.database) ? record.database : items[0] ?? '')
-    }).catch((error: unknown) => { if (!cancelled) setMessage(error instanceof Error ? error.message : 'Could not connect to database.') })
+    }).catch((error: unknown) => { if (!cancelled) setMessage(error instanceof Error ? error.message : t('audit.qb.connectFailed')) })
     return () => { cancelled = true; if (connectedId) void window.dbforge.disconnect(connectedId) }
-  }, [connectionId, connections])
+  }, [connectionId, connections, t])
 
   useEffect(() => { if (active && database) void loadSchema() }, [active, database, loadSchema])
   useEffect(() => {
@@ -121,7 +121,7 @@ export default function QueryBuilderPanel(): React.JSX.Element {
   }
   function wrapCurrentAsInsert(tableName: string): void {
     const target = tables.find((item) => item.name === tableName)
-    if (!built || !target) { setMessage('Choose a destination table first.'); return }
+    if (!built || !target) { setMessage(t('audit.qb.destinationRequired')); return }
     try { setSqlText(wrapSelectAsInsert(built.sql, target)); setView('Text'); setUnparsedSql(true); setMessage('INSERT SELECT created. Review the SQL before running.') }
     catch (error) { setMessage(error instanceof Error ? error.message : 'Could not create INSERT SELECT.') }
   }
@@ -170,7 +170,7 @@ export default function QueryBuilderPanel(): React.JSX.Element {
   }
 
   function addJoin(): void {
-    if (!joinLeft || !joinRight || !joinLeftColumn || !joinRightColumn || joinLeft === joinRight) { setMessage('Choose two different tables and join columns.'); return }
+    if (!joinLeft || !joinRight || !joinLeftColumn || !joinRightColumn || joinLeft === joinRight) { setMessage(t('audit.qb.joinRequired')); return }
     if (editingJoinIndex === null && model.joins.some((join) => (join.leftTable === joinLeft && join.rightTable === joinRight) || (join.leftTable === joinRight && join.rightTable === joinLeft))) { setMessage('A join with these tables already exists.'); return }
     const updated = { leftTable: joinLeft, rightTable: joinRight, type: joinType, conditions: joinType === 'CROSS' ? [] : [{ left: { table: joinLeft, column: joinLeftColumn }, operator: '=' as const, right: { table: joinRight, column: joinRightColumn } }] }
     setModel((current) => ({ ...current, joins: editingJoinIndex === null ? [...current.joins, updated] : current.joins.map((join, index) => index === editingJoinIndex ? updated : join) })); setEditingJoinIndex(null); setMessage('')
@@ -206,7 +206,7 @@ export default function QueryBuilderPanel(): React.JSX.Element {
   }
 
   function addCondition(having = false): void {
-    if (!whereTable || !whereColumn) { setMessage('Choose a column for the condition.'); return }
+    if (!whereTable || !whereColumn) { setMessage(t('audit.qb.conditionRequired')); return }
     const value: unknown = whereOperator === 'IN' || whereOperator === 'NOT IN' ? whereValue.split(',').map((item) => item.trim()) : whereValue
     const condition: QueryCondition = { column: { table: whereTable, column: whereColumn }, operator: whereOperator, value, connector: model.conditions.filter((item) => Boolean(item.having) === having).length ? 'AND' : undefined, having }
     setModel((current) => ({ ...current, conditions: [...current.conditions, condition] })); setWhereValue(''); setMessage('')
@@ -226,12 +226,12 @@ export default function QueryBuilderPanel(): React.JSX.Element {
     try {
       const parsed = await window.dbforge.parseQueryBuilder(sqlText, database)
       if (parsed.model) { setModel(parsed.model); setUnparsedSql(false); setMessage('SQL represented in the diagram.') }
-      else { setUnparsedSql(true); setMessage(parsed.error ?? 'SQL could not be represented visually.') }
-    } catch (error) { setUnparsedSql(true); setMessage(error instanceof Error ? error.message : 'SQL could not be represented visually.') }
+      else { setUnparsedSql(true); setMessage(parsed.error ?? t('audit.qb.visualFailed')) }
+    } catch (error) { setUnparsedSql(true); setMessage(error instanceof Error ? error.message : t('audit.qb.visualFailed')) }
   }
 
   async function execute(): Promise<void> {
-    if (!active) { setMessage('Select a connection.'); return }
+    if (!active) { setMessage(t('audit.qb.connectionRequired')); return }
     let currentModel = model
     if (view === 'Text') {
       const parsed = await window.dbforge.parseQueryBuilder(sqlText, database)
@@ -243,7 +243,7 @@ export default function QueryBuilderPanel(): React.JSX.Element {
         const id = crypto.randomUUID(); setExecutionId(id); setRawExecution(true)
         setBusy(true); setMessage('Executing query…')
         try { const output = await window.dbforge.executeSql(active.id, statements[0], id); setResult(output); setView('Data'); setMessage(`${output[0]?.rows.length ?? output[0]?.affectedRows ?? 0} rows · 0.000 s`) }
-        catch (error) { setMessage(error instanceof Error ? error.message : 'Query execution failed.') }
+        catch (error) { setMessage(error instanceof Error ? error.message : t('audit.qb.executeFailed')) }
         finally { setBusy(false); setExecutionId(''); setRawExecution(false) }
         return
       }
@@ -255,7 +255,7 @@ export default function QueryBuilderPanel(): React.JSX.Element {
     try {
       const output = await window.dbforge.executeQueryBuilder(active.id, currentModel, destructive, id)
       setSqlText(output.sql); setResult(output.results); setView('Data'); setMessage(`${output.results[0]?.rows.length ?? output.results[0]?.affectedRows ?? 0} rows · ${(output.elapsedMs / 1000).toFixed(3)} s`)
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Query execution failed.') }
+    } catch (error) { setMessage(error instanceof Error ? error.message : t('audit.qb.executeFailed')) }
     finally { setBusy(false); setConfirmDestructive(false); setExecutionId(''); setRawExecution(false) }
   }
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { generateData, previewData, type DataGenerationJob } from '../../src/modules/data-generation/index.js'
+import { dataDomainProfiles, generateData, generatorForDomainProfile, previewData, type DataGenerationJob } from '../../src/modules/data-generation/index.js'
 import type { DbDriver, DbTransaction, SqlValue } from '../../src/main/db/DbDriver.js'
 import type { DatabaseModel, TableModel } from '../../src/modules/schema/model.js'
 import { generateValue, inferKind, sampleRegex, seededRandom } from '../../src/modules/data-generation/generators.js'
@@ -94,6 +94,31 @@ describe('data generation', () => {
     expect(firstValue).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
     expect(generateValue({ ...context, random: seededRandom('catalog') })).toBe(firstValue)
     expect(generateValue({ ...context, column: { name: 'city', type: 'varchar(80)', nullable: false } })).toMatch(/São Paulo|Rio de Janeiro|Recife|Curitiba|Manaus/)
+  })
+
+  it('offers domain profiles per column and keeps seeded profile previews deterministic', async () => {
+    const columns = [
+      { name: 'first_name', type: 'varchar(80)', nullable: false },
+      { name: 'postal_code', type: 'varchar(12)', nullable: false },
+      { name: 'company_name', type: 'varchar(80)', nullable: false },
+      { name: 'unit_price', type: 'decimal(10,2)', nullable: false },
+      { name: 'order_date', type: 'date', nullable: false },
+      { name: 'description', type: 'text', nullable: false }
+    ]
+    expect(dataDomainProfiles).toEqual(['people', 'addresses', 'companies', 'ecommerce', 'finance', 'datetime', 'text'])
+    expect(generatorForDomainProfile('people', columns[0]!)).toBe('firstName')
+    expect(generatorForDomainProfile('addresses', columns[1]!)).toBe('sequence')
+    expect(generatorForDomainProfile('companies', columns[2]!)).toBe('company')
+    expect(generatorForDomainProfile('ecommerce', columns[3]!)).toBe('money')
+    expect(generatorForDomainProfile('finance', columns[3]!)).toBe('money')
+    expect(generatorForDomainProfile('datetime', columns[4]!)).toBe('date')
+    expect(generatorForDomainProfile('text', columns[5]!)).toBe('lorem')
+
+    const profileTable: TableModel = { ...parent, name: 'profile_preview', columns: [columns[0]!, columns[2]!, columns[3]!, columns[4]!] }
+    const generators = Object.fromEntries(profileTable.columns.map((column) => [column.name, { kind: generatorForDomainProfile('people', column) }]))
+    const first = await previewData({ schema, table: profileTable, count: 5, seed: 'domain-seed', generators })
+    const second = await previewData({ schema, table: profileTable, count: 5, seed: 'domain-seed', generators })
+    expect(second).toEqual(first)
   })
 
   it('starts generated unique numeric values after existing values and supports explicit unique values', async () => {

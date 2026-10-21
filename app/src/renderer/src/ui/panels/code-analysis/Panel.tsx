@@ -11,16 +11,16 @@ export default function CodeAnalysisPanel(): React.JSX.Element {
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   async function analyze(): Promise<void> {
-    setBusy(true); setMessage('Preparing Code Analysis…')
+    setBusy(true); setMessage(t('audit.code.preparing'))
     try {
       const result = await window.dbforge.analyzeSql(sql)
       setFindings(result); onFindings(result)
-      setMessage(result.length ? `Code analysis complete · ${result.length} findings` : 'Code analysis complete · No issues found.')
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Code Analysis Error') }
+      setMessage(result.length ? t('audit.code.findings', [result.length]) : t('audit.code.clean'))
+    } catch (error) { setMessage(error instanceof Error ? error.message : t('audit.code.error')) }
     finally { setBusy(false) }
   }
   return <section className="tool-panel code-analysis-panel">
-    <div className="code-analysis-toolbar"><p>{t('panel.code.analysis.m64fcc58a4a')}</p><button className="button-primary" disabled={busy || !sql.trim()} onClick={() => void analyze()}>{busy ? '◌ Analyzing…' : 'Analyze Code'}</button></div>
+    <div className="code-analysis-toolbar"><p>{t('panel.code.analysis.m64fcc58a4a')}</p><button className="button-primary" disabled={busy || !sql.trim()} onClick={() => void analyze()}>{busy ? `◌ ${t('audit.code.analyzing')}` : t('audit.code.run')}</button></div>
     {message && <p role="status">{message}</p>}
     {findings.length > 0 && <table><thead><tr><th>{t('panel.code.analysis.me248ad354c')}</th><th>{t('panel.code.analysis.md19904a865')}</th><th>{t('panel.code.analysis.me5c3b8995b')}</th><th>{t('panel.code.analysis.m40f506f1af')}</th><th>{t('panel.code.analysis.med9e98b898')}</th><th>{t('panel.code.analysis.md70c9d8946')}</th></tr></thead><tbody>{findings.map((finding, index) => <tr key={`${finding.ruleId}:${finding.line}:${finding.column}:${index}`}><td className={`analysis-${finding.severity.toLowerCase()}`}>{finding.severity}</td><td>{finding.ruleId}</td><td>{finding.category}</td><td>{t(`analysis.rule.${finding.ruleId}`) || finding.message}</td><td>{finding.line}</td><td>{finding.column}</td></tr>)}</tbody></table>}
   </section>
