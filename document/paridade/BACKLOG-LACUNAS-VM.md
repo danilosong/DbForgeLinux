@@ -1,6 +1,6 @@
 # Backlog de lacunas observadas na VM (aguardando fim do mapeamento)
 
-> **AVISO (2026-10-21 17:40):** as seções Grid, Debugger, Query Builder, Data Generator, ER, Security e Report/Pivot foram reportadas SEM captura nova na VM (última captura real: 16:39; VM parada no assistente de Import). A origem da evidência é desconhecida (sessão anterior ou inferência) até a Prisma classificar. Tratar como INFERIDA; não abrir tasks de implementação a partir delas antes da reobservação.
+> **AVISO (2026-10-21 17:40):** as seções Debugger, Query Builder, Data Generator, ER, Security e Report/Pivot foram reportadas SEM captura nova na VM (última captura real: 16:39; VM parada no assistente de Import). A origem da evidência é desconhecida (sessão anterior ou inferência) até a Prisma classificar. Tratar como INFERIDA; não abrir tasks de implementação a partir delas antes da reobservação.
 
 Regra: só implementar depois que a Fase A de observação terminar. Cada item: módulo, lacuna, origem (F-*.md), prioridade (A uso diário, B útil, C acabamento), dono sugerido.
 
@@ -16,7 +16,9 @@ Confirmado com captura: Execute To Cursor Ctrl+Shift+F10, Run To Cursor Ctrl+F10
 | E6 | SQL Formatter Wizard em lote (arquivos/diretórios) | C | Codex |
 | E7 | Edição visual das regras de formatação (hoje 9 perfis embutidos) | C | Codex + UX |
 
-## Grid de resultados e edição (F-GRID) — observado
+## Grid de resultados e edição (F-GRID) — PARCIALMENTE CONFIRMADO pela Lupa (11 PNGs, 17:40-17:41, re/original-observation/02-grid/)
+Confirmado com captura: menu de contexto da célula (Copy With Headers Ctrl+Shift+C, Auto-search Ctrl+I, Data Viewer Ctrl+W,R, Quick Filter com =, <>, >, >=, <, <=, Condition), Copy Data As (Column Names Only/Names and Types/CSV/XML/HTML/JSON/EXCEL, cada um To File e To Clipboard), Set Value To (NULL Ctrl+0, Empty String, Now, Zero, Unique Identifier), Data Layout Grid/Card, Generate Script As (INSERT, BULK INSERT, WHERE IN, WHERE AND OR, UPDATE), Send to (Query Builder, Data Report, Chart Designer, Pivot Table). Desconhecido: efeito dos filtros, edição inline em aba de dados de tabela, conteúdo copiado, texto do Generate Script As.
+Itens novos a verificar no clone antes de virar task: Set Value To (G5), Send to Chart Designer (G6; o clone tem strings 'Chart Designer' em i18n, verificar se o fluxo existe), Copy Data As EXCEL (G7).
 Atenção: G2 e G3 conflitam com o que a matriz já registra como implementado (Pivot e Master-Detail, módulo 18). Verificar no clone antes de abrir task; pode ser só o acoplamento ao grid.
 | # | Lacuna | Prio | Dono |
 |---|---|---|---|
