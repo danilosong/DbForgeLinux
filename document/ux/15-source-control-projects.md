@@ -2,7 +2,7 @@
 
 Reusa `01-shell.md`, `07` (DiffTree, SideBySideDiff, SyncConfirmDialog), `03` (TreeView, CodeEditor). **[C]** CONFIRMADO / **[I]** INFERIDO.
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Source Control; Project Explorer / SQL Projects) e https://www.devart.com/dbforge/mysql/studio/source-control.html. Citações por redirecionamento; páginas individuais não abertas. Fidelidade REA: rótulos conferidos contra REA ui-text. Escopo Linux: **Git apenas** (SVN/TFS/Mercurial/Azure DevOps = fora [C existe no original; adaptação Linux por ADR/inventário]).
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Source Control; Project Explorer / SQL Projects) e https://www.devart.com/tuxsql/mysql/studio/source-control.html. Citações por redirecionamento; páginas individuais não abertas. Fidelidade REA: rótulos conferidos contra REA ui-text. Escopo Linux: **Git apenas** (SVN/TFS/Mercurial/Azure DevOps = fora [C existe no original; adaptação Linux por ADR/inventário]).
 
 ## 1. Project Explorer [C: painel; REA ui-text "Project Explorer"]
 Dock (esquerdo, aba junto ao Database Explorer): árvore de **Projetos** (pasta local `.dbproj.json` [I]) com nós: Project > Connections (referências, sem senhas) > SQL Scripts > Diagramas > Documentação/Outros. Ações da toolbar: New Project, Open Project, Add Existing File, New Script, Refresh. Menu de contexto: Open, Rename (F2), Delete (da lista / do disco, confirmação), Add > New SQL/Folder/Existing, Show in File Manager, Copy Path, Set Connection (associa script a uma conexão). Duplo clique abre o arquivo em aba SQL. Arrastar para reordenar/mover entre pastas. Detecta alterações externas (watch) e atualiza; arquivos modificados mostram "•"/status Git.

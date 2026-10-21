@@ -4,7 +4,7 @@
 
 Reusa `01-shell.md` (tokens/componentes), `03` (DataGrid, CodeEditor). Legenda: **[C]** CONFIRMADO em doc pública; **[I]** INFERIDO.
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (seção SQL Development > Query Builder) e https://www.devart.com/dbforge/mysql/studio/query-builder.html. Nota: a busca web retornou resumos com citações via redirecionamento; as páginas exatas não foram abertas uma a uma. Itens marcados [C] constam dos resumos; o restante é [I] e deve ser conferido contra o produto.
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (seção SQL Development > Query Builder) e https://www.devart.com/tuxsql/mysql/studio/query-builder.html. Nota: a busca web retornou resumos com citações via redirecionamento; as páginas exatas não foram abertas uma a uma. Itens marcados [C] constam dos resumos; o restante é [I] e deve ser conferido contra o produto.
 
 ## 1. Entradas
 - Start Page > SQL Development > Query Builder [C]; toolbar principal [C]; Explorer > tabela(s) > **Send to > Query Builder** [C]; menu SQL > New Query Builder [I]. Atalho sugerido: Ctrl+Alt+Q [I].

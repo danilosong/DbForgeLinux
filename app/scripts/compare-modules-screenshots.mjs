@@ -9,14 +9,14 @@ import { _electron as electron } from 'playwright'
 import mysql from 'mysql2/promise'
 import { mysqlTestUser } from './mysql-test-prefix.mjs'
 
-const electronPath = process.env.DBFORGE_ELECTRON_PATH ?? join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux')
+const electronPath = process.env.TUXSQL_ELECTRON_PATH ?? join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql')
 if (!existsSync(electronPath)) throw new Error(`Packaged Electron executable not found at ${electronPath}. Build the app first.`)
 const suffix = `${process.pid}_${randomUUID().slice(0, 8)}`
-const database = `dbforge_modules_${suffix}`
+const database = `tuxsql_modules_${suffix}`
 const targetDatabase = `${database}_target`
 const user = mysqlTestUser('module_screenshots')
 const password = `Ui-${randomUUID().slice(0, 14)}-9!`
-const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-modules-ui-'))
+const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-modules-ui-'))
 const evidenceDirectory = join(process.cwd(), '..', 'document', 'evidence', 'ui', '08-13-modules')
 const admin = await mysql.createConnection({ host: '127.0.0.1', port: 33067, user: 'root', password: process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only', multipleStatements: false })
 let app

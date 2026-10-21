@@ -9,7 +9,7 @@ import type { DatabaseModel } from '../../src/modules/schema/model.js'
 
 const run = promisify(execFile)
 const folders: string[] = []
-async function temp(): Promise<string> { const folder = await mkdtemp(join(tmpdir(), 'dbforge-source-control-')); folders.push(folder); return folder }
+async function temp(): Promise<string> { const folder = await mkdtemp(join(tmpdir(), 'tuxsql-source-control-')); folders.push(folder); return folder }
 async function git(folder: string, ...args: string[]): Promise<void> { await run('git', ['-C', folder, ...args], { encoding: 'utf8', shell: false }) }
 afterEach(async () => { await Promise.all(folders.splice(0).map((folder) => rm(folder, { recursive: true, force: true }))) })
 

@@ -2,6 +2,7 @@ export type DatabaseType = 'mysql' | 'mariadb'
 export type SslMode = 'disabled' | 'preferred' | 'required' | 'verify-ca' | 'verify-identity'
 export type SshAuthMethod = 'password' | 'private-key' | 'agent'
 export type ConnectionEnvironment = 'none' | 'dev' | 'test' | 'prod' | 'custom'
+export type EnvironmentShape = 'square' | 'circle' | 'triangle' | 'diamond'
 
 export interface SslConfig {
   mode: SslMode
@@ -79,6 +80,7 @@ export interface ConnectionRecord {
   showAllDatabases?: boolean
   color?: string
   environment: ConnectionEnvironment
+  environmentShape?: EnvironmentShape
   environmentLabel?: string
   category?: string
   comment?: string
@@ -98,6 +100,7 @@ export interface ConnectionSummary {
   user: string
   database?: string
   environment: ConnectionEnvironment
+  environmentShape?: EnvironmentShape
   color?: string
 }
 

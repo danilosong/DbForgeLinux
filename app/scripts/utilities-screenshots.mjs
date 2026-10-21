@@ -6,8 +6,8 @@ import { join } from 'node:path'
 import { once } from 'node:events'
 import { _electron as electron } from 'playwright'
 
-const appPath = join(process.cwd(), 'dist', 'linux-unpacked', existsSync(join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux')) ? 'dbforgelinux' : 'electron')
-const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-utilities-ui-'))
+const appPath = join(process.cwd(), 'dist', 'linux-unpacked', existsSync(join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql')) ? 'tuxsql' : 'electron')
+const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-utilities-ui-'))
 const evidenceDirectory = join(process.cwd(), '..', 'document', 'evidence', 'ui')
 let app
 try {

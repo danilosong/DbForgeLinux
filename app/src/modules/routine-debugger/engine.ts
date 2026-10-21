@@ -1,4 +1,4 @@
-export const DEBUG_SCHEMA = 'dbforge_linux_debug'
+export const DEBUG_SCHEMA = 'tuxsql_linux_debug'
 export const DEBUG_ENGINE_VERSION = '2'
 
 export function quoteDebugIdentifier(value: string): string {
@@ -31,8 +31,8 @@ export function engineDdl(database = DEBUG_SCHEMA): string[] {
         IF v_trigger THEN
           SELECT status,step_kind,run_to_line,command_version INTO v_status,v_mode,v_run_to,v_version FROM ${schema}.debug_sessions WHERE debug_id=p_debug_id;
           IF v_status IS NULL OR v_status='stopped' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Trigger debugging stopped'; END IF;
-          SET v_mode=COALESCE(@dbforge_linux_debug_step_kind,v_mode);
-          SET v_run_to=COALESCE(@dbforge_linux_debug_run_to,v_run_to);
+          SET v_mode=COALESCE(@tuxsql_linux_debug_step_kind,v_mode);
+          SET v_run_to=COALESCE(@tuxsql_linux_debug_run_to,v_run_to);
           SELECT COUNT(*) INTO v_breakpoint FROM ${schema}.breakpoints WHERE debug_id=p_debug_id AND line_number=p_line AND enabled=TRUE;
           SET v_pause=(v_mode IN ('into','over') OR (v_mode='run-to-cursor' AND p_line>=COALESCE(v_run_to,2147483647)) OR (v_mode IN ('continue','out') AND v_breakpoint>0));
           IF v_pause THEN
@@ -40,12 +40,12 @@ export function engineDdl(database = DEBUG_SCHEMA): string[] {
             IF v_lock IS NULL OR v_lock=0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Could not pause trigger debugger'; END IF;
             trigger_pause_loop: LOOP
               DO SLEEP(0.08);
-              IF IS_USED_LOCK(CONCAT('dfl-cmd-',p_debug_id,'-c')) IS NOT NULL THEN SET @dbforge_linux_debug_step_kind='continue'; SET @dbforge_linux_debug_run_to=NULL; DO RELEASE_LOCK(CONCAT('dfl-pause-',p_debug_id,'-',p_line)); LEAVE trigger_pause_loop; END IF;
-              IF IS_USED_LOCK(CONCAT('dfl-cmd-',p_debug_id,'-i')) IS NOT NULL THEN SET @dbforge_linux_debug_step_kind='into'; SET @dbforge_linux_debug_run_to=NULL; DO RELEASE_LOCK(CONCAT('dfl-pause-',p_debug_id,'-',p_line)); LEAVE trigger_pause_loop; END IF;
-              IF IS_USED_LOCK(CONCAT('dfl-cmd-',p_debug_id,'-o')) IS NOT NULL THEN SET @dbforge_linux_debug_step_kind='over'; SET @dbforge_linux_debug_run_to=NULL; DO RELEASE_LOCK(CONCAT('dfl-pause-',p_debug_id,'-',p_line)); LEAVE trigger_pause_loop; END IF;
-              IF IS_USED_LOCK(CONCAT('dfl-cmd-',p_debug_id,'-u')) IS NOT NULL THEN SET @dbforge_linux_debug_step_kind='out'; SET @dbforge_linux_debug_run_to=NULL; DO RELEASE_LOCK(CONCAT('dfl-pause-',p_debug_id,'-',p_line)); LEAVE trigger_pause_loop; END IF;
+              IF IS_USED_LOCK(CONCAT('dfl-cmd-',p_debug_id,'-c')) IS NOT NULL THEN SET @tuxsql_linux_debug_step_kind='continue'; SET @tuxsql_linux_debug_run_to=NULL; DO RELEASE_LOCK(CONCAT('dfl-pause-',p_debug_id,'-',p_line)); LEAVE trigger_pause_loop; END IF;
+              IF IS_USED_LOCK(CONCAT('dfl-cmd-',p_debug_id,'-i')) IS NOT NULL THEN SET @tuxsql_linux_debug_step_kind='into'; SET @tuxsql_linux_debug_run_to=NULL; DO RELEASE_LOCK(CONCAT('dfl-pause-',p_debug_id,'-',p_line)); LEAVE trigger_pause_loop; END IF;
+              IF IS_USED_LOCK(CONCAT('dfl-cmd-',p_debug_id,'-o')) IS NOT NULL THEN SET @tuxsql_linux_debug_step_kind='over'; SET @tuxsql_linux_debug_run_to=NULL; DO RELEASE_LOCK(CONCAT('dfl-pause-',p_debug_id,'-',p_line)); LEAVE trigger_pause_loop; END IF;
+              IF IS_USED_LOCK(CONCAT('dfl-cmd-',p_debug_id,'-u')) IS NOT NULL THEN SET @tuxsql_linux_debug_step_kind='out'; SET @tuxsql_linux_debug_run_to=NULL; DO RELEASE_LOCK(CONCAT('dfl-pause-',p_debug_id,'-',p_line)); LEAVE trigger_pause_loop; END IF;
               SELECT MIN(line_number) INTO v_run_to FROM ${schema}.breakpoints WHERE debug_id=p_debug_id AND IS_USED_LOCK(CONCAT('dfl-cmd-',p_debug_id,'-r',line_number)) IS NOT NULL;
-              IF v_run_to IS NOT NULL THEN SET @dbforge_linux_debug_step_kind='run-to-cursor'; SET @dbforge_linux_debug_run_to=v_run_to; DO RELEASE_LOCK(CONCAT('dfl-pause-',p_debug_id,'-',p_line)); LEAVE trigger_pause_loop; END IF;
+              IF v_run_to IS NOT NULL THEN SET @tuxsql_linux_debug_step_kind='run-to-cursor'; SET @tuxsql_linux_debug_run_to=v_run_to; DO RELEASE_LOCK(CONCAT('dfl-pause-',p_debug_id,'-',p_line)); LEAVE trigger_pause_loop; END IF;
             END LOOP;
           END IF;
           LEAVE checkpoint_block;

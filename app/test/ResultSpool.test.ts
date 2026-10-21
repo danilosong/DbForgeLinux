@@ -9,7 +9,7 @@ describe('ResultSpool', () => {
   afterEach(async () => { if (directory) await rm(directory, { recursive: true, force: true }); directory = '' })
 
   it('writes rows on disk and reads bounded pages across sparse-index blocks', async () => {
-    directory = await mkdtemp(join(tmpdir(), 'dbforge-results-'))
+    directory = await mkdtemp(join(tmpdir(), 'tuxsql-results-'))
     const spool = await ResultSpool.create(directory)
     for (let index = 0; index < 700; index++) await spool.append({ id: index, text: `row-${index}` })
     expect(spool.rowCount).toBe(700)
@@ -22,7 +22,7 @@ describe('ResultSpool', () => {
   })
 
   it('keeps an encrypted safe value out of serialized row text', async () => {
-    directory = await mkdtemp(join(tmpdir(), 'dbforge-results-'))
+    directory = await mkdtemp(join(tmpdir(), 'tuxsql-results-'))
     const spool = await ResultSpool.create(directory)
     await spool.append({ value: Buffer.from('binary payload') })
     expect((await readFile(spool.path, 'utf8'))).not.toContain('binary payload')

@@ -2,7 +2,7 @@
 
 Reusa `01-shell.md`, `06` (WizardDialog, ProgressList, ReportView), `04` (EditableGrid). **[C]** CONFIRMADO / **[I]** INFERIDO.
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Data Generator) e https://www.devart.com/dbforge/mysql/data-generator/. Citações por redirecionamento; páginas individuais não abertas. Fidelidade REA: rótulos conferidos contra REA ui-text.
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Data Generator) e https://www.devart.com/tuxsql/mysql/data-generator/. Citações por redirecionamento; páginas individuais não abertas. Fidelidade REA: rótulos conferidos contra REA ui-text.
 
 ## 1. Entrada
 Explorer > database/tabela > **Generate Test Data…** (comandos New Data Generation... / Open Data Generation..., projeto `*.dgen` [C: REA ui-text]). Abre documento em aba "Data Generator" (não modal), com assistente inicial de seleção.

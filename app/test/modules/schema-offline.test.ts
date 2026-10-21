@@ -30,7 +30,7 @@ describe('offline schema sources', () => {
   })
 
   it('reads .sql files recursively in stable order and ignores non-SQL files', async () => {
-    const folder = await mkdtemp(join(tmpdir(), `dbforge-scripts-${process.pid}-`)); dirs.push(folder)
+    const folder = await mkdtemp(join(tmpdir(), `tuxsql-scripts-${process.pid}-`)); dirs.push(folder)
     await writeFile(join(folder, '02.sql'), 'CREATE TABLE later (id int NOT NULL);')
     await writeFile(join(folder, '01.sql'), 'CREATE TABLE earlier (id int NOT NULL);')
     await writeFile(join(folder, 'ignored.txt'), 'CREATE TABLE ignored (id int);')
@@ -38,7 +38,7 @@ describe('offline schema sources', () => {
     expect((await readScriptsFolder(folder)).tables.map((table) => table.name)).toEqual(['earlier', 'later', 'nested_table'])
   })
   it('rejects symlink roots and checks aggregate script size before reading', async () => {
-    const parent = await mkdtemp(join(tmpdir(), `dbforge-scripts-link-${process.pid}-`)); dirs.push(parent)
+    const parent = await mkdtemp(join(tmpdir(), `tuxsql-scripts-link-${process.pid}-`)); dirs.push(parent)
     const actual = join(parent, 'actual'); const link = join(parent, 'link')
     await mkdir(actual); await symlink(actual, link)
     await expect(readScriptsFolder(link)).rejects.toThrow(/symbolic link/i)

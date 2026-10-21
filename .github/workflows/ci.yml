@@ -134,12 +134,12 @@ jobs:
               -e XAUTHORITY="$container_auth" \
               -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
               -v "$container_auth:$container_auth:ro" \
-              -v "$package_path:/tmp/dbforgelinux.deb:ro" \
+              -v "$package_path:/tmp/tuxsql.deb:ro" \
               ubuntu:24.04 bash -euc "
                 apt-get update
-                DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends /tmp/dbforgelinux.deb
-                dpkg -c /tmp/dbforgelinux.deb >/tmp/package-files.txt
-                executable=/opt/dbForgeLinux/dbforgelinux
+                DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends /tmp/tuxsql.deb
+                dpkg -c /tmp/tuxsql.deb >/tmp/package-files.txt
+                executable=/opt/TuxSQLSong/tuxsql
                 test -x \"\$executable\"
                 ldd \"\$executable\" | tee /tmp/ldd.txt
                 if grep -q \"not found\" /tmp/ldd.txt; then
@@ -156,7 +156,7 @@ jobs:
           '
       - uses: actions/upload-artifact@v4
         with:
-          name: dbforgelinux-deb
+          name: tuxsql-deb
           path: app/dist/*.deb
           if-no-files-found: error
           retention-days: 14

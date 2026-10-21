@@ -53,9 +53,9 @@ Executada com MySQL 8.4 descartável em `127.0.0.1:33067`, MariaDB 11.4 descart�
 
 ## Rodada 3 — higiene e cobertura de fluxos novos (2026-10-21)
 
-Preparação em MySQL 8.4 descartável `127.0.0.1:33067`. `app/scripts/mysql-clean-test.mjs` remove databases, contas e objetos MySQL de teste prefixados; em `sample`/`sample_b` limita a remoção ao prefixo legado `martelo_ui_*`. A limpeza inicial removeu apenas `sample_b.martelo_ui_3030593` e `sample_b.martelo_ui_3085421`. O job de integração também varreu dois schemas `dbforge_test_smoke_*` deixados por uma execução anterior; o teardown do smoke agora verifica a remoção e repete DROP até confirmar ausência. Após o smoke final, a limpeza encontrou zero resíduos. Nenhum dado não prefixado de `sample`/`sample_b` foi alterado.
+Preparação em MySQL 8.4 descartável `127.0.0.1:33067`. `app/scripts/mysql-clean-test.mjs` remove databases, contas e objetos MySQL de teste prefixados; em `sample`/`sample_b` limita a remoção ao prefixo legado `martelo_ui_*`. A limpeza inicial removeu apenas `sample_b.martelo_ui_3030593` e `sample_b.martelo_ui_3085421`. O job de integração também varreu dois schemas `tuxsql_test_smoke_*` deixados por uma execução anterior; o teardown do smoke agora verifica a remoção e repete DROP até confirmar ausência. Após o smoke final, a limpeza encontrou zero resíduos. Nenhum dado não prefixado de `sample`/`sample_b` foi alterado.
 
-Fixtures MySQL de integração e e2e usam nomes prefixados com PID + UUID (`dbforge_test_*` / `dbforge_tu_*`) e removem databases/contas em `afterAll` ou `finally`. O CI executa `pnpm mysql:clean-test` no job Integration após subir o serviço e antes de typecheck/testes; `pnpm test:integration` também limpa antes do Vitest. O script de screenshots Extras passou a usar fixture identificada por execução e sem apontar alterações pendentes ao database `sample`.
+Fixtures MySQL de integração e e2e usam nomes prefixados com PID + UUID (`tuxsql_test_*` / `tuxsql_tu_*`) e removem databases/contas em `afterAll` ou `finally`. O CI executa `pnpm mysql:clean-test` no job Integration após subir o serviço e antes de typecheck/testes; `pnpm test:integration` também limpa antes do Vitest. O script de screenshots Extras passou a usar fixture identificada por execução e sem apontar alterações pendentes ao database `sample`.
 
 | Fluxo | Evidência / resultado |
 |---|---|

@@ -31,7 +31,7 @@ export default function MasterDetailPanel(): React.JSX.Element {
 
   useEffect(() => {
     if (!targetConnection || !database) { setTables([]); return }
-    void window.dbforge.listTables(targetConnection.id, database).then((items) => { setTables(items); setTable(selectedObject?.object.kind === 'table' && items.includes(selectedObject.object.name) ? selectedObject.object.name : items[0] || '') }).catch((error: unknown) => setMessage(errorText(error)))
+    void window.tuxsql.listTables(targetConnection.id, database).then((items) => { setTables(items); setTable(selectedObject?.object.kind === 'table' && items.includes(selectedObject.object.name) ? selectedObject.object.name : items[0] || '') }).catch((error: unknown) => setMessage(errorText(error)))
   }, [targetConnection, database, selectedObject?.object.name, selectedObject?.object.kind])
 
   async function fetchMaster(): Promise<void> {
@@ -42,10 +42,10 @@ export default function MasterDetailPanel(): React.JSX.Element {
     const orderClause = orderBy ? ` ORDER BY ${quote(orderBy)} ASC` : ''
     setBusy(true); setMessage(t('md.loading')); setDetails([]); setSelectedRow(null)
     try {
-      const outputs = await window.dbforge.executeSql(targetConnection.id, `SELECT ${projection} FROM ${quote(database)}.${quote(table)}${whereClause}${orderClause} LIMIT ${limit}`, crypto.randomUUID(), database)
+      const outputs = await window.tuxsql.executeSql(targetConnection.id, `SELECT ${projection} FROM ${quote(database)}.${quote(table)}${whereClause}${orderClause} LIMIT ${limit}`, crypto.randomUUID(), database)
       const query = outputs[0]
       if (!query) throw new Error(t('md.noData'))
-      const loadedRows = query.resultStoreId ? await window.dbforge.readResultRows(query.resultStoreId, 0, Math.min(limit, query.rowCount ?? limit)) : query.rows
+      const loadedRows = query.resultStoreId ? await window.tuxsql.readResultRows(query.resultStoreId, 0, Math.min(limit, query.rowCount ?? limit)) : query.rows
       setResult(query); setRows(loadedRows); setSelectedColumns(query.columns); setMessage(t('md.loaded', [String(loadedRows.length)]))
     } catch (error) { setMessage(errorText(error)) }
     finally { setBusy(false) }
@@ -54,7 +54,7 @@ export default function MasterDetailPanel(): React.JSX.Element {
   async function chooseMasterRow(row: Record<string, unknown>): Promise<void> {
     if (!targetConnection || !result?.editable) { setMessage(t('md.noPrimaryKey')); return }
     setSelectedRow(row); setBusy(true); setMessage(t('md.loadingDetails'))
-    try { const relations = await window.dbforge.loadMasterDetails(targetConnection.id, result.editable, row); setDetails(relations); setMessage(t('md.detailCount', [String(relations.length)])) }
+    try { const relations = await window.tuxsql.loadMasterDetails(targetConnection.id, result.editable, row); setDetails(relations); setMessage(t('md.detailCount', [String(relations.length)])) }
     catch (error) { setMessage(errorText(error)) }
     finally { setBusy(false) }
   }

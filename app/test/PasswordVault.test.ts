@@ -18,7 +18,7 @@ describe('PasswordVault', () => {
   let directory: string
 
   beforeEach(async () => {
-    directory = await mkdtemp(join(tmpdir(), 'dbforge-vault-'))
+    directory = await mkdtemp(join(tmpdir(), 'tuxsql-vault-'))
     safeStorageMock.isEncryptionAvailable.mockReturnValue(true)
     safeStorageMock.getSelectedStorageBackend.mockReturnValue('gnome_libsecret')
     safeStorageMock.encryptString.mockImplementation((password: string) =>

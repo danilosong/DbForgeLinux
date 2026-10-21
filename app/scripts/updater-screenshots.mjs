@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { _electron as electron } from 'playwright'
 
-const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-updater-ui-'))
+const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-updater-ui-'))
 const output = join(process.cwd(), '..', 'document', 'evidence', 'ui')
 const app = await electron.launch({
   executablePath: join(process.cwd(), 'node_modules', 'electron', 'dist', 'electron'),

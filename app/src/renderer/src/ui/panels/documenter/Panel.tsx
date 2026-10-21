@@ -35,22 +35,22 @@ export default function Panel(): React.JSX.Element {
   const [excludedIndexes, setExcludedIndexes] = useState<string[]>([])
   const folderName = useMemo(() => `${(database || 'documentation').replace(/[^a-zA-Z0-9_-]/g, '_')}${appendTimestamp ? `_${localDateTime().stamp}` : ''}`, [database, appendTimestamp])
   useEffect(() => setConnectionId(activeConnection?.id ?? ''), [activeConnection?.id])
-  useEffect(() => { if (!connectionId || !database.trim()) { setTree([]); return }; let live = true; void window.dbforge.listDocumenterObjects(connectionId, database).then((items) => { if (live) setTree(items) }).catch(() => { if (live) setTree([]) }); return () => { live = false } }, [connectionId, database])
+  useEffect(() => { if (!connectionId || !database.trim()) { setTree([]); return }; let live = true; void window.tuxsql.listDocumenterObjects(connectionId, database).then((items) => { if (live) setTree(items) }).catch(() => { if (live) setTree([]) }); return () => { live = false } }, [connectionId, database])
 
   async function previewDoc(): Promise<void> {
     setError('')
-    try { setPreview(await window.dbforge.previewDatabaseDocumentation(connectionId, database, title || undefined)) }
+    try { setPreview(await window.tuxsql.previewDatabaseDocumentation(connectionId, database, title || undefined)) }
     catch (cause) { setError(cause instanceof Error ? cause.message : t('documenter.error')) }
   }
   async function generate(): Promise<void> {
     if (!window.confirm(t('documenter.confirm'))) return
     setBusy(true); setError('')
     try {
-      const paths = await window.dbforge.generateDatabaseDocumentation({ connectionId, database, title: title || undefined, author, copyright, logo, created: localDateTime().date, folderName, descriptions: { cover: description }, formats, outputDirectory: directory, includeDiagram: diagram, excludedColumns, excludedIndexes, confirmed: true })
+      const paths = await window.tuxsql.generateDatabaseDocumentation({ connectionId, database, title: title || undefined, author, copyright, logo, created: localDateTime().date, folderName, descriptions: { cover: description }, formats, outputDirectory: directory, includeDiagram: diagram, excludedColumns, excludedIndexes, confirmed: true })
       setResult(paths)
       if (openAfter) {
         const first = paths.html ?? paths.pdf ?? paths.markdown
-        if (first) { const openError = await window.dbforge.openDocumentationPath(first); if (openError) setError(openError) }
+        if (first) { const openError = await window.tuxsql.openDocumentationPath(first); if (openError) setError(openError) }
       }
     } catch (cause) { setError(cause instanceof Error ? cause.message : t('documenter.error')) }
     finally { setBusy(false) }

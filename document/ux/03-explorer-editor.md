@@ -146,7 +146,7 @@ Performance: virtualização de linhas e colunas; 100 mil linhas em memória sem
 
 ## 6. Temas
 
-Todos os elementos usam tokens de `01-shell.md` §9. Específicos: linha selecionada do grid = bg.selected; célula editada = borda 2px accent.primary; linha alterada/nova/excluída usam mistura de status.warning/success/error a 15% de opacidade; squiggles com status.error/warning. Monaco com temas custom `dbforge-light`/`dbforge-dark` mapeando syntax.*. Contraste AA em ambos.
+Todos os elementos usam tokens de `01-shell.md` §9. Específicos: linha selecionada do grid = bg.selected; célula editada = borda 2px accent.primary; linha alterada/nova/excluída usam mistura de status.warning/success/error a 15% de opacidade; squiggles com status.error/warning. Monaco com temas custom `tuxsql-light`/`tuxsql-dark` mapeando syntax.*. Contraste AA em ambos.
 
 ## 7. Adaptações Linux
 

@@ -9,7 +9,7 @@ export function AboutDialog({ onClose }: { onClose(): void }): React.JSX.Element
   const [info, setInfo] = useState<AboutInfo>()
   const [copyState, setCopyState] = useState('')
 
-  useEffect(() => { void window.dbforge.getAboutInfo().then(setInfo).catch(() => setCopyState(t('about.loadError'))) }, [t])
+  useEffect(() => { void window.tuxsql.getAboutInfo().then(setInfo).catch(() => setCopyState(t('about.loadError'))) }, [t])
 
   async function copySystemInfo(): Promise<void> {
     if (!info) return
@@ -27,7 +27,7 @@ export function AboutDialog({ onClose }: { onClose(): void }): React.JSX.Element
   return <PanelDialog title={t('about.title')} closeLabel={t('about.close')} onClose={onClose}>
     <div className="about-panel">
       <h2>{t('about.title')}</h2>
-      <p className="about-product-name">{info?.name ?? 'dbForgeLinux'} <span>{info ? `v${info.version}` : '…'}</span></p>
+      <p className="about-product-name">{info?.name ?? 'TuxSQL Song'} <span>{info ? `v${info.version}` : '…'}</span></p>
       <dl className="about-versions">
         <dt>{t('about.creator')}</dt><dd>{info?.creator ?? 'Danilo Song'}</dd>
         <dt>{t('about.license')}</dt><dd>{info?.license ?? 'MIT'}</dd>
@@ -38,9 +38,9 @@ export function AboutDialog({ onClose }: { onClose(): void }): React.JSX.Element
       </dl>
       <p className="about-legal">{t('about.legal')}</p>
       <div className="about-links">
-        <button type="button" onClick={() => void window.dbforge.openAboutLink('documentation')}>{t('about.documentation')}</button>
-        <button type="button" onClick={() => void window.dbforge.openAboutLink('repository')}>{t('about.repository')}</button>
-        <button type="button" onClick={() => void window.dbforge.openAboutLink('license')}>{t('about.licenseLink')}</button>
+        <button type="button" onClick={() => void window.tuxsql.openAboutLink('documentation')}>{t('about.documentation')}</button>
+        <button type="button" onClick={() => void window.tuxsql.openAboutLink('repository')}>{t('about.repository')}</button>
+        <button type="button" onClick={() => void window.tuxsql.openAboutLink('license')}>{t('about.licenseLink')}</button>
       </div>
       <footer><button type="button" onClick={() => void copySystemInfo()} disabled={!info}>{t('about.copy')}</button>{copyState && <span role="status">{copyState}</span>}<span className="toolbar-spacer" /><button type="button" onClick={onClose}>{t('about.close')}</button></footer>
     </div>

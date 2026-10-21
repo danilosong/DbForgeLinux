@@ -6,7 +6,7 @@ import { resolvePnpm } from '../../src/modules/updater/toolchain.js'
 
 let home: string
 
-beforeEach(async () => { home = await mkdtemp(join(tmpdir(), 'dbforge-toolchain-')) })
+beforeEach(async () => { home = await mkdtemp(join(tmpdir(), 'tuxsql-toolchain-')) })
 afterEach(async () => { await rm(home, { recursive: true, force: true }) })
 
 async function fakeBinary(path: string): Promise<void> {

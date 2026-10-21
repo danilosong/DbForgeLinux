@@ -11,7 +11,7 @@ export default function ServiceControlPanel(): React.JSX.Element {
   const [command, setCommand] = useState('')
   const refresh = useCallback(async (): Promise<void> => {
     setBusy(true)
-    try { setServices(await window.dbforge.listMysqlServices()); setMessage('') }
+    try { setServices(await window.tuxsql.listMysqlServices()); setMessage('') }
     catch (error) { setMessage(error instanceof Error ? error.message : t('audit.service.failed')) }
     finally { setBusy(false) }
   }, [t])
@@ -23,7 +23,7 @@ export default function ServiceControlPanel(): React.JSX.Element {
     if (!window.confirm(t('audit.service.confirm', [actionLabel, service.unit, commandText]))) return
     setBusy(true); setCommand(''); setMessage('')
     try {
-      const result = await window.dbforge.controlMysqlService(service.unit, action)
+      const result = await window.tuxsql.controlMysqlService(service.unit, action)
       setCommand(result.command)
       if (result.authorizationRequired) setMessage(t('audit.service.authorizationRequired'))
       else setMessage(`${service.unit}: ${result.service.state}${result.service.enabled === null ? '' : ` · ${result.service.enabled ? t('audit.service.enabled') : t('audit.service.disabled')}`}`)

@@ -1,7 +1,7 @@
 import { ipcRenderer } from 'electron'
-import type { DbForgeApi } from '../../shared/contracts.js'
+import type { TuxSqlApi } from '../../shared/contracts.js'
 
-export const sessionsApi: Pick<DbForgeApi, 'listSessions' | 'getSessionDetails' | 'killSessions' | 'getServerVariables' | 'getServerStatus' | 'setServerVariable'> = {
+export const sessionsApi: Pick<TuxSqlApi, 'listSessions' | 'getSessionDetails' | 'killSessions' | 'getServerVariables' | 'getServerStatus' | 'setServerVariable'> = {
   listSessions: (id, filters) => ipcRenderer.invoke('sessions:list', id, filters),
   getSessionDetails: (id, sessionId) => ipcRenderer.invoke('sessions:details', id, sessionId),
   killSessions: (id, sessionIds, mode, confirm) => ipcRenderer.invoke('sessions:kill', id, sessionIds, mode, confirm),

@@ -1,5 +1,5 @@
-import type { DbForgeApi } from './api.js'
+import type { TuxSqlApi } from './api.js'
 export {}
 declare global {
-  interface Window { dbforge: DbForgeApi }
+  interface Window { tuxsql: TuxSqlApi }
 }

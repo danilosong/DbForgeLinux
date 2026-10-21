@@ -2,7 +2,7 @@
 """Mini cliente QMP para controlar a VM: screenshot, teclado e mouse. Sem dependências externas."""
 import json, os, socket, sys, time
 
-SOCK = os.environ.get("VM_QMP", os.path.expanduser("~/vm/dbforge-ref/qmp.sock"))
+SOCK = os.environ.get("VM_QMP", os.path.expanduser("~/vm/tuxsql-ref/qmp.sock"))
 W, H = int(os.environ.get("VM_W", 1280)), int(os.environ.get("VM_H", 800))  # resolução do convidado (ajuste no Windows para coincidir)
 
 KEYS = {" ": "spc", "\n": "ret", "\t": "tab", "-": "minus", "=": "equal", "[": "bracket_left", "]": "bracket_right",

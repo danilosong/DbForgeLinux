@@ -8,7 +8,7 @@ import { ResultSpool } from '../src/main/db/ResultSpool.js'
 import { exportData } from '../src/modules/data-export-import/export.js'
 import { splitSqlStatements } from '../src/shared/sqlStatements.js'
 
-const directoryPromise = mkdtemp(join(tmpdir(), 'dbforge-perf-'))
+const directoryPromise = mkdtemp(join(tmpdir(), 'tuxsql-perf-'))
 const rssMb = (): number => Math.round(process.memoryUsage().rss / 1024 / 1024)
 function monitorRss(): { startMb: number; peakMb(): number; stop(): void } {
   const startMb = rssMb(); let peak = startMb

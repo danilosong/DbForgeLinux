@@ -29,7 +29,7 @@ jobs:
       - name: Build Linux packages
         working-directory: app
         env:
-          DBFORGE_RELEASE_BUILD: '1'
+          TUXSQL_RELEASE_BUILD: '1'
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pnpm build && pnpm exec electron-builder --linux AppImage deb --config packaging/electron-builder.yml --publish never
       - name: Publish release assets

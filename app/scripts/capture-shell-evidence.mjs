@@ -9,7 +9,7 @@ import { pathToFileURL } from 'node:url'
 import { _electron as electron } from 'playwright'
 
 const projectRoot = process.cwd()
-const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-ui-evidence-'))
+const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-ui-evidence-'))
 const sqlFile = join(dataRoot, 'cli-open.sql')
 const output = join(projectRoot, '..', 'document', 'evidence', 'ui', 'linux-open-sql.png')
 let application
@@ -28,10 +28,10 @@ function isAlive(pid) { try { process.kill(pid, 0); return true } catch { return
 try {
   await writeFile(sqlFile, '-- opened by file argument\nSELECT 1 AS linux_open_test;\n', { mode: 0o600 })
   application = await electron.launch({
-    executablePath: join(projectRoot, 'dist', 'linux-unpacked', 'dbforgelinux'),
+    executablePath: join(projectRoot, 'dist', 'linux-unpacked', 'tuxsql'),
     args: [`--user-data-dir=${join(dataRoot, 'profile')}`, pathToFileURL(sqlFile).href],
     timeout: 60_000,
-    env: { ...process.env, DBFORGE_LINUX_BACKEND: 'x11', ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' }
+    env: { ...process.env, TUXSQL_LINUX_BACKEND: 'x11', ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' }
   })
   const page = await application.firstWindow()
   await page.locator('.monaco-editor').waitFor({ state: 'visible', timeout: 30_000 })

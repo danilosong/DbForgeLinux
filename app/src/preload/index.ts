@@ -1,5 +1,5 @@
 import { contextBridge } from 'electron'
-import type { DbForgeApi } from '../shared/contracts.js'
+import type { TuxSqlApi } from '../shared/contracts.js'
 import { connectionsApi } from './api/connections.js'
 import { sqlApi } from './api/sql.js'
 import { securityApi } from './api/security.js'
@@ -30,5 +30,5 @@ import { aboutApi } from './api/about.js'
 import { updaterApi } from './api/updater.js'
 import { startupApi } from './api/startup.js'
 import { tasksApi } from './api/tasks.js'
-const api:DbForgeApi={...connectionsApi,...sqlApi,...securityApi,...sessionsApi,...profilerApi,...dataGeneratorApi,...documenterApi,...schemaCompareApi,...dataCompareApi,...importExportApi,...erDiagramApi,...queryBuilderApi,...editorApi,...historyApi,...sourceControlApi,...objectEditorsApi,...optionsApi,...databaseToolsApi,...dataReportPivotApi,...aiAssistantApi,...routineDebuggerApi,...tasksApi,...serviceControlApi,...codeAnalysisApi,...gridEditingApi,...gridDataApi,...extraToolsApi,...aboutApi,...updaterApi,...startupApi}
-contextBridge.exposeInMainWorld('dbforge',api)
+const api:TuxSqlApi={...connectionsApi,...sqlApi,...securityApi,...sessionsApi,...profilerApi,...dataGeneratorApi,...documenterApi,...schemaCompareApi,...dataCompareApi,...importExportApi,...erDiagramApi,...queryBuilderApi,...editorApi,...historyApi,...sourceControlApi,...objectEditorsApi,...optionsApi,...databaseToolsApi,...dataReportPivotApi,...aiAssistantApi,...routineDebuggerApi,...tasksApi,...serviceControlApi,...codeAnalysisApi,...gridEditingApi,...gridDataApi,...extraToolsApi,...aboutApi,...updaterApi,...startupApi}
+contextBridge.exposeInMainWorld('tuxsql',api)

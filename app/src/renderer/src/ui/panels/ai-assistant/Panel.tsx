@@ -24,8 +24,8 @@ export default function AiAssistantPanel(): React.JSX.Element {
 
   useEffect(() => {
     let cancelled = false
-    void window.dbforge.loadAiAssistantSettings().then((state) => { if (!cancelled) { setSettings(state.settings); setHasKey(state.hasApiKey) } }).catch((reason: unknown) => { if (!cancelled) setSettingsMessage(reason instanceof Error ? reason.message : t('audit.ai.loadSettingsFailed')) })
-    void window.dbforge.getConnections().then((items) => { if (!cancelled) { setConnections(items); setConnectionId((current) => items.some((item) => item.id === current) ? current : active?.recordId && items.some((item) => item.id === active.recordId) ? active.recordId : items[0]?.id ?? '') } }).catch(() => undefined)
+    void window.tuxsql.loadAiAssistantSettings().then((state) => { if (!cancelled) { setSettings(state.settings); setHasKey(state.hasApiKey) } }).catch((reason: unknown) => { if (!cancelled) setSettingsMessage(reason instanceof Error ? reason.message : t('audit.ai.loadSettingsFailed')) })
+    void window.tuxsql.getConnections().then((items) => { if (!cancelled) { setConnections(items); setConnectionId((current) => items.some((item) => item.id === current) ? current : active?.recordId && items.some((item) => item.id === active.recordId) ? active.recordId : items[0]?.id ?? '') } }).catch(() => undefined)
     return () => { cancelled = true }
   }, [active?.recordId, t])
 
@@ -34,16 +34,16 @@ export default function AiAssistantPanel(): React.JSX.Element {
     const record = connections.find((item) => item.id === connectionId)
     setDatabases([])
     if (!record) return
-    void window.dbforge.connect(record).then(async (connected) => {
-      try { const items = await window.dbforge.listDatabases(connected.id); if (!cancelled) { setDatabases(items); setDatabase((current) => items.includes(current) ? current : record.database && items.includes(record.database) ? record.database : items[0] ?? '') } }
-      finally { await window.dbforge.disconnect(connected.id) }
+    void window.tuxsql.connect(record).then(async (connected) => {
+      try { const items = await window.tuxsql.listDatabases(connected.id); if (!cancelled) { setDatabases(items); setDatabase((current) => items.includes(current) ? current : record.database && items.includes(record.database) ? record.database : items[0] ?? '') } }
+      finally { await window.tuxsql.disconnect(connected.id) }
     }).catch(() => { if (!cancelled) setDatabases([]) })
     return () => { cancelled = true }
   }, [connectionId, connections])
 
   useEffect(() => () => {
     const activeRequest = runningRequest.current
-    if (activeRequest) void window.dbforge.cancelAiAssistant(activeRequest).catch(() => undefined)
+    if (activeRequest) void window.tuxsql.cancelAiAssistant(activeRequest).catch(() => undefined)
   }, [])
 
   async function reviewSchema(): Promise<void> {
@@ -51,10 +51,10 @@ export default function AiAssistantPanel(): React.JSX.Element {
     if (!record || !database) { setError(t('audit.ai.schemaRequired')); return }
     setSchemaBusy(true); setError('')
     try {
-      const connected = await window.dbforge.connect(record)
+      const connected = await window.tuxsql.connect(record)
       let schema
-      try { schema = await window.dbforge.getQueryBuilderSchema(connected.id, database) }
-      finally { await window.dbforge.disconnect(connected.id) }
+      try { schema = await window.tuxsql.getQueryBuilderSchema(connected.id, database) }
+      finally { await window.tuxsql.disconnect(connected.id) }
       const payload: AiSchemaContext = { database, tables: schema.tables.map((table) => ({ name: table.name, columns: table.columns.map((column) => ({ name: column.name, type: column.type, primaryKey: column.primaryKey, nullable: column.nullable })), foreignKeys: table.foreignKeys.map((foreignKey) => ({ column: foreignKey.column, referencedTable: foreignKey.referencedTable, referencedColumn: foreignKey.referencedColumn })) })) }
       setSchemaReview(payload)
     } catch (reason) { setError(reason instanceof Error ? reason.message : t('audit.ai.schemaFailed')) }
@@ -63,14 +63,14 @@ export default function AiAssistantPanel(): React.JSX.Element {
 
   async function saveSettings(): Promise<void> {
     setSettingsBusy(true); setSettingsMessage('Saving securely…')
-    try { const state = await window.dbforge.saveAiAssistantSettings(settings, apiKey); setSettings(state.settings); setHasKey(state.hasApiKey); setApiKey(''); setSettingsMessage('Settings saved. API keys are stored in the secure vault.') }
+    try { const state = await window.tuxsql.saveAiAssistantSettings(settings, apiKey); setSettings(state.settings); setHasKey(state.hasApiKey); setApiKey(''); setSettingsMessage('Settings saved. API keys are stored in the secure vault.') }
     catch (reason) { setSettingsMessage(reason instanceof Error ? reason.message : t('audit.ai.saveFailed')) }
     finally { setSettingsBusy(false) }
   }
 
   async function testSettings(): Promise<void> {
     setSettingsBusy(true); setSettingsMessage('Testing provider…')
-    try { const result = await window.dbforge.testAiAssistantSettings(settings, apiKey); setSettingsMessage(`Provider ready · ${Math.round(result.latencyMs)} ms`) }
+    try { const result = await window.tuxsql.testAiAssistantSettings(settings, apiKey); setSettingsMessage(`Provider ready · ${Math.round(result.latencyMs)} ms`) }
     catch (reason) { setSettingsMessage(reason instanceof Error ? reason.message : 'Provider test failed.') }
     finally { setSettingsBusy(false) }
   }
@@ -98,7 +98,7 @@ export default function AiAssistantPanel(): React.JSX.Element {
       pendingText = ''
       setChats((items) => items.map((chat) => chat.id === targetChatId ? { ...chat, messages: chat.messages.map((message) => message.id === assistantMessageId ? { ...message, content: message.content + textChunk } : message) } : chat))
     }
-    const unsubscribe = window.dbforge.onAiAssistantEvent((event) => {
+    const unsubscribe = window.tuxsql.onAiAssistantEvent((event) => {
       if (event.requestId !== id) return
       if (event.type === 'chunk') {
         receivedText = true
@@ -107,7 +107,7 @@ export default function AiAssistantPanel(): React.JSX.Element {
       } else if (event.type === 'error' && event.message !== 'AI request canceled.') setError(event.message)
     })
     try {
-      const response = await window.dbforge.completeAiAssistant({ requestId: id, messages: promptMessages.map(({ role, content }) => ({ role, content })), schema: approvedSchema ?? undefined })
+      const response = await window.tuxsql.completeAiAssistant({ requestId: id, messages: promptMessages.map(({ role, content }) => ({ role, content })), schema: approvedSchema ?? undefined })
       if (animationFrame) { window.cancelAnimationFrame(animationFrame); animationFrame = 0 }
       flush()
       setChats((items) => items.map((chat) => chat.id === targetChatId ? { ...chat, messages: chat.messages.map((message) => message.id === assistantMessageId ? { ...message, content: response.text } : message) } : chat))
@@ -125,10 +125,10 @@ export default function AiAssistantPanel(): React.JSX.Element {
     }
   }
 
-  async function stop(): Promise<void> { if (requestId) await window.dbforge.cancelAiAssistant(requestId) }
+  async function stop(): Promise<void> { if (requestId) await window.tuxsql.cancelAiAssistant(requestId) }
 
   function confirmInsert(): void {
-    window.dispatchEvent(new CustomEvent('dbforge:insert-ai-sql', { detail: { sql: insertSql } }))
+    window.dispatchEvent(new CustomEvent('tuxsql:insert-ai-sql', { detail: { sql: insertSql } }))
     setInsertSql('')
   }
 

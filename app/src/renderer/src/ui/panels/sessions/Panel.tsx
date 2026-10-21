@@ -35,19 +35,19 @@ export default function Panel(): React.JSX.Element {
   const [error, setError] = useState('')
   const [message, setMessage] = useState('')
 
-  useEffect(() => { void window.dbforge.getConnections().then((items) => { setRecords(items); if (!activeConnection?.recordId && items[0]) setRecordId(items[0].id) }).catch(showError) }, [activeConnection?.recordId])
+  useEffect(() => { void window.tuxsql.getConnections().then((items) => { setRecords(items); if (!activeConnection?.recordId && items[0]) setRecordId(items[0].id) }).catch(showError) }, [activeConnection?.recordId])
   useEffect(() => { setConnection(activeConnection) }, [activeConnection])
   useEffect(() => { if (activeConnection?.recordId) setRecordId(activeConnection.recordId) }, [activeConnection?.recordId])
   useEffect(() => {
     const connectionId = connection?.id
     const shouldDisconnect = Boolean(connectionId && connectionId !== activeConnection?.id)
-    return () => { if (connectionId && shouldDisconnect) void window.dbforge.disconnect(connectionId) }
+    return () => { if (connectionId && shouldDisconnect) void window.tuxsql.disconnect(connectionId) }
   }, [connection?.id, activeConnection?.id])
   const refreshSessions = useCallback(async (showBusy = true): Promise<void> => {
     if (!connection) return
     if (showBusy) setLoading(true)
     try {
-      const rows = await window.dbforge.listSessions(connection.id, { ...filters })
+      const rows = await window.tuxsql.listSessions(connection.id, { ...filters })
       setSessions(rows); setStale(false); setUpdated(new Date().toLocaleTimeString()); setError('')
       if (details && !rows.some((item) => item.id === details.session.id)) setDetails(undefined)
     } catch (reason) { setStale(true); showError(reason, false) }
@@ -56,14 +56,14 @@ export default function Panel(): React.JSX.Element {
   const refreshVariables = useCallback(async (): Promise<void> => {
     if (!connection) return
     setLoading(true); setError('')
-    try { const snapshot = await window.dbforge.getServerVariables(connection.id, scope); setVariables(snapshot.variables); setPending({}) }
+    try { const snapshot = await window.tuxsql.getServerVariables(connection.id, scope); setVariables(snapshot.variables); setPending({}) }
     catch (reason) { showError(reason) }
     finally { setLoading(false) }
   }, [connection, scope])
   const refreshStatus = useCallback(async (): Promise<void> => {
     if (!connection) return
     setLoading(true); setError('')
-    try { setStatus(await window.dbforge.getServerStatus(connection.id, scope)) }
+    try { setStatus(await window.tuxsql.getServerStatus(connection.id, scope)) }
     catch (reason) { showError(reason) }
     finally { setLoading(false) }
   }, [connection, scope])
@@ -85,7 +85,7 @@ export default function Panel(): React.JSX.Element {
     const record = records.find((item) => item.id === recordId)
     if (!record) return
     setLoading(true); setError('')
-    try { setConnection(await window.dbforge.connect(record)) }
+    try { setConnection(await window.tuxsql.connect(record)) }
     catch (reason) { showError(reason) }
     finally { setLoading(false) }
   }
@@ -96,7 +96,7 @@ export default function Panel(): React.JSX.Element {
   async function selectSession(session: SessionInfo): Promise<void> {
     if (!connection) return
     setDetails(undefined)
-    try { setDetails(await window.dbforge.getSessionDetails(connection.id, session.id)); setDetailTab('Query') }
+    try { setDetails(await window.tuxsql.getSessionDetails(connection.id, session.id)); setDetailTab('Query') }
     catch (reason) { showError(reason) }
   }
   async function kill(mode: KillMode): Promise<void> {
@@ -104,7 +104,7 @@ export default function Panel(): React.JSX.Element {
     if (!window.confirm(`Do you really want to kill selected session${selectedIds.length === 1 ? '' : 's'}? Transactions in progress will be rolled back.`)) return
     setLoading(true)
     try {
-      const results = await window.dbforge.killSessions(connection.id, selectedIds, mode, true)
+      const results = await window.tuxsql.killSessions(connection.id, selectedIds, mode, true)
       const failures = results.filter((result) => !result.success)
       setMessage(failures.length ? failures.map((result) => `${result.id}: ${result.error}`).join(' · ') : `Kill ${mode === 'query' ? 'Query' : 'Session'} succeeded.`)
       setSelectedIds([]); await refreshSessions(false)
@@ -119,7 +119,7 @@ export default function Panel(): React.JSX.Element {
     if (scope === 'GLOBAL' && !window.confirm(`Apply ${variable.name} globally? SET GLOBAL affects all new connections and does not persist after restart.${persist ? ' This will use SET PERSIST.' : ''}`)) return
     setLoading(true); setError('')
     const change: VariableChange = { name: variable.name, oldValue: variable.value, newValue, scope, dynamic: variable.dynamic }
-    try { await window.dbforge.setServerVariable(connection.id, change, { confirm: true, persist }); setMessage(`${variable.name} applied.`); await refreshVariables() }
+    try { await window.tuxsql.setServerVariable(connection.id, change, { confirm: true, persist }); setMessage(`${variable.name} applied.`); await refreshVariables() }
     catch (reason) { showError(reason) }
     finally { setLoading(false) }
   }

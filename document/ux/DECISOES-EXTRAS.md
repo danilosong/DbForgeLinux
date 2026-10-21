@@ -3,7 +3,7 @@
 ## Backup/Restore agendado
 
 - O agendamento é local ao perfil do usuário e usa cron de cinco campos com o fuso horário local do sistema.
-- O app verifica os agendamentos a cada minuto. Backups rodam enquanto o dbForgeLinux está aberto; não instalamos daemon ou serviço do sistema.
+- O app verifica os agendamentos a cada minuto. Backups rodam enquanto o TuxSQL Song está aberto; não instalamos daemon ou serviço do sistema.
 - Cada execução exporta schema e dados para SQL na pasta escolhida. Os arquivos são criados com permissão de usuário (`0600`); a retenção remove os backups mais antigos do mesmo database, limitando a quantidade configurada.
 - Restore continua manual: o usuário escolhe um arquivo, revisa o preview e confirma digitando o database de destino. Nenhum backup ou script é restaurado automaticamente.
 - Falhas de execução não removem arquivos existentes nem desabilitam o agendamento; a próxima ocorrência cron tenta novamente.

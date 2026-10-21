@@ -2,10 +2,10 @@
 
 Reusa `01-shell.md` (tokens, Dialog, FormField, SideNavTabs) e `02`. **[C]** CONFIRMADO / **[I]** INFERIDO.
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Tools > Options: Environment, Text Editor, SQL Formatting, Keyboard, Fonts and Colors, Code Completion) e https://www.devart.com/dbforge/mysql/studio/. Citação da busca (resumo): Options é acessível em **Tools > Options** [C] e configura formatação de código, comportamento do ambiente, atalhos, fontes/cores, autocomplete e timeouts [C]. Detalhes por página abaixo são [I] salvo indicação. Páginas individuais não abertas. Fidelidade REA: rótulos conferidos contra REA ui-text.
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Tools > Options: Environment, Text Editor, SQL Formatting, Keyboard, Fonts and Colors, Code Completion) e https://www.devart.com/tuxsql/mysql/studio/. Citação da busca (resumo): Options é acessível em **Tools > Options** [C] e configura formatação de código, comportamento do ambiente, atalhos, fontes/cores, autocomplete e timeouts [C]. Detalhes por página abaixo são [I] salvo indicação. Páginas individuais não abertas. Fidelidade REA: rótulos conferidos contra REA ui-text.
 
 ## 1. Diálogo Options
-Entrada: Tools > Options… (**Ctrl+,**) [C menu; atalho I]; categorias "Environment", "Text Editor", "Data Editor" [C REA ui-text]. Modal 860x600 (min 760x520), redimensionável. Layout: **árvore de categorias** à esquerda (220px) + busca no topo da árvore ("Buscar opções…" filtra e destaca páginas/campos; sem resultados: "Nada encontrado") + painel de página à direita; rodapé: [Restore Defaults (página)] à esquerda, [OK] [Cancel] [Apply] à direita. Alterações aplicam ao [Apply]/[OK]; **pré-visualização ao vivo** para tema, fonte e formatação (painel de amostra). Marca "•" na categoria com alterações pendentes. Cancelar com alterações → confirma. Indicador "modificado" (ponto âmbar) ao lado do campo diferente do padrão com botão ↺ por campo. Configurações em JSON em `$XDG_CONFIG_HOME/dbforgelinux/settings.json`; botões [Import…] [Export…] [Open settings file].
+Entrada: Tools > Options… (**Ctrl+,**) [C menu; atalho I]; categorias "Environment", "Text Editor", "Data Editor" [C REA ui-text]. Modal 860x600 (min 760x520), redimensionável. Layout: **árvore de categorias** à esquerda (220px) + busca no topo da árvore ("Buscar opções…" filtra e destaca páginas/campos; sem resultados: "Nada encontrado") + painel de página à direita; rodapé: [Restore Defaults (página)] à esquerda, [OK] [Cancel] [Apply] à direita. Alterações aplicam ao [Apply]/[OK]; **pré-visualização ao vivo** para tema, fonte e formatação (painel de amostra). Marca "•" na categoria com alterações pendentes. Cancelar com alterações → confirma. Indicador "modificado" (ponto âmbar) ao lado do campo diferente do padrão com botão ↺ por campo. Configurações em JSON em `$XDG_CONFIG_HOME/tuxsql/settings.json`; botões [Import…] [Export…] [Open settings file].
 
 Árvore:
 ```
@@ -35,7 +35,7 @@ Idioma da UI: Auto, English, Português (Brasil), Español… (carregado de cat�
 ### Layout & Windows
 Padrão de docks, auto-ocultar, restaurar layout padrão [Reset Layout]; posição do painel de resultados (abaixo/direita); abas: posição (topo/baixo), mostrar ícones/fechar, limite de abas antes de overflow, abrir novo documento ao lado.
 ### Startup / Files & Backups
-Abrir último workspace/Start Page/vazio; pasta padrão de scripts (`~/Documents/dbForgeLinux`); auto-save e backup de rascunhos; encoding padrão (UTF-8), fim de linha (LF); preservar BOM.
+Abrir último workspace/Start Page/vazio; pasta padrão de scripts (`~/Documents/TuxSQL Song`); auto-save e backup de rascunhos; encoding padrão (UTF-8), fim de linha (LF); preservar BOM.
 ### Text Editor > General / Fonts / Syntax Colors [C fonts/colors; "Text Editor" e campos "Font Name"/"Font Size" REA ui-text]
 General: números de linha, folding, minimap, guias de indentação, destaque da linha atual, whitespace visível (None/Selection/All), quebra de linha, tab size (4)/inserir espaços, trim trailing whitespace ao salvar, bracket matching/auto-close, multicursor Alt+clique, scroll beyond last line, colar com PRIMARY (Linux) [I].
 Fonts: família monoespaçada (lista do sistema com preview e busca), tamanho (8–32), altura de linha, ligaduras (off), peso. Amostra ao vivo.

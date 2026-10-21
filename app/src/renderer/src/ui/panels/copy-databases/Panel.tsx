@@ -22,15 +22,15 @@ export default function CopyDatabasesPanel(): React.JSX.Element {
   const source = records.find((record) => record.id === sourceId)
   const target = records.find((record) => record.id === targetId)
 
-  useEffect(() => { void window.dbforge.getConnections().then((items) => { setRecords(items); setSourceId((current) => current || active?.recordId || items[0]?.id || ''); setTargetId((current) => current || items.find((item) => item.id !== active?.recordId)?.id || items[0]?.id || '') }).catch((error: unknown) => setMessage(errorText(error))) }, [active?.recordId])
+  useEffect(() => { void window.tuxsql.getConnections().then((items) => { setRecords(items); setSourceId((current) => current || active?.recordId || items[0]?.id || ''); setTargetId((current) => current || items.find((item) => item.id !== active?.recordId)?.id || items[0]?.id || '') }).catch((error: unknown) => setMessage(errorText(error))) }, [active?.recordId])
   useEffect(() => { if (!source) { setSourceDatabases([]); return }; void loadDatabases(source).then(setSourceDatabases).catch((error: unknown) => setMessage(errorText(error))) }, [source])
   useEffect(() => { if (!target) { setTargetDatabases([]); return }; void loadDatabases(target).then(setTargetDatabases).catch((error: unknown) => setMessage(errorText(error))) }, [target])
   useEffect(() => setSelected((current) => current.filter((item) => sourceDatabases.includes(item))), [sourceDatabases])
 
   async function loadDatabases(record: ConnectionRecord): Promise<string[]> {
-    const connected = await window.dbforge.connect(record)
-    try { return await window.dbforge.listDatabases(connected.id) }
-    finally { await window.dbforge.disconnect(connected.id) }
+    const connected = await window.tuxsql.connect(record)
+    try { return await window.tuxsql.listDatabases(connected.id) }
+    finally { await window.tuxsql.disconnect(connected.id) }
   }
   async function runCopy(): Promise<void> {
     if (!source || !target || !selected.length) { setMessage(t('copy.selectSourceAndTarget')); return }
@@ -46,13 +46,13 @@ export default function CopyDatabasesPanel(): React.JSX.Element {
       let sourceConnection: { id: string } | undefined
       let targetConnection: { id: string } | undefined
       try {
-        sourceConnection = await window.dbforge.connect(source)
-        targetConnection = await window.dbforge.connect(target)
-        const report = await window.dbforge.copyDatabase(sourceConnection.id, database, targetConnection.id, database, confirmationText, includeData, dropIfExists)
+        sourceConnection = await window.tuxsql.connect(source)
+        targetConnection = await window.tuxsql.connect(target)
+        const report = await window.tuxsql.copyDatabase(sourceConnection.id, database, targetConnection.id, database, confirmationText, includeData, dropIfExists)
         const elapsedMs = performance.now() - started
         setProgress((current) => ({ ...current, [database]: { status: report.errors.length ? 'error' : 'complete', elapsedMs, message: `${report.rows} ${t('copy.rows')} · ${report.errors.length} ${t('copy.errors')}` } }))
       } catch (error) { setProgress((current) => ({ ...current, [database]: { status: 'error', elapsedMs: performance.now() - started, message: errorText(error) } })) }
-      finally { await Promise.allSettled([...(targetConnection ? [window.dbforge.disconnect(targetConnection.id)] : []), ...(sourceConnection ? [window.dbforge.disconnect(sourceConnection.id)] : [])]) }
+      finally { await Promise.allSettled([...(targetConnection ? [window.tuxsql.disconnect(targetConnection.id)] : []), ...(sourceConnection ? [window.tuxsql.disconnect(sourceConnection.id)] : [])]) }
     }
     setBusy(false); setMessage(t('copy.finished'))
   }

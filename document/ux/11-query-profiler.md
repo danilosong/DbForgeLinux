@@ -2,7 +2,7 @@
 
 Reusa `01-shell.md`, `03` (editor/grid/resultados). **[C]** CONFIRMADO / **[I]** INFERIDO.
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Query Profiler; SQL Query History) e https://www.devart.com/dbforge/mysql/studio/query-profiler.html. Citações da busca vieram por redirecionamento; páginas individuais não abertas. Fidelidade REA: rótulos conferidos contra REA ui-text.
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Query Profiler; SQL Query History) e https://www.devart.com/tuxsql/mysql/studio/query-profiler.html. Citações da busca vieram por redirecionamento; páginas individuais não abertas. Fidelidade REA: rótulos conferidos contra REA ui-text.
 
 ## 1. Query Profiler
 
@@ -45,7 +45,7 @@ Toolbar SQL: botão **Query History** [C]; View > Other Windows > SQL Query Hist
 
 ### 2.2 Conteúdo
 Lista (grid): Horário | Conexão | Database | Duração | Linhas/Afetadas | Status ✓/✕ | SQL (1ª linha). Painel de detalhe com SQL completo (Monaco read-only) + mensagem de erro se houve.
-- **Retenção:** padrão 60 dias, configurável até 365 [C]; limpeza automática na abertura. Armazenamento local (Linux: `$XDG_DATA_HOME/dbforgelinux/history`, SQLite/JSONL) [adaptado de pasta ExecutedQueries; C para o conceito].
+- **Retenção:** padrão 60 dias, configurável até 365 [C]; limpeza automática na abertura. Armazenamento local (Linux: `$XDG_DATA_HOME/tuxsql/history`, SQLite/JSONL) [adaptado de pasta ExecutedQueries; C para o conceito].
 - **Busca/Filtro/Ordem/Agrupamento** [C]: texto, período (Hoje/7 dias/Personalizado), conexão, database, só erros, só lentas (> N s); agrupar por dia/conexão/database.
 - **Reuso** [C]: duplo clique ou "To New SQL Window" abre em novo documento com conexão original; "Copy", "Profile this query" (abre Profiler), "Delete", "Delete all (com confirmação)", "Pin" [I].
 - Segredos: texto das consultas é armazenado como digitado; opção "Não registrar consultas de conexões Prod" e "Mascarar literais de CREATE USER/IDENTIFIED BY" [I] (padrão ligado).

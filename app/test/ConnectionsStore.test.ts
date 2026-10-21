@@ -10,7 +10,7 @@ describe('ConnectionsStore', () => {
   let store: ConnectionsStore
 
   beforeEach(async () => {
-    directory = await mkdtemp(join(tmpdir(), 'dbforge-connections-'))
+    directory = await mkdtemp(join(tmpdir(), 'tuxsql-connections-'))
     store = new ConnectionsStore(join(directory, 'config', 'connections.json'))
   })
 

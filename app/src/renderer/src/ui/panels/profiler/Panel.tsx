@@ -33,8 +33,8 @@ export default function Panel(): React.JSX.Element {
       setSelectedRunKey(runKey(value))
       setTab('Profile')
     }
-    window.addEventListener('dbforge:profiler-profile', receiveProfile)
-    return () => window.removeEventListener('dbforge:profiler-profile', receiveProfile)
+    window.addEventListener('tuxsql:profiler-profile', receiveProfile)
+    return () => window.removeEventListener('tuxsql:profiler-profile', receiveProfile)
   }, [])
 
   async function run(): Promise<void> {
@@ -43,9 +43,9 @@ export default function Panel(): React.JSX.Element {
     if (!window.confirm(t('panel.profiler.confirmProfile'))) return
     setBusy(true)
     try {
-      const value = await window.dbforge.profile(connectionId, query)
+      const value = await window.tuxsql.profile(connectionId, query)
       setResult(value)
-      const items = await window.dbforge.history(connectionId)
+      const items = await window.tuxsql.history(connectionId)
       setHistory(items.some((item) => runKey(item) === runKey(value)) ? items : [value, ...items].slice(0, 100))
       setSelectedRunKey(runKey(value))
       setTab('Profile')

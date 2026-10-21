@@ -2,6 +2,45 @@ import type { EditableResult } from '../grid-editing/index.js'
 import { safeCsvCell } from '../csv/safeCsv.js'
 
 export type CopyAsFormat = 'csv' | 'tsv' | 'json' | 'insert' | 'markdown' | 'html'
+export type GridQuickOperator = 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte'
+
+export function matchesGridCondition(actual: unknown, operator: GridQuickOperator, expected: unknown): boolean {
+  if (operator === 'eq') return Object.is(actual, expected)
+  if (operator === 'ne') return !Object.is(actual, expected)
+  if (actual == null || expected == null) return false
+  const left = typeof actual === 'number' ? actual : Number(actual)
+  const right = typeof expected === 'number' ? expected : Number(expected)
+  const a = Number.isFinite(left) && Number.isFinite(right) ? left : String(actual).toLocaleLowerCase()
+  const b = Number.isFinite(left) && Number.isFinite(right) ? right : String(expected).toLocaleLowerCase()
+  if (operator === 'gt') return a > b
+  if (operator === 'gte') return a >= b
+  if (operator === 'lt') return a < b
+  return a <= b
+}
+
+export type GridScriptKind = 'insert' | 'bulk-insert' | 'where-in' | 'where-and' | 'where-or' | 'update'
+export function generateGridScript(rows: Array<Record<string, unknown>>, columns: string[], kind: GridScriptKind, descriptor?: EditableResult, filterColumn?: string): string {
+  if (!rows.length) return ''
+  if (!descriptor?.database || !descriptor.table) throw new Error('Script generation needs a table result.')
+  const table = `${quote(descriptor.database)}.${quote(descriptor.table)}`
+  if (kind === 'where-in') {
+    if (!filterColumn || !columns.includes(filterColumn)) throw new Error('Choose a result column for the WHERE IN script.')
+    return `${table} WHERE ${quote(filterColumn)} IN (${[...new Set(rows.map((row) => row[filterColumn]))].map(sqlValue).join(', ')});`
+  }
+  if (kind === 'where-and' || kind === 'where-or') {
+    const joiner = kind === 'where-and' ? ' AND ' : ' OR '
+    return rows.map((row) => `SELECT * FROM ${table} WHERE ${columns.map((column) => `${quote(column)} ${row[column] == null ? 'IS NULL' : `= ${sqlValue(row[column])}`}`).join(joiner)};`).join('\n')
+  }
+  if (kind === 'insert' || kind === 'bulk-insert') {
+    const values = rows.map((row) => `(${columns.map((column) => sqlValue(row[column])).join(', ')})`)
+    return kind === 'insert'
+      ? values.map((value) => `INSERT INTO ${table} (${columns.map(quote).join(', ')}) VALUES ${value};`).join('\n')
+      : `INSERT INTO ${table} (${columns.map(quote).join(', ')}) VALUES\n  ${values.join(',\n  ')};`
+  }
+  const keyColumns = descriptor.keyColumns.filter((column) => columns.includes(column))
+  if (!keyColumns.length) throw new Error('UPDATE generation needs a selected result key.')
+  return rows.map((row) => `UPDATE ${table} SET ${columns.filter((column) => !keyColumns.includes(column)).map((column) => `${quote(column)} = ${sqlValue(row[column])}`).join(', ')} WHERE ${keyColumns.map((column) => `${quote(column)} ${row[column] == null ? 'IS NULL' : `= ${sqlValue(row[column])}`}`).join(' AND ')};`).join('\n')
+}
 
 export function formatGridCopy(rows: Array<Record<string, unknown>>, columns: string[], format: CopyAsFormat, descriptor?: EditableResult, headers = true): string {
   const selected = rows.map((row) => columns.map((column) => row[column]))

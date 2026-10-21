@@ -8,7 +8,7 @@ export function registerOptionsIpc(store: SettingsStore): void {
   ipcMain.handle('options:reset', () => store.reset())
   ipcMain.handle('options:export', async (_event, settings: unknown) => {
     const value = mergeSettings(settings)
-    const options = { title: 'Export Settings', defaultPath: 'dbforgelinux-settings.json', filters: [{ name: 'JSON', extensions: ['json'] }] }
+    const options = { title: 'Export Settings', defaultPath: 'tuxsql-settings.json', filters: [{ name: 'JSON', extensions: ['json'] }] }
     const window = BrowserWindow.getFocusedWindow(); const result = window ? await dialog.showSaveDialog(window, options) : await dialog.showSaveDialog(options)
     if (result.canceled || !result.filePath) return null
     await writeFile(result.filePath, `${JSON.stringify(value, null, 2)}\n`, { encoding: 'utf8', mode: 0o600 })

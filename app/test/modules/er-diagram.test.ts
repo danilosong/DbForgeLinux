@@ -68,7 +68,7 @@ describe('ER diagram module', () => {
   })
 
   it('persists virtual relations locally by connection and database', async () => {
-    const folder = await mkdtemp(join(tmpdir(), 'dbforge-erd-')); folders.push(folder)
+    const folder = await mkdtemp(join(tmpdir(), 'tuxsql-erd-')); folders.push(folder)
     const store = new VirtualRelationStore(folder)
     const relation = createVirtualRelation({ name: 'orders_customer', fromTable: 'orders', fromColumns: ['customer_id'], toTable: 'customers', toColumns: ['id'] }, schema.tables.map((table) => table.name))
     await store.write('conn', 'shop', [relation])

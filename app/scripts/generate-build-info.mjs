@@ -5,7 +5,7 @@ import { resolve, join } from 'node:path'
 
 const appRoot = process.cwd()
 const repoPath = resolve(appRoot, '..')
-const outputRoot = resolve(appRoot, process.env.DBFORGE_BUILD_DIR ?? 'out')
+const outputRoot = resolve(appRoot, process.env.TUXSQL_BUILD_DIR ?? 'out')
 const runGit = (...args) => execFileSync('git', ['-C', repoPath, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim()
 let commit = '0000000'
 let branch = 'unknown'
@@ -20,9 +20,9 @@ try {
 const info = {
   commit,
   branch,
-  ...(process.env.DBFORGE_RELEASE_BUILD === '1' || !repositoryAvailable ? {} : { repoPath }),
+  ...(process.env.TUXSQL_RELEASE_BUILD === '1' || !repositoryAvailable ? {} : { repoPath }),
   dirty,
-  ...(process.env.DBFORGE_RELEASE_BUILD === '1' || !process.env.npm_execpath ? {} : { toolchain: { nodePath: process.execPath, pnpmExecPath: process.env.npm_execpath } }),
+  ...(process.env.TUXSQL_RELEASE_BUILD === '1' || !process.env.npm_execpath ? {} : { toolchain: { nodePath: process.execPath, pnpmExecPath: process.env.npm_execpath } }),
   builtAt: new Date().toISOString()
 }
 await mkdir(outputRoot, { recursive: true })

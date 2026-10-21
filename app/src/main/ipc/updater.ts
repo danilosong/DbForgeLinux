@@ -31,8 +31,8 @@ export function registerUpdaterIpc(store: SettingsStore, driver: MysqlDriver): U
         if (!result?.updateInfo?.version) return null
         return { version: result.updateInfo.version, notes: releaseNotes(result), sha512: result.updateInfo.sha512 }
       } catch (error) {
-        const response = await fetch('https://api.github.com/repos/danilosong/DbForgeLinux/releases/latest', {
-          headers: { accept: 'application/vnd.github+json', 'user-agent': 'dbForgeLinux-updater', ...(process.env.GH_TOKEN || process.env.GITHUB_TOKEN ? { authorization: `Bearer ${process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN}` } : {}) },
+        const response = await fetch('https://api.github.com/repos/danilosong/TuxSQL/releases/latest', {
+          headers: { accept: 'application/vnd.github+json', 'user-agent': 'tuxsql-updater', ...(process.env.GH_TOKEN || process.env.GITHUB_TOKEN ? { authorization: `Bearer ${process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN}` } : {}) },
           redirect: 'error', signal: AbortSignal.timeout(10_000)
         }).catch(() => undefined)
         if (!response?.ok) throw error
@@ -47,7 +47,7 @@ export function registerUpdaterIpc(store: SettingsStore, driver: MysqlDriver): U
     async download(): Promise<void> { downloadToken = new CancellationTokenCtor(); await autoUpdater.downloadUpdate(downloadToken) },
     cancel(): void { downloadToken?.cancel(); downloadToken = undefined },
     install(): void { autoUpdater.quitAndInstall(false, true) },
-    async openReleasePage(): Promise<void> { await shell.openExternal('https://github.com/danilosong/DbForgeLinux/releases/latest') }
+    async openReleasePage(): Promise<void> { await shell.openExternal('https://github.com/danilosong/TuxSQL/releases/latest') }
   }
   const service = new UpdateService({
     appVersion: app.getVersion(),

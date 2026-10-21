@@ -5,7 +5,7 @@ Reusa `01-shell.md`, `05` (editores de rotina), `03` (CodeEditor, DataGrid). Leg
 **Fontes:** `re/ui-strings/ui-text.txt` (uso interno), `document/05-rea-debugger.md` (strings/script embutido do `Devart.DbForge.Debugger.MySql.dll`; descrição própria, nenhum código copiado). O aviso anterior de inviabilidade foi **removido**: o mecanismo é conhecido (ver §1).
 
 ## 1. Mecanismo confirmado (resumo para a UX) [C]
-MySQL não tem depurador nativo; o produto original **instrumenta** as rotinas e instala no servidor uma **infraestrutura de depuração** ("debug engine") — um schema auxiliar (`cr_debug` no original; **no clone: `dbforge_linux_debug`**, nome próprio) com tabelas de breakpoints, call stack, sessões e watches e procedures de controle. Há duas sessões: **debug session** (controla/observa) e **target session** (executa a rotina instrumentada), sincronizadas por locks nomeados. Consequências de UX:
+MySQL não tem depurador nativo; o produto original **instrumenta** as rotinas e instala no servidor uma **infraestrutura de depuração** ("debug engine") — um schema auxiliar (`cr_debug` no original; **no clone: `tuxsql_linux_debug`**, nome próprio) com tabelas de breakpoints, call stack, sessões e watches e procedures de controle. Há duas sessões: **debug session** (controla/observa) e **target session** (executa a rotina instrumentada), sincronizadas por locks nomeados. Consequências de UX:
 1. A infraestrutura precisa ser **instalada/atualizada/removida com confirmação explícita** (requer CREATE DATABASE/privilégios no servidor) — §3.
 2. Rotinas são **compiladas para depuração** (código instrumentado) antes de rodar — §4.
 3. Não se pode instalar/atualizar/remover a infraestrutura com **sessões de debug ativas** — §3.
@@ -26,7 +26,7 @@ Menu Debug (ou Explorer > servidor/database > Debug): **Deploy Debug Engine**, *
 | Sessões ativas | Bloqueio: "Deployment failed. There are active debug sessions…" (exceção `ActiveDebugSessionsException` no original); passo prévio "Checking for active debug sessions…"; sugere limpar a tabela de sessões e reinstalar apenas se as sessões forem descartáveis |
 | Privilégios insuficientes | "Your user account has insufficient privileges to use the debugging engine database." + dica: verificar privilégios no schema auxiliar pelo **Security Manager** (08) |
 | Sem privilégio de metadados | "Can't start debug. Probably, you do not have enough privileges to get object metadata." |
-Implementação própria do clone: schema `dbforge_linux_debug`, parser SQL próprio, instrumentação (ver `document/05-rea-debugger.md`).
+Implementação própria do clone: schema `tuxsql_linux_debug`, parser SQL próprio, instrumentação (ver `document/05-rea-debugger.md`).
 
 ## 4. Compilar para depuração [C]
 - Comandos: **Compile for Debugging**, **Compile Dependants for Debugging**, **Compile References for Debugging** (Explorer/menu Debug), com atalho Ctrl+Alt+F7 / Ctrl+Alt+F9 [C: `CompileObjectDebug`/`CompileDebug`]; **Compile** normal (sem debug) Ctrl+F7 / Ctrl+F9 [C]; "Remove debug code from routines" reverte.

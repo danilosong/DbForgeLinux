@@ -3,7 +3,7 @@
 # com licença/trial legítimos do usuário. Nada aqui contorna licenciamento ou ativação.
 set -euo pipefail
 
-VM_DIR="${VM_DIR:-$HOME/vm/dbforge-ref}"
+VM_DIR="${VM_DIR:-$HOME/vm/tuxsql-ref}"
 DISK="$VM_DIR/disk.qcow2"
 VARS="$VM_DIR/OVMF_VARS.fd"
 SHARE="$VM_DIR/share"            # pasta do host exposta ao Windows como um disco (somente leitura)
@@ -30,7 +30,7 @@ running() { [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; }
 
 qemu_base() {
   local args=(
-    -name dbforge-ref -machine q35,accel=kvm -cpu host -smp "$CPUS" -m "$RAM"
+    -name tuxsql-ref -machine q35,accel=kvm -cpu host -smp "$CPUS" -m "$RAM"
     -drive "file=$DISK,if=none,id=sys,format=qcow2,cache=writeback,discard=unmap" -device ich9-ahci,id=ahci -device ide-hd,drive=sys,bus=ahci.0
     -device qemu-xhci -device usb-tablet -device usb-kbd
     -vga std

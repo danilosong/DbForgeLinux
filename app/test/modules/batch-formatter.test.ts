@@ -6,7 +6,7 @@ import { formatSqlFiles } from '../../src/modules/editor/batchFormatter.js'
 
 describe('batch SQL formatter', () => {
   it('writes a backup and atomically formats only SQL files', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dbforge-format-'))
+    const dir = await mkdtemp(join(tmpdir(), 'tuxsql-format-'))
     try {
       const sql = join(dir, 'query.sql'); const other = join(dir, 'notes.txt')
       await writeFile(sql, 'select a,b from t where id=1;', 'utf8'); await writeFile(other, 'keep', 'utf8')
@@ -18,7 +18,7 @@ describe('batch SQL formatter', () => {
     } finally { await rm(dir, { recursive: true, force: true }) }
   })
   it('rejects a selected symlink root before formatting its target', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dbforge-format-link-'))
+    const dir = await mkdtemp(join(tmpdir(), 'tuxsql-format-link-'))
     try {
       const target = join(dir, 'target'); const link = join(dir, 'selected')
       await mkdir(target); await writeFile(join(target, 'query.sql'), 'select 1;'); await symlink(target, link)

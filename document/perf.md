@@ -46,7 +46,7 @@ O renderer agora monta editores de SQL e objetos sob demanda; o registro de pain
 
 ### Repetição com catálogo de 3.000 tabelas
 
-Em 2026-10-21, `app/scripts/metadata-scale-benchmark.mjs` criou um database descartável com nome `dbforge_test_scale_<PID>_<UUID>` e 3.000 tabelas com três colunas cada. O script mede cinco execuções das consultas de catálogo usadas pelo Explorer e pelo IPC de metadata do editor, incluindo a montagem em memória do catálogo de 9.000 colunas. As consultas não carregam dados de tabela. O database é removido no `finally`; `pnpm mysql:clean-test` também remove schemas com o prefixo `dbforge_test_` se o processo for interrompido.
+Em 2026-10-21, `app/scripts/metadata-scale-benchmark.mjs` criou um database descartável com nome `tuxsql_test_scale_<PID>_<UUID>` e 3.000 tabelas com três colunas cada. O script mede cinco execuções das consultas de catálogo usadas pelo Explorer e pelo IPC de metadata do editor, incluindo a montagem em memória do catálogo de 9.000 colunas. As consultas não carregam dados de tabela. O database é removido no `finally`; `pnpm mysql:clean-test` também remove schemas com o prefixo `tuxsql_test_` se o processo for interrompido.
 
 | Medição (5 amostras, mediana) | Resultado | Interpretação |
 | --- | ---: | --- |

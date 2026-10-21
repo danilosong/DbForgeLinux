@@ -13,7 +13,7 @@ export default function CodeAnalysisPanel(): React.JSX.Element {
   async function analyze(): Promise<void> {
     setBusy(true); setMessage(t('audit.code.preparing'))
     try {
-      const result = await window.dbforge.analyzeSql(sql)
+      const result = await window.tuxsql.analyzeSql(sql)
       setFindings(result); onFindings(result)
       setMessage(result.length ? t('audit.code.findings', [result.length]) : t('audit.code.clean'))
     } catch (error) { setMessage(error instanceof Error ? error.message : t('audit.code.error')) }

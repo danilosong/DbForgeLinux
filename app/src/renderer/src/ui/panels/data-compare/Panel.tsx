@@ -30,7 +30,7 @@ export default function Panel(): React.JSX.Element {
   const [busy, setBusy] = useState(false); const [message, setMessage] = useState(''); const [confirmOpen, setConfirmOpen] = useState(false); const [confirmed, setConfirmed] = useState(false); const [scriptOpen, setScriptOpen] = useState(false)
   const confirmDialogRef = useKeyboardDialog(confirmOpen, () => { setConfirmOpen(false); setConfirmed(false) })
   const previewDialogRef = useKeyboardDialog(scriptOpen, () => setScriptOpen(false))
-  useEffect(() => { const listener = (): void => setStep(0); window.addEventListener('dbforge:task:restore', listener); return () => window.removeEventListener('dbforge:task:restore', listener) }, [])
+  useEffect(() => { const listener = (): void => setStep(0); window.addEventListener('tuxsql:task:restore', listener); return () => window.removeEventListener('tuxsql:task:restore', listener) }, [])
   const [scrollTop, setScrollTop] = useState(0); const rowHeight = 38; const viewportHeight = 340
   const [recordIndex, setRecordIndex] = useState(0)
   const enabledMappings = mappings.filter((item) => item.enabled && item.source.trim() && item.target.trim() && (options.include === '*' || globMatch(item.source, options.include) || globMatch(item.target, options.include)) && !(options.exclude && (globMatch(item.source, options.exclude) || globMatch(item.target, options.exclude))))
@@ -44,7 +44,7 @@ export default function Panel(): React.JSX.Element {
   const destructive = options.allowDeletes && selectedRows.some((row) => row.kind === 'target-only')
   const counts = (rows: DataCompareDifference[]) => ({ sourceOnly: rows.filter((row) => row.kind === 'source-only').length, different: rows.filter((row) => row.kind === 'different').length, same: rows.filter((row) => row.kind === 'same').length, targetOnly: rows.filter((row) => row.kind === 'target-only').length })
 
-  useEffect(() => { void window.dbforge.getConnections().then((items) => { const initial = items.find((item) => item.id === activeConnection?.recordId || item.name === activeConnection?.name)?.id ?? items[0]?.id ?? ''; setRecords(items); setSource(initial); setTarget(initial) }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Could not load connections.')) }, [activeConnection?.name, activeConnection?.recordId])
+  useEffect(() => { void window.tuxsql.getConnections().then((items) => { const initial = items.find((item) => item.id === activeConnection?.recordId || item.name === activeConnection?.name)?.id ?? items[0]?.id ?? ''; setRecords(items); setSource(initial); setTarget(initial) }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Could not load connections.')) }, [activeConnection?.name, activeConnection?.recordId])
   const changeMapping = (index: number, patch: Partial<Mapping>): void => setMappings((current) => current.map((item, i) => i === index ? { ...item, ...patch } : item))
   const invalidate = (): void => { setResult(null); setSelected(new Set()) }
   const addMapping = (): void => setMappings((current) => [...current, { source: '', target: '', keys: 'id', columns: [], enabled: true }])
@@ -66,9 +66,9 @@ export default function Panel(): React.JSX.Element {
     setBusy(true)
     let sourceId = ''; let targetId = ''
     try {
-      const [sourceConnection, targetConnection] = await Promise.all([window.dbforge.connect(sourceRecord), window.dbforge.connect(targetRecord)])
+      const [sourceConnection, targetConnection] = await Promise.all([window.tuxsql.connect(sourceRecord), window.tuxsql.connect(targetRecord)])
       sourceId = sourceConnection.id; targetId = targetConnection.id
-      const [sourceObjects, targetObjects] = await Promise.all([window.dbforge.listDatabaseObjects(sourceId, sourceDb), window.dbforge.listDatabaseObjects(targetId, targetDb)])
+      const [sourceObjects, targetObjects] = await Promise.all([window.tuxsql.listDatabaseObjects(sourceId, sourceDb), window.tuxsql.listDatabaseObjects(targetId, targetDb)])
       const allowed = (kind: string): boolean => kind === 'table' ? options.tables : kind === 'view' ? options.views : false
       const targetNames = new Map(targetObjects.filter((item) => allowed(item.kind)).map((item) => [normalized(item.name, options), item.name]))
       const next = sourceObjects.filter((item) => allowed(item.kind)).filter((item) => options.include === '*' || globMatch(item.name, options.include)).filter((item) => !options.exclude || !globMatch(item.name, options.exclude)).map((item) => {
@@ -79,7 +79,7 @@ export default function Panel(): React.JSX.Element {
       const unmapped = next.filter((item) => !item.target).length
       setMessage(`${next.length} ${label('source objects loaded', 'objetos de origem carregados')}${unmapped ? ` · ${unmapped} ${label('unmapped', 'sem mapeamento')}` : ''}`)
     } catch (error) { setMessage(error instanceof Error ? error.message : label('Could not load object names.', 'Não foi possível carregar nomes de objetos.')) }
-    finally { if (sourceId) void window.dbforge.disconnect(sourceId); if (targetId && targetId !== sourceId) void window.dbforge.disconnect(targetId); setBusy(false) }
+    finally { if (sourceId) void window.tuxsql.disconnect(sourceId); if (targetId && targetId !== sourceId) void window.tuxsql.disconnect(targetId); setBusy(false) }
   }
   async function runCompare(): Promise<void> {
     if (!enabledMappings.length) { setMessage(pt ? 'Mapeie ao menos um objeto e informe a chave de comparação.' : 'Map at least one object and provide a comparison key.'); return }
@@ -90,31 +90,31 @@ export default function Panel(): React.JSX.Element {
     try {
       const a = records.find((item) => item.id === source); const b = records.find((item) => item.id === target)
       if (!a || !b || !sourceDb || !targetDb) throw new Error(pt ? 'Selecione conexões e databases.' : 'Select connections and databases.')
-      const [ca, cb] = await Promise.all([window.dbforge.connect(a), window.dbforge.connect(b)]); sourceId = ca.id; targetId = cb.id
+      const [ca, cb] = await Promise.all([window.tuxsql.connect(a), window.tuxsql.connect(b)]); sourceId = ca.id; targetId = cb.id
       const aggregate: DataCompareResult = { report: { compared: 0, same: 0, different: 0, sourceOnly: 0, targetOnly: 0, statements: 0 }, differences: [], statements: [], keyedStatements: [] }
       for (const mapping of enabledMappings) {
         const keys = mapping.keys.split(',').map((value) => value.trim()).filter(Boolean)
         if (!keys.length) throw new Error(`${mapping.source}: ${pt ? 'a chave de comparação é obrigatória.' : 'a comparison key is required.'}`)
         const compared = customQueries
           ? await runCustomQueryCompare(sourceId, targetId, mapping)
-          : await window.dbforge.compareData(sourceId, sourceDb, mapping.source, targetId, targetDb, mapping.target, keys, mapping.columns, options.allowDeletes, { ignoreLob: options.ignoreLob, ignoreComputedColumns: options.ignoreComputed, ignoreMicroseconds: options.ignoreMicroseconds, roundFloats: options.roundFloats, includeColumns: options.includeColumns, excludeColumns: options.excludeColumns })
+          : await window.tuxsql.compareData(sourceId, sourceDb, mapping.source, targetId, targetDb, mapping.target, keys, mapping.columns, options.allowDeletes, { ignoreLob: options.ignoreLob, ignoreComputedColumns: options.ignoreComputed, ignoreMicroseconds: options.ignoreMicroseconds, roundFloats: options.roundFloats, includeColumns: options.includeColumns, excludeColumns: options.excludeColumns })
         aggregate.report.compared += compared.report.compared; aggregate.report.same += compared.report.same; aggregate.report.different += compared.report.different; aggregate.report.sourceOnly += compared.report.sourceOnly; aggregate.report.targetOnly += compared.report.targetOnly; aggregate.report.statements += compared.report.statements
         aggregate.differences.push(...compared.differences.map((row) => ({ ...row, objectName: `${mapping.source} → ${mapping.target}` })))
         aggregate.statements.push(...compared.statements)
         aggregate.keyedStatements.push(...compared.keyedStatements.map((entry) => ({ ...entry, objectName: `${mapping.source} → ${mapping.target}` })))
       }
       setResult(aggregate); setSelected(new Set(aggregate.differences.filter((row) => row.kind !== 'same').map(identity))); setSelectedObject(''); setFilter('all'); setScrollTop(0)
-      void window.dbforge.recordRecentTask({ kind: 'data-compare', title: t('tasks.dataCompare'), detail: `${sourceDb} → ${targetDb}` }).catch(() => undefined)
+      void window.tuxsql.recordRecentTask({ kind: 'data-compare', title: t('tasks.dataCompare'), detail: `${sourceDb} → ${targetDb}` }).catch(() => undefined)
       const c = aggregate.report; setMessage(`${c.compared} ${pt ? 'linhas' : 'rows'} · ${c.sourceOnly} ${pt ? 'somente origem' : 'Only in Source'} · ${c.different} ${pt ? 'diferentes' : 'Different'} · ${c.same} ${pt ? 'idênticas' : 'Identical'} · ${c.targetOnly} ${pt ? 'somente destino' : 'Only in Target'}`)
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Comparison failed.') }
-    finally { if (sourceId) void window.dbforge.disconnect(sourceId); if (targetId && targetId !== sourceId) void window.dbforge.disconnect(targetId); setBusy(false) }
+    finally { if (sourceId) void window.tuxsql.disconnect(sourceId); if (targetId && targetId !== sourceId) void window.tuxsql.disconnect(targetId); setBusy(false) }
   }
   async function runCustomQueryCompare(sourceId: string, targetId: string, mapping: Mapping): Promise<DataCompareResult> {
     const [sourceSql, targetSql] = [boundCustomCompareQuery(sourceQuery), boundCustomCompareQuery(targetQuery)]
-    await Promise.all([window.dbforge.setDatabase(sourceId, sourceDb), window.dbforge.setDatabase(targetId, targetDb)])
+    await Promise.all([window.tuxsql.setDatabase(sourceId, sourceDb), window.tuxsql.setDatabase(targetId, targetDb)])
     const [sourceResults, targetResults] = await Promise.all([
-      window.dbforge.executeSql(sourceId, sourceSql, crypto.randomUUID(), sourceDb),
-      window.dbforge.executeSql(targetId, targetSql, crypto.randomUUID(), targetDb)
+      window.tuxsql.executeSql(sourceId, sourceSql, crypto.randomUUID(), sourceDb),
+      window.tuxsql.executeSql(targetId, targetSql, crypto.randomUUID(), targetDb)
     ])
     const sourceResult = sourceResults.find((item) => item.columns.length); const targetResult = targetResults.find((item) => item.columns.length)
     if (!sourceResult || !targetResult) throw new Error('Each custom query must return rows.')
@@ -124,8 +124,8 @@ export default function Panel(): React.JSX.Element {
     const readRows = async (result: (typeof sourceResult), count: number): Promise<Record<string, unknown>[]> => {
       if (!result.resultStoreId) return result.rows
       const pages: Record<string, unknown>[] = []
-      try { for (let offset = 0; offset < count; offset += 1000) pages.push(...await window.dbforge.readResultRows(result.resultStoreId, offset, Math.min(1000, count - offset))) }
-      finally { await window.dbforge.disposeResult(result.resultStoreId) }
+      try { for (let offset = 0; offset < count; offset += 1000) pages.push(...await window.tuxsql.readResultRows(result.resultStoreId, offset, Math.min(1000, count - offset))) }
+      finally { await window.tuxsql.disposeResult(result.resultStoreId) }
       return pages
     }
     const [sourceRows, targetRows] = await Promise.all([readRows(sourceResult, sourceCount), readRows(targetResult, targetCount)])
@@ -139,15 +139,15 @@ export default function Panel(): React.JSX.Element {
     let sourceId = ''; let targetId = ''; let succeeded = 0; const errors: string[] = []
     try {
       const a = records.find((item) => item.id === source); const b = records.find((item) => item.id === target); if (!a || !b) throw new Error('Connection unavailable.')
-      const [ca, cb] = await Promise.all([window.dbforge.connect(a), window.dbforge.connect(b)]); sourceId = ca.id; targetId = cb.id
+      const [ca, cb] = await Promise.all([window.tuxsql.connect(a), window.tuxsql.connect(b)]); sourceId = ca.id; targetId = cb.id
       for (const mapping of customQueries ? [] : enabledMappings) {
         const objectName = `${mapping.source} → ${mapping.target}`; const rows = selectedRows.filter((row) => row.objectName === objectName); if (!rows.length) continue
-        const report = await window.dbforge.synchronizeData(sourceId, sourceDb, mapping.source, targetId, targetDb, mapping.target, mapping.keys.split(',').map((value) => value.trim()).filter(Boolean), mapping.columns, options.allowDeletes, true, rows.map((row) => row.key), { ignoreLob: options.ignoreLob, ignoreComputedColumns: options.ignoreComputed, roundFloats: options.roundFloats, includeColumns: options.includeColumns, excludeColumns: options.excludeColumns })
+        const report = await window.tuxsql.synchronizeData(sourceId, sourceDb, mapping.source, targetId, targetDb, mapping.target, mapping.keys.split(',').map((value) => value.trim()).filter(Boolean), mapping.columns, options.allowDeletes, true, rows.map((row) => row.key), { ignoreLob: options.ignoreLob, ignoreComputedColumns: options.ignoreComputed, roundFloats: options.roundFloats, includeColumns: options.includeColumns, excludeColumns: options.excludeColumns })
         succeeded += report.succeeded; errors.push(...report.errors)
       }
       setMessage(`${pt ? 'Sincronização concluída' : 'Synchronization complete'}: ${succeeded} · ${errors.length} ${pt ? 'falhas' : 'failures'}${errors.length ? ` — ${errors.join('; ')}` : ''}`); setConfirmOpen(false); setConfirmed(false)
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Synchronization failed.') }
-    finally { if (sourceId) void window.dbforge.disconnect(sourceId); if (targetId && targetId !== sourceId) void window.dbforge.disconnect(targetId); setBusy(false) }
+    finally { if (sourceId) void window.tuxsql.disconnect(sourceId); if (targetId && targetId !== sourceId) void window.tuxsql.disconnect(targetId); setBusy(false) }
   }
   const exportScript = (): void => { const blob = new Blob([statements], { type: 'text/sql;charset=utf-8' }); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'data-sync.sql'; anchor.click(); URL.revokeObjectURL(url) }
   const toggle = (row: DataCompareDifference): void => setSelected((current) => { const next = new Set(current); if (next.has(identity(row))) next.delete(identity(row)); else next.add(identity(row)); return next })

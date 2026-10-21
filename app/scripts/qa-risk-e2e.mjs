@@ -7,8 +7,8 @@ import { _electron as electron } from 'playwright'
 import mysql from 'mysql2/promise'
 import { mysqlTestPrefix, mysqlTestUser } from './mysql-test-prefix.mjs'
 
-const electronPath = join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux')
-const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-risk-'))
+const electronPath = join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql')
+const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-risk-'))
 const admin = await mysql.createConnection({ host: '127.0.0.1', port: 33067, user: 'root', password: process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only', multipleStatements: true })
 let app
 const testPrefix = mysqlTestPrefix('risk_qa')
@@ -64,7 +64,7 @@ try {
   await app.evaluate(({ dialog }, savePath) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: savePath }) }, savePath)
   await app.evaluate(({ dialog }, csvPath) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [csvPath] }) }, csvPath)
   const outcome = await page.evaluate(async ({ database, tableTx, compareSourceTable, compareTargetTable, csvTable, designerTableName, securityUser, sqlPath }) => {
-    const api = window.dbforge
+    const api = window.tuxsql
     const record = (await api.getConnections()).find((item) => item.name === 'Risk QA MySQL')
     if (!record) throw new Error('QA connection was not persisted')
     const connected = await api.connect(record)
@@ -135,7 +135,7 @@ try {
 
   const lostExecutionId = await page.evaluate(async () => {
     const id = crypto.randomUUID()
-    window.__qaLostPromise = window.dbforge.executeSql(window.__qaConnectionId, 'SELECT SLEEP(30) AS lost LIMIT 1', id).then(() => 'resolved', (error) => error.code ?? error.message)
+    window.__qaLostPromise = window.tuxsql.executeSql(window.__qaConnectionId, 'SELECT SLEEP(30) AS lost LIMIT 1', id).then(() => 'resolved', (error) => error.code ?? error.message)
     return id
   })
   const threadId = await waitForProcess('SELECT SLEEP(30) AS lost')
@@ -143,13 +143,13 @@ try {
   outcome.lostResult = await page.evaluate(async () => await window.__qaLostPromise)
   outcome.lostExecutionId = lostExecutionId
   outcome.reconnectAfterLoss = await page.evaluate(async () => {
-    const record = (await window.dbforge.getConnections()).find((item) => item.name === 'Risk QA MySQL')
+    const record = (await window.tuxsql.getConnections()).find((item) => item.name === 'Risk QA MySQL')
     if (!record) return false
-    const recovered = await window.dbforge.connect(record)
-    try { return Number((await window.dbforge.executeSql(recovered.id, 'SELECT 1 AS recovered LIMIT 1'))[0].rows[0].recovered) }
-    finally { await window.dbforge.disconnect(recovered.id) }
+    const recovered = await window.tuxsql.connect(record)
+    try { return Number((await window.tuxsql.executeSql(recovered.id, 'SELECT 1 AS recovered LIMIT 1'))[0].rows[0].recovered) }
+    finally { await window.tuxsql.disconnect(recovered.id) }
   })
-  await page.evaluate(async () => await window.dbforge.disconnect(window.__qaConnectionId))
+  await page.evaluate(async () => await window.tuxsql.disconnect(window.__qaConnectionId))
 
   // Exercise visible SQL tabs and results through the UI.
   await page.getByRole('button', { name: 'New SQL', exact: true }).click()

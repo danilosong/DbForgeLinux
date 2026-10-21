@@ -5,11 +5,11 @@ Classificação: CONFIRMADA (observada no artefato) · INFERIDA (deduzida de nom
 ## Alvo
 | Item | Valor | Status |
 |---|---|---|
-| Artefato | `~/Downloads/dbforgemysql.exe` (142.861.904 B, PE32 i386) | CONFIRMADA |
+| Artefato | `~/Downloads/tuxsqlmysql.exe` (142.861.904 B, PE32 i386) | CONFIRMADA |
 | Tipo | Instalador Inno Setup 5.6.0 (`innoextract`) | CONFIRMADA |
 | Produto | dbForge Studio for MySQL **v2026.2.82** (FileVersion 2026.2.82.0) | CONFIRMADA |
 | Edição (Express/Std/Pro/Ent) | Não determinada ainda (verificar chaves de licença/Trial em `Devart.Trial.*`) | DESCONHECIDA |
-| App principal | `app/dbforgemysql.exe`, .NET Framework 4.7.2, WinForms + DevExpress 24.2 | CONFIRMADA |
+| App principal | `app/tuxsqlmysql.exe`, .NET Framework 4.7.2, WinForms + DevExpress 24.2 | CONFIRMADA |
 | Ofuscação | Tipos internos renomeados (`i3.*`, `Obfuscation.Mark`), recursos com GUID; tipos/namespace públicos `Devart.DbForge.*` preservados | CONFIRMADA |
 | Extração | `re/extracted/` (gitignored, 484 MB, 252 arquivos em `app/`) | CONFIRMADA |
 | Evidência REA | `ev_193e4a78…` (inspect_managed_artifact exe), `ev_3a637c9d…` (members Devart.DbForge.MySql.dll), bundle `re/evidence/members-mysql.json`, `re/evidence/namespaces.txt` (1579 namespaces) | CONFIRMADA |

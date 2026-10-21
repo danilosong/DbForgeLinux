@@ -2,6 +2,7 @@ import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { dirname, isAbsolute, join } from 'node:path'
 import { defaultSettings, type AppSettings, type KeyBinding } from './types.js'
 import { findKeymapConflicts } from '../keymap/registry.js'
+import { formatProfileNames } from '../editor/formatProfiles.js'
 
 export { defaultKeyBindings, defaultSettings, normalizeShortcut } from './types.js'
 export type { AppSettings, KeyBinding, ThemeOption } from './types.js'
@@ -22,6 +23,7 @@ export function mergeSettings(value: unknown): AppSettings {
     editor: { ...defaultSettings.editor, ...safeObject(data.editor) },
     execution: { ...defaultSettings.execution, ...safeObject(data.execution) },
     grid: { ...defaultSettings.grid, ...safeObject(data.grid) },
+    explorer: { ...defaultSettings.explorer, ...safeObject(data.explorer) },
     connections: { ...defaultSettings.connections, ...safeObject(data.connections) },
     updater: { ...defaultSettings.updater, ...safeObject(data.updater) },
     shortcuts: { ...defaultSettings.shortcuts, ...safeObject(data.shortcuts), bindings }
@@ -48,14 +50,24 @@ export function validateSettings(settings: AppSettings): void {
   bounded(settings.editor.fontSize, 8, 32, 'Font size')
   bounded(settings.editor.lineHeight, 12, 60, 'Line height')
   bounded(settings.editor.completionDelayMs, 0, 5000, 'Completion delay')
+  bounded(settings.editor.rightMargin, 40, 240, 'Editor right margin')
   bounded(settings.execution.commandTimeoutSeconds, 0, 86400, 'Command timeout')
   bounded(settings.execution.resultRowLimit, 0, 1000000, 'Result row limit')
   bounded(settings.grid.rowHeight, 18, 60, 'Grid row height')
   bounded(settings.grid.maxTextLength, 100, 1000000, 'Grid text length')
+  bounded(settings.grid.pageSize, 1, 100000, 'Grid page size')
+  bounded(settings.grid.lobEditorThreshold, 1, 1000000, 'LOB editor threshold')
+  bounded(settings.explorer.firstRows, 1, 1000000, 'Explorer row limit')
+  if (!['select-data', 'object-editor', 'data-editor'].includes(settings.explorer.openTableAs) || !['execute', 'object-editor'].includes(settings.explorer.openRoutineAs) || !['all', 'first'].includes(settings.explorer.selectionMode)) throw new Error('Invalid Database Explorer settings.')
   bounded(settings.queryBuilder.gridSize, 2, 64, 'Query Builder grid size')
   bounded(settings.connections.connectionTimeoutSeconds, 1, 600, 'Connection timeout')
   bounded(settings.connections.commandTimeoutSeconds, 0, 86400, 'Connection command timeout')
   if (!['auto', 'dev', 'release'].includes(settings.updater.channel)) throw new Error('Invalid update channel.')
+  if (!['none', 'block', 'smart'].includes(settings.editor.indentStyle) || !['prefix', 'substring', 'camelCase'].includes(settings.editor.completionFilter) || !['object', 'schema-object', 'none'].includes(settings.editor.aliasQualifier) || !['always', 'reserved', 'needed'].includes(settings.editor.identifierQuoting)) throw new Error('Invalid editor configuration.')
+  if (!formatProfileNames.includes(settings.editor.activeFormatProfile as Exclude<typeof formatProfileNames[number], 'Custom'>) && settings.editor.activeFormatProfile !== 'Custom') throw new Error('Invalid active SQL format profile.')
+  if (!Array.isArray(settings.editor.formatProfiles) || settings.editor.formatProfiles.length > 32 || settings.editor.formatProfiles.some((profile) => !profile || typeof profile.name !== 'string' || profile.name.length > 80 || !['upper', 'lower'].includes(profile.keywordCase) || ![2, 4].includes(profile.indentSize) || !['after', 'before'].includes(profile.commaStyle))) throw new Error('Invalid SQL format profiles.')
+  if (!Array.isArray(settings.editor.aliasRules) || settings.editor.aliasRules.length > 100 || settings.editor.aliasRules.some((rule) => !rule || typeof rule.condition !== 'string' || rule.condition.length > 160 || !['none', 'short', 'full'].includes(rule.action))) throw new Error('Invalid SQL alias rules.')
+  if (settings.editor.completionConfirmCharacters.length > 64) throw new Error('Completion confirmation character list is too long.')
   if (!['startup', 'daily'].includes(settings.updater.interval)) throw new Error('Invalid update interval.')
   if (settings.updater.ignoredVersion.length > 40 || !/^[\w.+-]*$/.test(settings.updater.ignoredVersion)) throw new Error('Invalid ignored update version.')
   if (!/^#[0-9a-f]{6}$/i.test(settings.appearance.accent)) throw new Error('Accent color must be a six digit hex color.')

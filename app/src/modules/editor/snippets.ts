@@ -1,6 +1,6 @@
 export interface SqlSnippet { label: string; prefix: string; description: string; body: string }
 
-// These are original starter templates for dbForgeLinux, written for common MySQL work.
+// These are original starter templates for TuxSQL Song, written for common MySQL work.
 export const sqlSnippets: SqlSnippet[] = [
   { label: 'Select rows', prefix: 'sel', description: 'Select rows with a limit', body: 'SELECT ${1:*}\nFROM ${2:table_name}\nWHERE ${3:condition}\nLIMIT ${4:100};' },
   { label: 'Select distinct', prefix: 'seld', description: 'Select distinct values', body: 'SELECT DISTINCT ${1:column}\nFROM ${2:table_name};' },

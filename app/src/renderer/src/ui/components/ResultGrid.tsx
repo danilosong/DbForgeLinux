@@ -51,7 +51,7 @@ export function ResultGrid({ result, index, onLoadMore, fetchRows, currentConnec
   const [cardRow, setCardRow] = useState<Record<string, unknown>>()
   const [cardLoading, setCardLoading] = useState(false)
   const cardRequest = useRef(0)
-  const [detailRows, setDetailRows] = useState<Map<number, Awaited<ReturnType<typeof window.dbforge.loadMasterDetails>>>>(() => new Map())
+  const [detailRows, setDetailRows] = useState<Map<number, Awaited<ReturnType<typeof window.tuxsql.loadMasterDetails>>>>(() => new Map())
   const requested = useRef(new Set<number>())
   const lastTransactionRevision = useRef(transactionRevision)
   const visiblePage = useRef(0)
@@ -117,20 +117,20 @@ export function ResultGrid({ result, index, onLoadMore, fetchRows, currentConnec
   }
   async function showPreview(): Promise<void> {
     if (!editable || !changes.length) return
-    try { setPreview(await window.dbforge.previewGridChanges(editable, changes)) }
+    try { setPreview(await window.tuxsql.previewGridChanges(editable, changes)) }
     catch (error) { setEditError(error instanceof Error ? error.message : 'Could not preview grid changes.') }
   }
   async function postChanges(): Promise<void> {
     if (!editable || !currentConnection || !changes.length) return
     try {
-      const sql = await window.dbforge.previewGridChanges(editable, changes)
+      const sql = await window.tuxsql.previewGridChanges(editable, changes)
       setPreview(sql)
       if (currentConnection.environment === 'prod') {
         const databaseName = currentConnection.database ?? t('conn.database.none')
         if (window.prompt(t('security.prod.confirm', [databaseName])) !== databaseName) return
       }
       if (!window.confirm(t('grid.apply.confirm', [String(changes.length)]))) return
-      const count = await window.dbforge.applyGridChanges(currentConnection.id, editable, changes, autoCommit)
+      const count = await window.tuxsql.applyGridChanges(currentConnection.id, editable, changes, autoCommit)
       if (!autoCommit) { /* Document transaction remains open for the global Commit/Rollback actions. */ }
       setSavedRows((current) => { const next = new Map(current); for (const [rowIndex, change] of pending) if (change.kind === 'update') next.set(rowIndex, change.values); newRows.forEach((row, offset) => next.set((result.rowCount ?? result.rows.length) + offset, row)); return next })
       setSavedInserts((current) => { const next = new Set(current); newRows.forEach((_, offset) => next.add((result.rowCount ?? result.rows.length) + offset)); for (const [rowIndex, change] of pending) if (change.kind === 'delete') next.delete(rowIndex); return next })
@@ -186,7 +186,7 @@ export function ResultGrid({ result, index, onLoadMore, fetchRows, currentConnec
     if (detailRows.has(rowIndex)) { setDetailRows((current) => { const next = new Map(current); next.delete(rowIndex); return next }); setDetailMasterIndex(null); return }
     const row = rowAt(rowIndex)
     if (!editable || !currentConnection || !row) return
-    try { const details = await window.dbforge.loadMasterDetails(currentConnection.id, editable, row); setDetailRows((current) => new Map(current).set(rowIndex, details)); setGridMessage(details.length ? t('grid.detail.found', [String(details.length)]) : t('grid.masterDetail.empty')) }
+    try { const details = await window.tuxsql.loadMasterDetails(currentConnection.id, editable, row); setDetailRows((current) => new Map(current).set(rowIndex, details)); setGridMessage(details.length ? t('grid.detail.found', [String(details.length)]) : t('grid.masterDetail.empty')) }
     catch (error) { setGridMessage(error instanceof Error ? error.message : t('grid.detail.error')) }
   }
   function selectRow(row: number, event: React.MouseEvent): void {

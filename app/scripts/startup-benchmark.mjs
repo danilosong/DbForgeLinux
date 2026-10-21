@@ -5,8 +5,8 @@ import { join } from 'node:path'
 import { once } from 'node:events'
 import { _electron as electron } from 'playwright'
 
-const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-startup-benchmark-'))
-const executablePath = process.env.DBFORGE_ELECTRON_PATH ?? join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux')
+const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-startup-benchmark-'))
+const executablePath = process.env.TUXSQL_ELECTRON_PATH ?? join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql')
 const results = []
 
 async function launch(label) {

@@ -10,7 +10,7 @@ import { mysqlTestPrefix } from './mysql-test-prefix.mjs'
 
 const prefix = mysqlTestPrefix('report_card_ui')
 const table = `${prefix}_sales`
-const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-report-card-'))
+const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-report-card-'))
 const admin = await mysql.createConnection({ host: process.env.MYSQL_HOST ?? '127.0.0.1', port: Number(process.env.MYSQL_PORT ?? 33067), user: process.env.MYSQL_USER ?? 'root', password: process.env.MYSQL_PASSWORD ?? 'integration-only' })
 const evidence = join(process.cwd(), '..', 'document', 'evidence', 'ui')
 const repeats = Number(process.env.REPORT_CARD_REPEAT ?? 10)
@@ -21,7 +21,7 @@ try {
   await admin.query(`CREATE DATABASE \`${prefix}\``)
   await admin.query(`CREATE TABLE \`${prefix}\`.\`${table}\` (id INT PRIMARY KEY, region VARCHAR(40), amount DECIMAL(10,2))`)
   await admin.query(`INSERT INTO \`${prefix}\`.\`${table}\` VALUES (1,'North',18.5),(2,'South',22),(3,'West',14.25)`)
-  const executablePath = join(process.cwd(), 'dist', 'linux-unpacked', existsSync(join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux')) ? 'dbforgelinux' : 'electron')
+  const executablePath = join(process.cwd(), 'dist', 'linux-unpacked', existsSync(join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql')) ? 'tuxsql' : 'electron')
   app = await electron.launch({ executablePath, args: ['--disable-gpu'], timeout: 90_000, env: { ...process.env, XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
   const page = await app.firstWindow()
   page.on('pageerror', (error) => pageErrors.push(error.message))
@@ -143,7 +143,7 @@ try {
 } catch (error) {
   console.error(`Failure during ${phase}: ${error instanceof Error ? error.stack : String(error)}`)
   if (app) {
-    try { await app.firstWindow().then((page) => page.screenshot({ path: join(tmpdir(), 'dbforge-report-card-failure.png') })) } catch { /* capture is best effort */ }
+    try { await app.firstWindow().then((page) => page.screenshot({ path: join(tmpdir(), 'tuxsql-report-card-failure.png') })) } catch { /* capture is best effort */ }
   }
   throw error
 } finally {

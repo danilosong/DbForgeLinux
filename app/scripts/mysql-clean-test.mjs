@@ -6,9 +6,9 @@ const port = Number(process.env.MYSQL_PORT ?? 33067)
 const user = process.env.MYSQL_USER ?? 'root'
 const password = process.env.MYSQL_PASSWORD ?? 'integration-only'
 
-const databasePrefixes = ['dbforge_modules_', 'dbforge_test_', 'dbforge_debug_test_', 'martelo_connection_', 'data_source_', 'data_target_', 'imex_test_', 'imex_ui_', 'schema_a_', 'schema_b_', 'cmp_a_', 'cmp_b_']
-const userPrefixes = ['dbforge_ui_', 'dbforge_tu_', 'dbforge_test_user_', 'martelo_ui_']
-const tablePrefixes = ['martelo_ui_', 'dbforge_ui_', 'dbforge_test_', 'qa_tx_', 'qa_compare_src_', 'qa_compare_dst_', 'qa_designer_', 'qa_csv_', 'smoke_doc_']
+const databasePrefixes = ['tuxsql_modules_', 'tuxsql_test_', 'tuxsql_debug_test_', 'martelo_connection_', 'data_source_', 'data_target_', 'imex_test_', 'imex_ui_', 'schema_a_', 'schema_b_', 'cmp_a_', 'cmp_b_']
+const userPrefixes = ['tuxsql_ui_', 'tuxsql_tu_', 'tuxsql_test_user_', 'martelo_ui_']
+const tablePrefixes = ['martelo_ui_', 'tuxsql_ui_', 'tuxsql_test_', 'qa_tx_', 'qa_compare_src_', 'qa_compare_dst_', 'qa_designer_', 'qa_csv_', 'smoke_doc_']
 const protectedDatabases = new Set(['mysql', 'information_schema', 'performance_schema', 'sys'])
 const identifier = (value) => `\`${value.replaceAll('`', '``')}\``
 const account = (value) => `'${value.replaceAll('\\', '\\\\').replaceAll("'", "\\'")}'`
@@ -27,7 +27,7 @@ try {
   const [accounts] = await connection.query('SELECT User, Host FROM mysql.user')
   for (const row of accounts) {
     const name = String(row.User)
-    if (userPrefixes.some((prefix) => name.startsWith(prefix)) || name === 'dbforge_smoke') {
+    if (userPrefixes.some((prefix) => name.startsWith(prefix)) || name === 'tuxsql_smoke') {
       await connection.query(`DROP USER IF EXISTS ${account(name)}@${account(String(row.Host))}`)
       removed.users.push(`${name}@${row.Host}`)
     }

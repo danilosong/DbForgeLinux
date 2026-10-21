@@ -29,16 +29,16 @@ export default function Panel(): React.JSX.Element {
   const activeRecord = connections.find((record) => record.id === connectionId)
   const visibleTables = useMemo(() => diagram?.tables.filter((table) => table.name.toLowerCase().includes(search.toLowerCase())) ?? [], [diagram, search])
 
-  useEffect(() => { void window.dbforge.getConnections().then((items) => { setConnections(items); setConnectionId((current) => items.some((item) => item.id === current) ? current : activeConnection?.recordId && items.some((item) => item.id === activeConnection.recordId) ? activeConnection.recordId : activeConnection?.id && items.some((item) => item.id === activeConnection.id) ? activeConnection.id : items[0]?.id ?? '') }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar conexões.')) }, [activeConnection])
-  useEffect(() => { if (!connectionId) { setDatabases([]); return } void window.dbforge.connect(connections.find((item) => item.id === connectionId)!).then(async (connected) => { try { setDatabases(await window.dbforge.listDatabases(connected.id)) } finally { await window.dbforge.disconnect(connected.id) } }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao listar databases.')) }, [connectionId, connections])
+  useEffect(() => { void window.tuxsql.getConnections().then((items) => { setConnections(items); setConnectionId((current) => items.some((item) => item.id === current) ? current : activeConnection?.recordId && items.some((item) => item.id === activeConnection.recordId) ? activeConnection.recordId : activeConnection?.id && items.some((item) => item.id === activeConnection.id) ? activeConnection.id : items[0]?.id ?? '') }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar conexões.')) }, [activeConnection])
+  useEffect(() => { if (!connectionId) { setDatabases([]); return } void window.tuxsql.connect(connections.find((item) => item.id === connectionId)!).then(async (connected) => { try { setDatabases(await window.tuxsql.listDatabases(connected.id)) } finally { await window.tuxsql.disconnect(connected.id) } }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao listar databases.')) }, [connectionId, connections])
 
   async function load(): Promise<void> {
     if (!activeRecord || !database) { setMessage('Selecione uma conexão e um database.'); return }
     setBusy(true); setMessage('Lendo tabelas, colunas e relações…')
     try {
-      const connected = await window.dbforge.connect(activeRecord)
-      try { const next = await window.dbforge.loadERDiagram(connected.id, database, activeRecord.id); setDiagram(next); setSelectedTable(next.tables[0]?.name ?? ''); setPan({ x: 0, y: 0 }); setZoom(1); setMessage(`${next.tables.length} tabelas · ${next.relations.length} relações`) }
-      finally { await window.dbforge.disconnect(connected.id) }
+      const connected = await window.tuxsql.connect(activeRecord)
+      try { const next = await window.tuxsql.loadERDiagram(connected.id, database, activeRecord.id); setDiagram(next); setSelectedTable(next.tables[0]?.name ?? ''); setPan({ x: 0, y: 0 }); setZoom(1); setMessage(`${next.tables.length} tabelas · ${next.relations.length} relações`) }
+      finally { await window.tuxsql.disconnect(connected.id) }
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Falha ao carregar o diagrama.') }
     finally { setBusy(false) }
   }
@@ -56,11 +56,11 @@ export default function Panel(): React.JSX.Element {
     if (diagram?.connectionId === payload.connectionId && diagram.database === payload.database && diagram.tables.some((table) => table.name === payload.name)) { setSelectedTable(payload.name); return }
     setBusy(true)
     try {
-      const connected = await window.dbforge.connect(sourceRecord)
+      const connected = await window.tuxsql.connect(sourceRecord)
       try {
         let fresh: ERDiagram | null = null
-        if (payload.kind === 'table') fresh = await window.dbforge.loadERDiagram(connected.id, payload.database, sourceRecord.id)
-        const querySchema = payload.kind === 'view' ? await window.dbforge.getQueryBuilderSchema(connected.id, payload.database) : undefined
+        if (payload.kind === 'table') fresh = await window.tuxsql.loadERDiagram(connected.id, payload.database, sourceRecord.id)
+        const querySchema = payload.kind === 'view' ? await window.tuxsql.getQueryBuilderSchema(connected.id, payload.database) : undefined
         let added = fresh?.tables.find((table) => table.name === payload.name)
         if (!added && querySchema) {
           const source = querySchema.tables.find((table) => table.name === payload.name)
@@ -74,7 +74,7 @@ export default function Panel(): React.JSX.Element {
         const relations = fresh ? [...base.relations.filter((relation) => !relation.virtual), ...fresh.relations.filter((relation) => names.has(relation.fromTable) && names.has(relation.toTable) && !base.relations.some((item) => item.id === relation.id))] : base.relations
         const next = { ...base, tables: [...base.tables.filter((table) => table.name !== added!.name), added], relations }
         setDiagram(next); setSelectedTable(added.name); setMessage(t('extras.erd.dropAdded', [added.name]))
-      } finally { await window.dbforge.disconnect(connected.id) }
+      } finally { await window.tuxsql.disconnect(connected.id) }
     } catch (error) { setMessage(error instanceof Error ? error.message : t('extras.erd.dropFailed')) }
     finally { setBusy(false) }
   }
@@ -82,7 +82,7 @@ export default function Panel(): React.JSX.Element {
     if (!diagram) return
     const next = { ...diagram, virtualRelations: relations, relations: [...diagram.relations.filter((item) => !item.virtual), ...relations] }
     setDiagram(next)
-    try { await window.dbforge.saveVirtualRelations(diagram.connectionId, diagram.database, relations); setMessage(t('extras.erd.saved')) }
+    try { await window.tuxsql.saveVirtualRelations(diagram.connectionId, diagram.database, relations); setMessage(t('extras.erd.saved')) }
     catch (error) { setMessage(error instanceof Error ? error.message : 'Falha ao salvar relações virtuais.') }
   }
   function addVirtualRelation(): void {
@@ -114,12 +114,12 @@ export default function Panel(): React.JSX.Element {
     const nonNull = relation.fromColumns.map((column) => `${childAlias}.${quote(column)} IS NOT NULL`).join(' AND ')
     const sql = `SELECT 1 FROM ${quote(diagram.database)}.${quote(relation.fromTable)} ${childAlias} LEFT JOIN ${quote(diagram.database)}.${quote(relation.toTable)} ${parentAlias} ON ${joins} WHERE ${nonNull} AND ${parentAlias}.${quote(relation.toColumns[0]!)} IS NULL LIMIT 1`
     try {
-      const connected = await window.dbforge.connect(activeRecord!)
-      try { const results = await window.dbforge.executeSql(connected.id, sql); if (results[0]?.rows?.length) { setMessage(t('extras.erd.orphans')); return } } finally { await window.dbforge.disconnect(connected.id) }
+      const connected = await window.tuxsql.connect(activeRecord!)
+      try { const results = await window.tuxsql.executeSql(connected.id, sql); if (results[0]?.rows?.length) { setMessage(t('extras.erd.orphans')); return } } finally { await window.tuxsql.disconnect(connected.id) }
       const quoteConstraint = `${relation.fromTable}_${relation.name}`.replace(/[^A-Za-z0-9_$]/g, '_')
       const finalDdl = `ALTER TABLE ${quote(diagram.database)}.${quote(relation.fromTable)} ADD CONSTRAINT ${quote(quoteConstraint)} FOREIGN KEY (${relation.fromColumns.map(quote).join(', ')}) REFERENCES ${quote(diagram.database)}.${quote(relation.toTable)} (${relation.toColumns.map(quote).join(', ')});`
       if (!window.confirm(t('extras.erd.confirmConvert'))) return
-      await window.dbforge.queueSchemaUpdate({ connectionId: diagram.connectionId, database: diagram.database, source: `Virtual relation · ${relation.name}`, script: finalDdl })
+      await window.tuxsql.queueSchemaUpdate({ connectionId: diagram.connectionId, database: diagram.database, source: `Virtual relation · ${relation.name}`, script: finalDdl })
       setMessage(t('extras.erd.queued'))
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Foreign key check failed.') }
   }
@@ -171,8 +171,8 @@ export default function Panel(): React.JSX.Element {
     image.onload = () => { const canvas = document.createElement('canvas'); canvas.width = 1100; canvas.height = 700; const context = canvas.getContext('2d'); if (context) { context.fillStyle = getComputedStyle(source).backgroundColor || '#fff'; context.fillRect(0, 0, canvas.width, canvas.height); context.drawImage(image, 0, 0, canvas.width, canvas.height); canvas.toBlob((output) => { if (output) download(output, `${diagram?.database ?? 'diagram'}.png`); URL.revokeObjectURL(url) }, 'image/png') } else URL.revokeObjectURL(url) }
     image.onerror = () => { URL.revokeObjectURL(url); setMessage('The error occurred while diagram exporting.') }; image.src = url
   }
-  async function saveDiagram(): Promise<void> { if (!diagram) return; try { const path = await window.dbforge.saveERDiagram(diagram); if (path) setMessage(`Diagrama salvo: ${path}`) } catch (error) { setMessage(error instanceof Error ? error.message : 'Falha ao salvar diagrama.') } }
-  async function openDiagram(): Promise<void> { try { const opened = await window.dbforge.openERDiagram(); if (opened) { setDiagram(opened); setConnectionId(opened.connectionId); setDatabase(opened.database); setSelectedTable(opened.tables[0]?.name ?? ''); setMessage(`Database Diagram · ${opened.database}`) } } catch (error) { setMessage(error instanceof Error ? error.message : 'Diagram deserialization failed.') } }
+  async function saveDiagram(): Promise<void> { if (!diagram) return; try { const path = await window.tuxsql.saveERDiagram(diagram); if (path) setMessage(`Diagrama salvo: ${path}`) } catch (error) { setMessage(error instanceof Error ? error.message : 'Falha ao salvar diagrama.') } }
+  async function openDiagram(): Promise<void> { try { const opened = await window.tuxsql.openERDiagram(); if (opened) { setDiagram(opened); setConnectionId(opened.connectionId); setDatabase(opened.database); setSelectedTable(opened.tables[0]?.name ?? ''); setMessage(`Database Diagram · ${opened.database}`) } } catch (error) { setMessage(error instanceof Error ? error.message : 'Diagram deserialization failed.') } }
   function download(blob: Blob, filename: string): void { const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = filename; anchor.click(); URL.revokeObjectURL(url) }
 
   const tablesByName = new Map(diagram?.tables.map((table) => [table.name, table]) ?? [])

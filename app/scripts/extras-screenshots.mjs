@@ -8,8 +8,8 @@ import { once } from 'node:events'
 import { _electron as electron } from 'playwright'
 import { mysqlTestPrefix } from './mysql-test-prefix.mjs'
 
-const appPath = join(process.cwd(), 'dist', 'linux-unpacked', existsSync(join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux')) ? 'dbforgelinux' : 'electron')
-const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-extras-ui-'))
+const appPath = join(process.cwd(), 'dist', 'linux-unpacked', existsSync(join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql')) ? 'tuxsql' : 'electron')
+const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-extras-ui-'))
 const evidenceDirectory = join(process.cwd(), '..', 'document', 'evidence', 'ui')
 const runPrefix = mysqlTestPrefix('extras_ui')
 const snippetName = `${runPrefix}_snippet`
@@ -45,7 +45,7 @@ try {
     await page.screenshot({ path: join(evidenceDirectory, `${name}-dark.png`) })
     await closePanel(title)
   }
-  await page.evaluate(async ({ runPrefix }) => window.dbforge.queueSchemaUpdate({ connectionId: `${runPrefix}_connection`, database: runPrefix, source: `Playwright ${runPrefix}`, script: `ALTER TABLE \`${runPrefix}_table\` ADD COLUMN \`nickname\` VARCHAR(80);` }), { runPrefix })
+  await page.evaluate(async ({ runPrefix }) => window.tuxsql.queueSchemaUpdate({ connectionId: `${runPrefix}_connection`, database: runPrefix, source: `Playwright ${runPrefix}`, script: `ALTER TABLE \`${runPrefix}_table\` ADD COLUMN \`nickname\` VARCHAR(80);` }), { runPrefix })
   await capturePanel('Data Compare', '.compare-panel', 'data-compare')
   await capturePanel('Schema Compare', '.compare-panel', 'schema-compare', 'Database')
   await capturePanel('Schema Update Script', '.extras-schema-panel', 'schema-update')
@@ -63,7 +63,7 @@ try {
   await closePanel('Code Snippets')
   await openPanel('Toolbox', '.toolbox-panel')
   await page.locator('.toolbox-panel').getByRole('button', { name: new RegExp(snippetName) }).waitFor()
-  await page.evaluate(async () => window.dbforge.removeSchemaUpdates((await window.dbforge.listSchemaUpdates()).map((item) => item.id)))
+  await page.evaluate(async () => window.tuxsql.removeSchemaUpdates((await window.tuxsql.listSchemaUpdates()).map((item) => item.id)))
   console.log(`Extras screenshots saved in ${evidenceDirectory}`)
 } finally {
   if (app) {

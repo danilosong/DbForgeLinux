@@ -26,7 +26,7 @@ export function registerSqlIpc({driver,resolveConnectionConfig,userDataDir}:IpcD
  const resultOwners=new Map<string,number>()
  const spoolSenders=new Set<number>()
  ipcMain.handle('db:test',async(_e,r:ConnectionRecord)=>driver.testConnection(await resolveConnectionConfig(r)))
- ipcMain.handle('db:connect',async(_e,r:ConnectionRecord)=>{const id=await driver.connect(await resolveConnectionConfig(r));return {id,recordId:r.id,name:r.name,host:r.host,port:r.port,user:r.user,database:r.database,environment:r.environment,color:r.color}})
+ ipcMain.handle('db:connect',async(_e,r:ConnectionRecord)=>{const id=await driver.connect(await resolveConnectionConfig(r));return {id,recordId:r.id,name:r.name,host:r.host,port:r.port,user:r.user,database:r.database,environment:r.environment,environmentShape:r.environmentShape,color:r.color}})
  ipcMain.handle('db:disconnect',async(_e,id:string)=>{editorMetadataCache.invalidate(id);await driver.disconnect(id)}); ipcMain.handle('db:databases',(_e,id:string)=>driver.listDatabases(id))
  ipcMain.handle('db:execute',async(event,id:string,sql:string,executionId?:string,database?:string)=>{
   await spoolCleanup

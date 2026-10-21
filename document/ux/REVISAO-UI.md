@@ -1,6 +1,6 @@
 # Relatório de Revisão de Fidelidade UX/UI das Telas Implementadas
 
-**Projeto:** dbForgeLinux (Alternativa Linux ao dbForge Studio for MySQL)  
+**Projeto:** TuxSQL Song (Alternativa Linux ao dbForge Studio for MySQL)  
 **Autor:** Prisma (UX/UI Designer)  
 **Data:** 20/10/2026 (Atualizado após correções de UI da Bigorna)  
 **Status:** Não commitado (working tree)  
@@ -151,4 +151,4 @@ Com a resolução dos 2 BLOCKERs de arquitetura (MDI e AI Dock) e da maioria das
 
 ## 4. Conclusão da Reavaliação
 
-O esforço de correção da Bigorna eliminou com êxito os impedimentos arquiteturais mais graves apontados na primeira revisão. O dbForgeLinux agora opera sob o paradigma MDI genuíno, com assistente de IA acoplado lateralmente, foco acessível, tema Monaco coerente e suporte consistente a internacionalização. As pendências remanescentes concentram-se no enriquecimento gráfico vetorial (linhas de join no Query Builder e ER Diagram) e na inclusão da grade de dados no Data Compare.
+O esforço de correção da Bigorna eliminou com êxito os impedimentos arquiteturais mais graves apontados na primeira revisão. O TuxSQL Song agora opera sob o paradigma MDI genuíno, com assistente de IA acoplado lateralmente, foco acessível, tema Monaco coerente e suporte consistente a internacionalização. As pendências remanescentes concentram-se no enriquecimento gráfico vetorial (linhas de join no Query Builder e ER Diagram) e na inclusão da grade de dados no Data Compare.

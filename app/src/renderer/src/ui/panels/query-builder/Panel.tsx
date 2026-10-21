@@ -41,22 +41,22 @@ export default function QueryBuilderPanel(): React.JSX.Element {
   const loadSchema = useCallback(async (): Promise<void> => {
     if (!active || !database) return
     setSchemaBusy(true)
-    try { setSchema(await window.dbforge.getQueryBuilderSchema(active.id, database)); setMessage('') }
+    try { setSchema(await window.tuxsql.getQueryBuilderSchema(active.id, database)); setMessage('') }
     catch (error) { setMessage(error instanceof Error ? error.message : t('audit.qb.schemaFailed')) }
     finally { setSchemaBusy(false) }
   }, [active, database, t])
 
   useEffect(() => {
     const applySettings = (settings: AppSettings): void => setDiagramOptions(settings.queryBuilder)
-    void window.dbforge.loadSettings().then((result) => applySettings(result.settings)).catch(() => undefined)
+    void window.tuxsql.loadSettings().then((result) => applySettings(result.settings)).catch(() => undefined)
     const changed = (event: Event): void => applySettings((event as CustomEvent<AppSettings>).detail)
-    window.addEventListener('dbforge:settings-changed', changed)
-    return () => window.removeEventListener('dbforge:settings-changed', changed)
+    window.addEventListener('tuxsql:settings-changed', changed)
+    return () => window.removeEventListener('tuxsql:settings-changed', changed)
   }, [])
 
   useEffect(() => {
     let cancelled = false
-    void window.dbforge.getConnections().then((items) => {
+    void window.tuxsql.getConnections().then((items) => {
       if (cancelled) return
       setConnections(items)
       setConnectionId((current) => items.some((item) => item.id === current) ? current : contextualConnection?.id && items.some((item) => item.id === contextualConnection.id) ? contextualConnection.id : items[0]?.id ?? '')
@@ -70,15 +70,15 @@ export default function QueryBuilderPanel(): React.JSX.Element {
     setActive(undefined); setDatabases([]); setDatabase(''); setSchema(null); setModel(blankModel()); setRootModel(null); setSubqueryModel(null); setQueryPage('root')
     const record = connections.find((item) => item.id === connectionId)
     if (!record) { setMessage(t('audit.qb.connectionRequired')); return }
-    void window.dbforge.connect(record).then(async (connected) => {
+    void window.tuxsql.connect(record).then(async (connected) => {
       connectedId = connected.id
-      if (cancelled) { await window.dbforge.disconnect(connected.id); return }
+      if (cancelled) { await window.tuxsql.disconnect(connected.id); return }
       setActive(connected)
-      const items = await window.dbforge.listDatabases(connected.id)
-      if (cancelled) { await window.dbforge.disconnect(connected.id); return }
+      const items = await window.tuxsql.listDatabases(connected.id)
+      if (cancelled) { await window.tuxsql.disconnect(connected.id); return }
       setDatabases(items); setDatabase((current) => items.includes(current) ? current : record.database && items.includes(record.database) ? record.database : items[0] ?? '')
     }).catch((error: unknown) => { if (!cancelled) setMessage(error instanceof Error ? error.message : t('audit.qb.connectFailed')) })
-    return () => { cancelled = true; if (connectedId) void window.dbforge.disconnect(connectedId) }
+    return () => { cancelled = true; if (connectedId) void window.tuxsql.disconnect(connectedId) }
   }, [connectionId, connections, t])
 
   useEffect(() => { if (active && database) void loadSchema() }, [active, database, loadSchema])
@@ -224,7 +224,7 @@ export default function QueryBuilderPanel(): React.JSX.Element {
 
   async function validateSql(): Promise<void> {
     try {
-      const parsed = await window.dbforge.parseQueryBuilder(sqlText, database)
+      const parsed = await window.tuxsql.parseQueryBuilder(sqlText, database)
       if (parsed.model) { setModel(parsed.model); setUnparsedSql(false); setMessage('SQL represented in the diagram.') }
       else { setUnparsedSql(true); setMessage(parsed.error ?? t('audit.qb.visualFailed')) }
     } catch (error) { setUnparsedSql(true); setMessage(error instanceof Error ? error.message : t('audit.qb.visualFailed')) }
@@ -234,7 +234,7 @@ export default function QueryBuilderPanel(): React.JSX.Element {
     if (!active) { setMessage(t('audit.qb.connectionRequired')); return }
     let currentModel = model
     if (view === 'Text') {
-      const parsed = await window.dbforge.parseQueryBuilder(sqlText, database)
+      const parsed = await window.tuxsql.parseQueryBuilder(sqlText, database)
       if (parsed.model) currentModel = parsed.model
       else {
         const statements = splitSqlStatements(sqlText).map((item) => item.sql)
@@ -242,7 +242,7 @@ export default function QueryBuilderPanel(): React.JSX.Element {
         if (/^(UPDATE|DELETE)\b/i.test(statements[0].trim()) && !/\bWHERE\b/i.test(statements[0]) && !window.confirm('Execute a destructive statement without a WHERE clause?')) return
         const id = crypto.randomUUID(); setExecutionId(id); setRawExecution(true)
         setBusy(true); setMessage('Executing query…')
-        try { const output = await window.dbforge.executeSql(active.id, statements[0], id); setResult(output); setView('Data'); setMessage(`${output[0]?.rows.length ?? output[0]?.affectedRows ?? 0} rows · 0.000 s`) }
+        try { const output = await window.tuxsql.executeSql(active.id, statements[0], id); setResult(output); setView('Data'); setMessage(`${output[0]?.rows.length ?? output[0]?.affectedRows ?? 0} rows · 0.000 s`) }
         catch (error) { setMessage(error instanceof Error ? error.message : t('audit.qb.executeFailed')) }
         finally { setBusy(false); setExecutionId(''); setRawExecution(false) }
         return
@@ -253,7 +253,7 @@ export default function QueryBuilderPanel(): React.JSX.Element {
     const id = crypto.randomUUID(); setExecutionId(id); setRawExecution(false)
     setBusy(true); setMessage('Executing query…'); setConfirmDestructive(destructive)
     try {
-      const output = await window.dbforge.executeQueryBuilder(active.id, currentModel, destructive, id)
+      const output = await window.tuxsql.executeQueryBuilder(active.id, currentModel, destructive, id)
       setSqlText(output.sql); setResult(output.results); setView('Data'); setMessage(`${output.results[0]?.rows.length ?? output.results[0]?.affectedRows ?? 0} rows · ${(output.elapsedMs / 1000).toFixed(3)} s`)
     } catch (error) { setMessage(error instanceof Error ? error.message : t('audit.qb.executeFailed')) }
     finally { setBusy(false); setConfirmDestructive(false); setExecutionId(''); setRawExecution(false) }
@@ -269,7 +269,7 @@ export default function QueryBuilderPanel(): React.JSX.Element {
   return <section className="tool-panel qb-panel">
     <header className="qb-heading"><div><h2>{t('panel.query.builder.md6cd8cc5d6')}</h2><p>{t('panel.query.builder.m72022d0e87')}</p></div><div className="qb-connection"><label>{t('panel.query.builder.m1a12a5c35f')} <select aria-label={t('panel.query.builder.mf7f0f186d1')} value={connectionId} onChange={(event) => setConnectionId(event.target.value)}><option value="">{t('panel.query.builder.m2bc8e81f62')}</option>{connections.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label>{t('panel.query.builder.mdb617e90c3')} <select aria-label={t('panel.query.builder.m5cc49efc76')} value={database} onChange={(event) => { setDatabase(event.target.value); setModel(blankModel()) }} disabled={!active}><option value="">{t('panel.query.builder.m7174246cb9')}</option>{databases.map((item) => <option key={item}>{item}</option>)}</select></label></div></header>
     {!active ? <div className="empty-state">{t('panel.query.builder.m2dbfc91093')}</div> : <>
-      <div className="qb-toolbar"><label>{t('panel.query.builder.mbddac180a8')} <select aria-label={t('panel.query.builder.mbddac180a8')} value={model.statement} onChange={(event) => setModel((current) => ({ ...current, statement: event.target.value as QueryBuilderModel['statement'] }))}><option>SELECT</option><option>INSERT</option><option>UPDATE</option><option>DELETE</option></select></label><button onClick={() => setAddOpen((open) => !open)}>{t('panel.query.builder.m4cd898704d')}</button><button onClick={createSubquery}>{t('qb.subquery.create')}</button><button onClick={wrapCurrentAsSubquery} disabled={!built || view !== 'Diagram'}>{t('qb.subquery.wrap')}</button><button onClick={() => selectAllRows('left')} disabled={tables.length < 2}>{t('qb.selectAllLeft')}</button><button onClick={() => selectAllRows('right')} disabled={tables.length < 2}>{t('qb.selectAllRight')}</button><select aria-label={t('qb.insertTarget')} value={insertTarget} onChange={(event) => setInsertTarget(event.target.value)}><option value="">{t('qb.insertTarget')}</option>{tables.map((table) => <option key={table.name} value={table.name}>{table.name}</option>)}</select><button onClick={() => wrapCurrentAsInsert(insertTarget)} disabled={!built || !insertTarget}>{t('qb.subquery.wrapInsert')}</button><button onClick={autoLayout} disabled={!tables.length}>{t('panel.query.builder.m14b6d944b9')}</button><button onClick={() => setZoom((current) => Math.max(.6, current - .1))}>{t('panel.query.builder.m8900164e98')}</button><span>{Math.round(zoom * 100)}%</span><button onClick={() => setZoom((current) => Math.min(1.5, current + .1))}>{t('panel.query.builder.m2cb9b46bc0')}</button><button onClick={() => setZoom(1)}>{t('panel.query.builder.m5655463593')}</button><button onClick={() => setSqlText((compiled as BuiltQuery).sql?.replace(/\b(SELECT|FROM|WHERE|GROUP BY|HAVING|ORDER BY|LIMIT|JOIN)\b/gi, '\n$1') ?? '')}>{t('editor.format')}</button><button onClick={() => void validateSql()}>{t('panel.query.builder.m41e3f0f4f1')}</button><button className="button-primary" disabled={busy || !built} onClick={() => void execute()}>{busy ? 'Executing…' : 'Execute (F5)'}</button><button disabled={!busy} onClick={() => { if (!active || !executionId) return; if (rawExecution) void window.dbforge.cancelQuery(active.id, executionId); else void window.dbforge.cancelQueryBuilder(executionId) }}>{t('editor.stop')}</button></div>
+      <div className="qb-toolbar"><label>{t('panel.query.builder.mbddac180a8')} <select aria-label={t('panel.query.builder.mbddac180a8')} value={model.statement} onChange={(event) => setModel((current) => ({ ...current, statement: event.target.value as QueryBuilderModel['statement'] }))}><option>SELECT</option><option>INSERT</option><option>UPDATE</option><option>DELETE</option></select></label><button onClick={() => setAddOpen((open) => !open)}>{t('panel.query.builder.m4cd898704d')}</button><button onClick={createSubquery}>{t('qb.subquery.create')}</button><button onClick={wrapCurrentAsSubquery} disabled={!built || view !== 'Diagram'}>{t('qb.subquery.wrap')}</button><button onClick={() => selectAllRows('left')} disabled={tables.length < 2}>{t('qb.selectAllLeft')}</button><button onClick={() => selectAllRows('right')} disabled={tables.length < 2}>{t('qb.selectAllRight')}</button><select aria-label={t('qb.insertTarget')} value={insertTarget} onChange={(event) => setInsertTarget(event.target.value)}><option value="">{t('qb.insertTarget')}</option>{tables.map((table) => <option key={table.name} value={table.name}>{table.name}</option>)}</select><button onClick={() => wrapCurrentAsInsert(insertTarget)} disabled={!built || !insertTarget}>{t('qb.subquery.wrapInsert')}</button><button onClick={autoLayout} disabled={!tables.length}>{t('panel.query.builder.m14b6d944b9')}</button><button onClick={() => setZoom((current) => Math.max(.6, current - .1))}>{t('panel.query.builder.m8900164e98')}</button><span>{Math.round(zoom * 100)}%</span><button onClick={() => setZoom((current) => Math.min(1.5, current + .1))}>{t('panel.query.builder.m2cb9b46bc0')}</button><button onClick={() => setZoom(1)}>{t('panel.query.builder.m5655463593')}</button><button onClick={() => setSqlText((compiled as BuiltQuery).sql?.replace(/\b(SELECT|FROM|WHERE|GROUP BY|HAVING|ORDER BY|LIMIT|JOIN)\b/gi, '\n$1') ?? '')}>{t('editor.format')}</button><button onClick={() => void validateSql()}>{t('panel.query.builder.m41e3f0f4f1')}</button><button className="button-primary" disabled={busy || !built} onClick={() => void execute()}>{busy ? 'Executing…' : 'Execute (F5)'}</button><button disabled={!busy} onClick={() => { if (!active || !executionId) return; if (rawExecution) void window.tuxsql.cancelQuery(active.id, executionId); else void window.tuxsql.cancelQueryBuilder(executionId) }}>{t('editor.stop')}</button></div>
       {rootModel && <div className="qb-query-tabs" role="tablist" aria-label={t('qb.queryTabs')}><button role="tab" aria-selected={queryPage === 'root'} className={queryPage === 'root' ? 'active' : ''} onClick={() => selectQueryPage('root')}>{t('qb.rootQuery')}</button><button role="tab" aria-selected={queryPage === 'subquery'} className={queryPage === 'subquery' ? 'active' : ''} onClick={() => selectQueryPage('subquery')}>{t('qb.subQuery')}</button></div>}
       {addOpen && <div className="qb-add-table"><input placeholder={t('panel.query.builder.m209e4c58a6')} value={search} onChange={(event) => setSearch(event.target.value)} autoFocus /><div className="qb-table-list">{schemaBusy ? 'Loading tables…' : filterList.map((table) => <button type="button" key={table.name} disabled={tables.some((item) => item.name === table.name)} onClick={() => addTable(table)}>＋ {table.name}</button>)}</div><button onClick={() => setAddOpen(false)}>{t('panel.query.builder.m72fceed137')}</button></div>}
       <div className="qb-main">
@@ -302,7 +302,7 @@ function TableCard({ table, selected, shadows, onToggle, onRemove, onAlias, onMo
   const [drag, setDrag] = useState<{ x: number; y: number } | null>(null)
   const [draggedColumn, setDraggedColumn] = useState<string | null>(null)
   return <article className="qb-table-card" style={{ position: 'absolute', left: table.x ?? 16, top: table.y ?? 16, boxShadow: shadows ? undefined : 'none' }} tabIndex={0} aria-label={`Table ${table.name}`} onPointerDown={(event) => { if ((event.target as HTMLElement).closest('input,button,label,[draggable="true"]')) return; setDrag({ x: event.clientX, y: event.clientY }); (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId) }} onPointerMove={(event) => { if (!drag) return; onMove(Math.max(0, (table.x ?? 0) + event.clientX - drag.x), Math.max(0, (table.y ?? 0) + event.clientY - drag.y)); setDrag({ x: event.clientX, y: event.clientY }) }} onPointerUp={() => setDrag(null)}>
-    <div className="qb-table-head"><strong>{table.name}</strong><label>{t('panel.query.builder.m05d1a408bc')} <input aria-label={`Alias for ${table.name}`} value={table.alias} onChange={(event) => onAlias(event.target.value)} /></label><button aria-label={`Remove ${table.name}`} onClick={onRemove}>×</button></div><div className="qb-table-columns"><label><input type="checkbox" checked={table.columns.every((column) => selected.has(`${table.alias}.${column.name}`))} onChange={(event) => table.columns.forEach((column) => onToggle(column.name, event.target.checked))} /> *</label>{table.columns.map((column) => <div className={`qb-column-row${draggedColumn === column.name ? ' dragging' : ''}`} key={column.name} draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = 'link'; event.dataTransfer.setData('application/x-dbforgelinux-query-column', JSON.stringify({ table: table.alias, column: column.name })); setDraggedColumn(column.name) }} onDragEnd={() => setDraggedColumn(null)} onDragOver={(event) => { if (event.dataTransfer.types.includes('application/x-dbforgelinux-query-column')) event.preventDefault() }} onDrop={(event) => { event.preventDefault(); try { const source = JSON.parse(event.dataTransfer.getData('application/x-dbforgelinux-query-column')) as { table?: string; column?: string }; if (source.table && source.column) onJoinColumns({ table: source.table, column: source.column }, { table: table.alias, column: column.name }) } catch { /* Ignore unrelated drags. */ } }} title={t('qb.dragJoin.dragColumnHint')}><input type="checkbox" checked={selected.has(`${table.alias}.${column.name}`)} onChange={(event) => onToggle(column.name, event.target.checked)} /><span>{column.name}</span><small>{column.primaryKey ? '🔑 ' : ''}{column.type}</small></div>)}</div>
+    <div className="qb-table-head"><strong>{table.name}</strong><label>{t('panel.query.builder.m05d1a408bc')} <input aria-label={`Alias for ${table.name}`} value={table.alias} onChange={(event) => onAlias(event.target.value)} /></label><button aria-label={`Remove ${table.name}`} onClick={onRemove}>×</button></div><div className="qb-table-columns"><label><input type="checkbox" checked={table.columns.every((column) => selected.has(`${table.alias}.${column.name}`))} onChange={(event) => table.columns.forEach((column) => onToggle(column.name, event.target.checked))} /> *</label>{table.columns.map((column) => <div className={`qb-column-row${draggedColumn === column.name ? ' dragging' : ''}`} key={column.name} draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = 'link'; event.dataTransfer.setData('application/x-tuxsql-query-column', JSON.stringify({ table: table.alias, column: column.name })); setDraggedColumn(column.name) }} onDragEnd={() => setDraggedColumn(null)} onDragOver={(event) => { if (event.dataTransfer.types.includes('application/x-tuxsql-query-column')) event.preventDefault() }} onDrop={(event) => { event.preventDefault(); try { const source = JSON.parse(event.dataTransfer.getData('application/x-tuxsql-query-column')) as { table?: string; column?: string }; if (source.table && source.column) onJoinColumns({ table: source.table, column: source.column }, { table: table.alias, column: column.name }) } catch { /* Ignore unrelated drags. */ } }} title={t('qb.dragJoin.dragColumnHint')}><input type="checkbox" checked={selected.has(`${table.alias}.${column.name}`)} onChange={(event) => onToggle(column.name, event.target.checked)} /><span>{column.name}</span><small>{column.primaryKey ? '🔑 ' : ''}{column.type}</small></div>)}</div>
   </article>
 }
 

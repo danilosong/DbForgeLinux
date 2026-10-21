@@ -39,19 +39,19 @@ export default function Panel(): React.JSX.Element {
   const [message, setMessage] = useState('')
   const [preview, setPreview] = useState('')
 
-  useEffect(() => { void window.dbforge.getConnections().then((items) => { setRecords(items); if (!activeConnection?.recordId && items[0]) setRecordId(items[0].id) }).catch(showError) }, [activeConnection?.recordId])
+  useEffect(() => { void window.tuxsql.getConnections().then((items) => { setRecords(items); if (!activeConnection?.recordId && items[0]) setRecordId(items[0].id) }).catch(showError) }, [activeConnection?.recordId])
   useEffect(() => { setConnection(activeConnection) }, [activeConnection])
   useEffect(() => { if (activeConnection?.recordId) setRecordId(activeConnection.recordId) }, [activeConnection?.recordId])
   useEffect(() => {
     const connectionId = connection?.id
     const shouldDisconnect = Boolean(connectionId && connectionId !== activeConnection?.id)
-    return () => { if (connectionId && shouldDisconnect) void window.dbforge.disconnect(connectionId) }
+    return () => { if (connectionId && shouldDisconnect) void window.tuxsql.disconnect(connectionId) }
   }, [connection?.id, activeConnection?.id])
   const refreshAccounts = useCallback(async (): Promise<void> => {
     if (!connection) return
     setLoading(true); setError('')
     try {
-      const rows = await window.dbforge.listSecurityAccounts(connection.id)
+      const rows = await window.tuxsql.listSecurityAccounts(connection.id)
       setAccounts(rows)
       if (selected && !rows.some((row) => row.user === selected.user && row.host === selected.host)) setSelected(undefined)
       setMessage('')
@@ -62,12 +62,12 @@ export default function Panel(): React.JSX.Element {
     if (!connection) return
     setError('')
     try {
-      const value = await window.dbforge.getSecurityDetails(connection.id, ref)
+      const value = await window.tuxsql.getSecurityDetails(connection.id, ref)
       setDetails(value); setAccountForm(value.account); setMode('view'); setPrivileges([]); setPrivilegeGrantOptions([])
     } catch (reason) { showError(reason) }
   }, [connection])
   useEffect(() => { if (connection) void refreshAccounts() }, [connection, refreshAccounts])
-  useEffect(() => { if (connection) void window.dbforge.listDatabases(connection.id).then(setDatabases).catch(showError) }, [connection])
+  useEffect(() => { if (connection) void window.tuxsql.listDatabases(connection.id).then(setDatabases).catch(showError) }, [connection])
   useEffect(() => { if (connection && selected) void loadDetails(selected) }, [connection, selected, loadDetails])
 
   const visibleAccounts = useMemo(() => accounts.filter((item) => `${item.user}@${item.host}`.toLowerCase().includes(search.toLowerCase())), [accounts, search])
@@ -88,7 +88,7 @@ export default function Panel(): React.JSX.Element {
     const record = records.find((item) => item.id === recordId)
     if (!record) return
     setLoading(true); setError(''); setMessage('')
-    try { setConnection(await window.dbforge.connect(record)) }
+    try { setConnection(await window.tuxsql.connect(record)) }
     catch (reason) { showError(reason) }
     finally { setLoading(false) }
   }
@@ -122,7 +122,7 @@ export default function Panel(): React.JSX.Element {
     if (!connection || !changes.length) return
     setLoading(true); setError('')
     try {
-      const plan = await window.dbforge.previewSecurityChanges(connection.id, changes)
+      const plan = await window.tuxsql.previewSecurityChanges(connection.id, changes)
       setPreview(plan.statements.map((item) => item.previewSql).join('\n\n'))
       setTab('Preview SQL')
     } catch (reason) { showError(reason) }
@@ -131,19 +131,19 @@ export default function Panel(): React.JSX.Element {
   async function applyChanges(): Promise<void> {
     if (!connection || !changes.length) return
     let plan
-    try { plan = await window.dbforge.previewSecurityChanges(connection.id, changes) }
+    try { plan = await window.tuxsql.previewSecurityChanges(connection.id, changes) }
     catch (reason) { showError(reason); return }
     const risky = plan.statements.some((item) => item.risk !== 'normal')
     const summary = `${plan.statements.length} statement(s) will be applied.\n\n${plan.statements.map((item) => `${item.risk.toUpperCase()}: ${item.previewSql}`).join('\n\n')}${risky ? '\n\nThis operation includes risky or destructive changes.' : ''}`
     if (!window.confirm(summary)) return
     setLoading(true); setError('')
     try {
-      const results = await window.dbforge.applySecurityChanges(connection.id, changes, true)
+      const results = await window.tuxsql.applySecurityChanges(connection.id, changes, true)
       const failed = results.filter((item) => !item.success)
       setChanges([]); setPreview('')
       if (failed.length) setError(failed.map((item) => `Statement ${item.index + 1}: ${item.error}`).join('\n'))
       else setMessage('Changes applied successfully.')
-      await window.dbforge.listSecurityAccounts(connection.id).then(setAccounts)
+      await window.tuxsql.listSecurityAccounts(connection.id).then(setAccounts)
     } catch (reason) { showError(reason) }
     finally { setLoading(false) }
   }

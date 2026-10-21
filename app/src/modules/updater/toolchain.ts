@@ -35,7 +35,7 @@ async function isNativeBinary(path: string): Promise<boolean> {
 
 /**
  * Finds pnpm when the app was started from a desktop launcher (no shell profile, so no nvm/volta PATH).
- * Order: toolchain recorded at build time -> DBFORGE_PNPM -> PATH -> common install locations.
+ * Order: toolchain recorded at build time -> TUXSQL_PNPM -> PATH -> common install locations.
  */
 export async function resolvePnpm(build: BuildInfo | undefined, env: NodeJS.ProcessEnv = process.env, home = homedir()): Promise<PnpmCommand> {
   const basePath = env.PATH ?? ''
@@ -46,12 +46,12 @@ export async function resolvePnpm(build: BuildInfo | undefined, env: NodeJS.Proc
     return { file: recorded.nodePath, prefix: [recorded.pnpmExecPath], path: `${dirname(recorded.nodePath)}${delimiter}${basePath}` }
   }
   const candidates: string[] = []
-  if (env.DBFORGE_PNPM && isAbsolute(env.DBFORGE_PNPM)) candidates.push(env.DBFORGE_PNPM)
+  if (env.TUXSQL_PNPM && isAbsolute(env.TUXSQL_PNPM)) candidates.push(env.TUXSQL_PNPM)
   for (const dir of basePath.split(delimiter).filter(Boolean)) candidates.push(join(dir, 'pnpm'))
   if (env.PNPM_HOME) candidates.push(join(env.PNPM_HOME, 'pnpm'))
   candidates.push(...await nvmCandidates(home), join(home, '.local', 'share', 'pnpm', 'pnpm'), join(home, '.local', 'bin', 'pnpm'), '/usr/local/bin/pnpm', '/usr/bin/pnpm')
   for (const candidate of candidates) {
     if (await isExecutable(candidate)) return { file: candidate, prefix: [], path: `${dirname(candidate)}${delimiter}${basePath}` }
   }
-  throw new Error('pnpm was not found. Install it, set DBFORGE_PNPM to its full path, or rebuild with pnpm so the toolchain is recorded in buildInfo.json.')
+  throw new Error('pnpm was not found. Install it, set TUXSQL_PNPM to its full path, or rebuild with pnpm so the toolchain is recorded in buildInfo.json.')
 }

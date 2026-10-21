@@ -5,8 +5,8 @@ import { join } from 'node:path'
 import { once } from 'node:events'
 import { _electron as electron } from 'playwright'
 
-const appPath = join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux')
-const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-a11y-'))
+const appPath = join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql')
+const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-a11y-'))
 const axePath = join(process.cwd(), 'node_modules', 'axe-core', 'axe.min.js')
 let app
 const issues = []
@@ -56,7 +56,7 @@ try {
   await viewMenu.getByRole('button', { name: 'Tasks' }).click()
   const tasksDock = page.locator('.right-dock .tasks-panel')
   await tasksDock.waitFor()
-  await page.evaluate(() => window.dbforge.recordRecentTask({ kind: 'backup', title: 'Keyboard backup task', detail: 'a11y fixture' }))
+  await page.evaluate(() => window.tuxsql.recordRecentTask({ kind: 'backup', title: 'Keyboard backup task', detail: 'a11y fixture' }))
   await tasksDock.getByRole('button', { name: /Refresh/ }).click()
   await tasksDock.getByText('Keyboard backup task').waitFor()
   await scan('View / Tasks')

@@ -1,4 +1,4 @@
-export const databaseObjectDragType = 'application/x-dbforgelinux-database-object'
+export const databaseObjectDragType = 'application/x-tuxsql-database-object'
 
 export interface DatabaseObjectDragPayload {
   connectionId: string

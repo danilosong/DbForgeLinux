@@ -2,7 +2,7 @@
 
 Reusa `01-shell.md`, `03` (DataGrid), `06` (export). **[C]** CONFIRMADO / **[I]** INFERIDO.
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Data Editor; Pivot Table; Master-Detail Browser; Data Report) e https://www.devart.com/dbforge/mysql/studio/data-reports.html, .../pivot-table.html. Citações por redirecionamento; páginas individuais não abertas. Fidelidade REA: rótulos conferidos contra REA ui-text.
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Data Editor; Pivot Table; Master-Detail Browser; Data Report) e https://www.devart.com/tuxsql/mysql/studio/data-reports.html, .../pivot-table.html. Citações por redirecionamento; páginas individuais não abertas. Fidelidade REA: rótulos conferidos contra REA ui-text.
 
 ## 1. Data Viewer [C: painel; "Data Viewer" / "Show Data Viewer" REA ui-text]
 Painel dock que mostra o conteúdo **da célula selecionada** no grid (Table Data/resultado). Abas: **Text**, **Hex**, **Image**, **JSON**, **XML**/HTML [I]. Auto-detecta tipo; seletor manual. Texto: Monaco read-only com quebra de linha opcional, busca, copy; Hex: offset|bytes|ASCII, 16 por linha; Image: zoom/fit/ rotate, dimensões e tamanho; JSON: árvore colapsável + pretty; modo edição (se grid editável): [Apply to cell] [Revert], Load from file…/Save to file… (BLOB, via portal GTK). Estados: vazio "Selecione uma célula"; loading de BLOB grande (skeleton + [Cancel]); erro de decodificação ("Não é uma imagem válida – exibindo Hex"); limite de preview (ex.: 10 MB; [Carregar tudo]).

@@ -8,7 +8,7 @@ import { usePanelConnection, usePanelNavigation } from '../registry'
 
 type Distribution = 'specified' | 'volume' | 'time' | 'lookup'
 const quote = (name: string): string => `\`${name.replaceAll('`', '``')}\``
-const countResult = (results: Awaited<ReturnType<typeof window.dbforge.executeSql>>): number => Number(results[0]?.rows?.[0]?.count ?? 0)
+const countResult = (results: Awaited<ReturnType<typeof window.tuxsql.executeSql>>): number => Number(results[0]?.rows?.[0]?.count ?? 0)
 
 export default function Panel(): React.JSX.Element {
   const { t } = useI18n()
@@ -45,7 +45,7 @@ export default function Panel(): React.JSX.Element {
   async function load(): Promise<void> {
     setError('')
     try {
-      const value = await window.dbforge.inspectGenerationSchema(connectionId, database)
+      const value = await window.tuxsql.inspectGenerationSchema(connectionId, database)
       setSchema(value)
       const preferred = value.tables.some((item) => item.name === selectedExplorerTable) ? selectedExplorerTable! : value.tables[0]?.name ?? ''
       setTable(preferred)
@@ -75,7 +75,7 @@ export default function Panel(): React.JSX.Element {
     if (!table) return
     setError('')
     try {
-      const value = await window.dbforge.previewGeneration(connectionId, database, table, generators, seed)
+      const value = await window.tuxsql.previewGeneration(connectionId, database, table, generators, seed)
       setPreview(value)
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Failed to preview generated data.') }
   }
@@ -88,7 +88,7 @@ export default function Panel(): React.JSX.Element {
     const measured: Record<string, number> = { ...existingCounts }
     for (const name of tables) {
       if (measured[name] !== undefined) continue
-      const result = await window.dbforge.executeSql(connectionId, `SELECT COUNT(*) AS count FROM ${quote(database)}.${quote(name)}`)
+      const result = await window.tuxsql.executeSql(connectionId, `SELECT COUNT(*) AS count FROM ${quote(database)}.${quote(name)}`)
       measured[name] = countResult(result)
     }
     setExistingCounts(measured)
@@ -105,7 +105,7 @@ export default function Panel(): React.JSX.Element {
       const counts = await rowCountsForGeneration()
       const total = Object.values(counts).reduce((sum, value) => sum + value, 0)
       if (!window.confirm(`${t('panel.data.generator.confirm')} ${total} rows across ${selected.join(', ')}. Data is appended in a transaction.`)) return
-      const value = await window.dbforge.generateTestData({ connectionId, database, tables: selected, rowsPerTable: counts, generators, seed, confirmed: true })
+      const value = await window.tuxsql.generateTestData({ connectionId, database, tables: selected, rowsPerTable: counts, generators, seed, confirmed: true })
       setReport(`${value.inserted} rows inserted across ${Object.keys(value.tables).length} tables.`)
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Data generation failed.') }
     finally { setBusy(false) }

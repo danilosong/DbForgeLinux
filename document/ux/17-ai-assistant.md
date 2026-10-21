@@ -2,7 +2,7 @@
 
 Reusa `01-shell.md`, `03` (CodeEditor), `02` (credenciais/cofre). **[C]** CONFIRMADO / **[I]** INFERIDO.
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (AI Assistant) e https://www.devart.com/dbforge/mysql/studio/ai-assistant.html. Citações por redirecionamento; páginas individuais não abertas. Original usa Copilot embutido com Chromium (CefGlue, inventário); no clone o chat é nativo (sem CEF).
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (AI Assistant) e https://www.devart.com/tuxsql/mysql/studio/ai-assistant.html. Citações por redirecionamento; páginas individuais não abertas. Original usa Copilot embutido com Chromium (CefGlue, inventário); no clone o chat é nativo (sem CEF).
 
 **Fidelidade REA (ui-text):** no original o AI Assistant é um **serviço em nuvem Devart** com Sign In, termos ("Devart AI Terms of Services" / "Devart AI Policy"), cota de tokens por licença/trial e histórico de chats em arquivo local. **Não há** seletor de provedor/endpoint/API key na evidência REA; a configuração multi-provedor (§4) é adaptação do clone **[I]**. Fonte dos rótulos: **REA ui-text**; atalhos: **REA shortcuts** (não existe comando de atalho para AI Assistant).
 
@@ -33,7 +33,7 @@ Natural language → SQL [C]; explicar SQL selecionado/script [C]; encontrar/cor
 - Dados de resultado/seleção só quando marcados explicitamente, com aviso "Pode conter dados sensíveis".
 - Primeiro uso [C]: diálogo de consentimento com checkbox "Concordo com os Devart AI Terms of Services e Devart AI Policy" (links tos/policy) e botão **Sign In** [C REA ui-text]; no clone: provedor, o que é enviado, link da política [I]; recusar mantém o painel desabilitado.
 - Redação opcional (Options > AI): mascarar literais string/numéricos em SQL enviado; ignorar tabelas/colunas listadas (ex.: `users.password`); conexões marcadas Prod/"sensível" bloqueiam envio de schema (configurável).
-- Chaves/credenciais do provedor no cofre do SO; nunca em logs. Histórico das conversas local (`$XDG_DATA_HOME/dbforgelinux/ai`), apagável (Clear all).
+- Chaves/credenciais do provedor no cofre do SO; nunca em logs. Histórico das conversas local (`$XDG_DATA_HOME/tuxsql/ai`), apagável (Clear all).
 
 ## 4. Provedores e configuração
 Options > AI Assistant: Provedor (OpenAI-compatível / Anthropic / Gemini / **Local (Ollama/endpoint HTTP)** [I]), Endpoint URL, Modelo (campo + lista), API key (PasswordInput; [Test] mostra OK/erro), temperatura, limite de contexto/tokens, timeout, proxy do sistema. Local sem rede é recomendado para dados sensíveis. [Test] estados: loading/ sucesso verde com latência / erro vermelho com causa (401, rede, modelo inexistente).

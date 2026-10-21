@@ -51,7 +51,7 @@ describe('AI Assistant streaming IPC', () => {
       response.write('{"message":{"content":"first "},"done":false}\n')
       setTimeout(() => { response.write('{"message":{"content":"second"},"done":false}\n'); response.end('{"done":true}\n') }, 10)
     })
-    const directory = await mkdtemp(join(tmpdir(), 'dbforge-ai-ipc-')); directories.push(directory)
+    const directory = await mkdtemp(join(tmpdir(), 'tuxsql-ai-ipc-')); directories.push(directory)
     await register(endpoint, directory)
     const webContents = sender()
     const requestId = 'request-one'
@@ -72,7 +72,7 @@ describe('AI Assistant streaming IPC', () => {
       const timer = setInterval(() => response.write('{"message":{"content":"more"},"done":false}\n'), 20)
       response.on('close', () => { responseClosed = true; clearInterval(timer) })
     })
-    const directory = await mkdtemp(join(tmpdir(), 'dbforge-ai-ipc-')); directories.push(directory)
+    const directory = await mkdtemp(join(tmpdir(), 'tuxsql-ai-ipc-')); directories.push(directory)
     await register(endpoint, directory)
     const webContents = sender()
     const requestId = 'cancel-me'
@@ -86,7 +86,7 @@ describe('AI Assistant streaming IPC', () => {
 
   it('emits a status-only error event for provider HTTP failures', async () => {
     const endpoint = await serve((_request, response) => { response.writeHead(429); response.end('private provider detail') })
-    const directory = await mkdtemp(join(tmpdir(), 'dbforge-ai-ipc-')); directories.push(directory)
+    const directory = await mkdtemp(join(tmpdir(), 'tuxsql-ai-ipc-')); directories.push(directory)
     await register(endpoint, directory)
     const webContents = sender()
     await expect(ipc.handlers.get('ai-assistant:complete')!({ sender: webContents }, { requestId: 'rate-limited', messages: [{ role: 'user', content: 'hello' }] }) as Promise<unknown>).rejects.toThrow('HTTP 429')

@@ -8,7 +8,7 @@ const directories: string[] = []
 afterEach(async () => { await Promise.all(directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true }))) })
 
 async function createStore(): Promise<{ directory: string; path: string; store: SqlExecutionHistoryStore }> {
-  const directory = await mkdtemp(join(tmpdir(), 'dbforge-history-'))
+  const directory = await mkdtemp(join(tmpdir(), 'tuxsql-history-'))
   directories.push(directory)
   const path = join(directory, 'sql-history.json')
   return { directory, path, store: new SqlExecutionHistoryStore(path) }

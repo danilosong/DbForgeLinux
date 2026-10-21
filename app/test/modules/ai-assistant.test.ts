@@ -182,7 +182,7 @@ describe('AI Assistant provider client', () => {
   })
 
   it('stores provider metadata without persisting an API key', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'dbforge-ai-settings-')); directories.push(directory)
+    const directory = await mkdtemp(join(tmpdir(), 'tuxsql-ai-settings-')); directories.push(directory)
     const path = join(directory, 'ai-assistant.json')
     const store = new AiAssistantSettingsStore(path)
     await store.save({ ...defaultAiAssistantSettings, provider: 'local', endpoint: 'http://127.0.0.1:11434', model: 'qwen2.5-coder' })

@@ -7,8 +7,8 @@ import { once } from 'node:events'
 import { _electron as electron } from 'playwright'
 
 const packedApp = join(process.cwd(), 'dist', 'linux-unpacked')
-const appPath = join(packedApp, existsSync(join(packedApp, 'dbforgelinux')) ? 'dbforgelinux' : 'electron')
-const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-about-ui-'))
+const appPath = join(packedApp, existsSync(join(packedApp, 'tuxsql')) ? 'tuxsql' : 'electron')
+const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-about-ui-'))
 const evidenceDirectory = join(process.cwd(), '..', 'document', 'evidence', 'ui')
 let app
 
@@ -32,7 +32,7 @@ try {
   for (const theme of ['light', 'dark']) {
     await selectTheme(theme)
     await page.locator('summary').filter({ hasText: /^Help$/ }).click()
-    await page.locator('.menu-action').filter({ hasText: /About dbForgeLinux|Sobre o dbForgeLinux/i }).click()
+    await page.locator('.menu-action').filter({ hasText: /About TuxSQL Song|Sobre o TuxSQL Song/i }).click()
     await page.locator('.about-panel').waitFor()
     await page.waitForFunction(() => {
       const versions = [...document.querySelectorAll('.about-versions dd')]

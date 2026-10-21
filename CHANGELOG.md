@@ -1,6 +1,10 @@
 # Changelog
 
-Mudanças notáveis do dbForgeLinux. O projeto ainda está em desenvolvimento; esta lista registra o estado inicial documentado.
+Mudanças notáveis do TuxSQL Song. O projeto ainda está em desenvolvimento; esta lista registra o estado inicial documentado.
+
+## Renomeação para TuxSQL Song
+
+O projeto deixou o nome anterior (que continha uma marca de terceiros) e passou a se chamar **TuxSQL Song**: pacote e executável `tuxsql`, repositório `danilosong/TuxSQL`. Os dados em `~/.config/dbforge-linux` (conexões, configurações, histórico, tarefas, diagramas) são copiados automaticamente para `~/.config/tuxsql` na primeira execução. **Senhas salvas não migram** (o chaveiro do sistema está ligado ao nome antigo do app): digite-as novamente. Variáveis `DBFORGE_*` viraram `TUXSQL_*`, a API do preload é `window.tuxsql` e o comando de desenvolvimento é `tools/tuxsql-dev`.
 
 ## 0.1.0 — Primeira versão pública
 

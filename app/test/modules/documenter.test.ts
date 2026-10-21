@@ -51,7 +51,7 @@ describe('documenter', () => {
   })
 
   it('writes HTML, Markdown, SVG and PDF bytes through the isolated printer interface', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'dbforge-doc-'))
+    const directory = await mkdtemp(join(tmpdir(), 'tuxsql-doc-'))
     const printToPDF = vi.fn(async (html: string) => Buffer.from(`PDF:${html.length}`))
     try {
       const output = await writeDocumentation(model, { outputDirectory: directory, includeDiagram: true, formats: ['html', 'markdown', 'pdf'], pdfPrinter: { printToPDF } })
@@ -65,7 +65,7 @@ describe('documenter', () => {
   })
 
   it('requires a PDF printer only when PDF output is requested', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'dbforge-doc-'))
+    const directory = await mkdtemp(join(tmpdir(), 'tuxsql-doc-'))
     try { await expect(writeDocumentation(model, { outputDirectory: directory, formats: ['pdf'] })).rejects.toThrow('PdfPrintToPdf') }
     finally { await rm(directory, { recursive: true, force: true }) }
   })

@@ -5,9 +5,9 @@ import type { SchemaUpdateItem } from '../../../../../modules/schema-update/inde
 export default function SchemaUpdatePanel(): React.JSX.Element {
   const { t } = useI18n(); const [items, setItems] = useState<SchemaUpdateItem[]>([]); const [selected, setSelected] = useState<string[]>([]); const [previewOpen, setPreviewOpen] = useState(false); const [message, setMessage] = useState(''); const [busy, setBusy] = useState(false)
   const chosen = useMemo(() => items.filter((item) => selected.includes(item.id)), [items, selected]); const script = chosen.map((item) => `-- ${item.source} → ${item.database}\n${item.script}`).join('\n\n')
-  const refresh = useCallback(async (): Promise<void> => { try { setItems(await window.dbforge.listSchemaUpdates()) } catch (error) { setMessage(error instanceof Error ? error.message : t('extras.schema.previewUnavailable')) } }, [t])
+  const refresh = useCallback(async (): Promise<void> => { try { setItems(await window.tuxsql.listSchemaUpdates()) } catch (error) { setMessage(error instanceof Error ? error.message : t('extras.schema.previewUnavailable')) } }, [t])
   useEffect(() => { void refresh() }, [refresh])
-  async function remove(): Promise<void> { if (!selected.length) return; await window.dbforge.removeSchemaUpdates(selected); setSelected([]); await refresh() }
+  async function remove(): Promise<void> { if (!selected.length) return; await window.tuxsql.removeSchemaUpdates(selected); setSelected([]); await refresh() }
   async function execute(): Promise<void> {
     if (!chosen.length) return
     const target = chosen[0]!.database
@@ -15,7 +15,7 @@ export default function SchemaUpdatePanel(): React.JSX.Element {
     const risk = chosen.some((item) => item.destructive)
     if (!window.confirm(t('extras.schema.confirm', [target]) + (risk ? '\n\nThis script contains destructive statements.' : ''))) return
     setBusy(true); setMessage('')
-    try { const result = await window.dbforge.executeSchemaUpdates(selected, true); setMessage(`${t('extras.schema.result', [result.succeeded, result.failed])}${result.errors.length ? ` · ${result.errors.join('; ')}` : ''}`); await refresh(); setSelected([]) }
+    try { const result = await window.tuxsql.executeSchemaUpdates(selected, true); setMessage(`${t('extras.schema.result', [result.succeeded, result.failed])}${result.errors.length ? ` · ${result.errors.join('; ')}` : ''}`); await refresh(); setSelected([]) }
     catch (error) { setMessage(error instanceof Error ? error.message : t('extras.schema.failed')) }
     finally { setBusy(false) }
   }

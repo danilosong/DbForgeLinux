@@ -7,7 +7,7 @@ import { _electron as electron } from 'playwright'
 import mysql from 'mysql2/promise'
 import { mysqlTestPrefix, mysqlTestUser } from './mysql-test-prefix.mjs'
 
-const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-editor-designer-'))
+const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-editor-designer-'))
 const evidenceRoot = join(process.cwd(), '..', 'document', 'evidence', 'ui')
 const sqlEvidence = join(evidenceRoot, '04-sql-editor')
 const tableEvidence = join(evidenceRoot, '03-table-designer')
@@ -26,7 +26,7 @@ try {
   await admin.query(`GRANT ALL PRIVILEGES ON \`${database}\`.* TO '${dbUser}'@'%'`)
   await admin.query(`CREATE TABLE \`${database}\`.\`${tableName}\` (id INT PRIMARY KEY AUTO_INCREMENT, customer_name VARCHAR(80) NOT NULL, note VARCHAR(100) NULL) ENGINE=InnoDB`)
   await admin.query(`INSERT INTO \`${database}\`.\`${tableName}\` (customer_name, note) VALUES ('Ada', NULL)`)
-  app = await electron.launch({ executablePath: join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux'), args: [], env: { ...process.env, XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
+  app = await electron.launch({ executablePath: join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql'), args: [], env: { ...process.env, XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
   const page = await app.firstWindow()
   page.setDefaultTimeout(10000)
   page.on('console', (message) => console.log(`[renderer] ${message.type()}: ${message.text()}`))

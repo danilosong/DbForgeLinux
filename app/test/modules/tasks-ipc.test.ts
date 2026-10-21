@@ -9,7 +9,7 @@ import { RecentTasksStore } from '../../src/main/modules/tasks/RecentTasksStore.
 
 describe('recent tasks IPC', () => {
   it('records, lists, reorders and deletes whitelisted task metadata', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dbforge-task-ipc-'))
+    const dir = await mkdtemp(join(tmpdir(), 'tuxsql-task-ipc-'))
     try {
       registerTasksIpc(new RecentTasksStore(join(dir, 'recent-tasks.json')))
       const record = handlers.get('tasks:recent:record')!
@@ -29,7 +29,7 @@ describe('recent tasks IPC', () => {
   })
 
   it('rejects unknown task kinds and malformed deletion identifiers', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'dbforge-task-invalid-'))
+    const dir = await mkdtemp(join(tmpdir(), 'tuxsql-task-invalid-'))
     try {
       registerTasksIpc(new RecentTasksStore(join(dir, 'recent-tasks.json')))
       await expect(handlers.get('tasks:recent:record')!({}, { kind: 'shell', title: 'run', detail: '' })).rejects.toThrow('Invalid task type')

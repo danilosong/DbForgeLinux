@@ -8,7 +8,7 @@ import { BackupScheduleStore, cronMatches, scheduledBackupPath, validateBackupSc
 
 const dirs: string[] = []
 afterEach(async () => { await Promise.all(dirs.splice(0).map((path) => rm(path, { recursive: true, force: true }))) })
-async function temp(): Promise<string> { const path = await mkdtemp(join(tmpdir(), 'dbforge-extra-')); dirs.push(path); return path }
+async function temp(): Promise<string> { const path = await mkdtemp(join(tmpdir(), 'tuxsql-extra-')); dirs.push(path); return path }
 
 describe('schema update queue', () => {
   it('persists scripts, marks destructive statements and splits queued SQL', async () => {

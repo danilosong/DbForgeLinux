@@ -2,7 +2,7 @@ import { resolve } from 'node:path'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 
-const bundleRoot = resolve(process.cwd(), process.env.DBFORGE_BUILD_DIR ?? 'out')
+const bundleRoot = resolve(process.cwd(), process.env.TUXSQL_BUILD_DIR ?? 'out')
 
 export default defineConfig({
   main: { plugins: [externalizeDepsPlugin()], build: { outDir: resolve(bundleRoot, 'main'), emptyOutDir: false } },

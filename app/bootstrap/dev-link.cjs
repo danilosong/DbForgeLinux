@@ -5,9 +5,9 @@
 // the app runs that checkout's build, so "Update" (git pull + rebuild) changes what runs without reinstalling the
 // package. Without a link it runs the bundled build, exactly as before.
 //
-//   ~/.config/dbforgelinux/dev-link.json  ->  { "repoPath": "/path/to/dbForgeLinux" }
+//   ~/.config/tuxsql/dev-link.json  ->  { "repoPath": "/path/to/TuxSQL" }
 //
-// Set DBFORGE_NO_DEV_LINK=1 to ignore the link for one run.
+// Set TUXSQL_NO_DEV_LINK=1 to ignore the link for one run.
 const fs = require('node:fs')
 const os = require('node:os')
 const path = require('node:path')
@@ -20,10 +20,10 @@ function ownedAndNotWorldWritable(file) {
 }
 
 function linkedCheckout() {
-  if (process.env.DBFORGE_NO_DEV_LINK === '1') return undefined
+  if (process.env.TUXSQL_NO_DEV_LINK === '1') return undefined
   try {
     const configHome = process.env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config')
-    const config = JSON.parse(fs.readFileSync(path.join(configHome, 'dbforgelinux', 'dev-link.json'), 'utf8'))
+    const config = JSON.parse(fs.readFileSync(path.join(configHome, 'tuxsql', 'dev-link.json'), 'utf8'))
     if (typeof config.repoPath !== 'string' || !path.isAbsolute(config.repoPath)) return undefined
     const appRoot = path.join(config.repoPath, 'app')
     const entry = path.join(appRoot, 'out', 'main', 'index.js')

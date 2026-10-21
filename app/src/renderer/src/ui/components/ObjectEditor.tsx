@@ -42,7 +42,7 @@ export function ObjectEditor({ target, isNew, isProduction, autoCommit = true, t
     if (isNew) return
     let cancelled = false
     setLoading(true)
-    void window.dbforge.loadObjectEditor(target).then((object) => {
+    void window.tuxsql.loadObjectEditor(target).then((object) => {
       if (cancelled) return
       if (object.kind === 'table') { const tableObject = object as TableModel; setOriginal(tableObject); setTable(structuredClone(tableObject)) }
       setSql(object.createSql ?? ('definition' in object ? String(object.definition) : ''))
@@ -59,13 +59,13 @@ export function ObjectEditor({ target, isNew, isProduction, autoCommit = true, t
   async function refreshObject(): Promise<void> {
     if (isNew) { setTable(blankTable(target.name)); return }
     setBusy(true); setError('')
-    try { const object = await window.dbforge.loadObjectEditor(target); if (object.kind === 'table') { const loaded = object as TableModel; setOriginal(structuredClone(loaded)); setTable(structuredClone(loaded)) } setMessage('Object refreshed.') } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not refresh object.') } finally { setBusy(false) }
+    try { const object = await window.tuxsql.loadObjectEditor(target); if (object.kind === 'table') { const loaded = object as TableModel; setOriginal(structuredClone(loaded)); setTable(structuredClone(loaded)) } setMessage('Object refreshed.') } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not refresh object.') } finally { setBusy(false) }
   }
 
   async function loadTableData(): Promise<void> {
     if (!table) return
     setDataBusy(true); setError('')
-    try { const results = await window.dbforge.executeSql(target.connectionId, `SELECT * FROM ${quoteIdentifier(target.database)}.${quoteIdentifier(table.name)} LIMIT 500`, undefined, target.database); setDataResult(results.find((item) => item.columns.length)); setDataCardIndex(0) } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not load table data.') } finally { setDataBusy(false) }
+    try { const results = await window.tuxsql.executeSql(target.connectionId, `SELECT * FROM ${quoteIdentifier(target.database)}.${quoteIdentifier(table.name)} LIMIT 500`, undefined, target.database); setDataResult(results.find((item) => item.columns.length)); setDataCardIndex(0) } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not load table data.') } finally { setDataBusy(false) }
   }
 
   function updateColumn(index: number, change: Partial<ColumnModel>): void {
@@ -92,7 +92,7 @@ export function ObjectEditor({ target, isNew, isProduction, autoCommit = true, t
       if (isProduction && window.prompt(`Conexão de produção. Digite ${target.name} para confirmar.`) !== target.name) return
       setBusy(true)
       try {
-        const applied = await window.dbforge.applyTableEditor(target.connectionId, target.database, original, table)
+        const applied = await window.tuxsql.applyTableEditor(target.connectionId, target.database, original, table)
         setOriginal(structuredClone(table)); setCreated(true); setMessage(applied.length ? `Tabela ${table.name} atualizada.` : 'Sem alterações pendentes.'); onApplied()
       } catch (reason) { setError(reason instanceof Error ? reason.message : 'Falha ao aplicar alterações.') }
       finally { setBusy(false) }
@@ -101,14 +101,14 @@ export function ObjectEditor({ target, isNew, isProduction, autoCommit = true, t
     if (!window.confirm(`Apply ${target.kind} ${target.name}?\n\n${preview}`)) return
     if (isProduction && window.prompt(`Conexão de produção. Digite ${target.name} para confirmar.`) !== target.name) return
     setBusy(true)
-    try { await window.dbforge.applyObjectEditor(target, sql); setCreated(true); setMessage(`${target.kind} ${target.name} atualizado.`); onApplied() }
+    try { await window.tuxsql.applyObjectEditor(target, sql); setCreated(true); setMessage(`${target.kind} ${target.name} atualizado.`); onApplied() }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Falha ao aplicar a definição.') }
     finally { setBusy(false) }
   }
 
   async function queueTableChanges(): Promise<void> {
     if (!table || busy) return
-    try { await window.dbforge.queueTableSchemaUpdate(target.connectionId, target.database, original, table); setMessage(t('extras.schema.added')) }
+    try { await window.tuxsql.queueTableSchemaUpdate(target.connectionId, target.database, original, table); setMessage(t('extras.schema.added')) }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not queue table changes.') }
   }
 
@@ -119,7 +119,7 @@ export function ObjectEditor({ target, isNew, isProduction, autoCommit = true, t
     const query = target.kind === 'procedure' ? `CALL ${quoteIdentifier(target.database)}.${quoteIdentifier(target.name)}(${parameters})` : `SELECT ${quoteIdentifier(target.database)}.${quoteIdentifier(target.name)}(${parameters}) AS result`
     if (!window.confirm(`Execute ${target.kind} ${target.name}?\n\n${query}`)) return
     setBusy(true)
-    try { const result = await window.dbforge.executeSql(target.connectionId, query); setMessage(JSON.stringify(result.map((item) => item.rows.length ? item.rows : { affectedRows: item.affectedRows }), null, 2)) }
+    try { const result = await window.tuxsql.executeSql(target.connectionId, query); setMessage(JSON.stringify(result.map((item) => item.rows.length ? item.rows : { affectedRows: item.affectedRows }), null, 2)) }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Falha na execução.') }
     finally { setBusy(false) }
   }

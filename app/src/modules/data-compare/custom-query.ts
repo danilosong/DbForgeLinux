@@ -92,5 +92,5 @@ export function validateCustomCompareQuery(sql: string): string {
 export function boundCustomCompareQuery(sql: string, maximum = 50_001): string {
   if (!Number.isSafeInteger(maximum) || maximum < 1 || maximum > 50_001) throw new RangeError('Custom comparison row limit is invalid.')
   const query = validateCustomCompareQuery(sql)
-  return `SELECT * FROM (${query}) AS _dbforge_custom_result LIMIT ${maximum}`
+  return `SELECT * FROM (${query}) AS _tuxsql_custom_result LIMIT ${maximum}`
 }

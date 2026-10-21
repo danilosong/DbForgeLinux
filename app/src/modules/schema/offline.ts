@@ -4,12 +4,12 @@ import type { DatabaseModel, TableModel } from './model.js'
 import { readBoundedRegularFile } from '../security/boundedFile.js'
 
 export const SCHEMA_SNAPSHOT_VERSION = 1
-export interface SchemaSnapshot { format: 'dbforge-schema-snapshot'; version: 1; createdAt: string; schema: DatabaseModel }
+export interface SchemaSnapshot { format: 'tuxsql-schema-snapshot'; version: 1; createdAt: string; schema: DatabaseModel }
 
 /** Serializes only the supported, versioned model. Never evaluates snapshot content. */
 export function createSchemaSnapshot(schema: DatabaseModel, createdAt = new Date().toISOString()): SchemaSnapshot {
   validateModel(schema)
-  return { format: 'dbforge-schema-snapshot', version: SCHEMA_SNAPSHOT_VERSION, createdAt, schema: structuredClone(schema) }
+  return { format: 'tuxsql-schema-snapshot', version: SCHEMA_SNAPSHOT_VERSION, createdAt, schema: structuredClone(schema) }
 }
 
 export function parseSchemaSnapshot(text: string): DatabaseModel {
@@ -18,7 +18,7 @@ export function parseSchemaSnapshot(text: string): DatabaseModel {
   try { value = JSON.parse(text) } catch { throw new Error('Invalid schema snapshot JSON.') }
   if (!value || typeof value !== 'object') throw new Error('Invalid schema snapshot.')
   const snapshot = value as Partial<SchemaSnapshot>
-  if (snapshot.format !== 'dbforge-schema-snapshot' || snapshot.version !== SCHEMA_SNAPSHOT_VERSION || !snapshot.schema) throw new Error('Unsupported schema snapshot format or version.')
+  if (snapshot.format !== 'tuxsql-schema-snapshot' || snapshot.version !== SCHEMA_SNAPSHOT_VERSION || !snapshot.schema) throw new Error('Unsupported schema snapshot format or version.')
   validateModel(snapshot.schema)
   return snapshot.schema
 }

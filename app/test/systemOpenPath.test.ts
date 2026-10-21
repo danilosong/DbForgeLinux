@@ -6,7 +6,7 @@ import { validateSystemOpenPath } from '../src/main/security/systemOpenPath.js'
 
 describe('validated system open paths', () => {
   it('accepts regular output files and resolves their parent for Open folder', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dbforge-open-path-'))
+    const root = await mkdtemp(join(tmpdir(), 'tuxsql-open-path-'))
     try {
       const output = join(root, 'report.csv')
       await writeFile(output, 'id\n1\n')
@@ -17,7 +17,7 @@ describe('validated system open paths', () => {
   })
 
   it('rejects missing paths, wrong target types, and symlinks', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dbforge-open-path-'))
+    const root = await mkdtemp(join(tmpdir(), 'tuxsql-open-path-'))
     try {
       const file = join(root, 'report.csv')
       const executable = join(root, 'launcher.desktop')

@@ -4,9 +4,9 @@ import { join } from 'node:path'
 import type { AboutInfo, AboutLink } from '../../shared/contracts/about.js'
 
 const links: Record<AboutLink, string> = {
-  documentation: 'https://github.com/danilosong/DbForgeLinux/tree/main/document/user-guide',
-  repository: 'https://github.com/danilosong/DbForgeLinux',
-  license: 'https://github.com/danilosong/DbForgeLinux/blob/main/app/LICENSE'
+  documentation: 'https://github.com/danilosong/TuxSQL/tree/main/document/user-guide',
+  repository: 'https://github.com/danilosong/TuxSQL',
+  license: 'https://github.com/danilosong/TuxSQL/blob/main/app/LICENSE'
 }
 
 export function registerAboutIpc(): void {
@@ -14,7 +14,7 @@ export function registerAboutIpc(): void {
     const packageRequire = createRequire(join(app.getAppPath(), 'package.json'))
     const mysql2Version = String((packageRequire('mysql2/package.json') as { version?: string }).version ?? 'unknown')
     return {
-      name: 'dbForgeLinux',
+      name: 'TuxSQL Song',
       version: app.getVersion(),
       creator: 'Danilo Song',
       license: 'MIT',

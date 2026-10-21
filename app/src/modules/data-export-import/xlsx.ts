@@ -34,8 +34,8 @@ function columnName(index: number): string {
 function cell(value: unknown, ref: string): string {
   if (typeof value === 'number' && Number.isFinite(value)) return `<c r="${ref}"><v>${value}</v></c>`
   if (typeof value === 'boolean') return `<c r="${ref}" t="b"><v>${value ? 1 : 0}</v></c>`
-  if (value === null || value === undefined) return `<c r="${ref}" t="inlineStr"><is><t>__DBFORGE_NULL__</t></is></c>`
-  const text = Buffer.isBuffer(value) ? `__DBFORGE_BINARY__${value.toString('base64')}` : value instanceof Date ? `__DBFORGE_DATE__${value.toISOString()}` : xmlValue(value)
+  if (value === null || value === undefined) return `<c r="${ref}" t="inlineStr"><is><t>__TUXSQL_NULL__</t></is></c>`
+  const text = Buffer.isBuffer(value) ? `__TUXSQL_BINARY__${value.toString('base64')}` : value instanceof Date ? `__TUXSQL_DATE__${value.toISOString()}` : xmlValue(value)
   return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${xmlEscape(text)}</t></is></c>`
 }
 
@@ -63,7 +63,7 @@ function centralHeader(entry: ZipEntry, offset: number): Buffer {
 
 /** Writes an OOXML workbook while keeping worksheet rows on disk instead of in memory. */
 export async function writeXlsx(rows: AsyncIterable<Row>, out: Writable, signal?: AbortSignal): Promise<{ rows: number; bytes: number }> {
-  const directory = await mkdtemp(join(tmpdir(), 'dbforge-xlsx-'))
+  const directory = await mkdtemp(join(tmpdir(), 'tuxsql-xlsx-'))
   const sheetPath = join(directory, 'sheet1.xml')
   let count = 0
   let columns: string[] = []
@@ -178,9 +178,9 @@ export async function readXlsx(buffer: Buffer): Promise<{ columns: string[]; row
       const text = /<t(?:\s[^>]*)?>(.*?)<\/t>/s.exec(inner)?.[1] ?? /<v>(.*?)<\/v>/s.exec(inner)?.[1] ?? ''
       const decoded = text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&')
       const type = /\bt="([^"]+)"/.exec(attrs)?.[1]
-      const value = decoded === '__DBFORGE_NULL__' ? null
-        : decoded.startsWith('__DBFORGE_BINARY__') ? Buffer.from(decoded.slice('__DBFORGE_BINARY__'.length), 'base64')
-          : decoded.startsWith('__DBFORGE_DATE__') ? new Date(decoded.slice('__DBFORGE_DATE__'.length))
+      const value = decoded === '__TUXSQL_NULL__' ? null
+        : decoded.startsWith('__TUXSQL_BINARY__') ? Buffer.from(decoded.slice('__TUXSQL_BINARY__'.length), 'base64')
+          : decoded.startsWith('__TUXSQL_DATE__') ? new Date(decoded.slice('__TUXSQL_DATE__'.length))
             : type === 'b' ? decoded === '1'
               : type === undefined && decoded !== '' && Number.isFinite(Number(decoded)) ? Number(decoded) : decoded
       values.set(column - 1, value)

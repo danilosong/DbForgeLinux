@@ -12,8 +12,8 @@ END`
     const result = instrumentProcedure(source)
     expect(result.statementLines).toEqual([4, 5])
     expect(result.variables).toEqual(['total'])
-    expect(result.sql).toContain('checkpoint(@dbforge_linux_debug_id, 4, JSON_OBJECT(\'total\', `total`))')
-    expect(result.sql).toContain('checkpoint(@dbforge_linux_debug_id, 5, JSON_OBJECT(\'total\', `total`))')
+    expect(result.sql).toContain('checkpoint(@tuxsql_linux_debug_id, 4, JSON_OBJECT(\'total\', `total`))')
+    expect(result.sql).toContain('checkpoint(@tuxsql_linux_debug_id, 5, JSON_OBJECT(\'total\', `total`))')
     expect(result.sql).toContain('DECLARE total INT DEFAULT 0;')
   })
 
@@ -43,7 +43,7 @@ END`
     const result = instrumentTrigger(source, 'debug_test')
     expect(result.statementLines).toEqual([3])
     expect(result.sql).toContain('AFTER INSERT ON audit_rows FOR EACH ROW')
-    expect(result.sql).toContain('`debug_test`.checkpoint(@dbforge_linux_debug_id, 3, JSON_OBJECT())')
+    expect(result.sql).toContain('`debug_test`.checkpoint(@tuxsql_linux_debug_id, 3, JSON_OBJECT())')
     expect(result.sql).toContain('INSERT INTO audit_log(id) VALUES (NEW.id);')
     expect(() => instrumentTrigger('CREATE PROCEDURE p() BEGIN SELECT 1; END')).toThrow(/only stored triggers/i)
   })
@@ -51,10 +51,10 @@ END`
 
 describe('debug engine schema helpers', () => {
   it('uses the project-owned auxiliary schema and persists sources for recovery', () => {
-    expect(DEBUG_SCHEMA).toBe('dbforge_linux_debug')
+    expect(DEBUG_SCHEMA).toBe('tuxsql_linux_debug')
     expect(engineDdl().some((sql) => sql.includes('routine_sources') && sql.includes('original_sql'))).toBe(true)
     expect(engineDdl().some((sql) => sql.includes('GET_LOCK'))).toBe(true)
-    expect(engineDdl('dbforge_linux_debug_test').join('\n')).toContain('CREATE DATABASE IF NOT EXISTS `dbforge_linux_debug_test`')
+    expect(engineDdl('tuxsql_linux_debug_test').join('\n')).toContain('CREATE DATABASE IF NOT EXISTS `tuxsql_linux_debug_test`')
     expect(engineDdl().join('\n')).not.toMatch(/watch_value\s+VARCHAR\s*\(\s*\d{5,}/i)
     expect(quoteDebugIdentifier('db`name')).toBe('`db``name`')
   })

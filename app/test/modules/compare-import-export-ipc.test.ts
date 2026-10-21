@@ -24,7 +24,7 @@ describe('comparison and import/export IPC safeguards', () => {
   })
 
   it('previews and imports the file selected by the native dialog without opening it twice', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'dbforge-import-ipc-'))
+    const directory = await mkdtemp(join(tmpdir(), 'tuxsql-import-ipc-'))
     try {
       const file = join(directory, 'source.json')
       await writeFile(file, '[{"source_id":4}]')
@@ -45,7 +45,7 @@ describe('comparison and import/export IPC safeguards', () => {
   })
 
   it('writes a safe SQL import script to the path chosen by the user', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'dbforge-import-script-'))
+    const directory = await mkdtemp(join(tmpdir(), 'tuxsql-import-script-'))
     try {
       const file = join(directory, 'source.json'); const output = join(directory, 'generated.sql')
       await writeFile(file, JSON.stringify([{ id: 9, label: "quoted ' value" }]))
@@ -62,7 +62,7 @@ describe('comparison and import/export IPC safeguards', () => {
   })
 
   it('asks through the main process after each failed row when prompt policy is selected', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'dbforge-import-prompt-'))
+    const directory = await mkdtemp(join(tmpdir(), 'tuxsql-import-prompt-'))
     try {
       const file = join(directory, 'source.json')
       await writeFile(file, '[{"id":1},{"id":2}]')
@@ -83,7 +83,7 @@ describe('comparison and import/export IPC safeguards', () => {
   })
 
   it('stores sanitized templates under userData', async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'dbforge-template-ipc-'))
+    const directory = await mkdtemp(join(tmpdir(), 'tuxsql-template-ipc-'))
     try {
       vi.mocked(app.getPath).mockReturnValue(directory)
       registerImportExportIpc({ driver: {} } as never)

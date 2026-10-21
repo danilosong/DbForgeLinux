@@ -8,7 +8,7 @@ type Props = { summary: ReactNode; paths?: string[]; onError?: (message: string)
 export default function AssistantFinish({ summary, paths = [], onError }: Props): React.JSX.Element {
   const { t } = useI18n()
   async function open(path: string, kind: 'file' | 'folder'): Promise<void> {
-    try { await window.dbforge.openPathInSystem(path, kind) }
+    try { await window.tuxsql.openPathInSystem(path, kind) }
     catch (error) { onError?.(error instanceof Error ? error.message : t('assistant.finish.openError')) }
   }
   return <section className="assistant-finish" aria-labelledby="assistant-finish-title">

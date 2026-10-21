@@ -30,10 +30,10 @@ export class ResultSpool {
     if (this.closed) throw new Error('Result spool is closed.')
     if (this.count % BLOCK_SIZE === 0) this.offsets.push(this.bytes)
     const line = `${JSON.stringify(row, (_key, value: unknown) => {
-      if (Buffer.isBuffer(value) || value instanceof Uint8Array) return { $dbforgeBinary: Buffer.from(value).toString('base64') }
-      if (value && typeof value === 'object' && (value as { type?: string }).type === 'Buffer' && Array.isArray((value as { data?: unknown }).data)) return { $dbforgeBinary: Buffer.from((value as { data: number[] }).data).toString('base64') }
-      if (value instanceof Date) return { $dbforgeDate: value.toISOString() }
-      if (typeof value === 'bigint') return { $dbforgeBigInt: value.toString() }
+      if (Buffer.isBuffer(value) || value instanceof Uint8Array) return { $tuxsqlBinary: Buffer.from(value).toString('base64') }
+      if (value && typeof value === 'object' && (value as { type?: string }).type === 'Buffer' && Array.isArray((value as { data?: unknown }).data)) return { $tuxsqlBinary: Buffer.from((value as { data: number[] }).data).toString('base64') }
+      if (value instanceof Date) return { $tuxsqlDate: value.toISOString() }
+      if (typeof value === 'bigint') return { $tuxsqlBigInt: value.toString() }
       return value
     })}\n`
     this.pending.push(line)
@@ -56,9 +56,9 @@ export class ResultSpool {
     try {
       for await (const line of lines) {
         if (rowIndex >= offset && result.length < limit) result.push(JSON.parse(line, (_key, value: unknown) => {
-          if (value && typeof value === 'object' && '$dbforgeBinary' in value) return Buffer.from(String((value as { $dbforgeBinary: string }).$dbforgeBinary), 'base64')
-          if (value && typeof value === 'object' && '$dbforgeDate' in value) return new Date(String((value as { $dbforgeDate: string }).$dbforgeDate))
-          if (value && typeof value === 'object' && '$dbforgeBigInt' in value) return BigInt(String((value as { $dbforgeBigInt: string }).$dbforgeBigInt))
+          if (value && typeof value === 'object' && '$tuxsqlBinary' in value) return Buffer.from(String((value as { $tuxsqlBinary: string }).$tuxsqlBinary), 'base64')
+          if (value && typeof value === 'object' && '$tuxsqlDate' in value) return new Date(String((value as { $tuxsqlDate: string }).$tuxsqlDate))
+          if (value && typeof value === 'object' && '$tuxsqlBigInt' in value) return BigInt(String((value as { $tuxsqlBigInt: string }).$tuxsqlBigInt))
           return value
         }) as Record<string, unknown>)
         rowIndex++

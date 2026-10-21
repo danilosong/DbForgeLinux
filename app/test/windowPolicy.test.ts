@@ -3,8 +3,8 @@ import { isTrustedRendererNavigation, maySaveSqlToPath } from '../src/main/secur
 
 describe('renderer navigation policy', () => {
   it('allows only the current local renderer document or dev origin', () => {
-    expect(isTrustedRendererNavigation('file:///opt/dbforge/renderer/index.html', 'file:///opt/dbforge/renderer/index.html#options')).toBe(true)
-    expect(isTrustedRendererNavigation('file:///opt/dbforge/renderer/index.html', 'file:///tmp/attacker.html')).toBe(false)
+    expect(isTrustedRendererNavigation('file:///opt/tuxsql/renderer/index.html', 'file:///opt/tuxsql/renderer/index.html#options')).toBe(true)
+    expect(isTrustedRendererNavigation('file:///opt/tuxsql/renderer/index.html', 'file:///tmp/attacker.html')).toBe(false)
     expect(isTrustedRendererNavigation('http://localhost:5173/', 'http://localhost:5173/options')).toBe(true)
     expect(isTrustedRendererNavigation('http://localhost:5173/', 'https://attacker.example/')).toBe(false)
     expect(isTrustedRendererNavigation('http://localhost:5173/', 'javascript:alert(1)')).toBe(false)

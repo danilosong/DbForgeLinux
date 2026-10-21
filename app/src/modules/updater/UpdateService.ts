@@ -270,7 +270,7 @@ export class UpdateService {
       await rm(next, { recursive: true, force: true })
       await rm(backupPath, { recursive: true, force: true })
       this.update({ phase: 'building', progress: 10, message: undefined }, 'Building into the isolated out.next directory…')
-      await pnpm(['build'], { DBFORGE_BUILD_DIR: 'out.next' })
+      await pnpm(['build'], { TUXSQL_BUILD_DIR: 'out.next' })
       for (const relative of ['main/index.js', 'preload/index.js', 'renderer/index.html', 'buildInfo.json']) {
         await stat(join(next, relative))
       }

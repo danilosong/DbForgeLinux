@@ -1,5 +1,5 @@
-appId: com.dbforgelinux.app
-productName: dbForgeLinux
+appId: com.tuxsql.app
+productName: TuxSQLSong
 directories:
   output: dist
   buildResources: packaging
@@ -16,7 +16,7 @@ fileAssociations:
     role: Editor
 linux:
   icon: packaging/icon.png
-  executableName: dbforgelinux
+  executableName: tuxsql
   syncDesktopName: true
   mimeTypes:
     - application/sql
@@ -24,11 +24,12 @@ linux:
     - AppImage
     - deb
   category: Development;Database;
-  maintainer: dbForgeLinux contributors <noreply@github.com>
+  maintainer: TuxSQL Song contributors <noreply@github.com>
   desktop:
     entry:
-      Icon: dbforgelinux
-      StartupWMClass: dbforgelinux
+      Name: TuxSQL Song
+      Icon: tuxsql
+      StartupWMClass: tuxsql
       StartupNotify: 'true'
   synopsis: MySQL and MariaDB database client
   description: Desktop database client for MySQL and MariaDB.
@@ -45,10 +46,10 @@ deb:
     - libsecret-1-0
     - libasound2t64 | libasound2
     - libgbm1
-artifactName: dbForgeLinux_${version}_${arch}.${ext}
+artifactName: tuxsql_${version}_${arch}.${ext}
 npmRebuild: false
 publish:
   provider: github
   owner: danilosong
-  repo: DbForgeLinux
+  repo: TuxSQL
   releaseType: release

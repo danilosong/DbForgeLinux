@@ -9,7 +9,7 @@ import { _electron as electron } from 'playwright'
 import mysql from 'mysql2/promise'
 import { mysqlTestPrefix } from './mysql-test-prefix.mjs'
 
-const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-connection-ui-'))
+const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-connection-ui-'))
 const evidenceRoot = join(process.cwd(), '..', 'document', 'evidence', 'ui', '01-connection')
 const database = mysqlTestPrefix('connection_dialog')
 const admin = await mysql.createConnection({ host: '127.0.0.1', port: 33067, user: 'root', password: process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only' })
@@ -17,7 +17,7 @@ let app
 try {
   await admin.query(`CREATE DATABASE \`${database}\``)
   await mkdir(evidenceRoot, { recursive: true })
-  app = await electron.launch({ executablePath: join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux'), args: [], env: { ...process.env, XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
+  app = await electron.launch({ executablePath: join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql'), args: [], env: { ...process.env, XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
   const page = await app.firstWindow()
   page.setDefaultTimeout(15000)
   await page.locator('.workbench').waitFor()

@@ -7,7 +7,7 @@ import { engineDdl, instrumentProcedure, instrumentTrigger, quoteDebugIdentifier
 const enabled = process.env.MYSQL_INTEGRATION === '1'
 describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
   const driver = new MysqlDriver()
-  const testDatabase = `dbforge_debug_test_${process.pid}_${randomUUID().slice(0, 8)}`
+  const testDatabase = `tuxsql_debug_test_${process.pid}_${randomUUID().slice(0, 8)}`
   const procedure = `routine_debug_${process.pid}_${randomUUID().slice(0, 8)}`
   const debugId = randomUUID()
   const triggerDebugId = randomUUID()
@@ -37,7 +37,7 @@ describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
 
   it('deploys the helper, pauses in a dedicated target session, steps, and restores the original DDL', async () => {
     connectionId = await driver.connect({
-      ...createDefaultConnection(`dbforge_test_routine_connection_${process.pid}_${randomUUID().slice(0, 8)}`, 'Routine debugger integration'),
+      ...createDefaultConnection(`tuxsql_test_routine_connection_${process.pid}_${randomUUID().slice(0, 8)}`, 'Routine debugger integration'),
       host: process.env.MYSQL_HOST ?? '127.0.0.1', port: Number(process.env.MYSQL_PORT ?? 33067), user: 'root', password: 'integration-only'
     })
     controller = await driver.openDedicatedSession(connectionId)
@@ -71,7 +71,7 @@ END`
     await controller.execute(`INSERT INTO ${schema('debug_sessions')}(debug_id,connection_id,database_name,routine_name,status,step_kind) VALUES (?,?,?,?,'running','into')`, [debugId, connectionId, testDatabase, procedure])
     await executor.execute(`DROP PROCEDURE ${quoteDebugIdentifier(procedure)}`)
     await executor.execute(instrumented.sql)
-    await executor.execute(`SET @dbforge_linux_debug_id='${debugId}'`)
+    await executor.execute(`SET @tuxsql_linux_debug_id='${debugId}'`)
     await controller.execute(`INSERT INTO ${schema('breakpoints')}(debug_id,line_number,enabled) VALUES (?,?,TRUE)`, [debugId, instrumented.statementLines[1]])
     callTask = executor.execute(`CALL ${quoteDebugIdentifier(procedure)}()`).then(() => undefined)
 
@@ -102,7 +102,7 @@ END`
     await controller.execute(`INSERT INTO ${schema('breakpoints')}(debug_id,line_number,enabled) VALUES (?,?,TRUE)`, [triggerDebugId, instrumentedTrigger.statementLines[0]])
     await executor.execute(`DROP TRIGGER ${quoteDebugIdentifier(trigger)}`)
     await executor.execute(instrumentedTrigger.sql)
-    await executor.execute(`SET @dbforge_linux_debug_id='${triggerDebugId}'`)
+    await executor.execute(`SET @tuxsql_linux_debug_id='${triggerDebugId}'`)
     await executor.execute('SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED')
     callTask = executor.execute('INSERT INTO audit_values VALUES (10)').then(() => undefined)
     await waitForTriggerPause(triggerDebugId, instrumentedTrigger.statementLines[0]!, callTask)

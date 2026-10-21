@@ -1,3 +1,3 @@
 import { ipcRenderer } from 'electron'
-import type { DbForgeApi } from '../../shared/contracts.js'
-export const documenterApi:Pick<DbForgeApi,'listDocumenterObjects'|'previewDatabaseDocumentation'|'generateDatabaseDocumentation'|'openDocumentationPath'>={listDocumenterObjects:(id,database)=>ipcRenderer.invoke('documenter:tree',id,database),previewDatabaseDocumentation:(id,database,title)=>ipcRenderer.invoke('documenter:preview',id,database,title),generateDatabaseDocumentation:input=>ipcRenderer.invoke('documenter:generate',input),openDocumentationPath:path=>ipcRenderer.invoke('documenter:open',path)}
+import type { TuxSqlApi } from '../../shared/contracts.js'
+export const documenterApi:Pick<TuxSqlApi,'listDocumenterObjects'|'previewDatabaseDocumentation'|'generateDatabaseDocumentation'|'openDocumentationPath'>={listDocumenterObjects:(id,database)=>ipcRenderer.invoke('documenter:tree',id,database),previewDatabaseDocumentation:(id,database,title)=>ipcRenderer.invoke('documenter:preview',id,database,title),generateDatabaseDocumentation:input=>ipcRenderer.invoke('documenter:generate',input),openDocumentationPath:path=>ipcRenderer.invoke('documenter:open',path)}

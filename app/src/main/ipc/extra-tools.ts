@@ -59,7 +59,7 @@ export function registerExtraToolsIpc(deps: IpcDeps): void {
   })
   ipcMain.handle('snippets:export', async (_event, locale: 'en' | 'pt-BR') => {
     const portuguese = locale === 'pt-BR'
-    const options = { title: portuguese ? 'Exportar trechos SQL' : 'Export SQL snippets', defaultPath: 'dbforgelinux-snippets.json', filters: [{ name: portuguese ? 'Arquivo JSON de trechos' : 'Snippet JSON', extensions: ['json'] }] }
+    const options = { title: portuguese ? 'Exportar trechos SQL' : 'Export SQL snippets', defaultPath: 'tuxsql-snippets.json', filters: [{ name: portuguese ? 'Arquivo JSON de trechos' : 'Snippet JSON', extensions: ['json'] }] }
     const window = BrowserWindow.getFocusedWindow(); const selected = window ? await dialog.showSaveDialog(window, options) : await dialog.showSaveDialog(options)
     if (selected.canceled || !selected.filePath) return null
     await writeFile(selected.filePath, await snippets.export(), { encoding: 'utf8', mode: 0o600 }); await chmod(selected.filePath, 0o600); return selected.filePath

@@ -386,13 +386,13 @@ export class MysqlDriver implements DbDriver {
   async withSavepoint<T>(connectionId: string, operation: () => Promise<T>): Promise<T> {
     const connection = this.requireConnection(connectionId).transactionConnection
     if (!connection) throw new Error('A document transaction is required for a grid batch savepoint.')
-    await connection.query('SAVEPOINT dbforge_grid_edit_batch')
+    await connection.query('SAVEPOINT tuxsql_grid_edit_batch')
     try {
       const result = await operation()
-      await connection.query('RELEASE SAVEPOINT dbforge_grid_edit_batch')
+      await connection.query('RELEASE SAVEPOINT tuxsql_grid_edit_batch')
       return result
     } catch (error) {
-      try { await connection.query('ROLLBACK TO SAVEPOINT dbforge_grid_edit_batch') } finally { await connection.query('RELEASE SAVEPOINT dbforge_grid_edit_batch') }
+      try { await connection.query('ROLLBACK TO SAVEPOINT tuxsql_grid_edit_batch') } finally { await connection.query('RELEASE SAVEPOINT tuxsql_grid_edit_batch') }
       throw error
     }
   }

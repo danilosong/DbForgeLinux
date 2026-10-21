@@ -17,7 +17,7 @@ const preferences: UpdatePreferences = { checkOnStartup: true, automatic: false,
 afterEach(async () => { await Promise.all(tempDirs.splice(0).map((path) => rm(path, { recursive: true, force: true }))) })
 
 async function fixture(): Promise<{ root: string; infoPath: string; commit: string }> {
-  const root = await mkdtemp(join(tmpdir(), 'dbforge-updater-repo-'))
+  const root = await mkdtemp(join(tmpdir(), 'tuxsql-updater-repo-'))
   tempDirs.push(root)
   await mkdir(join(root, 'app', 'out', 'main'), { recursive: true })
   await mkdir(join(root, 'app', 'out', 'preload'), { recursive: true })
@@ -83,7 +83,7 @@ describe('development updater', () => {
 
   it('refuses a buildInfo repository path outside the checkout owning buildInfo', async () => {
     const { root, infoPath } = await fixture()
-    const other = await mkdtemp(join(tmpdir(), 'dbforge-updater-other-')); tempDirs.push(other)
+    const other = await mkdtemp(join(tmpdir(), 'tuxsql-updater-other-')); tempDirs.push(other)
     const info = JSON.parse(await readFile(infoPath, 'utf8')) as Record<string, unknown>
     await writeFile(infoPath, JSON.stringify({ ...info, repoPath: other }))
     const checked = await service(root, infoPath).check()
@@ -109,8 +109,8 @@ describe('development updater', () => {
     expect(await readFile(join(root, 'README.md'), 'utf8')).toBe('local edit\n')
 
     const { root: behindRoot, infoPath: behindInfo } = await fixture()
-    const remote = await mkdtemp(join(tmpdir(), 'dbforge-updater-remote-'))
-    const work = await mkdtemp(join(tmpdir(), 'dbforge-updater-work-'))
+    const remote = await mkdtemp(join(tmpdir(), 'tuxsql-updater-remote-'))
+    const work = await mkdtemp(join(tmpdir(), 'tuxsql-updater-work-'))
     tempDirs.push(remote, work)
     execFileSync('git', ['clone', '--bare', behindRoot, remote], { stdio: 'ignore' })
     execFileSync('git', ['-C', behindRoot, 'remote', 'add', 'origin', remote])
@@ -191,7 +191,7 @@ describe('development updater', () => {
 
 describe('release artifact verification', () => {
   it('downloads from a local HTTPS release server and rejects a bad sha512', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'dbforge-updater-https-'))
+    const root = await mkdtemp(join(tmpdir(), 'tuxsql-updater-https-'))
     tempDirs.push(root)
     const keyPath = join(root, 'key.pem'); const certPath = join(root, 'cert.pem')
     execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-keyout', keyPath, '-out', certPath, '-subj', '/CN=localhost', '-days', '1'], { stdio: 'ignore' })

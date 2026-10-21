@@ -10,14 +10,14 @@ import { mysqlTestPrefix } from './mysql-test-prefix.mjs'
 const testPrefix = mysqlTestPrefix('import_export_ui')
 const database = testPrefix
 const table = `${testPrefix}_items`
-const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-imex-ui-'))
+const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-imex-ui-'))
 const admin = await mysql.createConnection({ host: process.env.MYSQL_HOST ?? '127.0.0.1', port: Number(process.env.MYSQL_PORT ?? 33067), user: process.env.MYSQL_USER ?? 'root', password: process.env.MYSQL_PASSWORD ?? 'integration-only' })
 let app
 try {
   await admin.query(`CREATE DATABASE \`${database}\``)
   await admin.query(`CREATE TABLE \`${database}\`.\`${table}\` (id INT PRIMARY KEY, label VARCHAR(80) NOT NULL)`)
   await admin.query(`INSERT INTO \`${database}\`.\`${table}\` VALUES (1, 'temporary evidence data')`)
-  const executablePath = join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux')
+  const executablePath = join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql')
   app = await electron.launch({
     executablePath, args: [], cwd: process.cwd(), timeout: 90_000,
     env: { ...process.env, XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' }

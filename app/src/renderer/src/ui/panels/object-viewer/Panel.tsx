@@ -12,15 +12,15 @@ export default function ObjectViewerPanel(): React.JSX.Element {
     let cancelled = false
     setDdl(''); setError(''); setStatistics(undefined)
     if (selectedObject) {
-      void window.dbforge.showCreateObject(selectedObject.connection.id, selectedObject.database, selectedObject.object).then((value) => { if (!cancelled) setDdl(value) }).catch((reason: unknown) => { if (!cancelled) setError(reason instanceof Error ? reason.message : t('nav.viewerError')) })
+      void window.tuxsql.showCreateObject(selectedObject.connection.id, selectedObject.database, selectedObject.object).then((value) => { if (!cancelled) setDdl(value) }).catch((reason: unknown) => { if (!cancelled) setError(reason instanceof Error ? reason.message : t('nav.viewerError')) })
       if (selectedObject.object.kind === 'table') {
         const literal = (value: string): string => `'${value.replaceAll("'", "''")}'`
         const query = `SELECT TABLE_ROWS AS rowEstimate, DATA_LENGTH AS dataBytes, INDEX_LENGTH AS indexBytes, CREATE_TIME AS createdAt, UPDATE_TIME AS updatedAt FROM information_schema.TABLES WHERE TABLE_SCHEMA = ${literal(selectedObject.database)} AND TABLE_NAME = ${literal(selectedObject.object.name)}`
-        void window.dbforge.executeSql(selectedObject.connection.id, query, crypto.randomUUID(), selectedObject.database).then(async (results) => {
+        void window.tuxsql.executeSql(selectedObject.connection.id, query, crypto.randomUUID(), selectedObject.database).then(async (results) => {
           const result = results[0]
           if (!result) return
-          const rows = result.resultStoreId ? await window.dbforge.readResultRows(result.resultStoreId, 0, 1) : result.rows
-          if (result.resultStoreId) await window.dbforge.disposeResult(result.resultStoreId)
+          const rows = result.resultStoreId ? await window.tuxsql.readResultRows(result.resultStoreId, 0, 1) : result.rows
+          if (result.resultStoreId) await window.tuxsql.disposeResult(result.resultStoreId)
           if (!cancelled) setStatistics(rows[0])
         }).catch(() => { if (!cancelled) setStatistics(undefined) })
       }

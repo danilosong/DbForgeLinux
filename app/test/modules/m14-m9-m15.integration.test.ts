@@ -74,7 +74,7 @@ describe.skipIf(!enabled)('M14, M9 Data Compare e M15 MySQL integration', () => 
     const verified = await compareData({ source: { driver, connectionId, database: sourceDb, table: 'items' }, target: { driver, connectionId, database: targetDb, table: 'items' }, keyColumns: ['id'] })
     expect(verified).toMatchObject({ compared: 2, same: 2, different: 0, sourceOnly: 0, targetOnly: 0 })
 
-    const outputDirectory = await mkdtemp(join(tmpdir(), 'dbforge-m15-'))
+    const outputDirectory = await mkdtemp(join(tmpdir(), 'tuxsql-m15-'))
     try {
       const artifacts = await writeDocumentation(schema, { outputDirectory, formats: ['html', 'markdown'], includeDiagram: true })
       expect((await readFile(artifacts.html!, 'utf8')).startsWith('<!doctype html>')).toBe(true)

@@ -21,10 +21,10 @@ O canal é detectado sozinho: existe `buildInfo.json` ao lado do bundle com `{co
 - Aplicar: (a) se `origin/<branch>` está à frente e a árvore está limpa → `git pull --ff-only` (nunca merge/reset/checkout; árvore suja = só avisa); (b) se `pnpm-lock.yaml` mudou → `pnpm install --frozen-lockfile`; (c) `pnpm build` em diretório temporário (`out.next`), valida o resultado (arquivos principais existem) e só então troca `out` por `out.next` (atômico); (d) `app.relaunch()`.
 - Falha em qualquer etapa: mantém o build atual, mostra o log, não deixa o app quebrado.
 - Todos os comandos por `execFile` com argumentos em array; `repoPath` vem do `buildInfo.json`/Options (nunca de input livre do renderer); canais de IPC só aceitam ações nomeadas (`check`, `apply`, `cancel`).
-- Script gerador do `buildInfo.json` no `pnpm build` (commit, branch, `git status --porcelain` limpo ou não, data) e launcher `tools/dbforge-dev` + `.desktop` de desenvolvimento que abre o app direto do build do repositório.
+- Script gerador do `buildInfo.json` no `pnpm build` (commit, branch, `git status --porcelain` limpo ou não, data) e launcher `tools/tuxsql-dev` + `.desktop` de desenvolvimento que abre o app direto do build do repositório.
 
 ## Canal release
-- `electron-updater` com provider GitHub (`danilosong/DbForgeLinux`); `publish` no `electron-builder.yml`; alvos Linux: **AppImage** (auto-update completo) e **.deb** (instalação inicial; atualização via `DebUpdater` quando disponível, com elevação por polkit — se indisponível, abre a página da release e informa).
+- `electron-updater` com provider GitHub (`danilosong/TuxSQL`); `publish` no `electron-builder.yml`; alvos Linux: **AppImage** (auto-update completo) e **.deb** (instalação inicial; atualização via `DebUpdater` quando disponível, com elevação por polkit — se indisponível, abre a página da release e informa).
 - CI (`.github/workflows/release.yml`): em tag `v*` roda typecheck/lint/test/build, gera AppImage + .deb + `latest-linux.yml` e publica a release (changelog de `CHANGELOG.md`).
 - Verificação de integridade: hashes sha512 do `latest-linux.yml`; sem HTTP (somente HTTPS); repositório privado exige token em variável de ambiente/cofre, nunca em texto puro.
 - Versão semântica em `package.json`; `CHANGELOG.md` alimenta as notas.

@@ -1,4 +1,5 @@
 import { app, BrowserWindow, Menu } from 'electron'
+import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { MysqlDriver } from './db/MysqlDriver.js'
@@ -8,6 +9,7 @@ import { PasswordVault } from './security/PasswordVault.js'
 import type { ConnectionRecord } from '../shared/contracts.js'
 import { registerIpcRegistry } from './ipc/registry.js'
 import { isTrustedRendererNavigation } from './security/windowPolicy.js'
+import { migrateLegacyUserData } from './legacyData.js'
 
 const driver = new MysqlDriver()
 let vault: PasswordVault
@@ -20,9 +22,13 @@ function queueSqlPath(path: string): void {
  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('app:open-sql-path', path)
  else pendingSqlPaths.push(path)
 }
+// Pin the data directory so it no longer depends on the product name, and bring over data from the old name.
+const userDataDir = join(app.getPath('appData'), 'tuxsql')
+app.setPath('userData', userDataDir)
+try { mkdirSync(userDataDir, { recursive: true }); migrateLegacyUserData(app.getPath('appData'), userDataDir) } catch { /* best effort: start with a fresh profile */ }
 const hasSingleInstance = app.requestSingleInstanceLock()
 if (!hasSingleInstance) app.quit()
-const linuxBackend = process.env.DBFORGE_LINUX_BACKEND
+const linuxBackend = process.env.TUXSQL_LINUX_BACKEND
 if (process.platform === 'linux' && (linuxBackend === 'x11' || linuxBackend === 'wayland')) app.commandLine.appendSwitch('ozone-platform', linuxBackend)
 else if (process.platform === 'linux') app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
 app.on('second-instance', (_event, argv) => { const file=argv.find((arg)=>arg.toLowerCase().endsWith('.sql'));if(file)queueSqlPath(file);if(mainWindow){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.focus()} })

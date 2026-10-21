@@ -34,7 +34,7 @@ export default function DataReportPivotPanel(): React.JSX.Element {
   const [message, setMessage] = useState(t('audit.report.loadHint'))
   const [reportKind, setReportKind] = useState<ReportKind>('standard')
   const [editingSql, setEditingSql] = useState(false)
-  const [designMode, setDesignMode] = useState(() => window.sessionStorage.getItem('dbforge:data-report-pivot:open-mode') === 'report')
+  const [designMode, setDesignMode] = useState(() => window.sessionStorage.getItem('tuxsql:data-report-pivot:open-mode') === 'report')
   const [reportDesign, setReportDesign] = useState<ReportDesign>(() => createReportDesign('Data Report', []))
   const [page, setPage] = useState(0)
   const chartWrapRef = useRef<HTMLDivElement>(null)
@@ -51,16 +51,16 @@ export default function DataReportPivotPanel(): React.JSX.Element {
       }
       else if (mode === 'pivot') setDesignMode(false)
     }
-    const pendingMode = window.sessionStorage.getItem('dbforge:data-report-pivot:open-mode')
+    const pendingMode = window.sessionStorage.getItem('tuxsql:data-report-pivot:open-mode')
     if (pendingMode === 'report' || pendingMode === 'pivot') {
-      window.sessionStorage.removeItem('dbforge:data-report-pivot:open-mode')
+      window.sessionStorage.removeItem('tuxsql:data-report-pivot:open-mode')
       if (pendingMode === 'report') {
         setReportDesign((current) => ({ ...current, dataSourceQuery: query, bands: current.bands.Detail.length || !fields.length ? current.bands : createReportDesign('Data Report', fields).bands }))
         setDesignMode(true)
       } else setDesignMode(false)
     }
-    window.addEventListener('dbforge:data-report-pivot:open', open)
-    return () => window.removeEventListener('dbforge:data-report-pivot:open', open)
+    window.addEventListener('tuxsql:data-report-pivot:open', open)
+    return () => window.removeEventListener('tuxsql:data-report-pivot:open', open)
   }, [fields, query])
 
   async function loadQuery(): Promise<void> {
@@ -68,7 +68,7 @@ export default function DataReportPivotPanel(): React.JSX.Element {
     if (!query.trim()) { setMessage(t('audit.report.queryRequired')); return }
     setBusy(true); setMessage(t('audit.report.loadingFields')); setDatasetId(''); setFields([]); setReportRows([]); setPivot(null); setChartVisible(false)
     try {
-      const loaded = await window.dbforge.loadReportQuery(active.id, query)
+      const loaded = await window.tuxsql.loadReportQuery(active.id, query)
       setDatasetId(loaded.datasetId); setFields(loaded.columns); setSampleCount(loaded.rowCount); setTruncated(loaded.truncated); setReportRows(loaded.sample)
       const detectedDates = loaded.columns.filter((field) => loaded.sample.some((row) => row[field] instanceof Date || typeof row[field] === 'string' && /^\d{4}-\d{2}-\d{2}(?:[ T]|$)/.test(row[field] as string)))
       setDateFields(detectedDates)
@@ -86,7 +86,7 @@ export default function DataReportPivotPanel(): React.JSX.Element {
     const next = buildPivotConfigFromRoles(fields, roles, dateGrouping, aggregationByField, config)
     const request = ++pivotRequestRef.current
     setBusy(true); setMessage(t('audit.report.building')); setDesignMode(false)
-    try { const result = await window.dbforge.buildPivot(datasetId, next); if (request !== pivotRequestRef.current) return; lastPivotConfigRef.current = JSON.stringify(next); setPivot(result); setConfig(next); setMessage(t('audit.report.rowCount', [result.rowCount.toLocaleString(), result.truncated ? t('audit.report.partial') : ''])) }
+    try { const result = await window.tuxsql.buildPivot(datasetId, next); if (request !== pivotRequestRef.current) return; lastPivotConfigRef.current = JSON.stringify(next); setPivot(result); setConfig(next); setMessage(t('audit.report.rowCount', [result.rowCount.toLocaleString(), result.truncated ? t('audit.report.partial') : ''])) }
     catch (error) { setMessage(error instanceof Error ? error.message : t('audit.report.buildFailed')) }
     finally { setBusy(false) }
   }
@@ -98,7 +98,7 @@ export default function DataReportPivotPanel(): React.JSX.Element {
     if (signature === lastPivotConfigRef.current) return
     const request = ++pivotRequestRef.current
     const timer = window.setTimeout(() => {
-      void window.dbforge.buildPivot(datasetId, next).then((result) => {
+      void window.tuxsql.buildPivot(datasetId, next).then((result) => {
         if (request !== pivotRequestRef.current) return
         lastPivotConfigRef.current = signature
         setPivot(result)
@@ -113,7 +113,7 @@ export default function DataReportPivotPanel(): React.JSX.Element {
 
   async function exportResult(format: ReportExportFormat): Promise<void> {
     if (!pivot) return
-    try { const path = await window.dbforge.exportPivot(pivot, format); if (path) setMessage(t('audit.report.exported', [path])) }
+    try { const path = await window.tuxsql.exportPivot(pivot, format); if (path) setMessage(t('audit.report.exported', [path])) }
     catch (error) { setMessage(error instanceof Error ? error.message : t('audit.report.exportFailed')) }
   }
   function startDesign(): void { setReportDesign((current) => ({ ...current, dataSourceQuery: query, bands: current.bands.Detail.length || !fields.length ? current.bands : createReportDesign('Data Report', fields).bands })); setDesignMode(true); setPage(0) }

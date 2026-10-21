@@ -85,7 +85,7 @@ function definition(object: SchemaObject, database: DatabaseModel): string | und
 }
 
 export async function createBackupSql(database: DatabaseModel, includeData: boolean, readRows: BackupRows): Promise<{ sql: string; skipped: string[]; rows: number }> {
-  const sql: string[] = ['-- dbForgeLinux database backup', 'SET NAMES utf8mb4;']
+  const sql: string[] = ['-- TuxSQL Song database backup', 'SET NAMES utf8mb4;']
   const skipped: string[] = []; let rowsWritten = 0
   const objects: SchemaObject[] = [...database.tables, ...database.views, ...database.procedures, ...database.functions, ...database.triggers, ...database.events]
   for (const object of objects) {
@@ -117,7 +117,7 @@ export async function createBackupSqlWithOptions(database: DatabaseModel, option
   const objects: SchemaObject[] = [...database.tables, ...database.views, ...database.procedures, ...database.functions, ...database.triggers, ...database.events]
   const selected = objects.filter((item) => kinds.has(item.kind as BackupObjectKind) && (options.includeRoutines || !['procedure', 'function'].includes(item.kind)) && (options.includeTriggers || item.kind !== 'trigger') && (options.includeEvents || item.kind !== 'event'))
   const includeStructure = options.includeStructure !== false
-  const output = [`-- dbForgeLinux database backup`, ...(options.flushLogs ? ['FLUSH LOGS;'] : []), ...(options.includeUse ? [`USE ${quoteId(database.name)};`] : []), `SET NAMES ${/^[A-Za-z0-9_]+$/.test(options.charset) ? options.charset : 'utf8mb4'};`, ...(options.noAutoValueOnZero ? ["SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';"] : [])]
+  const output = [`-- TuxSQL Song database backup`, ...(options.flushLogs ? ['FLUSH LOGS;'] : []), ...(options.includeUse ? [`USE ${quoteId(database.name)};`] : []), `SET NAMES ${/^[A-Za-z0-9_]+$/.test(options.charset) ? options.charset : 'utf8mb4'};`, ...(options.noAutoValueOnZero ? ["SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';"] : [])]
   const skipped: string[] = []; let rows = 0; let done = 0
   const includedObjects = new Set<string>()
   const structureObjects = includeStructure ? selected : []

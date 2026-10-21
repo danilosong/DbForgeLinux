@@ -116,8 +116,8 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
     if (canceled || !filePath) throw new Error('Exportação cancelada.')
     const controller = startJob(event, jobId)
     try {
-      const temporaryOutput = options?.compress ? join(app.getPath('temp'), `dbforge-export-${randomUUID()}.${extensions[format]}`) : filePath
-      const temporaryHtml = format === 'pdf' ? join(app.getPath('temp'), `dbforge-export-${randomUUID()}.html`) : undefined
+      const temporaryOutput = options?.compress ? join(app.getPath('temp'), `tuxsql-export-${randomUUID()}.${extensions[format]}`) : filePath
+      const temporaryHtml = format === 'pdf' ? join(app.getPath('temp'), `tuxsql-export-${randomUUID()}.html`) : undefined
       const exportFormat = format === 'pdf' ? 'html' : format
       const exportOptions = options && { ...options, createTable: undefined }
       const report = await exportData({ driver, connectionId, query: statement, format: exportFormat, options: exportOptions, signal: controller.signal, onProgress: (value) => progress(event, jobId, value), destination: createWriteStream(temporaryHtml ?? temporaryOutput, { mode: 0o600 }) })
@@ -170,7 +170,7 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
     if (!/^\s*(SELECT|WITH)\b/i.test(statement) || statement.includes(';')) throw new Error('O preview aceita apenas uma consulta SELECT.')
     const controller = startJob(event, jobId)
     try {
-      const rows = await previewExport({ driver, connectionId, query: `SELECT * FROM (${statement}) AS dbforge_preview LIMIT 20`, signal: controller.signal, onProgress: (value) => progress(event, jobId, value) }, 20)
+      const rows = await previewExport({ driver, connectionId, query: `SELECT * FROM (${statement}) AS tuxsql_preview LIMIT 20`, signal: controller.signal, onProgress: (value) => progress(event, jobId, value) }, 20)
       return { columns: [...new Set(rows.flatMap((row) => Object.keys(row)))], rows }
     } finally { activeJobs.delete(jobId) }
   })

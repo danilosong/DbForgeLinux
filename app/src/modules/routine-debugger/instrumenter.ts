@@ -1,12 +1,12 @@
 export interface InstrumentedRoutine { sql: string; statementLines: number[]; variables: string[] }
 
 /** Instruments top-level procedure statements without rewriting their SQL text. */
-export function instrumentProcedure(createSql: string, debugSchema = 'dbforge_linux_debug'): InstrumentedRoutine {
+export function instrumentProcedure(createSql: string, debugSchema = 'tuxsql_linux_debug'): InstrumentedRoutine {
   return instrumentObject(createSql, 'PROCEDURE', debugSchema)
 }
 
 /** Instruments a trigger body. Trigger execution is driven by a user-supplied DML statement. */
-export function instrumentTrigger(createSql: string, debugSchema = 'dbforge_linux_debug'): InstrumentedRoutine {
+export function instrumentTrigger(createSql: string, debugSchema = 'tuxsql_linux_debug'): InstrumentedRoutine {
   return instrumentObject(createSql, 'TRIGGER', debugSchema)
 }
 
@@ -24,7 +24,7 @@ function instrumentObject(createSql: string, kind: 'PROCEDURE' | 'TRIGGER', debu
     const first = bodyTokens.find((token) => token.word || token.symbol)
     if (!first) throw new Error('Trigger has no executable statement.')
     const line = lineAt(createSql, first.start)
-    const injection = `CALL \`${debugSchema.replaceAll('`', '``')}\`.checkpoint(@dbforge_linux_debug_id, ${line}, JSON_OBJECT());\n`
+    const injection = `CALL \`${debugSchema.replaceAll('`', '``')}\`.checkpoint(@tuxsql_linux_debug_id, ${line}, JSON_OBJECT());\n`
     return { sql: `${createSql.slice(0, first.start)}${injection}${createSql.slice(first.start)}`, statementLines: [line], variables: [] }
   }
   if (!begin) throw new Error('Routine body could not be parsed.')
@@ -47,7 +47,7 @@ function instrumentObject(createSql: string, kind: 'PROCEDURE' | 'TRIGGER', debu
     if (!first || /^DECLARE\b/i.test(first) || /^END\b/i.test(first)) return
     const line = lineAt(createSql, firstOffset)
     statementLines.push(line)
-    injections.push({ at: firstOffset, text: `CALL \`${debugSchema.replaceAll('`', '``')}\`.checkpoint(@dbforge_linux_debug_id, ${line}, ${variablesJson(variables)});\n` })
+    injections.push({ at: firstOffset, text: `CALL \`${debugSchema.replaceAll('`', '``')}\`.checkpoint(@tuxsql_linux_debug_id, ${line}, ${variablesJson(variables)});\n` })
   }
 
   for (let index = 0; index < bodyTokens.length; index++) {

@@ -9,11 +9,11 @@ import { existsSync } from 'node:fs'
 import { _electron as electron } from 'playwright'
 
 const execFileAsync = promisify(execFile)
-const root = await mkdtemp(join(tmpdir(), 'dbforge-source-control-ui-'))
+const root = await mkdtemp(join(tmpdir(), 'tuxsql-source-control-ui-'))
 const project = join(root, 'project')
 const evidenceDirectory = join(process.cwd(), '..', 'document', 'evidence', 'ui')
 const unpacked = join(process.cwd(), 'dist', 'linux-unpacked')
-const electronPath = join(unpacked, existsSync(join(unpacked, 'dbforgelinux')) ? 'dbforgelinux' : 'electron')
+const electronPath = join(unpacked, existsSync(join(unpacked, 'tuxsql')) ? 'tuxsql' : 'electron')
 let app
 try {
   await mkdir(join(project, 'tables'), { recursive: true })

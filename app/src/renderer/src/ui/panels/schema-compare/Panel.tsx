@@ -74,16 +74,16 @@ export default function Panel(): React.JSX.Element {
     return stateMatch && item.object.toLowerCase().includes(search.toLowerCase())
   }) ?? [], [result, filter, search])
 
-  useEffect(() => { void window.dbforge.getConnections().then((items) => { const selected = items.find((item) => item.id === activeConnection?.recordId || item.name === activeConnection?.name)?.id ?? items[0]?.id ?? ''; setRecords(items); setSource(selected); setTarget(selected) }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar conexões.')) }, [activeConnection?.name, activeConnection?.recordId])
+  useEffect(() => { void window.tuxsql.getConnections().then((items) => { const selected = items.find((item) => item.id === activeConnection?.recordId || item.name === activeConnection?.name)?.id ?? items[0]?.id ?? ''; setRecords(items); setSource(selected); setTarget(selected) }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar conexões.')) }, [activeConnection?.name, activeConnection?.recordId])
   useEffect(() => { const handler = (event: Event) => { const action = (event as CustomEvent<string>).detail; if (action === 'edit') setSetupStep('source'); else if (action === 'filter') { setSearch(''); setSetupStep('results') } else if (action === 'refresh') void runCompare(); else if (action === 'script') setScriptPreview(true); else if (action === 'report') exportReport(); else if (action === 'sync') { setSyncStep('output'); setConfirmOpen(true) } }; window.addEventListener('schema-compare:action', handler); return () => window.removeEventListener('schema-compare:action', handler) })
-  useEffect(() => { const listener = (): void => setSetupStep('source'); window.addEventListener('dbforge:task:restore', listener); return () => window.removeEventListener('dbforge:task:restore', listener) }, [])
+  useEffect(() => { const listener = (): void => setSetupStep('source'); window.addEventListener('tuxsql:task:restore', listener); return () => window.removeEventListener('tuxsql:task:restore', listener) }, [])
   function invalidate(): void { if (result) { setResult(null); setMessage('Resultados desatualizados — Compare novamente.') } }
   async function loadOffline(side: 'source' | 'target', kind: string): Promise<void> {
     invalidate()
     if (kind === 'Database') { if (side === 'source') setOfflineSource(null); else setOfflineTarget(null); return }
     if (kind === 'Project' || kind === 'Source Control') { setMessage(t('panel.schema.compare.xOfflineDisabled')); return }
     if (kind !== 'Scripts Folder' && kind !== 'Snapshot') return
-    try { const schema = await window.dbforge.loadOfflineSchema(kind); if (schema) { if (side === 'source') setOfflineSource(schema); else setOfflineTarget(schema); setMessage(`${kind}: ${schema.name} (${schema.tables.length} tables)`) } }
+    try { const schema = await window.tuxsql.loadOfflineSchema(kind); if (schema) { if (side === 'source') setOfflineSource(schema); else setOfflineTarget(schema); setMessage(`${kind}: ${schema.name} (${schema.tables.length} tables)`) } }
     catch (error) { setMessage(error instanceof Error ? error.message : t('panel.schema.compare.xOfflineLoadError')) }
   }
   async function saveSnapshot(side: 'source' | 'target'): Promise<void> {
@@ -92,9 +92,9 @@ export default function Panel(): React.JSX.Element {
     const record = records.find((item) => item.id === connectionId)
     if (!record) { setMessage(t('panel.schema.compare.xOfflineLoadError')); return }
     let activeId = ''
-    try { const connected = await window.dbforge.connect(record); activeId = connected.id; await window.dbforge.saveSchemaSnapshot(connected.id, database); setMessage(t('panel.schema.compare.xSnapshotSaved')) }
+    try { const connected = await window.tuxsql.connect(record); activeId = connected.id; await window.tuxsql.saveSchemaSnapshot(connected.id, database); setMessage(t('panel.schema.compare.xSnapshotSaved')) }
     catch (error) { setMessage(error instanceof Error ? error.message : t('panel.schema.compare.xOfflineLoadError')) }
-    finally { if (activeId) void window.dbforge.disconnect(activeId) }
+    finally { if (activeId) void window.tuxsql.disconnect(activeId) }
   }
   const label = (id: string): string => records.find((record) => record.id === id)?.name ?? id
   function markDefaults(next: SchemaCompareResult): void { setSelected(new Set(next.differences.filter((item) => includeDrops || item.change !== 'removed').map(keyOf))) }
@@ -106,17 +106,17 @@ export default function Panel(): React.JSX.Element {
         if (kind !== 'Database') { if (!offline) throw new Error('Load the selected Scripts Folder or Snapshot first.'); return offline }
         const record = records.find((item) => item.id === id)
         if (!record || !database.trim()) throw new Error('Select a database for each Database source.')
-        const connection = await window.dbforge.connect(record); if (id === source && kind === sourceType) sourceConnection = connection.id; if (id === target && kind === targetType) targetConnection = connection.id
-        const version = await window.dbforge.testConnection(record).catch(() => null)
+        const connection = await window.tuxsql.connect(record); if (id === source && kind === sourceType) sourceConnection = connection.id; if (id === target && kind === targetType) targetConnection = connection.id
+        const version = await window.tuxsql.testConnection(record).catch(() => null)
         if (id === source && version) setSourceVersion(version.serverVersion); if (id === target && version) setTargetVersion(version.serverVersion)
-        return window.dbforge.inspectSchema(connection.id, database)
+        return window.tuxsql.inspectSchema(connection.id, database)
       }
       setMessage('Reading schema sources…')
       const [sourceModel, targetModel] = await Promise.all([inspectSide(sourceType, source, sourceDb, offlineSource), inspectSide(targetType, target, targetDb, offlineTarget)])
-      const next = await window.dbforge.compareSchemaModels(sourceModel, targetModel, includeDrops)
-      setResult(next); markDefaults(next); void window.dbforge.recordRecentTask({ kind: 'schema-compare', title: t('tasks.schemaCompare'), detail: `${sourceDb || t('tasks.offline')} → ${targetDb || t('tasks.offline')}` }).catch(() => undefined); setMessage(next.differences.length ? `${next.differences.length} diferenças: ${next.differences.filter((d) => d.change === 'added').length} novos, ${next.differences.filter((d) => d.change === 'changed').length} alterados, ${next.differences.filter((d) => d.change === 'removed').length} removidos` : 'Os esquemas são idênticos.')
+      const next = await window.tuxsql.compareSchemaModels(sourceModel, targetModel, includeDrops)
+      setResult(next); markDefaults(next); void window.tuxsql.recordRecentTask({ kind: 'schema-compare', title: t('tasks.schemaCompare'), detail: `${sourceDb || t('tasks.offline')} → ${targetDb || t('tasks.offline')}` }).catch(() => undefined); setMessage(next.differences.length ? `${next.differences.length} diferenças: ${next.differences.filter((d) => d.change === 'added').length} novos, ${next.differences.filter((d) => d.change === 'changed').length} alterados, ${next.differences.filter((d) => d.change === 'removed').length} removidos` : 'Os esquemas são idênticos.')
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Comparison failed.') }
-    finally { if (sourceConnection) void window.dbforge.disconnect(sourceConnection); if (targetConnection && targetConnection !== sourceConnection) void window.dbforge.disconnect(targetConnection); setBusy(false) }
+    finally { if (sourceConnection) void window.tuxsql.disconnect(sourceConnection); if (targetConnection && targetConnection !== sourceConnection) void window.tuxsql.disconnect(targetConnection); setBusy(false) }
   }
   async function synchronize(): Promise<void> {
     if (!selectedScript.trim()) { setMessage(t('cmp.err.noneSelected')); return }
@@ -127,10 +127,10 @@ export default function Panel(): React.JSX.Element {
     setBusy(true); setMessage('Sincronizando…')
     try {
       const record = records.find((item) => item.id === target); if (!record) throw new Error('Escolha uma conexão de destino.')
-      const connected = await window.dbforge.connect(record)
-      let summary: Awaited<ReturnType<typeof window.dbforge.synchronizeSchema>>
-      try { summary = await window.dbforge.synchronizeSchema(connected.id, targetDb, fullSyncScript, destructive && riskAccepted) }
-      finally { await window.dbforge.disconnect(connected.id) }
+      const connected = await window.tuxsql.connect(record)
+      let summary: Awaited<ReturnType<typeof window.tuxsql.synchronizeSchema>>
+      try { summary = await window.tuxsql.synchronizeSchema(connected.id, targetDb, fullSyncScript, destructive && riskAccepted) }
+      finally { await window.tuxsql.disconnect(connected.id) }
       await runCompare()
       setMessage(`Synchronization complete: ${summary.succeeded} succeeded, ${summary.failed} failed${summary.errors.length ? ` — ${summary.errors.join('; ')}` : ''}. Comparison refreshed.`)
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Falha na sincronização.') }
@@ -138,7 +138,7 @@ export default function Panel(): React.JSX.Element {
   }
   function exportScript(): void { const blob = new Blob([selectedScript], { type: 'text/sql;charset=utf-8' }); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'schema-sync.sql'; anchor.click(); URL.revokeObjectURL(url) }
   function exportReport(): void { const rows = (result?.differences ?? []).map((item) => [item.kind,item.object,item.change,item.detail].map((value)=>`"${String(value).replaceAll('"','""')}"`).join(',')).join('\n'); const blob = new Blob([`Type,Object,Status,Details\n${rows}`], { type: 'text/csv;charset=utf-8' }); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'schema-comparison-report.csv'; anchor.click(); URL.revokeObjectURL(url); setMessage(t('panel.schema.compare.xReportGenerated')) }
-  async function queueScript(): Promise<void> { try { await window.dbforge.queueSchemaUpdate({ connectionId: target, database: targetDb, source: `Schema Compare · ${sourceDb} → ${targetDb}`, script: selectedScript }); setMessage(t('extras.schema.added')); setScriptPreview(false) } catch (error) { setMessage(error instanceof Error ? error.message : t('extras.schema.queueFailed')) } }
+  async function queueScript(): Promise<void> { try { await window.tuxsql.queueSchemaUpdate({ connectionId: target, database: targetDb, source: `Schema Compare · ${sourceDb} → ${targetDb}`, script: selectedScript }); setMessage(t('extras.schema.added')); setScriptPreview(false) } catch (error) { setMessage(error instanceof Error ? error.message : t('extras.schema.queueFailed')) } }
   const selectedDdl = (side: 'source' | 'target'): string => {
     if (!result || !active) return ''
     const model = side === 'source' ? result.source : result.target

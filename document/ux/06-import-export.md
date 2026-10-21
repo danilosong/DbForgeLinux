@@ -46,7 +46,7 @@ Por objeto selecionado (lista à esquerda), grade à direita: [✓ incluir] | Co
 Tela com: barra de progresso global (determinada quando contagem conhecida), tabela por objeto (Objeto | Status ⏳/✓/✕ | Linhas | Tempo | Arquivo), contador de linhas/s, tempo decorrido, [Cancel] (para ao final do lote atual, "Cancelando…"), [Run in background] (minimiza para toast persistente com progresso; o Output registra). Erro em objeto: pergunta (config. padrão "Skip and continue") [Parar] [Continuar]. 
 
 ### 3.7 Relatório
-Resumo: título ✓ verde "Export concluído" / âmbar "Concluído com avisos" / vermelho "Falhou". Tabela de resultados (por objeto: linhas, tamanho, tempo, caminho clicável), lista de avisos/erros (copiável), ações: [Open File] [Open Folder] [Copy Log] [Export again] [Close]. Log completo gravado em `$XDG_STATE_HOME/dbforgelinux/logs`.
+Resumo: título ✓ verde "Export concluído" / âmbar "Concluído com avisos" / vermelho "Falhou". Tabela de resultados (por objeto: linhas, tamanho, tempo, caminho clicável), lista de avisos/erros (copiável), ações: [Open File] [Open Folder] [Copy Log] [Export again] [Close]. Log completo gravado em `$XDG_STATE_HOME/tuxsql/logs`.
 
 ## 4. IMPORT
 
@@ -85,7 +85,7 @@ Mesmas telas de §3.6/§3.7 com contadores: Inseridas/Atualizadas/Ignoradas/Reje
 Segurança: caminhos nunca incluem credenciais; senhas nunca em templates; export de dados sensíveis sem aviso (nenhum), mas conexões Prod mostram faixa vermelha no passo Origem.
 
 ## 6. Templates (tarefas salvas)
-[Save Template…] guarda formato, origem, opções, mapeamento e destino (sem segredos) com nome. [Load Template] no passo 1. Gerenciador simples (lista, renomear, excluir). Arquivo JSON em `$XDG_CONFIG_HOME/dbforgelinux/data-tasks`. Linha de comando/agendamento: fora do escopo (P3).
+[Save Template…] guarda formato, origem, opções, mapeamento e destino (sem segredos) com nome. [Load Template] no passo 1. Gerenciador simples (lista, renomear, excluir). Arquivo JSON em `$XDG_CONFIG_HOME/tuxsql/data-tasks`. Linha de comando/agendamento: fora do escopo (P3).
 
 ## 7. Atalhos
 Next/Back Ctrl+→/Ctrl+←; Cancelar Esc; Executar Ctrl+Enter no último passo; Select all (listas) Ctrl+A; Preview refresh F5.

@@ -1,13 +1,13 @@
 {
-  "name": "dbforge-linux",
+  "name": "tuxsql",
   "version": "0.1.0",
   "private": true,
-  "description": "dbForgeLinux desktop client",
-  "desktopName": "dbforgelinux",
-  "homepage": "https://github.com/danilosong/DbForgeLinux",
+  "description": "TuxSQL Song desktop client",
+  "desktopName": "tuxsql",
+  "homepage": "https://github.com/danilosong/TuxSQL",
   "license": "MIT",
   "author": {
-    "name": "dbForgeLinux contributors",
+    "name": "TuxSQL Song contributors",
     "email": "noreply@github.com"
   },
   "main": "out/main/index.js",
@@ -23,7 +23,7 @@
     "perf:benchmark": "vitest run test/performance-benchmark.test.ts --reporter=verbose",
     "perf:metadata": "node scripts/metadata-scale-benchmark.mjs",
     "perf:startup": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/startup-benchmark.mjs",
-    "dist:deb": "DBFORGE_RELEASE_BUILD=1 pnpm build && electron-builder --linux deb --config packaging/electron-builder.yml && pnpm build",
+    "dist:deb": "TUXSQL_RELEASE_BUILD=1 pnpm build && electron-builder --linux deb --config packaging/electron-builder.yml && pnpm build",
     "smoke:e2e": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/smoke-e2e.mjs",
     "screenshots:updater": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/updater-screenshots.mjs",
     "qa:risk:e2e": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/qa-risk-e2e.mjs",

@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { defaultSettings, importSettingsFile, mergeSettings, normalizeShortcut, SettingsStore, validateSettings } from '../../src/modules/options/index.js'
 const folders: string[] = []
-async function temp(): Promise<string> { const folder = await mkdtemp(join(tmpdir(), 'dbforge-options-')); folders.push(folder); return folder }
+async function temp(): Promise<string> { const folder = await mkdtemp(join(tmpdir(), 'tuxsql-options-')); folders.push(folder); return folder }
 afterEach(async () => { await Promise.all(folders.splice(0).map((folder) => rm(folder, { recursive: true, force: true }))) })
 
 describe('Options settings', () => {
@@ -40,5 +40,14 @@ describe('Options settings', () => {
     expect(() => mergeSettings({ queryBuilder: { gridSize: 100 } })).toThrow('Query Builder grid size')
     expect(() => mergeSettings({ dataComparison: { keyStrategy: 'arbitrary' } })).toThrow('Data Comparison settings')
     expect(() => mergeSettings({ dataComparison: { cacheFolder: 'custom', customCachePath: 'relative/cache' } })).toThrow('must be absolute')
+  })
+  it('migrates Data Editor and Database Explorer defaults with bounded page and selection sizes', () => {
+    const migrated = mergeSettings({ grid: { pageSize: 250, showDataTypes: false }, explorer: { selectionMode: 'first', firstRows: 250 } })
+    expect(migrated.grid.pageSize).toBe(250)
+    expect(migrated.grid.showDataTypes).toBe(false)
+    expect(migrated.explorer.openTableAs).toBe(defaultSettings.explorer.openTableAs)
+    expect(migrated.explorer.firstRows).toBe(250)
+    expect(() => mergeSettings({ grid: { pageSize: 0 } })).toThrow('Grid page size')
+    expect(() => mergeSettings({ explorer: { selectionMode: 'unknown' } })).toThrow('Invalid Database Explorer settings')
   })
 })

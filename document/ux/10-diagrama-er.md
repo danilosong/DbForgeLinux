@@ -2,7 +2,7 @@
 
 Reusa `01-shell.md`, `04` (Table Editor) e `09` (Canvas, TableCard). **[C]** CONFIRMADO / **[I]** INFERIDO.
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Database Design > Database Diagram; View > Other Windows > Virtual Relation Manager) e https://www.devart.com/dbforge/mysql/studio/database-designer.html. Citações da busca vieram por redirecionamento; páginas individuais não foram abertas: confirmar detalhes. Fidelidade REA: rótulos conferidos contra REA ui-text.
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Database Design > Database Diagram; View > Other Windows > Virtual Relation Manager) e https://www.devart.com/tuxsql/mysql/studio/database-designer.html. Citações da busca vieram por redirecionamento; páginas individuais não foram abertas: confirmar detalhes. Fidelidade REA: rótulos conferidos contra REA ui-text.
 
 ## 1. Entradas
 Explorer > database/tabelas > **Send to > Database Diagram** (ou New Database Diagram) [C: arrastar do Explorer]; comando New Database Diagram ("Create an empty database diagram") [C: REA ui-text]. Documento em aba; arquivo de diagrama salvável/aberto (original `*.dbd`, [C: REA ui-text]; clone pode usar formato próprio JSON [I]).

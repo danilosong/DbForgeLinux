@@ -8,11 +8,11 @@ import { randomUUID } from 'node:crypto'
 import { _electron as electron } from 'playwright'
 import mysql from 'mysql2/promise'
 
-const electronPath = process.env.DBFORGE_ELECTRON_PATH ?? join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux')
+const electronPath = process.env.TUXSQL_ELECTRON_PATH ?? join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql')
 if (!existsSync(electronPath)) throw new Error(`Packaged Electron executable not found at ${electronPath}. Run pnpm dist:deb first.`)
-const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-smoke-'))
+const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-smoke-'))
 const admin = await mysql.createConnection({ host: '127.0.0.1', port: 33067, user: 'root', password: process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only' })
-// Keep this long-running E2E schema outside mysql:clean-test's broad dbforge_test_ sweep.
+// Keep this long-running E2E schema outside mysql:clean-test's broad tuxsql_test_ sweep.
 const testPrefix = `qa_smoke_${process.pid}_${randomUUID().slice(0, 8)}`
 const database = testPrefix
 const targetDatabase = `${testPrefix}_target`
@@ -49,7 +49,7 @@ try {
   await admin.query(`CREATE TABLE \`${targetDatabase}\`.\`custom_compare_rows\` (id INT PRIMARY KEY, label VARCHAR(40), changed_at DATETIME(6))`)
   await admin.query(`INSERT INTO \`${database}\`.\`custom_compare_rows\` VALUES (1, 'same', '2025-01-01 12:00:00.100000'), (2, 'source', '2025-01-01 12:00:00.100000')`)
   await admin.query(`INSERT INTO \`${targetDatabase}\`.\`custom_compare_rows\` VALUES (1, 'same', '2025-01-01 12:00:00.900000'), (3, 'target', '2025-01-01 12:00:00.900000')`)
-  const [debugSchemas] = await admin.query("SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = 'dbforge_linux_debug'")
+  const [debugSchemas] = await admin.query("SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = 'tuxsql_linux_debug'")
   debugSchemaExisted = debugSchemas.length > 0
   await admin.query(`CREATE PROCEDURE \`${database}\`.\`${debugRoutine}\`()
 BEGIN
@@ -75,7 +75,7 @@ END`)
     }
   })
   const page = await app.firstWindow()
-  await page.waitForFunction(() => window.performance.getEntriesByName('dbforge:first-paint-settled', 'mark').length > 0, null, { timeout: 15_000 })
+  await page.waitForFunction(() => window.performance.getEntriesByName('tuxsql:first-paint-settled', 'mark').length > 0, null, { timeout: 15_000 })
   page.on('dialog', (dialog) => dialog.accept())
   await page.addLocatorHandler(page.locator('.panel-dialog-backdrop:has(.update-dialog)'), async () => {
     const laterButton = page.getByRole('button', { name: /^(Later|Depois)$/ }).last()
@@ -99,16 +99,16 @@ END`)
   await page.getByRole('button', { name: 'Connect', exact: true }).click()
   await page.getByRole('heading', { name: 'Database Connection Properties' }).waitFor({ state: 'detached', timeout: 30_000 })
   const scalar = await page.evaluate(async () => {
-    const record = (await window.dbforge.getConnections()).find((item) => item.name === 'Smoke MySQL 33067')
+    const record = (await window.tuxsql.getConnections()).find((item) => item.name === 'Smoke MySQL 33067')
     if (!record) throw new Error('Smoke connection was not saved.')
-    const connection = await window.dbforge.connect(record)
+    const connection = await window.tuxsql.connect(record)
     try {
-      const results = await window.dbforge.executeSql(connection.id, 'SELECT 1 AS smoke')
+      const results = await window.tuxsql.executeSql(connection.id, 'SELECT 1 AS smoke')
       const result = results[0]
-      const rows = result?.resultStoreId ? await window.dbforge.readResultRows(result.resultStoreId, 0, 1) : result?.rows ?? []
-      if (result?.resultStoreId) await window.dbforge.disposeResult(result.resultStoreId)
+      const rows = result?.resultStoreId ? await window.tuxsql.readResultRows(result.resultStoreId, 0, 1) : result?.rows ?? []
+      if (result?.resultStoreId) await window.tuxsql.disposeResult(result.resultStoreId)
       return rows[0]?.smoke
-    } finally { await window.dbforge.disconnect(connection.id) }
+    } finally { await window.tuxsql.disconnect(connection.id) }
   })
   if (Number(scalar) !== 1) throw new Error(`SELECT 1 returned ${String(scalar)}.`)
 
@@ -133,7 +133,7 @@ END`)
   await floatEditor.fill('SELECT 43 AS synchronized;')
   if (await floatEditor.inputValue() !== 'SELECT 43 AS synchronized;') throw new Error(`Floated SQL editor did not accept edits: ${await floatEditor.inputValue()}`)
   const floatDocumentId = (await firstSqlTab.locator('.tab-label').getAttribute('id')).replace('document-tab-control-', '')
-  await page.waitForFunction(({ id, expected }) => JSON.parse(localStorage.getItem('dbforge.sqlDrafts') ?? '{}')[id]?.includes(expected), { id: floatDocumentId, expected: 'SELECT 43 AS synchronized' }, { timeout: 10_000 })
+  await page.waitForFunction(({ id, expected }) => JSON.parse(localStorage.getItem('tuxsql.sqlDrafts') ?? '{}')[id]?.includes(expected), { id: floatDocumentId, expected: 'SELECT 43 AS synchronized' }, { timeout: 10_000 })
   await floatingWindow.close()
   await fileMenu.evaluate((element) => { element.open = true })
   await fileMenu.getByRole('button', { name: /New SQL/ }).click()
@@ -145,7 +145,7 @@ END`)
   await secondaryEditor.fill('SELECT 17 AS split_sync;')
   if (await secondaryEditor.inputValue() !== 'SELECT 17 AS split_sync;') throw new Error('The secondary SQL editor did not accept input.')
   const splitDocumentId = (await otherSqlTab.locator('.tab-label').getAttribute('id')).replace('document-tab-control-', '')
-  await page.waitForFunction(({ id, expected }) => JSON.parse(localStorage.getItem('dbforge.sqlDrafts') ?? '{}')[id]?.includes(expected), { id: splitDocumentId, expected: 'SELECT 17 AS split_sync' }, { timeout: 10_000 })
+  await page.waitForFunction(({ id, expected }) => JSON.parse(localStorage.getItem('tuxsql.sqlDrafts') ?? '{}')[id]?.includes(expected), { id: splitDocumentId, expected: 'SELECT 17 AS split_sync' }, { timeout: 10_000 })
   const explorerFilter = page.getByRole('textbox', { name: /Filter connections/ })
   await explorerFilter.fill('^Smoke MySQL')
   await page.getByLabel('Regex').check()
@@ -154,12 +154,12 @@ END`)
 
   const documentationDirectory = join(dataRoot, 'documentation')
   const documentation = await page.evaluate(async ({ targetDirectory, database }) => {
-    const record = (await window.dbforge.getConnections()).find((item) => item.name === 'Smoke MySQL 33067')
+    const record = (await window.tuxsql.getConnections()).find((item) => item.name === 'Smoke MySQL 33067')
     if (!record) throw new Error('Documenter smoke connection was not saved.')
-    const connection = await window.dbforge.connect(record)
+    const connection = await window.tuxsql.connect(record)
     try {
-      return await window.dbforge.generateDatabaseDocumentation({ connectionId: connection.id, database, title: 'Smoke database', outputDirectory: targetDirectory, formats: ['html', 'markdown', 'pdf'], includeDiagram: true, confirmed: true })
-    } finally { await window.dbforge.disconnect(connection.id) }
+      return await window.tuxsql.generateDatabaseDocumentation({ connectionId: connection.id, database, title: 'Smoke database', outputDirectory: targetDirectory, formats: ['html', 'markdown', 'pdf'], includeDiagram: true, confirmed: true })
+    } finally { await window.tuxsql.disconnect(connection.id) }
   }, { targetDirectory: documentationDirectory, database })
   const pdf = await readFile(documentation.pdf)
   if (pdf.subarray(0, 5).toString() !== '%PDF-') throw new Error('Documenter did not write a valid PDF header.')
@@ -249,7 +249,7 @@ END`)
     await page.screenshot({ path: join(evidenceDirectory, `pivot-date-grand-total-${theme}.png`) })
   }
   await page.locator('.document-tab.selected .tab-close').click()
-  await page.evaluate(() => window.dispatchEvent(new window.CustomEvent('dbforge:insert-ai-sql', { detail: { sql: 'SELECT 1 AS recent_file;\nSELECT 2 AS next_result;' } })))
+  await page.evaluate(() => window.dispatchEvent(new window.CustomEvent('tuxsql:insert-ai-sql', { detail: { sql: 'SELECT 1 AS recent_file;\nSELECT 2 AS next_result;' } })))
   await page.waitForFunction(() => document.querySelector('.sql-context-toolbar')?.textContent?.includes('AI Assistant SQL'))
   const chooseTheme = async (theme) => {
     for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -506,7 +506,7 @@ END`)
   await page.locator('.project-explorer-dock .source-control-panel').waitFor()
   await page.locator('.source-control-panel').waitFor()
   for (const model of ['dedicated', 'shared']) {
-    await page.evaluate(() => window.dispatchEvent(new CustomEvent('dbforge:source-control:link')))
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent('tuxsql:source-control:link')))
     const linkWizard = page.locator('.sc-wizard')
     await linkWizard.waitFor()
     const modelInputs = linkWizard.locator('fieldset input[type="radio"]')
@@ -602,7 +602,7 @@ END`)
   try {
     if (databaseCreated) await dropDisposableDatabase(database)
     await dropDisposableDatabase(targetDatabase)
-    if (!debugSchemaExisted) await dropDisposableDatabase('dbforge_linux_debug')
+    if (!debugSchemaExisted) await dropDisposableDatabase('tuxsql_linux_debug')
   } finally {
     await admin.end()
     await rm(dataRoot, { recursive: true, force: true })

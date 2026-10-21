@@ -75,7 +75,7 @@ export function registerRoutineDebuggerIpc({ driver }: IpcDeps): void {
       await executor.execute(`DROP ${target.kind === 'trigger' ? 'TRIGGER' : 'PROCEDURE'} ${quoteDebugIdentifier(target.database)}.${quoteDebugIdentifier(target.name)}`)
       routineDropped = true
       await executor.execute(preview.instrumentedSql)
-      await executor.execute(`SET @dbforge_linux_debug_id='${id}'`)
+      await executor.execute(`SET @tuxsql_linux_debug_id='${id}'`)
     } catch (error) {
       let restoreFailure: unknown
       if (routineDropped) {

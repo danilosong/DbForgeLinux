@@ -1,4 +1,4 @@
-# Relatório de Medição de Fidelidade UX/UI — dbForgeLinux
+# Relatório de Medição de Fidelidade UX/UI — TuxSQL Song
 
 > **Data de Emissão (Rodada 1):** 21 de outubro de 2026  
 > **Data de Revisão (Rodada 2):** 21 de outubro de 2026  
@@ -9,7 +9,7 @@
 > **Avaliador:** Agente Prisma (Especialista UX/UI)  
 > **Referência Comparativa:** Observação em laboratório do dbForge Studio for MySQL v2026.2.82 (`re/original-observation/NOTES.md` seções 00–27 e acervo de 116+ capturas originais na VM)  
 > **Documentos de Lacunas da VM:** `document/paridade/GAPS-VARREDURA-VM.md` e `document/paridade/DIVERGENCIAS-ORIGINAL.md`  
-> **Alvo Avaliado:** dbForgeLinux v0.1.0 (evidências em `document/evidence/ui/` e suítes de testes em `app/test/` e `app/src/modules/`)  
+> **Alvo Avaliado:** TuxSQL Song v0.1.0 (evidências em `document/evidence/ui/` e suítes de testes em `app/test/` e `app/src/modules/`)  
 > **Critério de Rigor:** Todo item exige evidência concreta (screenshot do clone ou teste automatizado executado). Item sem evidência recebe nota zero (`0,0`).
 
 ---

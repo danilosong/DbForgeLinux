@@ -9,7 +9,7 @@ afterEach(async () => { await Promise.all(folders.splice(0).map((folder) => rm(f
 
 describe('bounded file reader', () => {
   it('enforces byte limits and refuses symlink inputs', async () => {
-    const folder = await mkdtemp(join(tmpdir(), 'dbforge-bounded-file-')); folders.push(folder)
+    const folder = await mkdtemp(join(tmpdir(), 'tuxsql-bounded-file-')); folders.push(folder)
     const file = join(folder, 'input.json'); const link = join(folder, 'link.json')
     await writeFile(file, '12345'); await symlink(file, link)
     await expect(readBoundedRegularFile(file, 4)).rejects.toThrow(/limit/i)

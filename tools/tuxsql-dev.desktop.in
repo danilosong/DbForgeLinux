@@ -1,9 +1,9 @@
 [Desktop Entry]
 Version=1.0
 Type=Application
-Name=dbForgeLinux (Development)
+Name=TuxSQL Song (Development)
 Comment=Run the development build from this repository
-Exec=@REPO_ROOT@/tools/dbforge-dev
+Exec=@REPO_ROOT@/tools/tuxsql-dev
 Icon=@REPO_ROOT@/app/packaging/icon.png
 Terminal=false
 Categories=Development;Database;IDE;

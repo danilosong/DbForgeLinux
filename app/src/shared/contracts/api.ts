@@ -23,7 +23,7 @@ import type { GridDataApi } from './grid-data.js'
 import type { ExtraToolsApi } from './extra-tools.js'
 import type { AboutApi } from './about.js'
 import type { UpdaterApi } from './updater.js'
-export interface DbForgeApi extends SecurityApi, SessionsApi, SchemaCompareApi, DataCompareApi, ImportExportApi, ERDiagramApi, QueryBuilderApi, EditorApi, HistoryApi, SourceControlApi, ObjectEditorApi, OptionsApi, DatabaseToolsApi, ReportPivotApi, AiAssistantApi, RoutineDebugContract, TasksApi, ServiceControlApi, CodeAnalysisApi, GridEditingApi, GridDataApi, ExtraToolsApi, AboutApi, UpdaterApi {
+export interface TuxSqlApi extends SecurityApi, SessionsApi, SchemaCompareApi, DataCompareApi, ImportExportApi, ERDiagramApi, QueryBuilderApi, EditorApi, HistoryApi, SourceControlApi, ObjectEditorApi, OptionsApi, DatabaseToolsApi, ReportPivotApi, AiAssistantApi, RoutineDebugContract, TasksApi, ServiceControlApi, CodeAnalysisApi, GridEditingApi, GridDataApi, ExtraToolsApi, AboutApi, UpdaterApi {
   floatSqlDocument(documentId: string, title: string, contents: string): Promise<void>
   floatSqlChange(documentId: string, contents: string): Promise<void>
   onFloatSqlUpdate(handler: (documentId: string, contents: string) => void): () => void

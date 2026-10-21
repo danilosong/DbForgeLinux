@@ -67,7 +67,7 @@ Resumo (detalhe em 03): cabeçalho "Database Explorer" + botões (New Connection
 - Interações: clique do meio fecha; arrastar reordena; arrastar para fora da barra = dividir (P2); menu de contexto da aba: Close, Close Others, Close All, Close to the Right, Copy Full Path, Reveal in File Manager (xdg-open na pasta), Pin Tab.
 - Overflow: botão [v] lista todas as abas; scroll horizontal com roda do mouse.
 - Estado vazio: Start Page (ações: New SQL, New Connection, Recent Connections, Recent Files, dicas).
-- Sessão: ao reabrir restaura abas, conteúdo de SQL não salvos (rascunhos em `$XDG_STATE_HOME/dbforgelinux/drafts`), posição do cursor.
+- Sessão: ao reabrir restaura abas, conteúdo de SQL não salvos (rascunhos em `$XDG_STATE_HOME/tuxsql/drafts`), posição do cursor.
 
 ## 6. Painéis inferiores
 
@@ -142,9 +142,9 @@ Contraste mínimo WCAG AA (4.5:1 texto, 3:1 componentes). Sombras: diálogo 0 8p
 ## 10. Temas e adaptações Linux
 
 - Opções: **Auto** (segue `prefers-color-scheme`, derivado do GTK/portal `org.freedesktop.appearance`), Claro, Escuro. Troca instantânea sem reiniciar. Tema do Monaco acompanha (vs / vs-dark customizados com tokens acima).
-- Barra de título: nativa do WM (padrão) ou custom frameless (opção, P2). Ícone .desktop/StartupWMClass `dbforgelinux`.
+- Barra de título: nativa do WM (padrão) ou custom frameless (opção, P2). Ícone .desktop/StartupWMClass `tuxsql`.
 - Escala HiDPI: usar fator do sistema; zoom da UI independente (Ctrl+= ).
-- Caminhos XDG: config `$XDG_CONFIG_HOME/dbforgelinux`, dados `$XDG_DATA_HOME`, estado/rascunhos `$XDG_STATE_HOME`, cache `$XDG_CACHE_HOME`.
+- Caminhos XDG: config `$XDG_CONFIG_HOME/tuxsql`, dados `$XDG_DATA_HOME`, estado/rascunhos `$XDG_STATE_HOME`, cache `$XDG_CACHE_HOME`.
 - Segredos via libsecret/safeStorage; se indisponível, aviso e opção "não salvar senha".
 - Diálogos de arquivo: GTK portal (xdg-desktop-portal). "Reveal in File Manager": `xdg-open` da pasta.
 - Teclado: Ctrl no lugar de Cmd; evitar conflitos comuns de WM (Ctrl+Alt+setas = workspaces em alguns DEs; por isso Toggle Results padrão alternativo Ctrl+Shift+R, configurável). Atalhos editáveis em Tools > Options > Keyboard.
