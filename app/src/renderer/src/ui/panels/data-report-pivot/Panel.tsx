@@ -96,8 +96,8 @@ export default function DataReportPivotPanel(): React.JSX.Element {
     const next = buildPivotConfigFromRoles(fields, roles, dateGrouping, aggregationByField, config)
     const signature = JSON.stringify(next)
     if (signature === lastPivotConfigRef.current) return
+    const request = ++pivotRequestRef.current
     const timer = window.setTimeout(() => {
-      const request = ++pivotRequestRef.current
       void window.dbforge.buildPivot(datasetId, next).then((result) => {
         if (request !== pivotRequestRef.current) return
         lastPivotConfigRef.current = signature

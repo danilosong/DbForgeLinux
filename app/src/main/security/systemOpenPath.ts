@@ -1,7 +1,8 @@
 import { lstat, realpath, stat } from 'node:fs/promises'
-import { dirname, isAbsolute, resolve } from 'node:path'
+import { dirname, extname, isAbsolute, resolve } from 'node:path'
 
 export type SystemOpenKind = 'file' | 'folder'
+const openableOutputExtensions = new Set(['.csv', '.txt', '.json', '.xml', '.sql', '.xlsx', '.xls', '.pdf', '.html', '.htm', '.md', '.zip', '.log', '.svg', '.png', '.jpg', '.jpeg', '.webp'])
 
 /** Accept only an existing regular file/directory whose path contains no symlink. */
 export async function validateSystemOpenPath(input: string, kind: SystemOpenKind): Promise<string> {
@@ -14,6 +15,7 @@ export async function validateSystemOpenPath(input: string, kind: SystemOpenKind
   if (resolved !== target) throw new TypeError('Cannot open a path that traverses a symbolic link.')
   const details = await stat(resolved)
   if (kind === 'file' && !details.isFile()) throw new TypeError('The selected path is not a regular file.')
+  if (kind === 'file' && !openableOutputExtensions.has(extname(resolved).toLowerCase())) throw new TypeError('The selected path is not a supported output file.')
   if (kind === 'folder' && !details.isDirectory()) throw new TypeError('The selected path is not a folder.')
   return resolved
 }

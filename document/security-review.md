@@ -172,9 +172,9 @@ Revisão focada em Float, grupos de abas, consultas personalizadas do Data Compa
 
 - **FINDING:** a abertura via `shell.openPath` não verificava se o destino ainda existia, se era arquivo/pasta do tipo pedido, nem se o caminho atravessava symlink.
 - **LOCATION:** `app/src/main/security/systemOpenPath.ts`, canal `file:open-in-system` e `documenter:open`.
-- **EXPECTED:** validar caminho absoluto existente, tipo regular esperado e ausência de symlinks antes de chamar a integração do sistema.
-- **ACTUAL:** o helper usa `lstat`, `realpath` e `stat`; o IPC valida enum e schema, e o Documenter usa a mesma validação.
-- **EVIDENCE:** `app/test/systemOpenPath.test.ts` cobre arquivo, pasta, caminho ausente, tipo incorreto e symlink; `app/test/ipc-guard.test.ts` rejeita tipo de destino inválido.
+- **EXPECTED:** validar caminho absoluto existente, tipo regular esperado e ausência de symlinks antes de chamar a integração do sistema; limitar arquivos às extensões de saída documentais para não acionar tipos executáveis por associação do desktop.
+- **ACTUAL:** o helper usa `lstat`, `realpath` e `stat`, e aceita apenas formatos de saída usados pelos assistentes; o IPC valida enum e schema, e o Documenter usa a mesma validação.
+- **EVIDENCE:** `app/test/systemOpenPath.test.ts` cobre arquivo/pasta, caminho ausente, tipo incorreto, symlink e rejeita `.desktop`; `app/test/ipc-guard.test.ts` rejeita tipo de destino inválido.
 - **SEVERITY:** MEDIUM — corrigido.
 
 ### LOW — Texto livre do Tasks Explorer podia persistir rótulos óbvios de credenciais
