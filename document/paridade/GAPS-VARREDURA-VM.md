@@ -37,4 +37,7 @@ Prioridade: **A** = uso diário do editor; **B** = útil; **C** = acabamento.
 | 27 | Database › Tasks e Flush | Submenu *Tasks* reúne Export, Import, Backup, Restore, Data Generation, Documentation, *Create Scripts Folder*, Copy Databases e Find Invalid Objects (`Ctrl+Alt+F`); o menu Database ainda tem *Flush...* | B | Verificar |
 | 28 | Find Invalid Objects | Barra *Analyze*, *Script as ALTER*, *Script as DROP*; escolha de bancos num seletor com busca, *Refresh*, *Check All* e *Uncheck All* | B | Existe no clone; comparar a barra |
 
+| 29 | Restore | Assistente curto de 3 etapas (*Database Script File*, *Restore progress*, *Operation complete*): conexão, banco (*As in script* por padrão), arquivo SQL, codificação e botão *Save Command Line...* | B | Comparar com o clone |
+| 30 | Link Database to Source Control | Assistente *Link / Progress / Finish* com conexão, banco, repositório (com botão de adicionar) e sistema detectado; modelo de desenvolvimento *Dedicated* (cada pessoa com sua cópia) ou *Shared* (um banco único) | M | Parcial |
+
 Como medir: cada item vira linhas em `FIDELIDADE-MEDIDA.md` (rodada 3) com evidência (teste ou captura do clone).
