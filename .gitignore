@@ -7,3 +7,6 @@ out/
 re/evidence/DefaultLayout.xml
 re/evidence/members-mysql.json
 re/ui-strings/
+
+# capturas do produto original (uso interno, não versionar)
+re/original-observation/
