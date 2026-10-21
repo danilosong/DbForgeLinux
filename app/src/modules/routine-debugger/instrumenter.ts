@@ -2,11 +2,32 @@ export interface InstrumentedRoutine { sql: string; statementLines: number[]; va
 
 /** Instruments top-level procedure statements without rewriting their SQL text. */
 export function instrumentProcedure(createSql: string, debugSchema = 'dbforge_linux_debug'): InstrumentedRoutine {
-  if (!/^\s*CREATE\s+(?:DEFINER\s*=\s*[^\s]+\s+)?PROCEDURE\b/i.test(createSql)) throw new Error('Only stored procedures can be compiled for debugging.')
+  return instrumentObject(createSql, 'PROCEDURE', debugSchema)
+}
+
+/** Instruments a trigger body. Trigger execution is driven by a user-supplied DML statement. */
+export function instrumentTrigger(createSql: string, debugSchema = 'dbforge_linux_debug'): InstrumentedRoutine {
+  return instrumentObject(createSql, 'TRIGGER', debugSchema)
+}
+
+function instrumentObject(createSql: string, kind: 'PROCEDURE' | 'TRIGGER', debugSchema: string): InstrumentedRoutine {
+  if (!new RegExp(`^\\s*CREATE\\s+(?:DEFINER\\s*=\\s*[^\\s]+\\s+)?${kind}\\b`, 'i').test(createSql)) throw new Error(`Only stored ${kind.toLowerCase()}s can be compiled for debugging.`)
   if (/\b(?:PREPARE|EXECUTE|DEALLOCATE\s+PREPARE)\b/i.test(stripCommentsAndStrings(createSql))) throw new Error('SQL dynamic (PREPARE/EXECUTE) is not supported by the routine debugger.')
   const tokens = tokenize(createSql)
   const begin = tokens.find((token) => token.word === 'BEGIN')
-  if (!begin) throw new Error('Procedure body must use a BEGIN ... END block.')
+  if (!begin && kind === 'PROCEDURE') throw new Error('Procedure body must use a BEGIN ... END block.')
+  if (!begin && kind === 'TRIGGER') {
+    const row = tokens.find((token) => token.word === 'ROW')
+    if (!row) throw new Error('Trigger body must follow FOR EACH ROW.')
+    const bodyStart = row.end
+    const bodyTokens = tokens.filter((token) => token.start >= bodyStart)
+    const first = bodyTokens.find((token) => token.word || token.symbol)
+    if (!first) throw new Error('Trigger has no executable statement.')
+    const line = lineAt(createSql, first.start)
+    const injection = `CALL \`${debugSchema.replaceAll('`', '``')}\`.checkpoint(@dbforge_linux_debug_id, ${line}, JSON_OBJECT());\n`
+    return { sql: `${createSql.slice(0, first.start)}${injection}${createSql.slice(first.start)}`, statementLines: [line], variables: [] }
+  }
+  if (!begin) throw new Error('Routine body could not be parsed.')
   const bodyEnd = findOuterEnd(tokens, tokens.indexOf(begin))
   if (!bodyEnd) throw new Error('Could not parse the outer procedure block.')
 
@@ -53,6 +74,7 @@ export function instrumentProcedure(createSql: string, debugSchema = 'dbforge_li
     }
   }
   if (!statementLines.length) throw new Error('There is no executable code to debug.')
+  if (statementLines.length > 500) throw new Error('Routine debugger supports up to 500 executable statements per object.')
   const sql = applyInsertions(createSql, injections)
   return { sql, statementLines, variables: [...variables] }
 }

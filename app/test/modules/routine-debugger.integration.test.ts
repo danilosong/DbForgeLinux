@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { createDefaultConnection } from '../../src/shared/connectionDefaults.js'
 import { MysqlDriver } from '../../src/main/db/MysqlDriver.js'
-import { engineDdl, instrumentProcedure, quoteDebugIdentifier } from '../../src/modules/routine-debugger/index.js'
+import { engineDdl, instrumentProcedure, instrumentTrigger, quoteDebugIdentifier } from '../../src/modules/routine-debugger/index.js'
 
 const enabled = process.env.MYSQL_INTEGRATION === '1'
 describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
@@ -10,6 +10,8 @@ describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
   const testDatabase = `dbforge_debug_test_${process.pid}_${randomUUID().slice(0, 8)}`
   const procedure = `routine_debug_${process.pid}_${randomUUID().slice(0, 8)}`
   const debugId = randomUUID()
+  const triggerDebugId = randomUUID()
+  const trigger = `trigger_debug_${process.pid}_${randomUUID().slice(0, 8)}`
   let connectionId = ''
   let controller: Awaited<ReturnType<MysqlDriver['openDedicatedSession']>> | undefined
   let executor: Awaited<ReturnType<MysqlDriver['openDedicatedSession']>> | undefined
@@ -18,11 +20,12 @@ describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
 
   afterAll(async () => {
     if (controller) {
-      try { await controller.execute(`UPDATE ${schema('debug_sessions')} SET status='stopped' WHERE debug_id=?`, [debugId]) } catch { /* engine may not have been created */ }
+      try { await controller.execute(`UPDATE ${schema('debug_sessions')} SET status='stopped' WHERE debug_id IN (?,?)`, [debugId, triggerDebugId]) } catch { /* engine may not have been created */ }
     }
+    try { executor?.cancel() } catch { /* release any in-flight trigger pause after test failure */ }
     try { await callTask } catch { /* expected if cleanup stopped execution */ }
     if (executor) {
-      try { await executor.execute(`USE ${quoteDebugIdentifier(testDatabase)}`); await executor.execute(`DROP PROCEDURE IF EXISTS ${quoteDebugIdentifier(procedure)}`); await executor.execute('DROP TABLE IF EXISTS debug_values') } catch { /* disposable test server cleanup */ }
+      try { await executor.execute(`USE ${quoteDebugIdentifier(testDatabase)}`); await executor.execute(`DROP TRIGGER IF EXISTS ${quoteDebugIdentifier(trigger)}`); await executor.execute(`DROP PROCEDURE IF EXISTS ${quoteDebugIdentifier(procedure)}`); await executor.execute('DROP TABLE IF EXISTS audit_log, audit_values, debug_values') } catch { /* disposable test server cleanup */ }
       await executor.close()
     }
     if (controller) { await controller.close() }
@@ -30,7 +33,7 @@ describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
       try { await driver.executeSql(connectionId, `DROP DATABASE IF EXISTS ${quoteDebugIdentifier(testDatabase)}`) } catch { /* disposable test server cleanup */ }
       await driver.disconnect(connectionId)
     }
-  })
+  }, 30000)
 
   it('deploys the helper, pauses in a dedicated target session, steps, and restores the original DDL', async () => {
     connectionId = await driver.connect({
@@ -89,22 +92,64 @@ END`
     await executor.execute(original)
     const restored = await executor.query(`SHOW CREATE PROCEDURE ${quoteDebugIdentifier(procedure)}`)
     expect(String(Object.entries(restored[0] ?? {}).find(([key]) => key.startsWith('Create '))?.[1])).toContain('SELECT total_value INTO @routine_debug_result')
+
+    await executor.execute('CREATE TABLE audit_values (id INT PRIMARY KEY)')
+    await executor.execute('CREATE TABLE audit_log (id INT NOT NULL)')
+    const triggerSource = `CREATE TRIGGER ${quoteDebugIdentifier(trigger)} AFTER INSERT ON audit_values FOR EACH ROW\nBEGIN\n  INSERT INTO audit_log(id) VALUES (NEW.id);\nEND`
+    await executor.execute(triggerSource)
+    const instrumentedTrigger = instrumentTrigger(triggerSource, testDatabase)
+    await controller.execute(`INSERT INTO ${schema('debug_sessions')}(debug_id,connection_id,database_name,routine_name,status,step_kind) VALUES (?,?,?,?,'running','into')`, [triggerDebugId, connectionId, testDatabase, `TRIGGER:${trigger}`])
+    await controller.execute(`INSERT INTO ${schema('breakpoints')}(debug_id,line_number,enabled) VALUES (?,?,TRUE)`, [triggerDebugId, instrumentedTrigger.statementLines[0]])
+    await executor.execute(`DROP TRIGGER ${quoteDebugIdentifier(trigger)}`)
+    await executor.execute(instrumentedTrigger.sql)
+    await executor.execute(`SET @dbforge_linux_debug_id='${triggerDebugId}'`)
+    await executor.execute('SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED')
+    callTask = executor.execute('INSERT INTO audit_values VALUES (10)').then(() => undefined)
+    await waitForTriggerPause(triggerDebugId, instrumentedTrigger.statementLines[0]!, callTask)
+    await command('continue', triggerDebugId)
+    const triggerOutcome = await Promise.race([callTask.then(() => 'finished', () => 'failed'), new Promise<'timeout'>(resolve => setTimeout(() => resolve('timeout'), 5_000))])
+    if (triggerOutcome === 'timeout') {
+      const state = await controller.query(`SELECT status,step_kind,command_version FROM ${schema('debug_sessions')} WHERE debug_id=?`, [triggerDebugId])
+      throw new Error(`Trigger did not resume after command ${JSON.stringify(state[0])}.`)
+    }
+    await callTask
+    expect(Number((await executor.query('SELECT COUNT(*) AS total FROM audit_log'))[0]?.total)).toBe(1)
+    await executor.execute(`DROP TRIGGER ${quoteDebugIdentifier(trigger)}`)
+    await executor.execute(triggerSource)
+    const restoredTrigger = await executor.query(`SHOW CREATE TRIGGER ${quoteDebugIdentifier(trigger)}`)
+    expect(Object.values(restoredTrigger[0] ?? {}).map(String).join('\n')).toContain('INSERT INTO audit_log')
   }, 30000)
 
-  async function command(kind: 'into' | 'continue'): Promise<void> {
-    const lock = `dfl-debug-${debugId}`
+  async function command(kind: 'into' | 'continue', sessionId = debugId): Promise<void> {
+    if (sessionId === triggerDebugId) {
+      const signalName = `dfl-cmd-${sessionId}-${kind === 'continue' ? 'c' : 'i'}`
+      await controller!.query('SELECT GET_LOCK(?,0) AS got_lock', [signalName])
+      try {
+        const points = await controller!.query(`SELECT line_number FROM ${schema('breakpoints')} WHERE debug_id=? LIMIT 1`, [sessionId])
+        const pauseLock = `dfl-pause-${sessionId}-${Number(points[0]?.line_number)}`
+        for (let index = 0; index < 100; index++) {
+          const rows = await controller!.query('SELECT IS_USED_LOCK(?) AS owner', [pauseLock])
+          if (rows[0]?.owner == null) return
+          await new Promise((resolve) => setTimeout(resolve, 20))
+        }
+        throw new Error('Trigger checkpoint did not acknowledge step command.')
+      } finally { await controller!.query('SELECT RELEASE_LOCK(?) AS released', [signalName]) }
+    }
+    const lock = `dfl-debug-${sessionId}`
     await controller!.query('SELECT GET_LOCK(?,5) AS got_lock', [lock])
-    await controller!.execute(`UPDATE ${schema('debug_sessions')} SET status='running',step_kind=? WHERE debug_id=?`, [kind, debugId])
+    await controller!.execute(`UPDATE ${schema('debug_sessions')} SET status='running',step_kind=?,command_version=command_version+1 WHERE debug_id=?`, [kind, sessionId])
     await controller!.query('SELECT RELEASE_LOCK(?) AS released', [lock])
   }
-  async function waitForStatus(status: string): Promise<Record<string, unknown>> {
+  async function waitForStatus(status: string, sessionId = debugId, targetTask = callTask): Promise<Record<string, unknown>> {
+    let last: Record<string, unknown> = {}
     for (let index = 0; index < 200; index++) {
-      const rows = await controller!.query(`SELECT status,current_line,variables_json FROM ${schema('debug_sessions')} WHERE debug_id=?`, [debugId])
+      const rows = await controller!.query(`SELECT status,current_line,variables_json FROM ${schema('debug_sessions')} WHERE debug_id=?`, [sessionId])
+      last = rows[0] ?? {}
       if (String(rows[0]?.status) === status) return rows[0]!
-      if (callTask) { const outcome = await Promise.race([callTask.then(() => 'finished', () => 'failed'), new Promise<'wait'>(resolve => setTimeout(() => resolve('wait'), 20))]); if (outcome !== 'wait') throw new Error(`Target finished before debugger reached ${status}.`) }
+      if (targetTask) { const outcome = await Promise.race([targetTask.then(() => 'finished', () => 'failed'), new Promise<'wait'>(resolve => setTimeout(() => resolve('wait'), 20))]); if (outcome !== 'wait') throw new Error(`Target finished before debugger reached ${status}.`) }
       await new Promise((resolve) => setTimeout(resolve, 20))
     }
-    throw new Error(`Timed out waiting for debugger status ${status}.`)
+    throw new Error(`Timed out waiting for debugger status ${status}; latest state was ${JSON.stringify(last)}.`)
   }
   async function waitForLine(line: number): Promise<Record<string, unknown>> {
     for (let index = 0; index < 200; index++) {
@@ -113,6 +158,17 @@ END`
       await new Promise((resolve) => setTimeout(resolve, 20))
     }
     throw new Error(`Timed out waiting for debugger line ${line}.`)
+  }
+  async function waitForTriggerPause(sessionId: string, line: number, task: Promise<void>): Promise<void> {
+    const lockName = `dfl-pause-${sessionId}-${line}`
+    for (let index = 0; index < 250; index++) {
+      const rows = await controller!.query('SELECT IS_USED_LOCK(?) AS owner', [lockName])
+      if (rows[0]?.owner != null) return
+      const outcome = await Promise.race([task.then(() => 'finished', () => 'failed'), new Promise<'wait'>(resolve => setTimeout(() => resolve('wait'), 20))])
+      if (outcome !== 'wait') throw new Error(`Trigger completed before debugger paused (${outcome}).`)
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+    throw new Error('Timed out waiting for trigger pause lock.')
   }
   function parseJson(value: unknown): Record<string, unknown> { return typeof value === 'string' ? JSON.parse(value) as Record<string, unknown> : value as Record<string, unknown> }
 })

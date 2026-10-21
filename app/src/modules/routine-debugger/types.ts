@@ -15,13 +15,13 @@ export interface DebugSnapshot {
   callStack: DebugStackFrame[]
   output: string[]
 }
-export interface DebugRoutineTarget { connectionId: string; database: string; name: string }
+export interface DebugRoutineTarget { connectionId: string; database: string; name: string; kind?: 'procedure' | 'trigger' }
 export interface RoutineDebugApi {
   inspectDebugEngine(connectionId: string): Promise<{ installed: boolean; activeSessions: number; version?: string }>
   deployDebugEngine(connectionId: string, confirmed: boolean): Promise<void>
   removeDebugEngine(connectionId: string, confirmed: boolean): Promise<void>
   compileRoutineForDebug(target: DebugRoutineTarget): Promise<{ originalSql: string; instrumentedSql: string; statementLines: number[] }>
-  startRoutineDebug(target: DebugRoutineTarget, args: Array<string | null>, breakpoints: DebugBreakpoint[], autocommit: boolean, confirmedAutocommit: boolean): Promise<{ sessionId: string }>
+  startRoutineDebug(target: DebugRoutineTarget, args: Array<string | null>, breakpoints: DebugBreakpoint[], autocommit: boolean, confirmedAutocommit: boolean, triggerSql?: string): Promise<{ sessionId: string }>
   commandRoutineDebug(sessionId: string, command: DebugStepKind | 'stop', line?: number): Promise<void>
   setRoutineDebugBreakpoints(sessionId: string, breakpoints: DebugBreakpoint[]): Promise<void>
   setRoutineDebugWatches(sessionId: string, watches: string[]): Promise<void>
