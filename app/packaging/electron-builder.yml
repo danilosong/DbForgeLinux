@@ -34,6 +34,9 @@ linux:
   synopsis: MySQL and MariaDB database client
   description: Desktop database client for MySQL and MariaDB.
 deb:
+  fpm:
+    - --replaces=dbforge-linux
+    - --conflicts=dbforge-linux
   depends:
     - libgtk-3-0
     - libnotify4
