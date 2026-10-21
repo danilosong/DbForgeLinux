@@ -97,7 +97,6 @@ Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas paraf
 | Attach a document to provide the AI with additional context. | Tooltip de anexo | `ai.attach.docHint` |
 | Attach a {0} to provide the AI with context about the data schema. | Tooltip de anexo de schema | `ai.attach.schemaHint` |
 | Sign In | Botão de login/consentimento | `ai.signIn` |
-| I agree to Devart AI Terms of Services and Devart AI Policy | Checkbox de consentimento (adaptar nome do provedor) | `ai.consent.agree` |
 | Default model selection is not available. Sign in to select a default model. | Estado sem login nas opções | `ai.options.noModel` |
 | AI Assistant settings. / AI Assistant options. | Descrição da página de opções | `ai.options.desc` |
 | Unable to connect to the AI Assistant service. Check internet connection and firewall. | Erro de rede | `ai.err.connect` |

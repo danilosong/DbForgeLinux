@@ -439,7 +439,6 @@ export const enMessages: Record<string, string> = {
   "ai.attach.docHint": "Attach a document to provide the AI with additional context.",
   "ai.attach.schemaHint": "Attach a {0} to provide the AI with context about the data schema.",
   "ai.signIn": "Sign In",
-  "ai.consent.agree": "I agree to Devart AI Terms of Services and Devart AI Policy",
   "ai.options.noModel": "Default model selection is not available. Sign in to select a default model.",
   "ai.options.desc": "AI Assistant settings. / AI Assistant options.",
   "ai.err.connect": "Unable to connect to the AI Assistant service. Check internet connection and firewall.",

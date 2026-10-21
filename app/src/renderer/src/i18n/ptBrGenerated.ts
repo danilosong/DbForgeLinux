@@ -437,7 +437,6 @@ export const generatedPtBrMessages: Record<string, string> = {
   "ai.attach.docHint": "Anexe um documento para fornecer contexto adicional à IA.",
   "ai.attach.schemaHint": "Anexe um {0} para fornecer contexto à IA sobre o esquema de dados.",
   "ai.signIn": "Entrar",
-  "ai.consent.agree": "Concordo com os Termos de Serviços da Devart AI e a Política da Devart AI",
   "ai.options.noModel": "A seleção do modelo padrão não está disponível. Faça login para selecionar um modelo padrão.",
   "ai.options.desc": "Configurações do Assistente de IA. / Opções do Assistente de IA.",
   "ai.err.connect": "Não é possível conectar-se ao serviço AI Assistant. Verifique a conexão com a Internet e o firewall.",

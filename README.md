@@ -19,12 +19,12 @@
 **Progresso do projeto** · atualizado em 2026-10-21
 
 ```text
-Fidelidade ao original (medida)           ███████████████████░    95%
-Módulos implementados e testados          ████████████████████   100%  (20 de 20)
-Specs de UX verificadas contra evidência  ████████████████████   100%  (20 de 20)
+Cobertura de funcionalidades de referência  ███████████████████░    95%
+Módulos implementados e testados            ████████████████████   100%  (20 de 20)
+Specs de UX verificadas contra evidência    ████████████████████   100%  (20 de 20)
 ```
 
-<sub>A fidelidade é medida por um agente de UX com checagem por amostra de 12 itens e cobre apenas os fluxos observados no original; a verificação do arquiteto estima algo entre 90% e 92% porque o sistema de ancoragem direcional em cruz livre segue simplificado.</sub>
+<sub>Implementação independente, não é cópia nem produto afiliado a terceiros (ver LEGAL.md). A cobertura é medida por um agente de UX com checagem por amostra de 12 itens e cobre apenas os fluxos observados no produto de referência; a verificação do arquiteto estima algo entre 90% e 92% porque o sistema de ancoragem direcional em cruz livre segue simplificado.</sub>
 <!-- PROGRESS:END -->
 
 ---
@@ -32,6 +32,9 @@ Specs de UX verificadas contra evidência  ████████████�
 ### What is dbForgeLinux?
 
 > **dbForgeLinux** is an independent, native Linux desktop IDE and database management client for **MySQL and MariaDB**, created by **Danilo Song**. Built on **Electron, React 19, TypeScript, and the Monaco Editor**, it delivers a comprehensive development workspace tailored specifically for the Linux ecosystem. It provides professional SQL editing with autocompletion, query formatting and execution history, an interactive MDI workspace for visual query building, ER diagrams, schema & data synchronization, stored procedure stepping debugging, native SSH and HTTP tunneling, and an integrated AI Assistant with streaming and Bring-Your-Own-Key (BYOK) privacy.
+
+> **Aviso importante / Important notice:** o dbForgeLinux é um projeto **independente e de código aberto**. **Não é um clone, cópia, fork ou porte do dbForge Studio**, **não é afiliado, patrocinado nem endossado pela Devart**, e não contém código, binários, ícones ou imagens dela. "dbForge" e "Devart" são marcas de seus titulares, citadas aqui apenas de forma descritiva. Veja o [Aviso Legal completo](LEGAL.md) e a seção [Aviso Legal (Disclaimer)](#aviso-legal-disclaimer).
+> *dbForgeLinux is an independent open-source project. It is not a clone, copy, fork or port of dbForge Studio, and is not affiliated with or endorsed by Devart. See [LEGAL.md](LEGAL.md).*
 
 ---
 
@@ -128,7 +131,7 @@ Abaixo estão capturas reais da interface gráfica do dbForgeLinux executando em
 | **Conectividade Segura** | Túneis de rede SSH e HTTP nativos | Conexão com servidores remotos e bancos protegidos por firewall via túnel SSH criptografado (chave pública/privada com passphrase) ou script de túnel web HTTP (`tunnel.php`). |
 | **Service Control** | Controle de serviços MySQL/MariaDB locais | Painel administrativo para checar status, iniciar, parar e reiniciar serviços de banco locais gerenciados pelo `systemd` do Linux, sem exigência de sudo direto pelo app. |
 | **Backup & Restore** | Ferramentas auxiliares de banco | Geração de dumps de schema e dados em arquivos `.sql`, restauração orientada com prévia de script e cópia direta de esquemas entre conexões ativas. |
-| **Opções e Atalhos** | Central de preferências e keymap configurável | Configuração de comportamento de inicialização, salvamento automático de rascunhos, esquemas de atalhos de teclado (padrão VS Code / dbForge), fontes e temas visuais (Auto, Claro, Escuro e Alto Contraste). |
+| **Opções e Atalhos** | Central de preferências e keymap configurável | Configuração de comportamento de inicialização, salvamento automático de rascunhos, esquemas de atalhos de teclado (padrão VS Code ou esquema alternativo de atalhos familiar a usuários de IDEs de banco de dados), fontes e temas visuais (Auto, Claro, Escuro e Alto Contraste). |
 | **Internacionalização** | Suporte multilíngue completo | Chaveamento nativo em tempo de execução entre **Inglês (en)** e **Português do Brasil (pt-BR)** para todas as telas, botões, mensagens e diálogos. |
 
 ---
@@ -333,7 +336,7 @@ Para o registro detalhado de comportamento de handshakes TLS e fallbacks, veja [
 O dbForgeLinux é um projeto de código aberto em desenvolvimento ativo.
 
 - **O que está feito:** Todos os 18 módulos listados no inventário inicial de engenharia reversa estão implementados no código e contam com cobertura de testes unitários, testes de integração e evidências visuais registradas.
-- **O que NÃO afirmamos:** **Não afirmamos paridade formal ou funcional certificada com o produto original de referência (dbForge Studio for MySQL da Devart).** Nossas implementações foram concebidas a partir de evidências de engenharia reversa de caixa-preta, especificações de design UX proprietárias e validações de comportamento próprio. A compatibilidade e os desvios conhecidos estão publicamente documentados na [Matriz de Paridade](document/03-matriz-paridade.md).
+- **O que NÃO afirmamos:** **Não afirmamos paridade formal ou funcional certificada com nenhum produto comercial**, em especial com o dbForge Studio for MySQL da Devart, que serviu apenas como referência de *categoria de funcionalidades* (o que uma boa IDE de banco de dados oferece). As implementações são **código original**, escritas a partir de especificações próprias do projeto e de observação de comportamento, **sem uso de código, binários ou recursos do produto de referência**. Os desvios conhecidos estão documentados na [Matriz de Paridade](document/03-matriz-paridade.md).
 
 ---
 
@@ -353,6 +356,7 @@ Para total transparência com os usuários e a comunidade de desenvolvimento:
 - [Matriz de Paridade de Recursos](document/03-matriz-paridade.md)
 - [Relatório de Revisão de Segurança](document/security-review.md)
 - [Matriz de Compatibilidade MySQL/MariaDB](document/compat.md)
+- [Aviso Legal e Propriedade Intelectual](LEGAL.md)
 - [Como Contribuir](CONTRIBUTING.md)
 - [Histórico de Versões (Changelog)](CHANGELOG.md)
 
@@ -360,11 +364,17 @@ Para total transparência com os usuários e a comunidade de desenvolvimento:
 
 ## Aviso Legal (Disclaimer)
 
-**dbForgeLinux** é um software livre de código aberto e desenvolvimento independente, criado por **Danilo Song** e mantido pela comunidade.
+**dbForgeLinux** é um software livre de código aberto (licença MIT) e de desenvolvimento independente, criado por **Danilo Song** e mantido pela comunidade.
 
+- **Não é um clone.** É uma implementação independente, para Linux, de funcionalidades comuns a IDEs de banco de dados. Funcionalidades, ideias, métodos e algoritmos não são protegidos por direito autoral; a *expressão* (código, imagens, textos, identidade visual) é, e **nada disso foi copiado** (Lei nº 9.609/1998, art. 2º e art. 6º, III; Lei nº 9.610/1998, art. 8º).
 - Este projeto **não é afiliado, associado, autorizado, patrocinado ou de qualquer forma oficialmente conectado à Devart** ou a qualquer uma de suas subsidiárias ou afiliadas.
-- O código-fonte, componentes, folhas de estilo e recursos visuais deste repositório foram criados do zero para este projeto; **nenhum código-fonte proprietário, biblioteca fechada ou asset gráfico pertencente ao dbForge Studio foi copiado ou incluído neste repositório**.
-- O nome oficial *dbForge Studio* e suas respectivas marcas são marcas registradas de seus legítimos detentores. O uso de nomes e referências neste projeto tem finalidade estritamente descritiva de interoperabilidade e compatibilidade de software conforme os princípios de engenharia reversa legal e desenvolvimento independente de alternativas de código aberto para a plataforma Linux.
+- O código-fonte, componentes, folhas de estilo e recursos visuais deste repositório foram criados do zero para este projeto; **nenhum código-fonte proprietário, biblioteca fechada, binário, ícone, imagem ou texto de ajuda pertencente ao dbForge Studio foi copiado ou incluído neste repositório**. Materiais extraídos de outros produtos não são versionados nem distribuídos.
+- As capturas de tela deste README mostram **exclusivamente o dbForgeLinux**.
+- *dbForge*, *dbForge Studio* e *Devart* são marcas de seus legítimos titulares, sem qualquer direito reivindicado aqui. Aparecem apenas de forma **nominativa e descritiva** (Lei nº 9.279/1996, art. 132), para informar a relação de equivalência de funcionalidades e a ausência de vínculo.
+- **Titulares de direitos:** se achar que algo aqui viola seus direitos, abra uma issue ou contate o mantenedor; o conteúdo será analisado e, havendo fundamento, removido ou substituído, inclusive com renomeação do projeto. Detalhes em [LEGAL.md](LEGAL.md).
+- Este texto não é aconselhamento jurídico. O software é fornecido "como está", sem garantias (veja o [`LICENSE`](LICENSE)).
+
+*English:* dbForgeLinux is an independent MIT-licensed project. It is not a clone or derivative of dbForge Studio, contains none of its code or assets, and is not affiliated with, sponsored or endorsed by Devart. Trademarks belong to their owners and are mentioned only descriptively. Rights holders may contact the maintainer to request review or removal (see [LEGAL.md](LEGAL.md)).
 
 ---
 
