@@ -16,6 +16,7 @@ interface Props { target: ObjectEditorTarget; isNew: boolean; isProduction?: boo
 const blankColumn = (index: number): ColumnModel => ({ name: `column_${index}`, type: 'VARCHAR(100)', nullable: true })
 const blankTable = (name: string): TableModel => ({ kind: 'table', name, columns: [{ name: 'id', type: 'INT', nullable: false, autoIncrement: true }, { name: 'name', type: 'VARCHAR(100)', nullable: true }], indexes: [{ name: 'PRIMARY', kind: 'PRIMARY', columns: [{ name: 'id' }] }], foreignKeys: [], checks: [], engine: 'InnoDB', charset: 'utf8mb4', comment: '' })
 const defaultRoutineOptions: RoutineOptions = { definer: 'CURRENT_USER', sqlAccess: 'CONTAINS SQL', deterministic: false, parameters: [] }
+const persistedTarget = (target: ObjectEditorTarget): ObjectEditorTarget => ({ connectionId: target.connectionId, database: target.database, kind: target.kind, name: target.name })
 
 export function ObjectEditor({ target, isNew, isProduction, autoCommit = true, transactionRevision = 0, transactionCommitted = true, onApplied, onScript }: Props): React.JSX.Element {
   const { t } = useI18n()
@@ -42,7 +43,7 @@ export function ObjectEditor({ target, isNew, isProduction, autoCommit = true, t
     if (isNew) return
     let cancelled = false
     setLoading(true)
-    void window.tuxsql.loadObjectEditor(target).then((object) => {
+    void window.tuxsql.loadObjectEditor(persistedTarget(target)).then((object) => {
       if (cancelled) return
       if (object.kind === 'table') { const tableObject = object as TableModel; setOriginal(tableObject); setTable(structuredClone(tableObject)) }
       setSql(object.createSql ?? ('definition' in object ? String(object.definition) : ''))
@@ -59,7 +60,7 @@ export function ObjectEditor({ target, isNew, isProduction, autoCommit = true, t
   async function refreshObject(): Promise<void> {
     if (isNew) { setTable(blankTable(target.name)); return }
     setBusy(true); setError('')
-    try { const object = await window.tuxsql.loadObjectEditor(target); if (object.kind === 'table') { const loaded = object as TableModel; setOriginal(structuredClone(loaded)); setTable(structuredClone(loaded)) } setMessage('Object refreshed.') } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not refresh object.') } finally { setBusy(false) }
+    try { const object = await window.tuxsql.loadObjectEditor(persistedTarget(target)); if (object.kind === 'table') { const loaded = object as TableModel; setOriginal(structuredClone(loaded)); setTable(structuredClone(loaded)) } setMessage('Object refreshed.') } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not refresh object.') } finally { setBusy(false) }
   }
 
   async function loadTableData(): Promise<void> {

@@ -63,7 +63,7 @@ try {
     await chooseTheme(theme)
     await page.locator('.node-line').filter({ hasText: 'Martelo UI MySQL' }).click({ button: 'right' })
     await page.screenshot({ path: join(shellEvidence, `explorer-server-menu-${theme.toLowerCase()}.png`) })
-    await page.locator('.document-tabs').click({ position: { x: 700, y: 5 } })
+    await page.mouse.click(1000, 700)
   }
   await page.locator('.node-line').filter({ hasText: 'Martelo UI MySQL' }).click({ button: 'right' })
   await page.locator('.explorer-context-menu').getByRole('menuitem', { name: 'New Database' }).click()
@@ -73,7 +73,7 @@ try {
     await capture(join(shellEvidence, `new-database-editor-${theme.toLowerCase()}.png`))
     await page.locator('.document-tab').filter({ hasText: 'New Database' }).click({ button: 'right' })
     await page.screenshot({ path: join(shellEvidence, `document-tab-menu-${theme.toLowerCase()}.png`) })
-    await page.locator('.document-tabs').click({ position: { x: 700, y: 5 } })
+    await page.mouse.click(1000, 700)
   }
   await page.locator('.document-tab').filter({ hasText: 'New Database' }).click({ button: 'right' })
   await page.locator('.tab-context-menu').getByRole('menuitem', { name: 'Close', exact: true }).click()
@@ -111,7 +111,7 @@ try {
     await capture(join(tableEvidence, `table-designer-${theme.toLowerCase()}.png`))
   }
   await page.getByRole('button', { name: 'Data', exact: true }).click()
-  await page.getByRole('button', { name: /Refresh data|Atualizar dados/ }).click()
+  await page.locator('.data-page-toolbar button').first().click()
   await page.locator('.result-grid').waitFor({ timeout: 30000 })
   console.log('Table Data loaded.')
   for (const theme of ['Light', 'Dark']) {

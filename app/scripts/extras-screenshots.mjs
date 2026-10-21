@@ -46,8 +46,8 @@ try {
     await closePanel(title)
   }
   await page.evaluate(async ({ runPrefix }) => window.tuxsql.queueSchemaUpdate({ connectionId: `${runPrefix}_connection`, database: runPrefix, source: `Playwright ${runPrefix}`, script: `ALTER TABLE \`${runPrefix}_table\` ADD COLUMN \`nickname\` VARCHAR(80);` }), { runPrefix })
-  await capturePanel('Data Compare', '.compare-panel', 'data-compare')
-  await capturePanel('Schema Compare', '.compare-panel', 'schema-compare', 'Database')
+  await capturePanel('Data Comparison', '.compare-panel', 'data-compare', 'Comparison')
+  await capturePanel('Schema Comparison', '.compare-panel', 'schema-compare', 'Comparison')
   await capturePanel('Schema Update Script', '.extras-schema-panel', 'schema-update')
   await capturePanel('Code Snippets', '.snippets-panel', 'code-snippets')
   await capturePanel('Toolbox', '.toolbox-panel', 'toolbox')
