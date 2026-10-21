@@ -43,3 +43,7 @@ O vínculo é ignorado (e o build embutido é usado) se o build do repositório 
 Se o canal de desenvolvimento estiver ativo e o **Git não estiver instalado**, o app mostra um aviso claro (instale com
 `sudo apt install git`) em vez de falhar. Se o `pnpm` não for encontrado, a mensagem indica como informá-lo
 (`DBFORGE_PNPM`). Enquanto nenhuma release tiver sido publicada no GitHub, o canal de release apenas diz que está atualizado.
+
+## Por que o app vinculado mostrava o canal "Versão estável"
+
+`pnpm dist:deb` compila em modo release (sem o caminho do repositório no `buildInfo.json`) e isso sobrescrevia o `out/` do clone vinculado, então o app caía no canal de release. Agora `dist:deb` recompila em modo normal ao terminar, mantendo o canal de desenvolvimento. Se ver "Versão estável" com o vínculo ativo, rode `cd app && pnpm build`.
