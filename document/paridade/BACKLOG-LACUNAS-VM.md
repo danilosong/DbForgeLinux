@@ -21,3 +21,12 @@ Atenção: G2 e G3 conflitam com o que a matriz já registra como implementado (
 | G2 | Pivot Table interativa acoplada ao grid (verificar vs. módulo 18) | B | Codex |
 | G3 | Master-Detail síncrono acoplado ao grid por FK (verificar vs. módulo 18) | B | Codex |
 | G4 | Construtor visual em árvore de filtros compostos (AND/OR/BETWEEN) | B | Codex + UX |
+
+## Routine Debugger (F-DBG) — observado
+Event Schedulers e UDFs em C/C++ seguem como divergência intencional (não entram no backlog). O original falhou ao implantar o engine no MySQL 8.4 strict (VARCHAR 21845); o clone usa schema próprio com MEDIUMTEXT — manter.
+| # | Lacuna | Prio | Dono |
+|---|---|---|---|
+| D1 | Watches avaliando expressões arbitrárias durante a pausa (ex.: a + b * 2) | A | Codex |
+| D2 | Breakpoints condicionais (Condition) e Hit count | A | Codex |
+| D3 | Editar variável no painel Watches com escrita na sessão alvo | B | Codex |
+| D4 | Diálogo Continue/Stop em exceção durante a depuração | B | Codex |
