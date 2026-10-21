@@ -30,3 +30,12 @@ Event Schedulers e UDFs em C/C++ seguem como divergência intencional (não entr
 | D2 | Breakpoints condicionais (Condition) e Hit count | A | Codex |
 | D3 | Editar variável no painel Watches com escrita na sessão alvo | B | Codex |
 | D4 | Diálogo Continue/Stop em exceção durante a depuração | B | Codex |
+
+## Query Builder (F-QB) — observado
+Atenção: o print do README (build f885a5f) já mostra menus Query/Layout, botão Auto Layout, Create Subquery e abas Root/SubQuery. Três das quatro lacunas apontadas pela observação provavelmente já existem; só abrir task após verificar no clone.
+| # | Lacuna | Prio | Dono |
+|---|---|---|---|
+| Q1 | Navegação por breadcrumbs entre Root Query e SubQueries (verificar o que já existe) | B | Codex |
+| Q2 | Auto-Layout em grafo para vários cartões (existe botão; verificar qualidade do algoritmo) | C | Codex |
+| Q3 | Menus Layout e Query na barra principal (aparentemente existem; verificar) | — | verificar |
+| Q4 | Minimapa de navegação no canto do canvas | C | Codex |
