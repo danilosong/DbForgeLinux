@@ -82,7 +82,7 @@ A trilha de startup foi adicionada como marca de renderização/pintura e observ
 
 | Gap | Estado | Evidência nesta rodada |
 |---|---|---|
-| 31 — Data Compare | Implementado parcialmente, com Custom Queries executável | Opções pesquisáveis e agrupadas, carregar/salvar defaults locais, ignorar microssegundos, filtros de mapeamento, contagem N of M, consulta SELECT de cada lado validada como somente leitura e limitada a 50 mil linhas. Testes unitários para chaves duplicadas/ausentes, diferenças, precisão e bloqueio de escrita. Sincronização permanece indisponível para resultados arbitrários de consultas. |
+| 31 — Data Compare | Implementado parcialmente, com Custom Queries executável | Map Objects lê tabelas/views das duas databases, aplica as opções de nome e informa objetos sem par; Auto Mapping alinha nomes normalizados. Opções pesquisáveis e agrupadas, defaults locais, ignorar microssegundos, filtro de mapeamento e contagem N of M. Custom Query executa SELECT de cada lado, somente leitura e limitado a 50 mil linhas. Testes unitários cobrem chaves duplicadas/ausentes, diferenças, precisão e bloqueio de escrita. Sincronização permanece indisponível para resultados arbitrários de consultas. |
 | 32 — ER Diagram | Implementado | Overview existente ganhou retângulo de viewport e navegação pelo canvas; gerenciador de relações virtuais existente continua disponível. O teste smoke verifica o minimapa e abre o gerenciador sem criar relações persistentes. |
 | 33 — Table Designer Card View | Implementado | A página Data alterna Grid/Card, mostra um registro por vez com navegação e apresenta valores NULL explicitamente. Teste unitário cobre a transformação e formatação do cartão; smoke abre o designer sobre tabela descartável. |
 
