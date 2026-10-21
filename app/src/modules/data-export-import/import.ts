@@ -1,7 +1,7 @@
 import { StringDecoder } from 'node:string_decoder'
 import type { DbTransaction, SqlValue } from '../../main/db/DbDriver.js'
 import type { ImportJob, ImportPreview, ImportReport, Row } from './types.js'
-import { quoteIdentifier, quoteQualifiedIdentifier, sqlPlaceholders } from './encoding.js'
+import { quoteIdentifier, quoteQualifiedIdentifier, sqlLiteral, sqlPlaceholders } from './encoding.js'
 import { readXlsx } from './xlsx.js'
 
 function textChunks(source: AsyncIterable<Buffer | string>, encoding: 'utf8' | 'utf16le' | 'latin1' = 'utf8'): AsyncIterable<string> {
@@ -162,7 +162,7 @@ async function* xmlObjects(job: ImportJob): AsyncIterable<Row> {
 }
 
 async function* sourceRows(job: ImportJob): AsyncIterable<Row> {
-  if (job.format === 'csv') { yield* csvObjects(job); return }
+  if (job.format === 'csv' || job.format === 'text') { yield* csvObjects({ ...job, options: { ...job.options, delimiter: job.options?.delimiter ?? (job.format === 'text' ? '\t' : ',') } }); return }
   if (job.format === 'json') {
     const parsed: unknown = JSON.parse((await readAll(job.source)).toString(job.options?.encoding ?? 'utf8'), (_key, value: unknown) => {
       if (value && typeof value === 'object' && 'type' in value && value.type === 'Buffer' && 'data' in value && Array.isArray(value.data)) return Buffer.from(value.data as number[])
@@ -237,8 +237,11 @@ async function runRows(job: ImportJob, execute: (sql: string, values: readonly S
       else if (result.affectedRows === 1) report.inserted++
       else if (result.affectedRows > 0) report.updated++
     } catch (error) {
-      report.errors++; report.rowErrors.push({ row: index, message: error instanceof Error ? error.message : 'Erro de linha.' })
-      if ((job.options?.onRowError ?? 'abort') === 'abort') throw error
+      const message = error instanceof Error ? error.message : 'Erro de linha.'
+      report.errors++; report.rowErrors.push({ row: index, message })
+      const policy = job.options?.onRowError ?? 'abort'
+      const decision = policy === 'prompt' ? await job.options?.onRowErrorPrompt?.(index, message) ?? 'abort' : policy
+      if (decision === 'abort') throw error
     }
     if (report.read % 100 === 0) job.onProgress?.({ phase: 'reading', rows: report.read })
   }
@@ -246,10 +249,15 @@ async function runRows(job: ImportJob, execute: (sql: string, values: readonly S
 
 export async function importData(job: ImportJob): Promise<ImportReport> {
   const report: ImportReport = { read: 0, inserted: 0, updated: 0, deleted: 0, errors: 0, rowErrors: [] }
-  const execute = async (transaction: DbTransaction): Promise<void> => runRows(job, async (sql, values) => transaction.execute(sql, values), report)
+  const writeJob = job.options?.mode === 'repopulate' ? { ...job, options: { ...job.options, mode: 'append' as const } } : job
+  const execute = async (transaction: DbTransaction): Promise<void> => {
+    if (job.options?.mode === 'repopulate') await transaction.execute(`DELETE FROM ${quoteQualifiedIdentifier(job.table)}`)
+    await runRows(writeJob, async (sql, values) => transaction.execute(sql, values), report)
+  }
   if (job.options?.transactional ?? true) await job.driver.withTransaction(job.connectionId, execute, job.signal)
   else {
-    await runRows(job, (sql, values) => job.driver.executeParameterized(job.connectionId, sql, values, job.signal), report)
+    if (job.options?.mode === 'repopulate') await job.driver.executeParameterized(job.connectionId, `DELETE FROM ${quoteQualifiedIdentifier(job.table)}`, [], job.signal)
+    await runRows(writeJob, (sql, values) => job.driver.executeParameterized(job.connectionId, sql, values, job.signal), report)
   }
   job.onProgress?.({ phase: 'complete', rows: report.read })
   return report
@@ -268,4 +276,44 @@ export async function previewImport(job: ImportJob, count = job.options?.preview
   }
   job.onProgress?.({ phase: 'preview', rows: rows.length })
   return { columns, rows }
+}
+
+function inlineParameters(statement: string, values: readonly SqlValue[]): string {
+  let valueIndex = 0; let quote = ''; let escaped = false; let output = ''
+  for (let index = 0; index < statement.length; index++) {
+    const char = statement[index]
+    output += char
+    if (quote) {
+      if (escaped) escaped = false
+      else if (char === '\\') escaped = true
+      else if (char === quote) { if (statement[index + 1] === quote) output += statement[++index]; else quote = '' }
+    } else if (char === '`' || char === '"' || char === "'") quote = char
+    else if (char === '?') {
+      const replacement = values[valueIndex++]
+      output = output.slice(0, -1) + sqlLiteral(replacement)
+    }
+  }
+  if (valueIndex !== values.length) throw new Error('Could not serialize all parameter values.')
+  return output
+}
+
+export async function* generateImportSql(job: ImportJob): AsyncIterable<string> {
+  if (job.options?.mode === 'repopulate') yield `DELETE FROM ${quoteQualifiedIdentifier(job.table)};\n`
+  let rowNumber = 0
+  for await (const sourceRow of sourceRows(job)) {
+    if (job.signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+    rowNumber++
+    try {
+      const row = mapped(sourceRow, job)
+      const command = sqlForRow({ ...job, options: { ...job.options, mode: job.options?.mode === 'repopulate' ? 'append' : job.options?.mode } }, row)
+      yield `${inlineParameters(command.sql, command.values)};\n`
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'conversion error'
+      const policy = job.options?.onRowError ?? 'abort'
+      const decision = policy === 'prompt' ? await job.options?.onRowErrorPrompt?.(rowNumber, message) ?? 'abort' : policy
+      if (decision === 'abort') throw error
+      yield `-- Row ${rowNumber} skipped: ${message.replace(/[\r\n]+/g, ' ').slice(0, 500)}\n`
+    }
+    job.onProgress?.({ phase: 'reading', rows: rowNumber })
+  }
 }

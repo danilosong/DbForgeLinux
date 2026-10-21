@@ -49,7 +49,15 @@ export function buildDiagram(source: DatabaseModel, connectionId: string, virtua
   const validVirtuals = virtualRelations.filter((relation) => names.includes(relation.fromTable) && names.includes(relation.toTable))
   return {
     version: 1, connectionId, database: source.name,
-    tables: source.tables.map((table) => ({ name: table.name, columns: table.columns, position: positions[table.name] ?? { x: 40, y: 40 } })),
+    tables: source.tables.map((table) => ({
+      name: table.name,
+      columns: table.columns,
+      position: positions[table.name] ?? { x: 40, y: 40 },
+      primaryColumns: table.indexes.filter((index) => index.kind === 'PRIMARY').flatMap((index) => index.columns.map((column) => column.name)),
+      constraintNames: [...table.foreignKeys.map((key) => key.name), ...table.checks.map((check) => check.name)],
+      indexNames: table.indexes.filter((index) => index.kind !== 'PRIMARY').map((index) => index.name),
+      triggerNames: source.triggers.filter((trigger) => trigger.table === table.name).map((trigger) => trigger.name)
+    })),
     relations: [...physical, ...validVirtuals], virtualRelations: validVirtuals
   }
 }

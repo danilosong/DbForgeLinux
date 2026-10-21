@@ -1,6 +1,6 @@
 import { PassThrough } from 'node:stream'
 import { describe, expect, it } from 'vitest'
-import { exportData, importData, previewExport, previewImport } from '../../src/modules/data-export-import/index.js'
+import { exportData, generateImportSql, importData, previewExport, previewImport } from '../../src/modules/data-export-import/index.js'
 import type { DbDriver, DbTransaction, SqlValue } from '../../src/main/db/DbDriver.js'
 import type { Row } from '../../src/modules/data-export-import/index.js'
 
@@ -29,6 +29,58 @@ describe('data export/import', () => {
     const { driver } = fakeDriver([{ id: 1, name: 'a,"b" — 日本語' }, { id: 2, name: null }])
     const content = await outputOf((destination) => exportData({ driver, connectionId: 'id', query: 'SELECT', destination, format: 'csv' }))
     expect(content.toString()).toBe('id,name\r\n1,"a,""b"" — 日本語"\r\n2,\r\n')
+  })
+
+  it('exports tab-separated text and applies forced quotes', async () => {
+    const { driver } = fakeDriver([{ id: 5, label: 'plain' }])
+    const content = await outputOf((destination) => exportData({ driver, connectionId: 'id', query: 'SELECT', destination, format: 'text', options: { header: true, forceQuotes: true } }))
+    expect(content.toString()).toBe('"id"\t"label"\r\n"5"\t"plain"\r\n')
+  })
+
+  it('imports tab-separated text and repopulates through a transaction', async () => {
+    const { driver, statements } = fakeDriver()
+    const report = await importData({
+      driver, connectionId: 'id', format: 'text', table: 'items',
+      source: (async function* () { yield Buffer.from('id\tlabel\n7\tnew\n') })(),
+      options: { mode: 'repopulate' }
+    })
+    expect(report).toMatchObject({ read: 1, inserted: 1, errors: 0 })
+    expect(statements[0].sql).toBe('DELETE FROM `items`')
+    expect(statements[1].sql).toBe('INSERT INTO `items` (`id`, `label`) VALUES (?, ?)')
+  })
+
+  it('asks after an import row error and can continue with the following row', async () => {
+    let writes = 0
+    const driver = {
+      withTransaction: async <T>(_id: string, operation: (transaction: DbTransaction) => Promise<T>) => operation({
+        execute: async (_sql: string, values: readonly SqlValue[] = []) => {
+          if (values[0] === 1) throw new Error('constraint rejected')
+          writes++
+          return { affectedRows: 1, insertId: 2 }
+        }
+      })
+    } as unknown as DbDriver
+    const asked: Array<{ row: number; message: string }> = []
+    const report = await importData({
+      driver, connectionId: 'id', format: 'json', table: 'items',
+      source: (async function* () { yield Buffer.from('[{"id":1},{"id":2}]') })(),
+      options: { onRowError: 'prompt', onRowErrorPrompt: async (row, message) => { asked.push({ row, message }); return 'continue' } }
+    })
+    expect(asked).toEqual([{ row: 1, message: 'constraint rejected' }])
+    expect(report).toMatchObject({ read: 2, inserted: 1, errors: 1 })
+    expect(writes).toBe(1)
+  })
+
+  it('streams a parameterized import as a safe SQL script', async () => {
+    const { driver } = fakeDriver()
+    const lines: string[] = []
+    for await (const line of generateImportSql({
+      driver, connectionId: 'id', format: 'json', table: 'items',
+      source: (async function* () { yield Buffer.from(JSON.stringify([{ id: 8, label: "x' OR 1=1 --" }])) })(),
+      options: { mode: 'repopulate' }
+    })) lines.push(line)
+    expect(lines[0]).toBe('DELETE FROM `items`;\n')
+    expect(lines[1]).toContain("INSERT INTO `items` (`id`, `label`) VALUES (8, 'x\\' OR 1=1 --');")
   })
 
   it('faz round trip CSV de exportação para importação com aspas, unicode e NULL', async () => {

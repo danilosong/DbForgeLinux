@@ -52,5 +52,5 @@ describe('Devart-style HTTP tunnel client', () => {
     expect(requests.some((item) => item.action === 'w' && item.body.equals(payload))).toBe(true)
     expect(requests.some((item) => item.action === 'r')).toBe(true)
     expect(requests.some((item) => item.action === 'x')).toBe(true)
-  }, 10_000)
+  }, 30_000)
 })

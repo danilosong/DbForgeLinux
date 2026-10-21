@@ -6,8 +6,8 @@ export function quoteDebugIdentifier(value: string): string {
   return `\`${value.replaceAll('`', '``')}\``
 }
 
-export function engineDdl(): string[] {
-  const schema = quoteDebugIdentifier(DEBUG_SCHEMA)
+export function engineDdl(database = DEBUG_SCHEMA): string[] {
+  const schema = quoteDebugIdentifier(database)
   return [
     `CREATE DATABASE IF NOT EXISTS ${schema} CHARACTER SET utf8mb4 COLLATE utf8mb4_bin`,
     `CREATE TABLE IF NOT EXISTS ${schema}.engine_info (engine_key VARCHAR(40) PRIMARY KEY, engine_version VARCHAR(20) NOT NULL) ENGINE=InnoDB`,

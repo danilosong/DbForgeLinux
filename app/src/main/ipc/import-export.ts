@@ -1,10 +1,12 @@
-import { app, dialog, ipcMain, type IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent, type MessageBoxOptions } from 'electron'
 import { createReadStream, createWriteStream } from 'node:fs'
-import { chmod, mkdir, readFile, stat, writeFile } from 'node:fs/promises'
-import { join } from 'node:path'
+import { chmod, mkdir, readFile, stat, writeFile, readdir, unlink } from 'node:fs/promises'
+import { extname, join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { randomUUID } from 'node:crypto'
 import type { IpcDeps } from './registry.js'
-import { exportData, importData, previewExport, previewImport, type ExportFormat, type ImportFormat, type ImportMode, type JobProgress, type ImportPreview } from '../../modules/data-export-import/index.js'
+import { exportData, importData, generateImportSql, previewExport, previewImport, type ExportFormat, type ImportFormat, type ImportMode, type JobProgress, type ImportPreview } from '../../modules/data-export-import/index.js'
+import { once } from 'node:events'
 import type { ImportExportOptions, ImportExportTemplate } from '../../shared/contracts/import-export.js'
 
 interface ActiveJob { controller: AbortController; senderId: number }
@@ -27,6 +29,18 @@ function startJob(event: IpcMainInvokeEvent, jobId: string): AbortController {
 function assertOptions(options?: ImportExportOptions): void {
   if (options?.encoding && !allowedEncodings.includes(options.encoding)) throw new Error('Encoding não suportado.')
   if (options?.columnMapping && Object.values(options.columnMapping).some((column) => typeof column !== 'string')) throw new Error('Mapeamento de colunas inválido.')
+  if (options?.columnTypes && Object.values(options.columnTypes).some((type) => !['String', 'Integer', 'Float', 'DateTime', 'HexString'].includes(type))) throw new Error('Tipo de coluna inválido.')
+  if (options?.onRowError && !['abort', 'continue', 'prompt'].includes(options.onRowError)) throw new Error('Política de erro inválida.')
+}
+
+async function askOnImportRowError(event: IpcMainInvokeEvent, row: number, message: string): Promise<'continue' | 'abort'> {
+  const parent = BrowserWindow.fromWebContents(event.sender)
+  const options: MessageBoxOptions = {
+    type: 'warning' as const, title: 'Import row failed', message: `Row ${row} could not be imported.`, detail: message.slice(0, 1000),
+    buttons: ['Continue with next row', 'Abort import'], defaultId: 1, cancelId: 1, noLink: true
+  }
+  const result = parent ? await dialog.showMessageBox(parent, options) : await dialog.showMessageBox(options)
+  return result.response === 0 ? 'continue' : 'abort'
 }
 
 function templatePath(): string { return join(app.getPath('userData'), 'data-tasks', 'templates.json') }
@@ -47,7 +61,7 @@ function isTemplate(value: unknown): value is ImportExportTemplate {
 function safeTemplate(value: Omit<ImportExportTemplate, 'id'> & { id?: string }): ImportExportTemplate {
   if (!value.name.trim() || value.name.length > 120 || !['import', 'export'].includes(value.direction)) throw new Error('Nome ou direção de template inválido.')
   const options: ImportExportOptions = {}
-  for (const key of ['delimiter', 'quote', 'header', 'encoding', 'onRowError', 'rowElement'] as const) {
+  for (const key of ['delimiter', 'quote', 'header', 'forceQuotes', 'encoding', 'onRowError', 'rowElement', 'fileName', 'appendTimestamp', 'autoDeleteDays', 'autoDeleteCount', 'rowStart', 'rowCount', 'columnTypes', 'outputMode', 'compress', 'zipLevel', 'zipComment'] as const) {
     const optionValue = value.options?.[key]
     if (optionValue !== undefined) Object.assign(options, { [key]: optionValue })
   }
@@ -65,12 +79,30 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
     assertOptions(options)
     const statement = query.trim().replace(/;+\s*$/, '')
     if (!/^\s*(SELECT|WITH)\b/i.test(statement) || statement.includes(';')) throw new Error('A exportação aceita apenas uma consulta SELECT.')
-    const extensions: Record<ExportFormat, string> = { csv: 'csv', json: 'json', xml: 'xml', sql: 'sql', html: 'html', xlsx: 'xlsx' }
-    const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Data Export Wizard', defaultPath: `export.${extensions[format]}`, filters: [{ name: format.toUpperCase(), extensions: [extensions[format]] }] })
+    const extensions: Record<ExportFormat, string> = { csv: 'csv', text: 'txt', json: 'json', xml: 'xml', sql: 'sql', html: 'html', xlsx: 'xlsx', pdf: 'pdf' }
+    const baseName = (options?.fileName || 'export').replace(/[\\/\\0]/g, '_').slice(0, 120)
+    const stamp = options?.appendTimestamp ? `_${new Date().toISOString().replace(/[:.]/g, '-')}` : ''
+    const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Data Export Wizard', defaultPath: `${baseName}${stamp}.${extensions[format]}`, filters: [{ name: format.toUpperCase(), extensions: [extensions[format]] }] })
     if (canceled || !filePath) throw new Error('Exportação cancelada.')
     const controller = startJob(event, jobId)
     try {
-      const report = await exportData({ driver, connectionId, query: statement, format, options, signal: controller.signal, onProgress: (value) => progress(event, jobId, value), destination: createWriteStream(filePath, { mode: 0o600 }) })
+      const temporaryHtml = format === 'pdf' ? join(app.getPath('temp'), `dbforge-export-${randomUUID()}.html`) : undefined
+      const exportFormat = format === 'pdf' ? 'html' : format
+      const report = await exportData({ driver, connectionId, query: statement, format: exportFormat, options, signal: controller.signal, onProgress: (value) => progress(event, jobId, value), destination: createWriteStream(temporaryHtml ?? filePath, { mode: 0o600 }) })
+      if (format === 'pdf' && temporaryHtml) {
+        const printer = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } })
+        try { await printer.loadURL(pathToFileURL(temporaryHtml).toString()); const pdf = await printer.webContents.printToPDF({ printBackground: true, pageSize: 'A4' }); await writeFile(filePath, pdf, { mode: 0o600 }) }
+        finally { printer.destroy(); await unlink(temporaryHtml).catch(() => undefined) }
+      }
+      if (options?.autoDeleteDays || options?.autoDeleteCount) {
+        const directory = join(filePath, '..')
+        const files = await readdir(directory, { withFileTypes: true })
+        const candidates = await Promise.all(files.filter((item) => item.isFile() && item.name.startsWith(`${baseName}_`) && extname(item.name) === `.${extensions[format]}`).map(async (item) => ({ path: join(directory, item.name), mtime: (await stat(join(directory, item.name))).mtimeMs })))
+        candidates.sort((left, right) => right.mtime - left.mtime)
+        const keep = Math.max(1, options.autoDeleteCount ?? 20); const cutoff = Date.now() - Math.max(1, options.autoDeleteDays ?? 30) * 86_400_000
+        await Promise.all(candidates.slice(keep).map((item) => unlink(item.path).catch(() => undefined)))
+        await Promise.all(candidates.filter((item) => item.mtime < cutoff && item.path !== filePath).map((item) => unlink(item.path).catch(() => undefined)))
+      }
       await chmod(filePath, 0o600)
       return { path: filePath, report }
     } finally { activeJobs.delete(jobId) }
@@ -79,7 +111,7 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
   ipcMain.handle('import-export:select-source', async (event, jobId: string, format: ImportFormat, options?: ImportExportOptions) => {
     if (!jobId) throw new Error('Identificador da tarefa ausente.')
     assertOptions(options)
-    const extensions: Record<ImportFormat, string[]> = { csv: ['csv', 'tsv', 'txt'], json: ['json'], xml: ['xml'], xlsx: ['xlsx'], sql: ['sql'] }
+    const extensions: Record<ImportFormat, string[]> = { csv: ['csv', 'tsv'], text: ['txt', 'tsv'], json: ['json'], xml: ['xml'], xlsx: ['xlsx'], sql: ['sql'] }
     const selected = await dialog.showOpenDialog({ title: 'Data Import from', properties: ['openFile'], filters: [{ name: format.toUpperCase(), extensions: extensions[format] }] })
     if (selected.canceled || !selected.filePaths[0]) return null
     const file = selected.filePaths[0]
@@ -112,8 +144,29 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
     const controller = startJob(event, jobId)
     selectedSources.delete(jobId)
     try {
-      return await importData({ driver, connectionId, table, format, source: createReadStream(selected.file), signal: controller.signal, onProgress: (value) => progress(event, jobId, value), options: { ...options, mode, keyColumns, transactional: true } })
+      return await importData({ driver, connectionId, table, format, source: createReadStream(selected.file), signal: controller.signal, onProgress: (value) => progress(event, jobId, value), options: { ...options, mode, keyColumns, onRowErrorPrompt: options?.onRowError === 'prompt' ? (row, message) => askOnImportRowError(event, row, message) : undefined, transactional: true } })
     } finally { activeJobs.delete(jobId) }
+  })
+
+  ipcMain.handle('import-export:script', async (event, table: string, format: ImportFormat, mode: ImportMode, keyColumns: string[], options?: ImportExportOptions, jobId?: string) => {
+    if (!table.trim() || !jobId) throw new Error('Select a destination table and source file before generating SQL.')
+    if (['update', 'delete', 'upsert'].includes(mode) && !keyColumns.length) throw new Error('This import mode requires key columns.')
+    assertOptions(options)
+    const selected = selectedSources.get(jobId)
+    if (!selected || selected.senderId !== event.sender.id) throw new Error('Selected source expired. Choose the file again.')
+    const dialogResult = await dialog.showSaveDialog({ title: 'Save generated import script', defaultPath: 'data-import.sql', filters: [{ name: 'SQL script', extensions: ['sql'] }] })
+    if (dialogResult.canceled || !dialogResult.filePath) throw new Error('SQL script generation was cancelled.')
+    const controller = startJob(event, jobId); selectedSources.delete(jobId)
+    const destination = createWriteStream(dialogResult.filePath, { mode: 0o600 })
+    let rows = 0
+    try {
+      for await (const line of generateImportSql({ driver, connectionId: '', table, format, source: createReadStream(selected.file), signal: controller.signal, options: { ...options, mode, keyColumns, onRowErrorPrompt: options?.onRowError === 'prompt' ? (row, message) => askOnImportRowError(event, row, message) : undefined }, onProgress: (value) => { rows = value.rows; progress(event, jobId, value) } })) {
+        if (!destination.write(line)) await once(destination, 'drain')
+      }
+      destination.end(); await once(destination, 'finish'); await chmod(dialogResult.filePath, 0o600)
+      return { path: dialogResult.filePath, rows }
+    } catch (error) { destination.destroy(error instanceof Error ? error : undefined); throw error }
+    finally { activeJobs.delete(jobId) }
   })
 
   ipcMain.handle('import-export:cancel', async (event, jobId: string) => {
@@ -136,5 +189,11 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
     const templates = (await readTemplates()).filter((item) => item.id !== id)
     await mkdir(join(app.getPath('userData'), 'data-tasks'), { recursive: true })
     await writeFile(templatePath(), `${JSON.stringify(templates, null, 2)}\n`, { mode: 0o600 })
+  })
+  ipcMain.handle('import-export:save-log', async (_event, content: string) => {
+    const selected = await dialog.showSaveDialog({ title: 'Save import/export error log', defaultPath: 'DataImport.log', filters: [{ name: 'Log file', extensions: ['log', 'txt'] }] })
+    if (selected.canceled || !selected.filePath) return null
+    await writeFile(selected.filePath, content.slice(0, 2 * 1024 * 1024), { mode: 0o600 })
+    return selected.filePath
   })
 }

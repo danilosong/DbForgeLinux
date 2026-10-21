@@ -1,9 +1,10 @@
 import type { ImportFormat, ExportFormat, ImportMode, ImportReport, ExportReport, ImportPreview, JobProgress } from '../../modules/data-export-import/types.js'
-export interface ImportExportOptions { delimiter?: string; quote?: string; header?: boolean; encoding?: 'utf8' | 'utf16le' | 'latin1'; onRowError?: 'continue' | 'abort'; columnMapping?: Record<string, string>; rowElement?: string }
+export interface ImportExportOptions { delimiter?: string; quote?: string; header?: boolean; forceQuotes?: boolean; encoding?: 'utf8' | 'utf16le' | 'latin1'; onRowError?: 'continue' | 'abort' | 'prompt'; columnMapping?: Record<string, string>; rowElement?: string; fileName?: string; appendTimestamp?: boolean; autoDeleteDays?: number; autoDeleteCount?: number; rowStart?: number; rowCount?: number; columnTypes?: Record<string, 'String' | 'Integer' | 'Float' | 'DateTime' | 'HexString'>; outputMode?: 'single' | 'separate'; compress?: boolean; zipLevel?: number; zipComment?: string }
 export interface ImportExportTemplate { id: string; name: string; direction: 'import' | 'export'; format: ImportFormat | ExportFormat; query?: string; table?: string; mode?: ImportMode; keyColumns?: string[]; options?: ImportExportOptions }
 export interface ImportExportApi {
   exportData(connectionId: string, query: string, format: ExportFormat, options?: ImportExportOptions, jobId?: string): Promise<{ path: string; report: ExportReport }>
   importData(connectionId: string, table: string, format: ImportFormat, mode: ImportMode, keyColumns: string[], options?: ImportExportOptions, jobId?: string): Promise<ImportReport>
+  generateImportSql(table: string, format: ImportFormat, mode: ImportMode, keyColumns: string[], options?: ImportExportOptions, jobId?: string): Promise<{ path: string; rows: number }>
   selectImportSource(jobId: string, format: ImportFormat, options?: ImportExportOptions): Promise<{ name: string; size: number; modified: number; preview: ImportPreview } | null>
   previewExport(connectionId: string, query: string, jobId: string): Promise<ImportPreview>
   cancelImportExport(jobId: string): Promise<void>
@@ -11,4 +12,5 @@ export interface ImportExportApi {
   listImportExportTemplates(): Promise<ImportExportTemplate[]>
   saveImportExportTemplate(template: Omit<ImportExportTemplate, 'id'> & { id?: string }): Promise<ImportExportTemplate>
   deleteImportExportTemplate(id: string): Promise<void>
+  saveImportExportLog(content: string): Promise<string | null>
 }

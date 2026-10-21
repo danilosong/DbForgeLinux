@@ -27,12 +27,20 @@ describe('query builder', () => {
   })
   it('generates safe parameterized SQL with joins, criteria, grouping, order, and limit', () => {
     const built = buildQuery(model())
-    expect(built.sql).toContain('LEFT JOIN `shop`.`customers` AS `c` ON `o`.`customer_id` = `c`.`id`')
-    expect(built.sql).toContain('WHERE `o`.`amount` >= ?')
-    expect(built.sql).toContain('GROUP BY `o`.`amount`')
-    expect(built.sql).toContain('ORDER BY `c`.`name` ASC')
-    expect(built.sql).toContain('LIMIT 25')
+    expect(built.sql).toContain('\n  LEFT JOIN `shop`.`customers` AS `c`\n    ON `o`.`customer_id` = `c`.`id`')
+    expect(built.sql).toContain('\nWHERE `o`.`amount` >= ?')
+    expect(built.sql).toContain('\nGROUP BY `o`.`amount`')
+    expect(built.sql).toContain('\nORDER BY `c`.`name` ASC')
+    expect(built.sql).toContain('\nLIMIT 25')
     expect(built.parameters).toEqual([12])
+  })
+
+  it('formats projections one per line and starts from the child table when metadata contains a foreign key', () => {
+    const query = model()
+    query.tables[0]!.foreignKeys = [{ column: 'customer_id', referencedTable: 'customers', referencedColumn: 'id' }]
+    query.tables.reverse()
+    const built = buildQuery(query)
+    expect(built.sql).toMatch(/^SELECT DISTINCT\n {2}`c`\.`name`,\n {2}SUM\(`o`\.`amount`\)\nFROM `shop`\.`orders` AS `o`\n {2}LEFT JOIN/)
   })
 
   it('builds assignment values before WHERE values and rejects unconfirmed destructive IPC elsewhere', () => {

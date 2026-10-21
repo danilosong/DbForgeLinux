@@ -44,6 +44,8 @@ describe('debug engine schema helpers', () => {
     expect(DEBUG_SCHEMA).toBe('dbforge_linux_debug')
     expect(engineDdl().some((sql) => sql.includes('routine_sources') && sql.includes('original_sql'))).toBe(true)
     expect(engineDdl().some((sql) => sql.includes('GET_LOCK'))).toBe(true)
+    expect(engineDdl('dbforge_linux_debug_test').join('\n')).toContain('CREATE DATABASE IF NOT EXISTS `dbforge_linux_debug_test`')
+    expect(engineDdl().join('\n')).not.toMatch(/watch_value\s+VARCHAR\s*\(\s*\d{5,}/i)
     expect(quoteDebugIdentifier('db`name')).toBe('`db``name`')
   })
 })

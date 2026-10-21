@@ -36,6 +36,7 @@ describe('IPC runtime guard', () => {
     expect(() => validateIpcArguments('grid-data:master-detail', ['connection', { database: 'shop', table: 'orders' }, { id: 7 }])).not.toThrow()
     expect(() => validateIpcArguments('grid-editing:apply', ['connection', {}, [], 'yes'])).toThrow(/boolean/)
     expect(() => validateIpcArguments('import-export:import', ['c', 'db.table', 'csv', 'append', [], {}, 'job'])).not.toThrow()
+    expect(() => validateIpcArguments('import-export:script', ['db.table', 'text', 'repopulate', [], {}, 'job'])).not.toThrow()
   })
 
   it('rejects external origins, subframes and senders without an app window', () => {

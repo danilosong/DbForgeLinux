@@ -20,14 +20,18 @@
     "test": "vitest run",
     "perf:benchmark": "vitest run test/performance-benchmark.test.ts --reporter=verbose",
     "dist:deb": "pnpm build && electron-builder --linux deb --config packaging/electron-builder.yml",
-    "smoke:e2e": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/smoke-e2e.mjs",
+    "smoke:e2e": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/smoke-e2e.mjs",
     "screenshots:updater": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/updater-screenshots.mjs",
     "qa:risk:e2e": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/qa-risk-e2e.mjs",
     "screenshots:extras": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/extras-screenshots.mjs",
-    "screenshots:editor-designer": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/editor-designer-screenshots.mjs"
+    "screenshots:import-export": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/import-export-screenshots.mjs",
+    "screenshots:editor-designer": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/editor-designer-screenshots.mjs",
+    "screenshots:connection": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/connection-dialog-e2e.mjs"
   },
   "dependencies": {
+    "debug": "^4.4.3",
     "electron-updater": "^6.8.9",
+    "ms": "^2.1.3",
     "mysql2": "^3.15.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

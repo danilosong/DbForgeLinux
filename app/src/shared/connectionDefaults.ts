@@ -8,6 +8,7 @@ export function createDefaultConnection(id: string, name = ''): ConnectionRecord
     host: 'localhost',
     port: 3306,
     user: 'root',
+    showAllDatabases: true,
     environment: 'none',
     ssl: { mode: 'preferred', minVersion: 'auto' },
     ssh: {
@@ -21,7 +22,7 @@ export function createDefaultConnection(id: string, name = ''): ConnectionRecord
       keepAliveSeconds: 30,
       hostFingerprint: undefined
     },
-    http: { enabled: false, url: '', timeoutSeconds: 30, rejectUnauthorized: true, keepAlive: true, useBase64: true, useCredentials: false },
+    http: { enabled: false, url: '', timeoutSeconds: 30, rejectUnauthorized: true, keepAlive: false, useBase64: false, useCredentials: false, useProxy: false },
     advanced: {
       connectionTimeoutSeconds: 15,
       commandTimeoutSeconds: 0,

@@ -1,7 +1,7 @@
 import type { ColumnModel, DatabaseModel } from '../schema/model.js'
 
 export interface DiagramPoint { x: number; y: number }
-export interface DiagramTable { name: string; columns: ColumnModel[]; position: DiagramPoint; collapsed?: boolean }
+export interface DiagramTable { name: string; columns: ColumnModel[]; position: DiagramPoint; collapsed?: boolean; primaryColumns?: string[]; constraintNames?: string[]; indexNames?: string[]; triggerNames?: string[]; collapsedSections?: Partial<Record<'Constraints' | 'Indexes' | 'Triggers', boolean>> }
 export interface DiagramRelation {
   id: string
   name: string

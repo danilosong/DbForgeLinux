@@ -111,6 +111,37 @@ jobs:
         run: pnpm smoke:e2e
         env:
           MYSQL_ROOT_PASSWORD: integration-only
+      - name: Verify Debian package in clean Ubuntu 24.04 container
+        working-directory: .
+        run: |
+          package_path="$(realpath app/dist/*.deb)"
+          export package_path
+          env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a bash -euc '
+            docker run --rm --network host \
+              -e DISPLAY="$DISPLAY" \
+              -e XAUTHORITY="$XAUTHORITY" \
+              -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
+              -v "$XAUTHORITY:$XAUTHORITY:ro" \
+              -v "$package_path:/tmp/dbforgelinux.deb:ro" \
+              ubuntu:24.04 bash -euc "
+                apt-get update
+                apt-get install -y --no-install-recommends /tmp/dbforgelinux.deb
+                dpkg -c /tmp/dbforgelinux.deb >/tmp/package-files.txt
+                executable=/opt/dbForgeLinux/dbforgelinux
+                test -x \"\$executable\"
+                ldd \"\$executable\" | tee /tmp/ldd.txt
+                if grep -q \"not found\" /tmp/ldd.txt; then
+                  echo \"Unresolved shared library in packaged Electron executable\" >&2
+                  exit 1
+                fi
+                \"\$executable\" --no-sandbox &
+                electron_pid=\$!
+                sleep 5
+                kill -0 \$electron_pid
+                kill -TERM \$electron_pid
+                wait \$electron_pid || test \$? -eq 143
+              "
+          '
       - uses: actions/upload-artifact@v4
         with:
           name: dbforgelinux-deb

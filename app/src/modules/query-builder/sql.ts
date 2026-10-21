@@ -48,14 +48,17 @@ function tableSql(table: QueryBuilderModel['tables'][number]): string {
 
 function joinsSql(model: QueryBuilderModel): string {
   if (!model.tables.length) throw new Error('Add at least one table.')
-  const joined = new Set([model.tables[0].alias || model.tables[0].name])
-  let sql = tableSql(model.tables[0])
-  const remaining = [...model.tables.slice(1)]
+  // The FK-owning table is the natural FROM root, matching the direction of the
+  // relationship shown in the diagram and keeping the child-to-parent join readable.
+  const root = model.tables.find((table) => table.foreignKeys.some((key) => model.tables.some((candidate) => candidate.name === key.referencedTable))) ?? model.tables[0]
+  const joined = new Set([root.alias || root.name])
+  let sql = tableSql(root)
+  const remaining = model.tables.filter((table) => table !== root)
   while (remaining.length) {
     const next = remaining.find((table) => model.joins.some((join) => (join.leftTable === table.alias || join.leftTable === table.name) && joined.has(join.rightTable) || (join.rightTable === table.alias || join.rightTable === table.name) && joined.has(join.leftTable)))
     if (!next) {
       const table = remaining.shift()!
-      sql += ` CROSS JOIN ${tableSql(table)}`
+      sql += `\n  CROSS JOIN ${tableSql(table)}`
       joined.add(table.alias || table.name)
       continue
     }
@@ -63,10 +66,10 @@ function joinsSql(model: QueryBuilderModel): string {
     const join = model.joins.find((item) => (item.leftTable === next.alias || item.leftTable === next.name) && joined.has(item.rightTable) || (item.rightTable === next.alias || item.rightTable === next.name) && joined.has(item.leftTable))!
     if (join.type === 'FULL') throw new Error('FULL JOIN is not directly supported by MySQL; use a UNION query in Text view.')
     const keyword = join.type === 'CROSS' ? 'CROSS JOIN' : `${join.type} JOIN`
-    sql += ` ${keyword} ${tableSql(next)}`
+    sql += `\n  ${keyword} ${tableSql(next)}`
     if (join.type !== 'CROSS') {
       if (!join.conditions.length) throw new Error('Join needs at least one condition.')
-      sql += ` ON ${join.conditions.map((condition, index) => `${index ? `${condition.connector ?? 'AND'} ` : ''}${qcol(condition.left, model)} ${condition.operator} ${qcol(condition.right, model)}`).join(' ')}`
+      sql += `\n    ON ${join.conditions.map((condition, index) => `${index ? `${condition.connector ?? 'AND'} ` : ''}${qcol(condition.left, model)} ${condition.operator} ${qcol(condition.right, model)}`).join(' ')}`
     }
     joined.add(next.alias || next.name)
   }
@@ -81,16 +84,16 @@ export function buildQuery(model: QueryBuilderModel): BuiltQuery {
   if (model.statement === 'SELECT') {
     const columns = model.selections.filter((selection) => selection.included)
     if (!columns.length) throw new Error('Select at least one output column.')
-    let sql = `SELECT ${model.distinct ? 'DISTINCT ' : ''}${columns.map((selection) => selectionSql(selection, model)).join(', ')} FROM ${joinsSql(model)}`
-    if (conditions.length) sql += ` WHERE ${conditionsSql(conditions, model, parameters)}`
+    let sql = `SELECT${model.distinct ? ' DISTINCT' : ''}\n${columns.map((selection) => `  ${selectionSql(selection, model)}`).join(',\n')}\nFROM ${joinsSql(model)}`
+    if (conditions.length) sql += `\nWHERE ${conditionsSql(conditions, model, parameters)}`
     const groups = model.selections.filter((selection) => selection.included && selection.group).map((selection) => qcol(selection.source, model))
-    if (groups.length) sql += ` GROUP BY ${groups.join(', ')}`
-    if (having.length) sql += ` HAVING ${conditionsSql(having, model, parameters)}`
+    if (groups.length) sql += `\nGROUP BY ${groups.join(', ')}`
+    if (having.length) sql += `\nHAVING ${conditionsSql(having, model, parameters)}`
     const orders = columns.filter((selection) => selection.sort).map((selection) => `${selectionSql(selection, model)} ${selection.sort}`)
-    if (orders.length) sql += ` ORDER BY ${orders.join(', ')}`
+    if (orders.length) sql += `\nORDER BY ${orders.join(', ')}`
     if (model.limit !== undefined) {
       if (!Number.isInteger(model.limit) || model.limit < 0) throw new Error('Limit must be a non-negative integer.')
-      sql += ` LIMIT ${model.limit}`
+      sql += `\nLIMIT ${model.limit}`
     }
     return { sql, parameters }
   }

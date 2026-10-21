@@ -34,6 +34,7 @@ export interface HttpTunnelConfig {
   keepAlive?: boolean
   useBase64?: boolean
   useCredentials?: boolean
+  useProxy?: boolean
   user?: string
   passwordRef?: string
   proxyHost?: string

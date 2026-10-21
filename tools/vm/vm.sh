@@ -114,6 +114,6 @@ USAGE
 case "${1:-}" in
   setup) cmd_setup;; install) shift; cmd_install "$@";; run) cmd_run;; stop) cmd_stop;; kill) cmd_kill;; status) cmd_status;;
   snap) shift; cmd_snap "$@";; restore) shift; cmd_restore "$@";; snaps) cmd_snaps;; put) shift; cmd_put "$@";; virtio) cmd_virtio;;
-  shot|type|key|click) python3 "$HERE/qmp.py" "$@";;
+  shot|type|key|click|drag) python3 "$HERE/qmp.py" "$@";;
   *) usage;;
 esac

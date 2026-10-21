@@ -8,12 +8,13 @@ const enabled = process.env.MYSQL_INTEGRATION === '1'
 describe.skipIf(!enabled)('data import/export MySQL integration', () => {
   const driver = new MysqlDriver()
   const suffix = `${process.pid}_${Date.now()}`
+  const database = `imex_test_${suffix}`
   const table = `imex_${suffix}`
   let connectionId = ''
 
   afterAll(async () => {
     if (!connectionId) return
-    await driver.executeSql(connectionId, `DROP TABLE IF EXISTS \`sample\`.\`${table}\``)
+    await driver.executeSql(connectionId, `DROP DATABASE IF EXISTS \`${database}\``)
     await driver.disconnect(connectionId)
   })
 
@@ -22,17 +23,17 @@ describe.skipIf(!enabled)('data import/export MySQL integration', () => {
       ...createDefaultConnection('imex-integration', 'Import/export integration'),
       host: process.env.MYSQL_HOST ?? '127.0.0.1',
       port: Number(process.env.MYSQL_PORT ?? 33067),
-      user: 'root',
-      password: 'integration-only',
-      database: 'sample'
+      user: process.env.MYSQL_USER ?? 'root',
+      password: process.env.MYSQL_PASSWORD ?? 'integration-only'
     })
-    await driver.executeSql(connectionId, `CREATE TABLE \`sample\`.\`${table}\` (id INT PRIMARY KEY, value VARCHAR(80), nullable_value VARCHAR(20) NULL)`)
+    await driver.executeSql(connectionId, `CREATE DATABASE \`${database}\``)
+    await driver.executeSql(connectionId, `CREATE TABLE \`${database}\`.\`${table}\` (id INT PRIMARY KEY, value VARCHAR(80), nullable_value VARCHAR(20) NULL)`)
     async function* csvRows(): AsyncIterable<Buffer> {
       yield Buffer.from('id,value,nullable_value\n')
       for (let id = 1; id <= 100_000; id++) yield Buffer.from(`${id},row-${id},${id % 2 ? '' : 'value'}\n`)
     }
     const imported = await importData({
-      driver, connectionId, source: csvRows(), format: 'csv', table: `sample.${table}`,
+      driver, connectionId, source: csvRows(), format: 'csv', table: `${database}.${table}`,
       options: { batchSize: 500, transactional: true }
     })
     expect(imported).toMatchObject({ read: 100_000, inserted: 100_000, errors: 0 })
@@ -40,13 +41,13 @@ describe.skipIf(!enabled)('data import/export MySQL integration', () => {
     let outputBytes = 0
     const destination = new Writable({ write(chunk: Buffer, _encoding, callback) { outputBytes += chunk.length; callback() } })
     const exported = await exportData({
-      driver, connectionId, query: `SELECT id, value, nullable_value FROM \`sample\`.\`${table}\` ORDER BY id`,
+      driver, connectionId, query: `SELECT id, value, nullable_value FROM \`${database}\`.\`${table}\` ORDER BY id`,
       destination, format: 'csv'
     })
     expect(exported.rows).toBe(100_000)
     expect(outputBytes).toBe(exported.bytes)
     let total = 0
-    for await (const row of driver.streamRows(connectionId, `SELECT COUNT(*) AS total FROM \`sample\`.\`${table}\``)) total = Number(row.total)
+    for await (const row of driver.streamRows(connectionId, `SELECT COUNT(*) AS total FROM \`${database}\`.\`${table}\``)) total = Number(row.total)
     expect(total).toBe(100_000)
   }, 180_000)
 })

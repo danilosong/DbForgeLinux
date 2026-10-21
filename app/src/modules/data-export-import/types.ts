@@ -1,9 +1,9 @@
 import type { Writable } from 'node:stream'
 import type { DbDriver } from '../../main/db/DbDriver.js'
 
-export type ExportFormat = 'csv' | 'json' | 'xml' | 'sql' | 'html' | 'xlsx'
-export type ImportFormat = 'csv' | 'json' | 'xml' | 'xlsx' | 'sql'
-export type ImportMode = 'append' | 'update' | 'delete' | 'upsert'
+export type ExportFormat = 'csv' | 'text' | 'json' | 'xml' | 'sql' | 'html' | 'xlsx' | 'pdf'
+export type ImportFormat = 'csv' | 'text' | 'json' | 'xml' | 'xlsx' | 'sql'
+export type ImportMode = 'append' | 'update' | 'delete' | 'upsert' | 'repopulate'
 export type Row = Record<string, unknown>
 
 export interface JobProgress {
@@ -25,6 +25,10 @@ export interface ExportJob {
     quote?: string
     encoding?: 'utf8' | 'utf16le' | 'latin1'
     header?: boolean
+    forceQuotes?: boolean
+    rowStart?: number
+    rowCount?: number
+    columnTypes?: Record<string, 'String' | 'Integer' | 'Float' | 'DateTime' | 'HexString'>
     batchSize?: number
     createTable?: boolean
     dropIfExists?: boolean
@@ -50,7 +54,8 @@ export interface ImportJob {
     mode?: ImportMode
     keyColumns?: string[]
     batchSize?: number
-    onRowError?: 'continue' | 'abort'
+    onRowError?: 'continue' | 'abort' | 'prompt'
+    onRowErrorPrompt?: (row: number, message: string) => Promise<'continue' | 'abort'>
     transactional?: boolean
     previewRows?: number
     rowElement?: string

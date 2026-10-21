@@ -70,6 +70,8 @@ export async function buildMysqlOptions(
     socketPath: config.socketPath || undefined,
     charset: config.advanced.charset,
     connectTimeout: config.advanced.connectionTimeoutSeconds * 1000,
+    enableKeepAlive: config.advanced.keepAliveEnabled ?? config.advanced.keepAliveSeconds > 0,
+    keepAliveInitialDelay: Math.max(0, config.advanced.pingTimeoutSeconds ?? 240) * 1000,
     multipleStatements: config.advanced.multipleStatements,
     compress: config.advanced.compression,
     supportBigNumbers: true,

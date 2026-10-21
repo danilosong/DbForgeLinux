@@ -11,6 +11,7 @@ async function write(job: ExportJob, value: string | Buffer): Promise<number> {
 }
 
 export async function exportData(job: ExportJob): Promise<ExportReport> {
+  if (job.format === 'pdf') throw new Error('PDF export must use the Electron print adapter.')
   if (job.signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
   let rows = 0
   let bytes = 0
@@ -36,11 +37,21 @@ export async function exportData(job: ExportJob): Promise<ExportReport> {
         await add(`INSERT INTO ${table} (${names}) VALUES\n${values};\n`)
         sqlBatch = []
       }
-      for await (const row of source) {
+      for await (const sourceRow of source) {
         if (job.signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+        const row: Row = { ...sourceRow }
+        for (const [column, type] of Object.entries(job.options?.columnTypes ?? {})) {
+          const value = row[column]
+          if (value === null || value === undefined) continue
+          if (type === 'HexString' && Buffer.isBuffer(value)) row[column] = value.toString('hex')
+          else if (type === 'Integer' && typeof value === 'string' && /^-?\d+$/.test(value)) row[column] = Number(value)
+          else if (type === 'Float' && typeof value === 'string' && Number.isFinite(Number(value))) row[column] = Number(value)
+          else if (type === 'String' && typeof value !== 'string') row[column] = value instanceof Date ? value.toISOString() : String(value)
+          else if (type === 'DateTime' && value instanceof Date) row[column] = value.toISOString()
+        }
         if (!columns.length) {
           columns = Object.keys(row)
-          if (job.format === 'csv' && (job.options?.header ?? true)) await add(`${columns.map((column) => csvField(column, job.options?.delimiter ?? ',', job.options?.quote ?? '"')).join(job.options?.delimiter ?? ',')}\r\n`)
+          if ((job.format === 'csv' || job.format === 'text') && (job.options?.header ?? true)) await add(`${columns.map((column) => csvField(column, job.options?.delimiter ?? (job.format === 'text' ? '\t' : ','), job.options?.quote ?? '"', job.options?.forceQuotes)).join(job.options?.delimiter ?? (job.format === 'text' ? '\t' : ','))}\r\n`)
           if (job.format === 'html') await add(`<thead><tr>${columns.map((column) => `<th>${htmlEscape(column)}</th>`).join('')}</tr></thead><tbody>`)
           if (job.format === 'sql') {
             const table = quoteQualifiedIdentifier(job.options?.table ?? 'data')
@@ -49,7 +60,7 @@ export async function exportData(job: ExportJob): Promise<ExportReport> {
           }
         }
         rows++
-        if (job.format === 'csv') await add(`${columns.map((column) => csvField(row[column], job.options?.delimiter ?? ',', job.options?.quote ?? '"')).join(job.options?.delimiter ?? ',')}\r\n`)
+        if (job.format === 'csv' || job.format === 'text') await add(`${columns.map((column) => csvField(row[column], job.options?.delimiter ?? (job.format === 'text' ? '\t' : ','), job.options?.quote ?? '"', job.options?.forceQuotes)).join(job.options?.delimiter ?? (job.format === 'text' ? '\t' : ','))}\r\n`)
         else if (job.format === 'json') {
           const json = JSON.stringify(row, (_key, value: unknown) => Buffer.isBuffer(value) ? { $binary: value.toString('base64') } : value)
           await add(`${first ? '' : ','}${json}`); first = false

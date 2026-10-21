@@ -40,8 +40,10 @@ describe('connection option builders', () => {
   it('maps connection and advanced settings to mysql2 without returning vault references', async () => {
     const record = { ...createDefaultConnection('one', 'Test'), passwordRef: 'vault-secret', password: 'never-serialize' } as ReturnType<typeof createDefaultConnection> & { password: string }
     const options = await buildMysqlOptions({ ...record, password: 'driver-only' })
-    expect(options).toMatchObject({ host: 'localhost', port: 3306, user: 'root', password: 'driver-only', charset: 'utf8mb4', connectTimeout: 15000, multipleStatements: true })
+    expect(options).toMatchObject({ host: 'localhost', port: 3306, user: 'root', password: 'driver-only', charset: 'utf8mb4', connectTimeout: 15000, enableKeepAlive: false, keepAliveInitialDelay: 240000, multipleStatements: true })
     expect(options).not.toHaveProperty('passwordRef')
+    const socketOptions = await buildMysqlOptions({ ...record, socketPath: '/tmp/mysql.sock', advanced: { ...record.advanced, keepAliveEnabled: true } })
+    expect(socketOptions).toMatchObject({ socketPath: '/tmp/mysql.sock', enableKeepAlive: true })
   })
 
   it('rejects simultaneous SSH and HTTP transports', async () => {

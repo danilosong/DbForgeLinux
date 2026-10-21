@@ -22,9 +22,9 @@ export function sqlLiteral(value: unknown): string {
   return `'${String(value).replace(/\\/g, '\\\\').replace(/\0/g, '\\0').replace(/\n/g, '\\n').replace(/\r/g, '\\r').replaceAll(String.fromCharCode(26), '\\Z').replace(/'/g, "\\'")}'`
 }
 
-export function csvField(value: unknown, delimiter: string, quote: string): string {
+export function csvField(value: unknown, delimiter: string, quote: string, forceQuotes = false): string {
   const text = value === null || value === undefined ? '' : Buffer.isBuffer(value) ? value.toString('base64') : value instanceof Date ? value.toISOString() : String(value)
-  if (!text.includes(delimiter) && !text.includes(quote) && !/[\r\n]/.test(text)) return text
+  if (!forceQuotes && !text.includes(delimiter) && !text.includes(quote) && !/[\r\n]/.test(text)) return text
   return `${quote}${text.split(quote).join(quote + quote)}${quote}`
 }
 

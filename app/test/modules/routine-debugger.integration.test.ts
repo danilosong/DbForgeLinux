@@ -2,18 +2,19 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { createDefaultConnection } from '../../src/shared/connectionDefaults.js'
 import { MysqlDriver } from '../../src/main/db/MysqlDriver.js'
-import { DEBUG_SCHEMA, engineDdl, instrumentProcedure, quoteDebugIdentifier } from '../../src/modules/routine-debugger/index.js'
+import { engineDdl, instrumentProcedure, quoteDebugIdentifier } from '../../src/modules/routine-debugger/index.js'
 
 const enabled = process.env.MYSQL_INTEGRATION === '1'
 describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
   const driver = new MysqlDriver()
+  const testDatabase = `dbforge_debug_test_${process.pid}_${randomUUID().slice(0, 8)}`
   const procedure = `routine_debug_${process.pid}`
   const debugId = randomUUID()
   let connectionId = ''
   let controller: Awaited<ReturnType<MysqlDriver['openDedicatedSession']>> | undefined
   let executor: Awaited<ReturnType<MysqlDriver['openDedicatedSession']>> | undefined
   let callTask: Promise<void> | undefined
-  const schema = (name: string): string => `${quoteDebugIdentifier(DEBUG_SCHEMA)}.${quoteDebugIdentifier(name)}`
+  const schema = (name: string): string => `${quoteDebugIdentifier(testDatabase)}.${quoteDebugIdentifier(name)}`
 
   afterAll(async () => {
     if (controller) {
@@ -21,12 +22,12 @@ describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
     }
     try { await callTask } catch { /* expected if cleanup stopped execution */ }
     if (executor) {
-      try { await executor.execute(`USE sample`); await executor.execute(`DROP PROCEDURE IF EXISTS ${quoteDebugIdentifier('sample')}.${quoteDebugIdentifier(procedure)}`); await executor.execute('DROP TABLE IF EXISTS debug_values') } catch { /* disposable test server cleanup */ }
+      try { await executor.execute(`USE ${quoteDebugIdentifier(testDatabase)}`); await executor.execute(`DROP PROCEDURE IF EXISTS ${quoteDebugIdentifier(procedure)}`); await executor.execute('DROP TABLE IF EXISTS debug_values') } catch { /* disposable test server cleanup */ }
       await executor.close()
     }
     if (controller) { await controller.close() }
     if (connectionId) {
-      try { await driver.executeSql(connectionId, `DROP DATABASE IF EXISTS ${quoteDebugIdentifier(DEBUG_SCHEMA)}`) } catch { /* disposable test server cleanup */ }
+      try { await driver.executeSql(connectionId, `DROP DATABASE IF EXISTS ${quoteDebugIdentifier(testDatabase)}`) } catch { /* disposable test server cleanup */ }
       await driver.disconnect(connectionId)
     }
   })
@@ -38,8 +39,9 @@ describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
     })
     controller = await driver.openDedicatedSession(connectionId)
     executor = await driver.openDedicatedSession(connectionId)
-    for (const sql of engineDdl()) await controller.execute(sql)
-    await executor.execute('USE sample')
+    await controller.execute("SET SESSION sql_mode='STRICT_ALL_TABLES,ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'")
+    for (const sql of engineDdl(testDatabase)) await controller.execute(sql)
+    await executor.execute(`USE ${quoteDebugIdentifier(testDatabase)}`)
     await executor.execute('DROP TABLE IF EXISTS debug_values')
     await executor.execute('CREATE TABLE debug_values (id INT PRIMARY KEY)')
     await executor.execute('INSERT INTO debug_values VALUES (1),(2),(3)')
@@ -61,9 +63,9 @@ BEGIN
 END`
     await executor.execute(`DROP PROCEDURE IF EXISTS ${quoteDebugIdentifier(procedure)}`)
     await executor.execute(original)
-    const instrumented = instrumentProcedure(original)
-    await controller.execute(`USE ${quoteDebugIdentifier(DEBUG_SCHEMA)}`)
-    await controller.execute(`INSERT INTO ${schema('debug_sessions')}(debug_id,connection_id,database_name,routine_name,status,step_kind) VALUES (?,?,?,?,'running','into')`, [debugId, connectionId, 'sample', procedure])
+    const instrumented = instrumentProcedure(original, testDatabase)
+    await controller.execute(`USE ${quoteDebugIdentifier(testDatabase)}`)
+    await controller.execute(`INSERT INTO ${schema('debug_sessions')}(debug_id,connection_id,database_name,routine_name,status,step_kind) VALUES (?,?,?,?,'running','into')`, [debugId, connectionId, testDatabase, procedure])
     await executor.execute(`DROP PROCEDURE ${quoteDebugIdentifier(procedure)}`)
     await executor.execute(instrumented.sql)
     await executor.execute(`SET @dbforge_linux_debug_id='${debugId}'`)

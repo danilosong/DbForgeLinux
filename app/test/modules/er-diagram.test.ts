@@ -3,13 +3,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { autoLayout, buildDiagram, createVirtualRelation, deserializeDiagram, moveTable, serializeDiagram, validateVirtualRelation, VirtualRelationStore } from '../../src/modules/er-diagram/index.js'
-import { routeERRelation } from '../../src/modules/er-diagram/routing.js'
+import { avoidTableOverlap, routeERRelation } from '../../src/modules/er-diagram/routing.js'
 import type { DatabaseModel } from '../../src/modules/schema/model.js'
 
 const schema: DatabaseModel = {
   kind: 'database', name: 'shop', tables: [
-    { kind: 'table', name: 'customers', columns: [{ name: 'id', type: 'int', nullable: false }], indexes: [], foreignKeys: [], checks: [] },
-    { kind: 'table', name: 'orders', columns: [{ name: 'id', type: 'int', nullable: false }, { name: 'customer_id', type: 'int', nullable: false }], indexes: [], foreignKeys: [{ name: 'fk_customer', columns: ['customer_id'], referencedTable: 'customers', referencedColumns: ['id'], onDelete: 'CASCADE' }], checks: [] }
+    { kind: 'table', name: 'customers', columns: [{ name: 'id', type: 'int', nullable: false }], indexes: [{ name: 'PRIMARY', kind: 'PRIMARY', columns: [{ name: 'id' }] }], foreignKeys: [], checks: [] },
+    { kind: 'table', name: 'orders', columns: [{ name: 'id', type: 'int', nullable: false }, { name: 'customer_id', type: 'int', nullable: false }], indexes: [{ name: 'PRIMARY', kind: 'PRIMARY', columns: [{ name: 'id' }] }], foreignKeys: [{ name: 'fk_customer', columns: ['customer_id'], referencedTable: 'customers', referencedColumns: ['id'], onDelete: 'CASCADE' }], checks: [] }
   ], views: [], procedures: [], functions: [], triggers: [], events: []
 }
 const folders: string[] = []
@@ -21,6 +21,7 @@ describe('ER diagram module', () => {
     expect(diagram.tables.map((table) => table.name)).toEqual(['customers', 'orders'])
     expect(diagram.relations).toMatchObject([{ name: 'fk_customer', fromTable: 'orders', toTable: 'customers', fromColumns: ['customer_id'], toColumns: ['id'], virtual: false }])
     expect(diagram.tables[0].position).not.toEqual(diagram.tables[1].position)
+    expect(diagram.tables.find((table) => table.name === 'orders')).toMatchObject({ constraintNames: ['fk_customer'], primaryColumns: ['id'], indexNames: [], triggerNames: [] })
   })
 
   it('lays out relation dependencies before their child and tolerates cycles', () => {
@@ -39,6 +40,12 @@ describe('ER diagram module', () => {
     expect(path).toBe('M 165 100 L 165 82 L 525 82 L 525 240')
     const laneY = 82
     expect(boxes.every((box) => laneY < box.position.y)).toBe(true)
+  })
+
+  it('moves a dropped table to a nearby free slot instead of overlapping another card', () => {
+    const obstacle = { position: { x: 100, y: 100 }, width: 250, height: 140 }
+    expect(avoidTableOverlap({ x: 100, y: 100 }, 250, 140, [obstacle])).not.toEqual({ x: 100, y: 100 })
+    expect(avoidTableOverlap({ x: 400, y: 100 }, 250, 140, [obstacle])).toEqual({ x: 400, y: 100 })
   })
 
   it('creates and validates virtual relations, and preserves diagram positions on serialization', () => {

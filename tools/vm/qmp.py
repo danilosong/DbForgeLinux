@@ -58,6 +58,17 @@ class Qmp:
             time.sleep(0.08)
 
 
+    def drag(self, x1, y1, x2, y2, steps=12):
+        self.move(x1, y1)
+        time.sleep(0.2)
+        self.call("input-send-event", events=[{"type": "btn", "data": {"button": "left", "down": True}}])
+        for i in range(1, steps + 1):
+            self.move(x1 + (x2 - x1) * i / steps, y1 + (y2 - y1) * i / steps)
+            time.sleep(0.05)
+        time.sleep(0.2)
+        self.call("input-send-event", events=[{"type": "btn", "data": {"button": "left", "down": False}}])
+
+
 def main(argv):
     if len(argv) < 2:
         sys.exit("uso: qmp.py shot [arq.png] | type 'texto' | key ctrl alt delete | click X Y [right|double] | powerdown | quit | status")
@@ -73,6 +84,8 @@ def main(argv):
         q.key(*argv[2:])
     elif cmd == "click":
         q.click(int(argv[2]), int(argv[3]), "right" if "right" in argv[4:] else "left", "double" in argv[4:])
+    elif cmd == "drag":
+        q.drag(int(argv[2]), int(argv[3]), int(argv[4]), int(argv[5]))
     elif cmd == "powerdown":
         q.call("system_powerdown")
     elif cmd == "quit":

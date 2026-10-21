@@ -19,7 +19,7 @@ export async function createHttpTunnel(config: ResolvedHttpTunnelConfig, targetH
   let endpoint: URL
   try { endpoint = new URL(config.url) } catch { throw new Error('URL inválida para o HTTP tunnel.') }
   if (!['http:', 'https:'].includes(endpoint.protocol)) throw new Error('O HTTP tunnel aceita somente URLs HTTP ou HTTPS.')
-  const dispatcher = config.proxyHost
+  const dispatcher = config.proxyHost && config.useProxy !== false
     ? new ProxyAgent({ uri: `http://${config.proxyHost}:${config.proxyPort ?? 8080}`, requestTls: { rejectUnauthorized: config.rejectUnauthorized }, ...(config.proxyUser ? { token: `Basic ${Buffer.from(`${config.proxyUser}:${config.proxyPassword ?? ''}`).toString('base64')}` } : {}) })
     : new Agent({ connect: { rejectUnauthorized: config.rejectUnauthorized } })
   const controller = new AbortController()
@@ -31,7 +31,7 @@ export async function createHttpTunnel(config: ResolvedHttpTunnelConfig, targetH
     url.searchParams.set('a', action)
     for (const [key, value] of Object.entries(parameters)) url.searchParams.set(key, value)
     const headers = new Headers({ 'cache-control': 'no-cache', pragma: 'no-cache' })
-    if (config.user) headers.set('authorization', `Basic ${Buffer.from(`${config.user}:${config.password ?? ''}`).toString('base64')}`)
+    if (config.user && config.useCredentials !== false) headers.set('authorization', `Basic ${Buffer.from(`${config.user}:${config.password ?? ''}`).toString('base64')}`)
     if (body) headers.set('content-type', 'application/octet-stream')
     return fetch(url, {
       method: body ? 'POST' : 'GET', headers,
@@ -112,7 +112,7 @@ class TunnelSession {
         if (reading) { setTimeout(() => void poll(), 20); return }
         reading = true
         try {
-          if (Date.now() - this.lastLeaseRefresh > Math.max(10, this.leaseSeconds / 2) * 1000) {
+          if (this.config.keepAlive !== false && Date.now() - this.lastLeaseRefresh > Math.max(10, this.leaseSeconds / 2) * 1000) {
             await request('l', { id: this.id, port: String(await this.getRemotePort(request)) })
             this.lastLeaseRefresh = Date.now()
           }
@@ -181,7 +181,7 @@ class TunnelSession {
 
   private headers(): Headers {
     const headers = new Headers({ 'cache-control': 'no-cache', pragma: 'no-cache' })
-    if (this.config.user) headers.set('authorization', `Basic ${Buffer.from(`${this.config.user}:${this.config.password ?? ''}`).toString('base64')}`)
+    if (this.config.user && this.config.useCredentials !== false) headers.set('authorization', `Basic ${Buffer.from(`${this.config.user}:${this.config.password ?? ''}`).toString('base64')}`)
     return headers
   }
 

@@ -20,8 +20,8 @@ const objects = s('array-object', { maxItems: 10000 })
 const intArray = s('array-int', { maxItems: 1000 })
 const enumOf = (...values: string[]): Spec => s('enum', { values })
 const scope = enumOf('GLOBAL', 'SESSION')
-const fileFormat = enumOf('csv', 'json', 'xml', 'sql', 'xlsx')
-const outputFormat = enumOf('csv', 'json', 'xml', 'sql', 'xlsx')
+const fileFormat = enumOf('csv', 'text', 'json', 'xml', 'sql', 'xlsx')
+const outputFormat = enumOf('csv', 'text', 'json', 'xml', 'sql', 'xlsx', 'html', 'pdf')
 
 /** Runtime argument contracts for every invoke channel. Structured records are recursively size/type checked below. */
 export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
@@ -49,8 +49,9 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'history:list': [opt(object)], 'history:record': [object],
   'updater:check': [], 'updater:apply': [object], 'updater:cancel': [], 'updater:status': [],
   'import-export:export': [id, sql, outputFormat, opt(object), opt(id)], 'import-export:select-source': [id, fileFormat, opt(object)], 'import-export:preview-export': [id, sql, id],
-  'import-export:import': [id, ident, fileFormat, enumOf('append', 'upsert', 'update', 'delete'), strings, opt(object), opt(id)], 'import-export:cancel': [id], 'import-export:templates:list': [],
-  'import-export:templates:save': [object], 'import-export:templates:delete': [id],
+  'import-export:import': [id, ident, fileFormat, enumOf('append', 'upsert', 'update', 'delete', 'repopulate'), strings, opt(object), opt(id)], 'import-export:cancel': [id], 'import-export:templates:list': [],
+  'import-export:script': [ident, fileFormat, enumOf('append', 'upsert', 'update', 'delete', 'repopulate'), strings, opt(object), opt(id)],
+  'import-export:templates:save': [object], 'import-export:templates:delete': [id], 'import-export:save-log': [sql],
   'object-editor:load': [object], 'object-editor:apply-table': [id, ident, s('nullable-object'), object], 'object-editor:apply': [object, sql],
   'object-editor:mutate': [object, enumOf('drop', 'rename', 'truncate'), opt(ident)],
   'options:load': [], 'options:save': [object], 'options:reset': [], 'options:export': [object], 'options:import': [],

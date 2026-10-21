@@ -1,4 +1,5 @@
 /* global process, console, setTimeout, clearTimeout, window, document */
+import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -6,7 +7,8 @@ import { once } from 'node:events'
 import { _electron as electron } from 'playwright'
 import mysql from 'mysql2/promise'
 
-const electronPath = join(process.cwd(), 'node_modules', 'electron', 'dist', 'electron')
+const electronPath = process.env.DBFORGE_ELECTRON_PATH ?? join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux')
+if (!existsSync(electronPath)) throw new Error(`Packaged Electron executable not found at ${electronPath}. Run pnpm dist:deb first.`)
 const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-smoke-'))
 const admin = await mysql.createConnection({ host: '127.0.0.1', port: 33067, user: 'root', password: process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only' })
 const docTable = `smoke_doc_${process.pid}`
@@ -18,7 +20,7 @@ try {
   await admin.query(`CREATE TABLE sample.\`${docTable}\` (id INT PRIMARY KEY, label VARCHAR(40) NOT NULL)`)
   app = await electron.launch({
     executablePath: electronPath,
-    args: [process.cwd()],
+    args: [],
     cwd: process.cwd(),
     timeout: 90_000,
     env: {
@@ -36,7 +38,10 @@ try {
   await page.getByLabel('Host').fill('127.0.0.1')
   await page.getByLabel('Port').fill('33067')
   await page.getByLabel('User').fill('dbforge_smoke')
-  await page.getByRole('textbox', { name: 'Database' }).fill('sample')
+  await page.getByRole('button', { name: 'Test Connection' }).click()
+  await page.getByText(/Successfully connected\. Server version:/).waitFor()
+  const databaseSelect = page.locator('.form-grid .form-field').filter({ has: page.getByText('Database', { exact: true }) }).locator('select')
+  await databaseSelect.selectOption('sample')
   await page.getByRole('button', { name: 'Connect', exact: true }).click()
   await page.getByRole('heading', { name: 'Database Connection Properties' }).waitFor({ state: 'detached', timeout: 30_000 })
   const scalar = await page.evaluate(async () => {
