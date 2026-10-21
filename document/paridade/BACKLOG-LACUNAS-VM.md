@@ -39,7 +39,9 @@ Event Schedulers e UDFs em C/C++ seguem como divergência intencional (não entr
 | D3 | Editar variável no painel Watches com escrita na sessão alvo | B | Codex |
 | D4 | Diálogo Continue/Stop em exceção durante a depuração | B | Codex |
 
-## Query Builder (F-QB) — observado
+## Query Builder (F-QB) — PARCIALMENTE CONFIRMADO pela Lupa (9 PNGs, re/original-observation/04-query-builder/)
+Confirmado: menus Layout (Align Lefts/Centers/Rights/Tops/Middles/Bottoms/to Grid, Make Same Size, Horizontal/Vertical Spacing, Order) e Query (Execute F5, Stop Alt+Pause, Refresh, Change Type Select/Insert Results/Insert Values/Update/Delete, Parent Query, Create Subquery, Wrap to Subquery, Wrap to Insert, Group By, Sort, Select/Unselect all columns, Select All rows from left/right table, Show Tabbed Editor, Send Query to Report); join por FK criado sozinho ao soltar orders+customers; aba Text formatada; Create Subquery gera abas Root Query e SubQuery. Desconhecido: execução, tipos de join, Wrap to Subquery em ação, ligação subquery-raiz.
+Novo a verificar no clone: submenu Layout completo (Align/Make Same Size/Spacing/Order) (Q5) e Change Type Insert Results/Insert Values/Update/Delete (Q6).
 Atenção: o print do README (build f885a5f) já mostra menus Query/Layout, botão Auto Layout, Create Subquery e abas Root/SubQuery. Três das quatro lacunas apontadas pela observação provavelmente já existem; só abrir task após verificar no clone.
 | # | Lacuna | Prio | Dono |
 |---|---|---|---|
