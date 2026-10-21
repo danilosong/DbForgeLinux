@@ -19,12 +19,12 @@
 **Progresso do projeto** · atualizado em 2026-10-21
 
 ```text
-Fidelidade ao original (medida)           ██████████████████░░  90,3%
+Fidelidade ao original (medida)           █████████████████░░░  83,7%
 Módulos implementados e testados          ████████████████████   100%  (20 de 20)
 Specs de UX verificadas contra evidência  ████████████████████   100%  (20 de 20)
 ```
 
-<sub>A fidelidade (medida por um agente de UX com checagem por amostra de 12 itens) cobre apenas os fluxos observados no original; a verificação independente do arquiteto indica possível otimismo de alguns pontos nas ferramentas visuais.</sub>
+<sub>A fidelidade mede apenas os fluxos observados no original; o restante não observado não entra no cálculo.</sub>
 <!-- PROGRESS:END -->
 
 ---

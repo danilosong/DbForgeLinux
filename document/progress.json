@@ -1,21 +1,9 @@
 {
   "updated": "2026-10-21",
   "bars": [
-    {
-      "label": "Fidelidade ao original (medida)",
-      "value": 90.3,
-      "source": "document/paridade/FIDELIDADE-MEDIDA.md"
-    },
-    {
-      "label": "Módulos implementados e testados",
-      "value": 100,
-      "detail": "20 de 20"
-    },
-    {
-      "label": "Specs de UX verificadas contra evidência",
-      "value": 100,
-      "detail": "20 de 20"
-    }
+    { "label": "Fidelidade ao original (medida)", "value": 83.7, "source": "document/paridade/FIDELIDADE-MEDIDA.md" },
+    { "label": "Módulos implementados e testados", "value": 100, "detail": "20 de 20" },
+    { "label": "Specs de UX verificadas contra evidência", "value": 100, "detail": "20 de 20" }
   ],
-  "note": "A fidelidade (medida por um agente de UX com checagem por amostra de 12 itens) cobre apenas os fluxos observados no original; a verificação independente do arquiteto indica possível otimismo de alguns pontos nas ferramentas visuais."
+  "note": "A fidelidade mede apenas os fluxos observados no original; o restante não observado não entra no cálculo."
 }
