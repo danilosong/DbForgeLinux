@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildQuery, parseQuery, inspectQueryBuilderSchema } from '../../src/modules/query-builder/index.js'
+import { buildQuery, parseQuery, inspectQueryBuilderSchema, selectAllRowsFromTable, wrapSelectAsInsert, wrapSelectAsSubquery } from '../../src/modules/query-builder/index.js'
 import type { QueryBuilderModel } from '../../src/modules/query-builder/index.js'
 import type { DbDriver } from '../../src/main/db/DbDriver.js'
 import { exportFormats } from '../../src/renderer/src/ui/panels/import-export/formats.js'
@@ -29,6 +29,16 @@ describe('query builder', () => {
     const payload = parseDatabaseObjectDrag(JSON.stringify({ connectionId: 'conn', database: 'shop', kind: 'view', name: 'active_orders' }))
     expect(payload).toEqual({ connectionId: 'conn', database: 'shop', kind: 'view', name: 'active_orders' })
     expect(parseDatabaseObjectDrag('{bad json')).toBeNull()
+  })
+  it('selects every projection on one side of a join and wraps single SELECT statements safely', () => {
+    const selections = model().selections
+    expect(selectAllRowsFromTable(selections, 'o').map((selection) => selection.included)).toEqual([false, true])
+    expect(() => selectAllRowsFromTable(selections, '')).toThrow('Choose a table first.')
+    const source = 'SELECT id, name FROM `shop`.`customers`;'
+    expect(wrapSelectAsSubquery(source)).toBe('SELECT *\nFROM (\nSELECT id, name FROM `shop`.`customers`\n) AS `source_query`')
+    expect(wrapSelectAsInsert(source, model().tables[0]!)).toBe('INSERT INTO `shop`.`orders` (`id`, `customer_id`, `amount`)\nSELECT id, name FROM `shop`.`customers`')
+    expect(() => wrapSelectAsSubquery('SELECT 1; DELETE FROM users')).toThrow('Wrap requires one SELECT statement.')
+    expect(() => wrapSelectAsSubquery('SELECT 1', 'bad`alias')).toThrow('Invalid subquery alias.')
   })
   it('anchors the visual join path at the selected table-column rows', () => {
     const value = model()

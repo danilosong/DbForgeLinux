@@ -107,7 +107,7 @@ export function buildPivot(rows: Array<Record<string, unknown>>, config: PivotCo
       }
     }
   }
-  return { rowFields: config.rows.map((field) => field.field), columnFields: config.columns.map((field) => field.field), valueFields: config.values, columns, rows: rowsResult, rowTotals, columnTotals: config.columnTotals === false ? {} : columnTotals, grandTotal: config.grandTotal === false ? {} : grandTotal, rowCount: filtered.length, truncated }
+  return { rowFields: config.rows.map((field) => field.label ?? field.field), columnFields: config.columns.map((field) => field.label ?? field.field), valueFields: config.values, columns, rows: rowsResult, rowTotals, columnTotals: config.columnTotals === false ? {} : columnTotals, grandTotal: config.grandTotal === false ? {} : grandTotal, rowCount: filtered.length, truncated }
 }
 
 export function buildPivotChart(pivot: PivotResult, config: PivotChartConfig): PivotChartData {

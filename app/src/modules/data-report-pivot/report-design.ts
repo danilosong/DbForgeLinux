@@ -1,6 +1,6 @@
 export const REPORT_BANDS = ['Report Header', 'Page Header', 'Group Header', 'Detail', 'Group Footer', 'Page Footer', 'Report Footer'] as const
 export type ReportBand = typeof REPORT_BANDS[number]
-export interface ReportDesign { version: 1; title: string; pageSize: 'A4' | 'Letter'; bands: Record<ReportBand, string[]> }
+export interface ReportDesign { version: 1; title: string; pageSize: 'A4' | 'Letter'; bands: Record<ReportBand, string[]>; dataSourceQuery?: string; groupField?: string; sortField?: string; sortDirection?: 'ASC' | 'DESC' }
 
 export function createReportDesign(title: string, fields: string[]): ReportDesign {
   return { version: 1, title: title.trim().slice(0, 120) || 'Data Report', pageSize: 'A4', bands: Object.fromEntries(REPORT_BANDS.map((band) => [band, band === 'Detail' ? [...fields] : []])) as Record<ReportBand, string[]> }
@@ -17,7 +17,11 @@ export function parseReportDesign(json: string): ReportDesign {
   if (!value || typeof value !== 'object' || (value as Partial<ReportDesign>).version !== 1) throw new Error('Unsupported report design.')
   const design = value as ReportDesign
   if (typeof design.title !== 'string' || !['A4', 'Letter'].includes(design.pageSize) || !design.bands || !REPORT_BANDS.every((band) => Array.isArray(design.bands[band]) && design.bands[band].every((field) => typeof field === 'string' && field.length <= 256))) throw new Error('Invalid report design.')
-  return { version: 1, title: design.title.slice(0, 120), pageSize: design.pageSize, bands: Object.fromEntries(REPORT_BANDS.map((band) => [band, [...design.bands[band]]])) as Record<ReportBand, string[]> }
+  if (design.dataSourceQuery !== undefined && (typeof design.dataSourceQuery !== 'string' || design.dataSourceQuery.length > 100_000)) throw new Error('Invalid report data source query.')
+  if (design.groupField !== undefined && (typeof design.groupField !== 'string' || design.groupField.length > 256)) throw new Error('Invalid report group field.')
+  if (design.sortField !== undefined && (typeof design.sortField !== 'string' || design.sortField.length > 256)) throw new Error('Invalid report sort field.')
+  if (design.sortDirection !== undefined && !['ASC', 'DESC'].includes(design.sortDirection)) throw new Error('Invalid report sort direction.')
+  return { version: 1, title: design.title.slice(0, 120), pageSize: design.pageSize, bands: Object.fromEntries(REPORT_BANDS.map((band) => [band, [...design.bands[band]]])) as Record<ReportBand, string[]>, dataSourceQuery: design.dataSourceQuery?.slice(0, 100_000), groupField: design.groupField?.slice(0, 256), sortField: design.sortField?.slice(0, 256), sortDirection: design.sortDirection }
 }
 
 export function reportPages<T>(rows: T[], pageSize = 20): T[][] {

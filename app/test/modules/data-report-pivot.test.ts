@@ -20,6 +20,15 @@ describe('Data Report Pivot', () => {
     expect(result.rows.some((row) => row.subtotal)).toBe(false)
   })
 
+  it('builds an expandable date hierarchy with grouped labels and a grand total', () => {
+    const result = buildPivot([
+      { ordered_at: '2025-01-03', total: 10 }, { ordered_at: '2025-01-09', total: 5 }, { ordered_at: '2025-04-02', total: 7 }
+    ], { rows: [{ field: 'ordered_at', label: 'ordered_at year', grouping: 'year' }, { field: 'ordered_at', label: 'ordered_at month', grouping: 'month' }], columns: [], values: [{ field: 'total', aggregation: 'sum' }], grandTotal: true })
+    expect(result.rowFields).toEqual(['ordered_at year', 'ordered_at month'])
+    expect(result.rows.map((row) => row.values)).toEqual([[2025, '2025-01'], [2025, '2025-04']])
+    expect(result.grandTotal).toEqual({ 'sum(total)': 22 })
+  })
+
   it('supports grouping, filters, and chart data', () => {
     const grouped = buildPivot(rows, { rows: [{ field: 'year', grouping: 'quarter' }], columns: [], values: [{ field: 'sales', aggregation: 'average' }], filters: { region: ['North'] } })
     expect(grouped.rows.map((row) => row.values[0])).toEqual(['2024 Q1'])
@@ -38,6 +47,13 @@ describe('Data Report Pivot', () => {
     expect(reportPages(Array.from({ length: 45 }, (_, index) => index), 20)).toHaveLength(3)
     expect(exportDesignedReport(updated, ['region', 'sales'], [['<20>', 20]], 'html')).toContain('&lt;20&gt;')
     expect(exportDesignedReport(updated, ['region', 'sales'], [['North', 20]], 'csv')).toBe('region\r\nNorth')
+  })
+
+  it('persists the report query and group/sort settings in its own validated design file', () => {
+    const design = { ...createReportDesign('Orders', ['id', 'ordered_at']), dataSourceQuery: 'SELECT id, ordered_at FROM orders', groupField: 'ordered_at', sortField: 'id', sortDirection: 'DESC' as const }
+    expect(parseReportDesign(JSON.stringify(design))).toEqual(design)
+    expect(() => parseReportDesign(JSON.stringify({ ...design, dataSourceQuery: 'x'.repeat(100_001) }))).toThrow('Invalid report data source query.')
+    expect(() => parseReportDesign(JSON.stringify({ ...design, sortDirection: 'SIDEWAYS' }))).toThrow('Invalid report sort direction.')
   })
 
   it('exports escaped CSV, HTML, and a valid single-page PDF', () => {
