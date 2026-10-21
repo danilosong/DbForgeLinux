@@ -2,10 +2,12 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, isAbsolute, join, resolve } from 'node:path'
+import { resolvePnpm } from './toolchain.js'
 import type { BuildInfo, ReleaseUpdate, UpdatePreferences, UpdateServiceOptions, UpdateStatus } from './types.js'
 
 const execFileAsync = promisify(execFile)
 const commandTimeout = 15_000
+const buildTimeout = 15 * 60_000
 const maxLogEntries = 500
 
 async function runCommand(file: string, args: string[], options: { cwd: string; timeout: number; signal?: AbortSignal; env?: NodeJS.ProcessEnv }): Promise<string> {
@@ -120,8 +122,8 @@ export class UpdateService {
     } catch { return undefined }
   }
 
-  private command(file: string, args: string[], cwd: string, signal?: AbortSignal, env?: NodeJS.ProcessEnv): Promise<string> {
-    return (this.options.runCommand ?? runCommand)(file, args, { cwd, timeout: commandTimeout, signal, env })
+  private command(file: string, args: string[], cwd: string, signal?: AbortSignal, env?: NodeJS.ProcessEnv, timeout = commandTimeout): Promise<string> {
+    return (this.options.runCommand ?? runCommand)(file, args, { cwd, timeout, signal, env })
   }
 
   private async checkDev(build: BuildInfo, preferences: UpdatePreferences, signal: AbortSignal): Promise<UpdateStatus> {
@@ -207,6 +209,8 @@ export class UpdateService {
     const run = (file: string, args: string[], cwd = appRoot, env?: NodeJS.ProcessEnv): Promise<string> => this.command(file, args, cwd, this.controller?.signal, env)
     let backupPath: string | undefined
     try {
+      const tool = await (this.options.resolvePnpm ?? (() => resolvePnpm(build)))()
+      const pnpm = (args: string[], env?: NodeJS.ProcessEnv): Promise<string> => this.command(tool.file, [...tool.prefix, ...args], appRoot, this.controller?.signal, { ...process.env, ...env, PATH: tool.path }, buildTimeout)
       const remoteTarget = await run('git', ['rev-parse', `origin/${branch}`], repo).catch(() => '')
       const localHead = await run('git', ['rev-parse', 'HEAD'], repo)
       const target = remoteTarget && remoteTarget !== localHead ? remoteTarget : localHead
@@ -217,7 +221,7 @@ export class UpdateService {
       const lockFiles = await run('git', ['diff', '--name-only', build.commit, target], repo)
       if (lockFiles.split(/\r?\n/).some((file) => basename(file) === 'pnpm-lock.yaml')) {
         this.update({ phase: 'building', progress: 5, message: undefined }, 'Installing locked dependencies…')
-        await run('pnpm', ['install', '--frozen-lockfile'])
+        await pnpm(['install', '--frozen-lockfile'])
       }
       const output = join(appRoot, 'out')
       const next = join(appRoot, 'out.next')
@@ -225,7 +229,7 @@ export class UpdateService {
       await rm(next, { recursive: true, force: true })
       await rm(backupPath, { recursive: true, force: true })
       this.update({ phase: 'building', progress: 10, message: undefined }, 'Building into the isolated out.next directory…')
-      await run('pnpm', ['build'], appRoot, { ...process.env, DBFORGE_BUILD_DIR: 'out.next' })
+      await pnpm(['build'], { DBFORGE_BUILD_DIR: 'out.next' })
       for (const relative of ['main/index.js', 'preload/index.js', 'renderer/index.html', 'buildInfo.json']) {
         await stat(join(next, relative))
       }

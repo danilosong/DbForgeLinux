@@ -1,6 +1,6 @@
 export type UpdateChannel = 'dev' | 'release'
 export type UpdatePhase = 'idle' | 'checking' | 'available' | 'up-to-date' | 'building' | 'downloading' | 'ready' | 'manual' | 'blocked' | 'error'
-export interface BuildInfo { commit: string; branch: string; repoPath?: string; builtAt: string; dirty?: boolean }
+export interface BuildInfo { commit: string; branch: string; repoPath?: string; builtAt: string; dirty?: boolean; toolchain?: { nodePath?: string; pnpmExecPath?: string } }
 export interface UpdatePreferences { checkOnStartup: boolean; automatic: boolean; channel: 'auto' | UpdateChannel; interval: 'startup' | 'daily'; ignoredVersion: string }
 export interface UpdateStatus {
   phase: UpdatePhase
@@ -26,6 +26,7 @@ export interface UpdateServiceOptions {
   settings(): Promise<UpdatePreferences>
   release: ReleaseAdapter
   isBusy(): boolean
+  resolvePnpm?: () => Promise<{ file: string; prefix: string[]; path: string }>
   runCommand?: (file: string, args: string[], options: { cwd: string; timeout: number; signal?: AbortSignal; env?: NodeJS.ProcessEnv }) => Promise<string>
   emit?(status: UpdateStatus): void
   relaunch?(): void

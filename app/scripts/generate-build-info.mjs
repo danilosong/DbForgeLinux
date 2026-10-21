@@ -22,6 +22,7 @@ const info = {
   branch,
   ...(process.env.DBFORGE_RELEASE_BUILD === '1' || !repositoryAvailable ? {} : { repoPath }),
   dirty,
+  ...(process.env.DBFORGE_RELEASE_BUILD === '1' || !process.env.npm_execpath ? {} : { toolchain: { nodePath: process.execPath, pnpmExecPath: process.env.npm_execpath } }),
   builtAt: new Date().toISOString()
 }
 await mkdir(outputRoot, { recursive: true })

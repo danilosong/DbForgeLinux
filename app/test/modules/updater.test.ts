@@ -50,6 +50,7 @@ function service(root: string, infoPath: string, options: { buildFails?: boolean
       check: async () => ({ version: '0.2.0', notes: ['release note'], sha512: 'hash' }),
       download: async () => { if (options.releaseDownloadFails) throw new Error('Package updater unavailable.') }, cancel: () => undefined, install: () => undefined, openReleasePage: async () => undefined
     },
+    resolvePnpm: async () => ({ file: 'pnpm', prefix: [], path: process.env.PATH ?? '' }),
     runCommand: async (file, args, commandOptions) => {
       if (file === 'pnpm' && args[0] === 'build') {
         if (options.buildFails) throw new Error('synthetic build failure')
