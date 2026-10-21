@@ -1,6 +1,6 @@
 import { useI18n } from '../../i18n/useI18n.js'
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import Editor from '@monaco-editor/react'
+import Editor from '../../components/MonacoEditor.js'
 import type { ConnectionRecord } from '../../../../../shared/contracts.js'
 import type { SchemaCompareResult } from '../../../../../shared/contracts/schema-compare.js'
 import type { SchemaDifference } from '../../../../../modules/schema/model.js'

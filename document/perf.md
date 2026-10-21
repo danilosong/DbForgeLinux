@@ -26,3 +26,29 @@ Em 2026-10-21 a suíte completa voltou a medir os fluxos sintéticos de spool e 
 | Nenhum bloqueio perceptível da UI acima de 200 ms | Não foi coletada trace de renderização com catálogo em escala. | SEM MEDIÇÃO |
 
 O pipeline de resultados continua paginado pelo spool; isso não comprova o comportamento do Explorer, Find Object, Schema Compare ou Documenter com milhares de objetos. As metas acima ficam pendentes de uma fixture de metadados descartável e de trace de UI. Não foram usados nem alterados `sample` ou `sample_b`.
+
+## Inicialização
+
+Medição em 2026-10-21 no mesmo ambiente Linux, com o executável empacotado, `xvfb-run` e o benchmark `pnpm perf:startup`. O início frio usa diretórios de usuário temporários; o aquecido repete o fluxo no mesmo processo de teste. Cada número é uma execução, portanto diferenças pequenas podem refletir variação do host.
+
+| Estado | Marco | Antes | Depois |
+| --- | --- | ---: | ---: |
+| Frio | Janela visível | 1,202 ms | 1,223 ms |
+| Frio | Explorer pronto | 1,264 ms | 1,227 ms |
+| Frio | Editor interativo | 1,806 ms | 1,730 ms |
+| Aquecido | Janela visível | 841 ms | 818 ms |
+| Aquecido | Explorer pronto | 979 ms | 1.099 ms |
+| Aquecido | Editor interativo | 1.336 ms | 1.373 ms |
+
+As metas observadas nesta máquina foram atingidas: janela visível abaixo de 1,5 s e editor interativo abaixo de 3 s, em ambas as rodadas. Não atribuí as variações inferiores a algumas centenas de milissegundos a uma melhoria consistente.
+
+O renderer agora monta editores de SQL e objetos sob demanda; o registro de painéis usa imports dinâmicos e o painel do explorador de projetos só é montado quando aberto. O Monaco configura workers ESM para editor e JSON sob demanda e importa apenas as contribuições SQL, JSON e Markdown usadas pelo app. O IPC não essencial (histórico, ferramentas extras e atualização) é carregado após a primeira pintura, por um evento de renderer validado pelo guard. A janela não abre o diálogo do atualizador automaticamente.
+
+| Artefato | Antes observado | Depois |
+| --- | ---: | ---: |
+| Chunk de entrada do renderer, gzip | ~8,4 MB (estimativa de partida da tarefa) | 256 KB (1.266.230 bytes sem gzip) |
+| Diretório `out/renderer` | 463 MB com chunks antigos acumulados | 12 MB após build limpa |
+
+O JS agregado do Monaco ainda gera chunks de linguagens adicionais por causa das dependências internas do pacote; não entram no chunk inicial e as contribuições registradas pelo app permanecem SQL/JSON/Markdown. A correção `emptyOutDir` evita manter chunks de builds anteriores no diretório. O benchmark de inicialização mede marcos visuais/funcionais do processo empacotado, não uma distribuição estatística; repita em hardware de referência antes de usar esses valores como SLA.
+
+Repetição após reconstruir o pacote para o smoke, também em 2026-10-21: frio 1.257 ms (janela), 1.261 ms (Explorer), 1.752 ms (editor); aquecido 808 ms, 1.083 ms e 1.349 ms, respectivamente. A diferença em relação à linha “Depois” está dentro da variação observada e preserva as metas.

@@ -6,7 +6,7 @@ import type { ImportExportTemplate } from '../../../../../shared/contracts/impor
 import { usePanelConnection, usePanelNavigation } from '../registry'
 import { exportFormats, importFormats, unsupportedExportFormats, unsupportedImportFormats } from './formats.js'
 import { getSelectedGridRows, subscribeSelectedGridRows } from '../../components/gridSelection.js'
-import { inferImportColumns, type InferredColumn } from '../../../../../modules/data-export-import/inference.js'
+import { buildCreateTableSql, inferImportColumns, type InferredColumn } from '../../../../../modules/data-export-import/inference.js'
 
 type Direction = 'export' | 'import'
 function sqlIdentifier(value: string): string { return `\`${value.replaceAll('`', '``')}\`` }
@@ -148,7 +148,6 @@ export default function Panel(): React.JSX.Element {
         }
         if (newTableSchema) {
           if (!window.confirm(t('imex.createTableConfirm', [`${selectedDatabase}.${table}`]))) { setBusy(false); return }
-          const { buildCreateTableSql } = await import('../../../../../modules/data-export-import/inference.js')
           await window.dbforge.executeSql(connectedId, buildCreateTableSql(selectedDatabase, table, importColumns), crypto.randomUUID(), selectedDatabase)
         }
         const result = await window.dbforge.importData(connectedId, targetTable, importFormat, mode, keyColumns, importOptions, jobId)

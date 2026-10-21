@@ -25,6 +25,7 @@ const outputFormat = enumOf('csv', 'text', 'json', 'xml', 'sql', 'xlsx', 'html',
 
 /** Runtime argument contracts for every invoke channel. Structured records are recursively size/type checked below. */
 export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
+  'app:renderer-ready': [],
   'about:info': [], 'about:open-link': [enumOf('documentation', 'repository', 'license')],
   'ai-assistant:settings:load': [], 'ai-assistant:settings:save': [object, opt(s('text'))], 'ai-assistant:settings:test': [object, opt(s('text'))],
   'ai-assistant:complete': [object], 'ai-assistant:cancel': [id], 'code-analysis:run': [sql],

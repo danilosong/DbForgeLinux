@@ -18,7 +18,6 @@ import { registerImportExportIpc } from './import-export.js'
 import { registerERDiagramIpc } from './er-diagram.js'
 import { registerQueryBuilderIpc } from './query-builder.js'
 import { registerEditorIpc } from './editor.js'
-import { registerHistoryIpc } from './history.js'
 import { registerSourceControlIpc } from './source-control.js'
 import { registerObjectEditorsIpc } from './object-editors.js'
 import { registerDataReportPivotIpc } from './data-report-pivot.js'
@@ -31,10 +30,7 @@ import { registerServiceControlIpc } from './service-control.js'
 import { registerCodeAnalysisIpc } from './code-analysis.js'
 import { registerGridEditingIpc } from './grid-editing.js'
 import { registerGridDataIpc } from './grid-data.js'
-import { registerExtraToolsIpc } from './extra-tools.js'
 import { registerAboutIpc } from './about.js'
-import { registerUpdaterIpc } from './updater.js'
-import { SqlExecutionHistoryStore } from '../history/SqlExecutionHistoryStore.js'
 import { join } from 'node:path'
 import { defaultTrustedRendererConfig, installIpcSecurity } from './guard.js'
 
@@ -47,8 +43,20 @@ export interface IpcDeps {
 }
 export function registerIpcRegistry(deps: IpcDeps): void {
   installIpcSecurity(defaultTrustedRendererConfig(join(__dirname, '../renderer/index.html')))
+  let deferredInitialization: Promise<void> | undefined
+  ipcMain.handle('app:renderer-ready', async () => {
+    deferredInitialization ??= (async () => {
+      const [{ registerHistoryIpc }, { SqlExecutionHistoryStore }, { registerExtraToolsIpc }, { registerUpdaterIpc }] = await Promise.all([
+        import('./history.js'), import('../history/SqlExecutionHistoryStore.js'), import('./extra-tools.js'), import('./updater.js')
+      ])
+      registerHistoryIpc(new SqlExecutionHistoryStore(join(deps.userDataDir, 'sql-execution-history.json')))
+      registerExtraToolsIpc(deps)
+      registerUpdaterIpc(settingsStore, deps.driver)
+    })()
+    await deferredInitialization
+    return { ready: true }
+  })
   registerEditorIpc(deps)
-  registerHistoryIpc(new SqlExecutionHistoryStore(join(deps.userDataDir, 'sql-execution-history.json')))
   registerConnectionsIpc(deps)
   registerSqlIpc(deps)
   registerSchemaIpc(deps)
@@ -68,14 +76,12 @@ export function registerIpcRegistry(deps: IpcDeps): void {
   registerAiAssistantIpc(deps)
   const settingsStore = new SettingsStore(join(deps.userDataDir, 'settings.json'))
   registerOptionsIpc(settingsStore)
-  registerUpdaterIpc(settingsStore, deps.driver)
   registerDatabaseToolsIpc(deps)
   registerRoutineDebuggerIpc(deps)
   registerServiceControlIpc()
   registerCodeAnalysisIpc()
   registerGridEditingIpc(deps)
   registerGridDataIpc(deps)
-  registerExtraToolsIpc(deps)
   registerAboutIpc()
 }
 export { ipcMain, BrowserWindow, dialog, readFile, writeFile }

@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import Editor, { loader, type OnMount } from '@monaco-editor/react'
+import type { OnMount } from '@monaco-editor/react'
+import Editor from '../../components/MonacoEditor.js'
 import { Range, type editor as MonacoEditor } from 'monaco-editor'
 import type { ConnectionRecord, ConnectionSummary, DebugBreakpoint, DebugSnapshot, DebugStepKind, DebugWatch, DatabaseObject } from '../../../../../shared/contracts.js'
 import { usePanelConnection } from '../registry'
 import { useI18n } from '../../i18n/useI18n.js'
 import { parseDebugRoutineParameters, type DebugRoutineParameter } from '../../../../../modules/routine-debugger/parameters.js'
 
-loader.config({ paths: { vs: window.location.protocol === 'file:' ? new URL('../node_modules/monaco-editor/min/vs', window.location.href).toString() : '/node_modules/monaco-editor/min/vs' } })
 
 export default function RoutineDebuggerPanel(): React.JSX.Element {
   const { t } = useI18n()

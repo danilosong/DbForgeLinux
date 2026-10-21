@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import Editor from '@monaco-editor/react'
+import Editor from './MonacoEditor.js'
 import type { ObjectEditorTarget } from '../../../../shared/contracts/object-editors.js'
 import type { ColumnModel, IndexModel, TableModel } from '../../../../modules/schema/model.js'
 import { quoteIdentifier } from '../../../../modules/schema/index.js'

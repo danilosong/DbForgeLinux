@@ -1,6 +1,6 @@
 import { useI18n } from '../../i18n/useI18n.js'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import Editor from '@monaco-editor/react'
+import Editor from '../../components/MonacoEditor.js'
 import type { ConnectionRecord, ConnectionSummary, QueryResult } from '../../../../../shared/contracts.js'
 import type { BuiltQuery, ColumnRef, JoinType, QueryAggregate, QueryBuilderModel, QueryBuilderSchema, QueryCondition, QueryOperator, QuerySelection, QueryTable } from '../../../../../modules/query-builder/types.js'
 import { buildQuery } from '../../../../../modules/query-builder/index.js'

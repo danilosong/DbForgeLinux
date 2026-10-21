@@ -23,6 +23,7 @@ import type { ExtraToolsApi } from './extra-tools.js'
 import type { AboutApi } from './about.js'
 import type { UpdaterApi } from './updater.js'
 export interface DbForgeApi extends SecurityApi, SessionsApi, SchemaCompareApi, DataCompareApi, ImportExportApi, ERDiagramApi, QueryBuilderApi, EditorApi, HistoryApi, SourceControlApi, ObjectEditorApi, OptionsApi, DatabaseToolsApi, ReportPivotApi, AiAssistantApi, RoutineDebugContract, ServiceControlApi, CodeAnalysisApi, GridEditingApi, GridDataApi, ExtraToolsApi, AboutApi, UpdaterApi {
+  initializeNonCriticalIpc(): Promise<{ ready: true }>
   getConnections(): Promise<ConnectionRecord[]>
   saveConnection(record: ConnectionRecord): Promise<void>
   deleteConnection(id: string): Promise<void>
