@@ -250,12 +250,12 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | # | Item Verificável | Avaliação | Nota | Evidência no Clone |
 |---|---|---|:---:|---|
 | 1 | Modo Query Profiling no menu SQL e toolbar | IGUAL | 1,0 | `app/test/modules/profiler.test.ts` |
-| 2 | Abas Profile (etapas/duração/soma), Plan (EXPLAIN tabular) e Plan Diagram (blocos visuais) | IGUAL | 1,0 | `08-13-modules/profiler-dark.png` |
-| 3 | Aba Session Statistics com delta de contadores e descrição explicativa | IGUAL | 1,0 | `08-13-modules/profiler-dark.png` |
+| 2 | Abas Profile (etapas/duração/soma), Plan (EXPLAIN tabular) e Plan Diagram (blocos visuais) | IGUAL | 1,0 | `ui/12-profiler-plan-canvas/plan-diagram-light.png`, `ui/12-profiler-plan-canvas/plan-diagram-dark.png`, `app/test/modules/profiler.test.ts` |
+| 3 | Aba Session Statistics com delta de contadores e descrições para variáveis comuns | PARCIAL | 0,5 | `app/test/modules/profiler.test.ts`; catálogo parcial em `app/src/modules/profiler/statusDescriptions.ts` |
 | 4 | Barra de status fiel com tempo decorrido e feedback de cancelamento | IGUAL | 1,0 | `sql-editor-dark.png` |
 | 5 | Comparador visual dedicado de histórico de perfis em duas colunas | PARCIAL | 0,5 | `app/test/modules/profiler.test.ts` |
 
-- **Subtotal Módulo 12:** 4,5 / 5,0 = **90,00%**
+- **Subtotal Módulo 12:** 4,0 / 5,0 = **80,00%**
 
 ---
 
@@ -306,12 +306,12 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 
 | # | Item Verificável | Avaliação | Nota | Evidência no Clone |
 |---|---|---|:---:|---|
-| 1 | Database Documenter com árvore de objetos, seleção granular de colunas e editor de capa | IGUAL | 1,0 | `documenter-dark.png`, `documenter-cover-dark.png` |
-| 2 | Geração em HTML, Markdown e PDF em diretório timestamp com abertura automática | IGUAL | 1,0 | `app/test/modules/documenter.test.ts` |
+| 1 | Database Documenter com árvore de objetos, seleção granular de colunas e designer de capa com prévia | PARCIAL | 0,5 | `ui/16-documenter-cover-designer/cover-designer-light.png`, `ui/16-documenter-cover-designer/cover-designer-dark.png`; a prévia não é WYSIWYG editável |
+| 2 | Geração em HTML, Markdown e PDF em diretório timestamp com abertura automática | IGUAL | 1,0 | `app/test/modules/documenter.test.ts`; smoke da CLI produziu PDF `%PDF-` por Chromium headless |
 | 3 | Automação e execução em lote via linha de comando (CLI) | PARCIAL | 0,5 | `app/test/modules/documenter.test.ts`, `npm run documenter:cli -- --help` (compilação e ajuda; conexão real requer integração) |
 | 4 | Gerenciador visual de tarefas recentes integrado na interface (Tasks Explorer via View > Tasks e Database > Tasks) | IGUAL | 1,0 | `DIVERGENCIAS-ORIGINAL.md:70`, `:71` *(implementado em R5!)* |
 
-- **Subtotal Módulo 16 & 17:** 3,5 / 4,0 = **87,50%** *(R4: 62,50% | Dif: **+25,00%**)*
+- **Subtotal Módulo 16 & 17:** 3,0 / 4,0 = **75,00%** *(R4: 62,50% | Dif: **+12,50%**)*
 
 ---
 
@@ -357,14 +357,16 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 2 | Project Explorer lateral auto-ocultável (Ctrl+W,J) com categorias por tipo e status Git | IGUAL | 1,0 | `source-control-project-explorer-dark.png` |
 | 3 | Operações Git: Commit, Diff Monaco, Histórico e Get Latest revisável | IGUAL | 1,0 | `app/test/modules/source-control.test.ts` |
 | 4 | Controle de versão legado centralizado (TFS/SVN/Mercurial) | AUSENTE | 0,0 | `app/test/modules/source-control.test.ts` |
+| 5 | Resolver conflitos por bloco no editor de merge Base/Ours/Theirs, salvar e marcar resolvido | IGUAL | 1,0 | `app/scripts/source-control-merge-e2e.mjs`; `app/test/modules/source-control.test.ts`; `source-control-conflict-light.png`, `source-control-conflict-dark.png` |
+| 6 | Grafo DAG interativo com pais, bifurcações, refs e seleção de commit | IGUAL | 1,0 | `app/scripts/source-control-merge-e2e.mjs`; `app/test/modules/source-control.test.ts`; `source-control-dag-light.png`, `source-control-dag-dark.png` |
 
-- **Subtotal Módulo 20:** 3,0 / 4,0 = **75,00%**
+- **Subtotal Módulo 20:** 5,0 / 6,0 = **83,33%**
 
 ---
 
 ## 4. Tabela-Resumo e Evolução Histórica (Rodadas 1 a 6 — Reconciliada)
 
-$$\text{Fidelidade Global Ponderada (Rodada 6)} = \frac{\sum (\text{Nota Módulo} \times \text{Peso})}{\sum \text{Pesos}} = \frac{12440,02}{131} = \mathbf{94,96\%} \approx \mathbf{95,0\%}$$
+$$\text{Fidelidade Global Ponderada (Rodada 6)} = \frac{\sum (\text{Nota Módulo} \times \text{Peso})}{\sum \text{Pesos}} = \frac{12489,23}{131} = \mathbf{95,34\%} \approx \mathbf{95,3\%}$$
 
 | Módulo | Nome do Componente | Peso | % R1 | % R2 | % R3 | % R4 | % R5 | % R6 (Reconciliado) | Variação (R6 - R5) | Entregas Verificadas em R6 |
 |:---:|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
@@ -379,18 +381,18 @@ $$\text{Fidelidade Global Ponderada (Rodada 6)} = \frac{\sum (\text{Nota Módulo
 | **09** | Data Generator | 4 | 68,75% | 93,75% | 83,33% | 83,33% | 83,33% | **83,33%** | 0,00% | Estável |
 | **10** | Query Builder | 4 | 62,50% | 68,75% | 70,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
 | **11** | Database Diagram (ER) | 4 | 75,00% | 87,50% | 66,67% | 66,67% | 100,00% | **100,00%** | 0,00% | Paridade plena |
-| **12** | Query Profiler | 4 | 87,50% | 87,50% | 90,00% | 90,00% | 90,00% | **90,00%** | 0,00% | Estável |
+| **12** | Query Profiler | 4 | 87,50% | 87,50% | 90,00% | 90,00% | 90,00% | **80,00%** | **-10,00%** | Canvas 2D capturado claro/escuro; descrições parciais dos contadores |
 | **13** | Stored Procedure Debugger | 5 | 81,25% | 81,25% | 80,00% | 90,00% | 90,00% | **90,00%** | 0,00% | Estável |
 | **14** | Options & Settings | 3 | 87,50% | 87,50% | 100,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
 | **15** | Data Compare & Synchronization | 10 | 83,33% | 88,89% | 75,00% | 75,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
-| **16/17** | Documenter & Tasks Explorer | 3 | 62,50% | 68,75% | 62,50% | 62,50% | 87,50% | **87,50%** | 0,00% | Estável |
+| **16/17** | Documenter & Tasks Explorer | 3 | 62,50% | 68,75% | 62,50% | 62,50% | 87,50% | **75,00%** | **-12,50%** | Prévia da capa e paletas; PDF CLI headless e metadados de privilégios |
 | **18** | Master-Detail, Report & Pivot | 4 | 62,50% | 62,50% | 50,00% | 87,50% | 87,50% | **100,00%** | **+12,50%** | Pivot Chart acoplado & SVG |
 | **19** | Utilities & Backup/Restore | 5 | 94,44% | 94,44% | 92,86% | 94,44% | 100,00% | **100,00%** | 0,00% | Paridade plena |
-| **20** | Source Control & Project Explorer | 6 | — | 87,50% | 75,00% | 75,00% | 75,00% | **75,00%** | 0,00% | Estável |
-| **TOTAL** | — | **131** | **79,23%** | **90,32%** | **83,68%** | **87,84%** | **92,83%** | **94,96%** | **+2,13%** | — |
+| **20** | Source Control & Project Explorer | 6 | — | 87,50% | 75,00% | 75,00% | 75,00% | **83,33%** | **+8,33%** | Editor de merge por bloco e grafo DAG |
+| **TOTAL** | — | **131** | **79,23%** | **90,32%** | **83,68%** | **87,84%** | **92,83%** | **95,34%** | **+2,51%** | — |
 
-- **Média Simples (não ponderada):** **94,19%** (R1: 80,58% | R2: 86,17% | R3: 81,83% | R4: 87,00% | R5: 92,27% | R6: 94,19%)  
-- **Média Global Ponderada:** **94,96%** $\approx$ **95,0%** (R1: 79,23% | R2: 90,32% | R3: 83,68% | R4: 87,84% | R5: 92,83% | R6: 94,96%)
+- **Média Simples (não ponderada):** **93,51%** (R1: 80,58% | R2: 86,17% | R3: 81,83% | R4: 87,00% | R5: 92,27% | R6: 93,51%)
+- **Média Global Ponderada:** **95,34%** $\approx$ **95,3%** (R1: 79,23% | R2: 90,32% | R3: 83,68% | R4: 87,84% | R5: 92,83% | R6: 95,34%)
 
 > [!NOTE]
 > Dez módulos atingiram **100,00%** de fidelidade comprovada por testes e capturas reais: **Database Explorer (02)**, **Table Designer & Grid (03)**, **Editor SQL & Refatoração (04)**, **Security Manager (08)**, **Query Builder (10)**, **Database Diagram ER (11)**, **Options & Settings (14)**, **Data Compare (15)**, **Master-Detail/Report/Pivot (18)** e **Utilities & Backup/Restore (19)**.

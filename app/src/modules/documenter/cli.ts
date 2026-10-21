@@ -2,8 +2,11 @@ import { readFile } from 'node:fs/promises'
 import { resolve } from 'node:path'
 import type { QueryValues } from 'mysql2'
 import mysql from 'mysql2/promise'
+import { writeDocumentation } from './index.js'
 import { inspectDatabase } from '../schema/index.js'
 import { generateDocumentationBatch, type DocumentationBatchItem } from './automation.js'
+import { printDocumentationPdfHeadless } from './headlessPdf.js'
+import { inspectDocumenterAccounts } from './accounts.js'
 
 const help = `TuxSQL Documenter CLI
 
@@ -18,9 +21,11 @@ Required environment:
 
 The JSON manifest is an array of tasks. Each task needs database and may set
 outputDirectory, title, author, copyright, logo, created, folderName,
-descriptions, includeDiagram, excludedColumns, excludedIndexes, and formats.
-Formats: html, markdown, pdf. PDF requires the desktop printer and is not
-available from this CLI. Credentials are read only from environment variables.
+  descriptions, includeDiagram, includeUsers, coverPage, breadcrumbs, palette,
+  excludedColumns, excludedIndexes, and formats.
+Formats: html, markdown, pdf. PDF renders in headless Chromium (set
+TUXSQL_CHROME_PATH when the executable is outside common Linux locations).
+Credentials are read only from environment variables.
 `
 
 function requiredEnvironment(name: string): string {
@@ -34,15 +39,17 @@ function parseManifest(value: unknown, defaultOutputDirectory: string | undefine
   return value.map((entry, index) => {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error(`A tarefa ${index + 1} não é um objeto válido.`)
     const task = entry as Record<string, unknown>
-    if (Object.keys(task).some((key) => !['database', 'outputDirectory', 'title', 'author', 'copyright', 'logo', 'created', 'folderName', 'descriptions', 'includeDiagram', 'excludedColumns', 'excludedIndexes', 'formats'].includes(key))) {
+    if (Object.keys(task).some((key) => !['database', 'outputDirectory', 'title', 'author', 'copyright', 'logo', 'created', 'folderName', 'descriptions', 'includeDiagram', 'includeUsers', 'coverPage', 'breadcrumbs', 'palette', 'excludedColumns', 'excludedIndexes', 'formats'].includes(key))) {
       throw new Error(`A tarefa ${index + 1} contém uma opção desconhecida.`)
     }
     if (typeof task.database !== 'string' || !task.database.trim()) throw new Error(`A tarefa ${index + 1} exige database.`)
     const outputDirectory = typeof task.outputDirectory === 'string' ? task.outputDirectory : defaultOutputDirectory
     if (!outputDirectory?.trim()) throw new Error(`A tarefa ${index + 1} exige outputDirectory ou TUXSQL_DOCUMENTER_OUTPUT.`)
-    if (task.formats !== undefined && (!Array.isArray(task.formats) || task.formats.some((format) => !['html', 'markdown'].includes(String(format))))) {
-      throw new Error(`A tarefa ${index + 1} contém formatos não suportados pela CLI. Use html e/ou markdown.`)
+    if (task.formats !== undefined && (!Array.isArray(task.formats) || task.formats.some((format) => !['html', 'markdown', 'pdf'].includes(String(format))))) {
+      throw new Error(`A tarefa ${index + 1} contém formatos não suportados pela CLI. Use html, markdown e/ou pdf.`)
     }
+    if (task.palette !== undefined && !['default', 'metro-light', 'ocean', 'forest'].includes(String(task.palette))) throw new Error(`A tarefa ${index + 1} contém uma paleta de capa inválida.`)
+    if (task.includeUsers !== undefined && typeof task.includeUsers !== 'boolean') throw new Error(`A tarefa ${index + 1}: includeUsers deve ser booleano.`)
     return { ...task, database: task.database, outputDirectory: resolve(outputDirectory), formats: task.formats as DocumentationBatchItem['formats'] } as DocumentationBatchItem
   })
 }
@@ -69,7 +76,17 @@ async function main(): Promise<void> {
         const [rows] = await connection.query(sql, [...parameters] as QueryValues)
         return Array.isArray(rows) ? rows as Array<Record<string, unknown>> : []
       }, database) } finally { await connection.end() }
-    }
+    },
+    inspectAccounts: async (database) => {
+      const connection = await mysql.createConnection({ host, port, user, password, database, connectTimeout: 10_000, multipleStatements: false })
+      try {
+        return await inspectDocumenterAccounts(async (sql, parameters = []) => {
+          const [rows] = await connection.query(sql, [...parameters] as QueryValues)
+          return Array.isArray(rows) ? rows as Array<Record<string, unknown>> : []
+        }, database)
+      } finally { await connection.end() }
+    },
+    write: (model, options) => writeDocumentation(model, { ...options, pdfPrinter: { printToPDF: printDocumentationPdfHeadless } })
   })
   for (const result of results) {
     if (result.error) process.stderr.write(`${result.database}: ${result.error}\n`)

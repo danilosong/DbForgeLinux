@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { compareProfileRuns, executeProfiledQuery, explainQuery, normalizeQuery, parseExplain, ProfilerHistory, type ProfileResult } from '../../src/modules/profiler/index.js'
+import { layoutPlanDiagram, planCostHue } from '../../src/modules/profiler/planDiagram.js'
+import { describeStatusVariable } from '../../src/modules/profiler/statusDescriptions.js'
 import type { SqlClient } from '../../src/modules/sql.js'
 
 function client(overrides: Partial<SqlClient> = {}): SqlClient {
@@ -7,6 +9,25 @@ function client(overrides: Partial<SqlClient> = {}): SqlClient {
 }
 
 describe('query profiler', () => {
+  it('lays out a two dimensional plan graph with row-count edges and relative cost colors', () => {
+    const roots = [{ operation: 'Nested loop', cost: 9, children: [
+      { operation: 'Table scan', table: 'orders', rows: 20, cost: 8, children: [] },
+      { operation: 'Index lookup', table: 'customers', rows: 1, cost: 1, children: [] }
+    ] }]
+    const layout = layoutPlanDiagram(roots)
+    expect(layout.nodes).toHaveLength(3)
+    expect(layout.edges.map((edge) => edge.rows)).toEqual([20, 1])
+    expect(layout.nodes.find((node) => node.node.operation === 'Nested loop')?.x).toBeLessThan(layout.nodes.find((node) => node.node.table === 'orders')!.x)
+    expect(layout.width).toBeGreaterThan(layout.nodes.at(-1)!.x)
+    expect(planCostHue(9, 9)).toBe(0)
+    expect(planCostHue(0, 9)).toBe(120)
+  })
+
+  it('describes common server status counters in both supported UI locales', () => {
+    expect(describeStatusVariable('Rows_examined', 'en')).toContain('read while evaluating')
+    expect(describeStatusVariable('Rows_examined', 'pt-BR')).toContain('Linhas lidas')
+    expect(describeStatusVariable('unknown_custom_counter', 'en')).toContain('scope depend')
+  })
   it('compares selected runs by duration, events, session counters and structural plan shape', () => {
     const make = (overrides: Partial<ProfileResult> = {}): ProfileResult => ({
       query: 'SELECT * FROM items', normalizedQuery: 'select * from items', mode: 'JSON', startedAt: new Date().toISOString(),

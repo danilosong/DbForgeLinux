@@ -4,12 +4,12 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 import { createTable } from '../schema/ddl.js'
 import type { DatabaseModel, SchemaObject } from '../schema/model.js'
-import type { ExportSchemaReport, ProjectFileStatus, ProjectMetadata, RepositoryBranch, RepositoryCommit, RepositoryStatus, WorkingChange } from './types.js'
+import type { ExportSchemaReport, MergeConflictFile, ProjectFileStatus, ProjectMetadata, RepositoryBranch, RepositoryCommit, RepositoryGraphCommit, RepositoryStatus, WorkingChange } from './types.js'
 
 const execFileAsync = promisify(execFile)
 const maxBuffer = 16 * 1024 * 1024
 
-export type { ExportSchemaReport, ProjectFileStatus, ProjectMetadata, RepositoryBranch, RepositoryCommit, RepositoryStatus, SourceControlState, WorkingChange } from './types.js'
+export type { ExportSchemaReport, MergeConflictFile, ProjectFileStatus, ProjectMetadata, RepositoryBranch, RepositoryCommit, RepositoryGraphCommit, RepositoryStatus, SourceControlState, WorkingChange } from './types.js'
 
 export class GitRepository {
   constructor(readonly path: string) {}
@@ -91,6 +91,32 @@ export class GitRepository {
     if (file) await projectFilePath(this.path, file)
     const raw = await this.git('log', `-${count}`, '--format=%H%x1f%an%x1f%ae%x1f%aI%x1f%s', '--', ...(file ? [file] : []))
     return raw.split('\n').filter(Boolean).map(parseCommit)
+  }
+  async graph(limit = 100): Promise<RepositoryGraphCommit[]> {
+    const count = Math.max(1, Math.min(200, Math.floor(limit)))
+    const raw = await this.git('log', '--all', `-${count}`, '--format=%H%x1f%P%x1f%an%x1f%ae%x1f%aI%x1f%s%x1f%D')
+    return raw.split('\n').filter(Boolean).map((record) => {
+      const [hash = '', parents = '', author = '', email = '', date = '', message = '', refs = ''] = record.split('\x1f')
+      return { hash, parents: parents ? parents.split(' ') : [], author, email, date, message, refs: refs.split(',').map((ref) => ref.trim()).filter(Boolean) }
+    })
+  }
+  async readConflict(file: string): Promise<MergeConflictFile> {
+    await projectFilePath(this.path, file)
+    if (!(await this.status()).changes.some((change) => change.path === file && change.state === 'conflicted')) throw new Error('Select a file with an active merge conflict.')
+    const stage = async (number: 1 | 2 | 3): Promise<string> => {
+      try { return await this.git('show', `:${number}:${file}`) } catch { return '' }
+    }
+    return { path: file, base: await stage(1), ours: await stage(2), theirs: await stage(3), result: await readFile(await projectFilePath(this.path, file), 'utf8') }
+  }
+  async saveConflictResolution(file: string, contents: string): Promise<void> {
+    await projectFilePath(this.path, file)
+    if (!(await this.status()).changes.some((change) => change.path === file && change.state === 'conflicted')) throw new Error('Select a file with an active merge conflict.')
+    await writeProjectFile(this.path, file, contents)
+  }
+  async markConflictResolved(file: string): Promise<void> {
+    await projectFilePath(this.path, file)
+    if (!(await this.status()).changes.some((change) => change.path === file && change.state === 'conflicted')) throw new Error('Select a file with an active merge conflict.')
+    await this.git('add', '--', file)
   }
 }
 

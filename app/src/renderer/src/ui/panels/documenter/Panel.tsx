@@ -1,7 +1,6 @@
 import { useI18n } from '../../i18n/useI18n.js'
 import { useEffect, useMemo, useState } from 'react'
-import type { GeneratedDocumentation, WrittenDocumentation } from '../../../../../modules/documenter/index.js'
-import type { DocumentFormat } from '../../../../../modules/documenter/index.js'
+import type { DocumentFormat, DocumenterPalette, GeneratedDocumentation, WrittenDocumentation } from '../../../../../modules/documenter/index.js'
 import { usePanelConnection } from '../registry'
 import AssistantFinish from '../../components/AssistantFinish.js'
 
@@ -21,6 +20,10 @@ export default function Panel(): React.JSX.Element {
   const [author, setAuthor] = useState('')
   const [copyright, setCopyright] = useState('')
   const [logo, setLogo] = useState('')
+  const [coverPage, setCoverPage] = useState(true)
+  const [breadcrumbs, setBreadcrumbs] = useState(true)
+  const [palette, setPalette] = useState<DocumenterPalette>('default')
+  const [includeUsers, setIncludeUsers] = useState(true)
   const [directory, setDirectory] = useState('')
   const [appendTimestamp, setAppendTimestamp] = useState(true)
   const [openAfter, setOpenAfter] = useState(true)
@@ -46,7 +49,7 @@ export default function Panel(): React.JSX.Element {
     if (!window.confirm(t('documenter.confirm'))) return
     setBusy(true); setError('')
     try {
-      const paths = await window.tuxsql.generateDatabaseDocumentation({ connectionId, database, title: title || undefined, author, copyright, logo, created: localDateTime().date, folderName, descriptions: { cover: description }, formats, outputDirectory: directory, includeDiagram: diagram, excludedColumns, excludedIndexes, confirmed: true })
+      const paths = await window.tuxsql.generateDatabaseDocumentation({ connectionId, database, title: title || undefined, author, copyright, logo, created: localDateTime().date, folderName, descriptions: { cover: description }, formats, outputDirectory: directory, includeDiagram: diagram, includeUsers, coverPage, breadcrumbs, palette, excludedColumns, excludedIndexes, confirmed: true })
       setResult(paths)
       if (openAfter) {
         const first = paths.html ?? paths.pdf ?? paths.markdown
@@ -62,10 +65,11 @@ export default function Panel(): React.JSX.Element {
     <fieldset><legend>{t('documenter.scope')}</legend>
       {activeConnection ? <p>{t('documenter.connection')}: <strong>{activeConnection.name}</strong></p> : <label>{t('documenter.connection')} <input value={connectionId} onChange={(event) => setConnectionId(event.target.value)} /></label>}
       <label>{t('documenter.database')} <input value={database} onChange={(event) => setDatabase(event.target.value)} /></label>
-      <details><summary>{t('documenter.tree')}</summary><ul><li><label><input type="checkbox" defaultChecked /> {t('documenter.cover')}</label></li><li><details open><summary>{activeConnection?.name || connectionId || t('documenter.server')} / {database || t('documenter.database')}</summary><ul>{tree.map((table) => <li key={table.name}><details><summary>{table.name}</summary><ul><li><strong>{t('documenter.columnsTree')}</strong><ul>{table.columns.map((column) => { const key = `${table.name}.${column}`; return <li key={key}><label><input type="checkbox" checked={!excludedColumns.includes(key)} onChange={(event) => setExcludedColumns((current) => event.target.checked ? current.filter((item) => item !== key) : [...current, key])} />{column}</label></li> })}</ul></li><li><strong>{t('documenter.indexesTree')}</strong><ul>{table.indexes.map((index) => { const key = `${table.name}.${index}`; return <li key={key}><label><input type="checkbox" checked={!excludedIndexes.includes(key)} onChange={(event) => setExcludedIndexes((current) => event.target.checked ? current.filter((item) => item !== key) : [...current, key])} />{index}</label></li> })}</ul></li></ul></details></li>)}</ul></details></li><li><label><input type="checkbox" defaultChecked /> {t('documenter.users')}</label></li></ul></details>
+      <details><summary>{t('documenter.tree')}</summary><ul><li><label><input type="checkbox" checked={coverPage} onChange={(event) => setCoverPage(event.target.checked)} /> {t('documenter.cover')}</label></li><li><details open><summary>{activeConnection?.name || connectionId || t('documenter.server')} / {database || t('documenter.database')}</summary><ul>{tree.map((table) => <li key={table.name}><details><summary>{table.name}</summary><ul><li><strong>{t('documenter.columnsTree')}</strong><ul>{table.columns.map((column) => { const key = `${table.name}.${column}`; return <li key={key}><label><input type="checkbox" checked={!excludedColumns.includes(key)} onChange={(event) => setExcludedColumns((current) => event.target.checked ? current.filter((item) => item !== key) : [...current, key])} />{column}</label></li> })}</ul></li><li><strong>{t('documenter.indexesTree')}</strong><ul>{table.indexes.map((index) => { const key = `${table.name}.${index}`; return <li key={key}><label><input type="checkbox" checked={!excludedIndexes.includes(key)} onChange={(event) => setExcludedIndexes((current) => event.target.checked ? current.filter((item) => item !== key) : [...current, key])} />{index}</label></li> })}</ul></li></ul></details></li>)}</ul></details></li><li><label><input type="checkbox" checked={includeUsers} onChange={(event) => setIncludeUsers(event.target.checked)} /> {t('documenter.userPrivileges')}</label></li></ul></details>
     </fieldset>
     <fieldset><legend>{t('documenter.cover')}</legend>
-      <nav aria-label={t('documenter.breadcrumb')}>{t('documenter.server')} / {database || t('documenter.database')} / {t('documenter.cover')}</nav>
+      <label><input type="checkbox" checked={breadcrumbs} onChange={(event) => setBreadcrumbs(event.target.checked)} /> {t('documenter.breadcrumb')}</label>
+      <label>{t('documenter.palette')} <select value={palette} onChange={(event) => setPalette(event.target.value as DocumenterPalette)}><option value="default">Default</option><option value="metro-light">Metro Light</option><option value="ocean">Ocean</option><option value="forest">Forest</option></select></label>
       <div className="documenter-fields">
         <label>{t('documenter.titleField')} <input value={title} onChange={(event) => setTitle(event.target.value)} /></label>
         <label>{t('documenter.logo')} <input value={logo} onChange={(event) => setLogo(event.target.value)} placeholder={t('documenter.logoHint')} /></label>
@@ -74,6 +78,7 @@ export default function Panel(): React.JSX.Element {
         <label>{t('documenter.copyright')} <input value={copyright} onChange={(event) => setCopyright(event.target.value)} /></label>
         <label>{t('documenter.created')} <input type="date" value={localDateTime().date} readOnly /></label>
       </div>
+      {coverPage && <article className={`documenter-cover-preview documenter-cover-${palette}`} aria-label={t('documenter.coverPreview')}><small>{breadcrumbs ? `${activeConnection?.name || connectionId || t('documenter.server')} / ${database || t('documenter.database')} / ${t('documenter.cover')}` : ''}</small>{logo && <strong className="documenter-preview-logo">{logo}</strong>}<h2>{title || `${t('documenter.titleField')}: ${database || t('documenter.database')}`}</h2>{description && <p>{description}</p>}<p>{author}</p><p>{copyright}</p><small>{localDateTime().date}</small></article>}
     </fieldset>
     <fieldset><legend>{t('documenter.generate')}</legend>
       <label>{t('documenter.output')} <input value={directory} onChange={(event) => setDirectory(event.target.value)} placeholder="/home/user/Documents" /></label>
@@ -86,6 +91,6 @@ export default function Panel(): React.JSX.Element {
     </fieldset>
     {preview && <details open><summary>{t('panel.documenter.m48be62c9c8')}</summary><iframe title={t('panel.documenter.m772c9aea69')} srcDoc={preview.html} style={{ width: '100%', height: 260, border: '1px solid var(--border)' }} /><pre>{preview.markdown.slice(0, 1800)}</pre></details>}
     {result && <AssistantFinish summary={<p role="status">{t('panel.documenter.mace24bede7')} {Object.values(result).filter(Boolean).join(' · ')}</p>} paths={Object.values(result).filter((path): path is string => Boolean(path))} onError={setError} />}{error && <p role="alert">{error}</p>}
-    <style>{`.documenter-panel{display:flex;flex-direction:column;gap:10px;overflow:auto}.documenter-panel header h2{margin:0}.documenter-panel header p{margin:4px 0;color:var(--text-secondary)}.documenter-panel fieldset{border:1px solid var(--border);border-radius:5px;padding:10px}.documenter-panel legend{font-weight:600}.documenter-panel label{display:inline-flex;align-items:center;gap:6px;margin:5px 12px 5px 0}.documenter-panel fieldset>label{display:flex;max-width:650px}.documenter-panel fieldset>label input:not([type=checkbox]),.documenter-fields input,.documenter-fields textarea{flex:1;min-width:120px}.documenter-fields{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:4px 12px}.documenter-fields label{display:flex}.documenter-formats{display:flex;gap:12px}.documenter-panel details{margin-top:8px}.documenter-panel pre{max-height:220px;overflow:auto}`}</style>
+    <style>{`.documenter-panel{display:flex;flex-direction:column;gap:10px;overflow:auto}.documenter-panel header h2{margin:0}.documenter-panel header p{margin:4px 0;color:var(--text-secondary)}.documenter-panel fieldset{border:1px solid var(--border);border-radius:5px;padding:10px}.documenter-panel legend{font-weight:600}.documenter-panel label{display:inline-flex;align-items:center;gap:6px;margin:5px 12px 5px 0}.documenter-panel fieldset>label{display:flex;max-width:650px}.documenter-panel fieldset>label input:not([type=checkbox]),.documenter-fields input,.documenter-fields textarea{flex:1;min-width:120px}.documenter-fields{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:4px 12px}.documenter-fields label{display:flex}.documenter-formats{display:flex;gap:12px}.documenter-panel details{margin-top:8px}.documenter-panel pre{max-height:220px;overflow:auto}.documenter-cover-preview{--cover-accent:#2563eb;--cover-surface:#eff6ff;min-height:220px;margin-top:12px;padding:24px;border:1px solid var(--border);border-bottom:5px solid var(--cover-accent);border-radius:8px;background:var(--cover-surface);color:#172033;display:flex;flex-direction:column;justify-content:center}.documenter-cover-preview h2{color:var(--cover-accent);font-size:1.7rem}.documenter-cover-preview small{color:#64748b}.documenter-preview-logo{color:var(--cover-accent);font-size:1.2rem}.documenter-cover-metro-light{--cover-accent:#0078d4;--cover-surface:#e6f4ff}.documenter-cover-ocean{--cover-accent:#0f766e;--cover-surface:#ccfbf1}.documenter-cover-forest{--cover-accent:#3f6212;--cover-surface:#ecfccb}`}</style>
   </section>
 }

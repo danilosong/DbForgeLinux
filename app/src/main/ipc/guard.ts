@@ -76,7 +76,8 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'source-control:status': [path], 'source-control:init': [path], 'source-control:diff': [path, opt(s('relative-path')), opt(bool)],
   'source-control:commit': [path, text, strings], 'source-control:branches': [path], 'source-control:create-branch': [path, ident], 'source-control:checkout-branch': [path, ident],
   'source-control:delete-branch': [path, ident, trueOnly], 'source-control:fetch': [path], 'source-control:pull': [path, trueOnly], 'source-control:push': [path, trueOnly],
-  'source-control:log': [path, opt(integer), opt(s('relative-path'))], 'source-control:commit-diff': [path, ident, opt(s('relative-path'))], 'source-control:create-project': [text],
+  'source-control:log': [path, opt(integer), opt(s('relative-path'))], 'source-control:commit-diff': [path, ident, opt(s('relative-path'))], 'source-control:graph': [path, opt(integer)],
+  'source-control:conflict-read': [path, s('relative-path')], 'source-control:conflict-save': [path, s('relative-path'), sql], 'source-control:conflict-resolve': [path, s('relative-path')], 'source-control:create-project': [text],
   'source-control:open-project': [], 'source-control:open-project-path': [path], 'source-control:recent-projects': [], 'source-control:close-project': [path],
   'source-control:project-files': [path], 'source-control:read-scripts': [path, strings], 'source-control:apply-scripts': [id, ident, objects, trueOnly],
   'source-control:add-file': [path], 'source-control:write-script': [path, s('relative-path'), sql], 'source-control:export-schema': [id, ident, opt(path)]
@@ -377,7 +378,7 @@ export function isTrustedIpcFrame(event: GuardEvent, config: TrustedRendererConf
 function rateLimit(channel: string, senderId: number, args: readonly unknown[], now = Date.now()): void {
   const mutatingSql = channel === 'db:execute' && typeof args[1] === 'string' && /\b(drop|truncate|alter|create|grant|revoke|insert|update|delete|replace)\b/i.test(args[1])
   const queryBuilderMutation = channel === 'query-builder:execute' && typeof args[1] === 'object' && args[1] !== null && ['INSERT', 'UPDATE', 'DELETE'].includes(String((args[1] as Record<string, unknown>).statement))
-  const destructive = mutatingSql || queryBuilderMutation || /^(grid-editing:apply|security:apply|sessions:kill|database-tools:(restore|copy|maintenance|large-run|format-run)|object-editor:(apply|apply-table|mutate)|schema-compare:synchronize|schema-update:execute|import-export:import|data-generator:generate|routine-debugger:(engine:(deploy|remove)|start)|service-control:action|updater:apply|source-control:(commit|init|checkout-branch|delete-branch|fetch|pull|push))$/.test(channel)
+  const destructive = mutatingSql || queryBuilderMutation || /^(grid-editing:apply|security:apply|sessions:kill|database-tools:(restore|copy|maintenance|large-run|format-run)|object-editor:(apply|apply-table|mutate)|schema-compare:synchronize|schema-update:execute|import-export:import|data-generator:generate|routine-debugger:(engine:(deploy|remove)|start)|service-control:action|updater:apply|source-control:(commit|init|checkout-branch|delete-branch|fetch|pull|push|conflict-(save|resolve)))$/.test(channel)
   const git = channel.startsWith('source-control:')
   const limit = destructive ? 8 : git ? 30 : channel === 'db:execute' ? 60 : 120
   const key = `${senderId}:${channel}`

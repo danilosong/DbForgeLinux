@@ -1,4 +1,4 @@
-import type { ExportSchemaReport, ProjectFileStatus, ProjectMetadata, RepositoryBranch, RepositoryCommit, RepositoryStatus } from '../../modules/source-control/types.js'
+import type { ExportSchemaReport, MergeConflictFile, ProjectFileStatus, ProjectMetadata, RepositoryBranch, RepositoryCommit, RepositoryGraphCommit, RepositoryStatus } from '../../modules/source-control/types.js'
 
 export interface SourceControlApi {
   chooseRepository(): Promise<string | null>
@@ -19,6 +19,10 @@ export interface SourceControlApi {
   sourceControlPush(path: string, confirmed: boolean): Promise<void>
   sourceControlLog(path: string, limit?: number, file?: string): Promise<RepositoryCommit[]>
   sourceControlCommitDiff(path: string, hash: string, file?: string): Promise<string>
+  sourceControlGraph(path: string, limit?: number): Promise<RepositoryGraphCommit[]>
+  sourceControlReadConflict(path: string, file: string): Promise<MergeConflictFile>
+  sourceControlSaveConflict(path: string, file: string, contents: string): Promise<void>
+  sourceControlMarkConflictResolved(path: string, file: string): Promise<void>
   createSourceProject(name: string): Promise<ProjectMetadata | null>
   openSourceProject(): Promise<ProjectMetadata | null>
   openSourceProjectPath(root: string): Promise<ProjectMetadata>

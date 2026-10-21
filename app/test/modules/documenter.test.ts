@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { generateDocumentation, writeDocumentation } from '../../src/modules/documenter/index.js'
+import { inspectDocumenterAccounts } from '../../src/modules/documenter/accounts.js'
 import { generateDocumentationBatch } from '../../src/modules/documenter/automation.js'
 import type { DatabaseModel } from '../../src/modules/schema/model.js'
 
@@ -54,6 +55,18 @@ describe('documenter', () => {
     await expect(generateDocumentationBatch([], dependencies)).rejects.toThrow('1 a 100')
     await expect(generateDocumentationBatch(Array.from({ length: 101 }, (_, index) => ({ database: `db-${index}`, outputDirectory: '/tmp/docs' })), dependencies)).rejects.toThrow('1 a 100')
   })
+  it('threads cover settings and account grants through the batch generator', async () => {
+    const inspectAccounts = vi.fn(async () => [{ grantee: "'reporter'@'%'", globalPrivileges: ['SELECT'], scopedPrivileges: [] }])
+    const write = vi.fn(async (_model: DatabaseModel, options: { palette?: string; accounts?: unknown[]; includeUsers?: boolean }) => {
+      expect(options).toMatchObject({ palette: 'forest', includeUsers: true, accounts: [{ grantee: "'reporter'@'%'" }] })
+      return { markdown: '/tmp/docs/catalog.md' }
+    })
+    const result = await generateDocumentationBatch([{ database: 'catalog', outputDirectory: '/tmp/docs', includeUsers: true, palette: 'forest', formats: ['pdf'] }], {
+      inspect: async () => model, inspectAccounts, write
+    })
+    expect(inspectAccounts).toHaveBeenCalledWith('catalog')
+    expect(result[0]?.output?.markdown).toBe('/tmp/docs/catalog.md')
+  })
 
   it('generates escaped HTML, Markdown and optional relationship SVG', () => {
     const output = generateDocumentation(model, { includeDiagram: true, descriptions: { 'table.users': 'User reference table' } })
@@ -76,6 +89,30 @@ describe('documenter', () => {
     expect(output.markdown).toContain('author: Data team')
     expect(output.markdown).toContain('logo: ACME')
     expect(generateDocumentation(model, { coverPage: false }).html).not.toContain('class="cover"')
+  })
+  it('renders selected cover palette, breadcrumbs, and account privilege sections safely', () => {
+    const output = generateDocumentation(model, {
+      title: 'Sales catalog', palette: 'ocean', breadcrumbs: false, includeUsers: true,
+      accounts: [{ grantee: "'reader'@'%'", globalPrivileges: ['SELECT'], scopedPrivileges: ['sample<db>.users: SELECT'] }]
+    })
+    expect(output.html).toContain('--cover-accent:#0f766e')
+    expect(output.html).not.toContain('class="crumb"')
+    expect(output.html).toContain('<h2>Users and privileges</h2>')
+    expect(output.html).toContain('&lt;db&gt;.users: SELECT')
+    expect(output.markdown).toContain('palette: ocean')
+    expect(output.markdown).toContain("'reader'@'%'")
+    expect(generateDocumentation(model, { includeUsers: false, accounts: [{ grantee: 'reader', globalPrivileges: ['SELECT'], scopedPrivileges: [] }] }).html).not.toContain('Users and privileges')
+  })
+  it('groups information-schema grants without requesting authentication data', async () => {
+    const query = vi.fn(async (sql: string, parameters?: unknown[]) => {
+      expect(sql).not.toMatch(/authentication_string|password/i)
+      expect(parameters).toEqual(['catalog', 'catalog'])
+      return [
+        { grantee: "'reader'@'%'", scope: 'GLOBAL', privilege: 'SELECT', object_name: null },
+        { grantee: "'reader'@'%'", scope: 'OBJECT', privilege: 'UPDATE', object_name: 'catalog.users' }
+      ]
+    })
+    await expect(inspectDocumenterAccounts(query, 'catalog')).resolves.toEqual([{ grantee: "'reader'@'%'", globalPrivileges: ['SELECT'], scopedPrivileges: ['catalog.users: UPDATE'] }])
   })
   it('excludes individual columns and indexes from generated documentation', () => {
     const output = generateDocumentation(model, { excludedColumns: ['users.display|name'], excludedIndexes: ['users.PRIMARY'] })

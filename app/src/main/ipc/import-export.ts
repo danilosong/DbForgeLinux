@@ -1,7 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent, type MessageBoxOptions } from 'electron'
 import { createReadStream, createWriteStream } from 'node:fs'
-import { chmod, mkdir, readFile, stat, writeFile, readdir, unlink } from 'node:fs/promises'
-import { extname, join } from 'node:path'
+import { chmod, mkdir, readFile, stat, writeFile, unlink } from 'node:fs/promises'
+import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { randomUUID } from 'node:crypto'
 import type { IpcDeps } from './registry.js'
@@ -9,6 +9,7 @@ import { exportData, importData, generateImportSql, previewExport, previewImport
 import { once } from 'node:events'
 import type { ImportExportOptions, ImportExportTemplate } from '../../shared/contracts/import-export.js'
 import { encodeZipArchive } from '../../modules/archive/index.js'
+import { deleteExportFilesAfterConfirmation, planExportRetention } from '../../modules/data-export-import/exportRetention.js'
 import { buildCreateTableSql, type InferredColumn } from '../../modules/data-export-import/inference.js'
 
 interface ActiveJob { controller: AbortController; senderId: number }
@@ -37,6 +38,8 @@ function assertOptions(options?: ImportExportOptions): void {
   if (options?.zipLevel !== undefined && (!Number.isInteger(options.zipLevel) || options.zipLevel < 0 || options.zipLevel > 9)) throw new Error('Nível ZIP inválido.')
   if (options?.zipPassword !== undefined && (typeof options.zipPassword !== 'string' || options.zipPassword.length > 256)) throw new Error('Senha ZIP inválida.')
   if (options?.zipComment !== undefined && (typeof options.zipComment !== 'string' || options.zipComment.length > 500)) throw new Error('Comentário ZIP inválido.')
+  if (options?.autoDeleteDays !== undefined && (!Number.isInteger(options.autoDeleteDays) || options.autoDeleteDays < 1 || options.autoDeleteDays > 36_500)) throw new Error('Período de retenção inválido.')
+  if (options?.autoDeleteCount !== undefined && (!Number.isInteger(options.autoDeleteCount) || options.autoDeleteCount < 1 || options.autoDeleteCount > 100_000)) throw new Error('Quantidade de retenção inválida.')
   if (options?.skipLines !== undefined && (!Number.isInteger(options.skipLines) || options.skipLines < 0 || options.skipLines > 100_000)) throw new Error('Número de linhas ignoradas inválido.')
   if (options?.headerPosition !== undefined && (!Number.isInteger(options.headerPosition) || options.headerPosition < 1 || options.headerPosition > 100_000)) throw new Error('Posição do cabeçalho inválida.')
   if (options?.createTable) {
@@ -115,36 +118,45 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
     const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Data Export Wizard', defaultPath: `${baseName}${stamp}.${outputExtension}`, filters: [{ name: options?.compress ? 'ZIP archive' : format.toUpperCase(), extensions: [outputExtension] }] })
     if (canceled || !filePath) throw new Error('Exportação cancelada.')
     const controller = startJob(event, jobId)
+    let temporaryOutput: string | undefined
+    let temporaryHtml: string | undefined
     try {
-      const temporaryOutput = options?.compress ? join(app.getPath('temp'), `tuxsql-export-${randomUUID()}.${extensions[format]}`) : filePath
-      const temporaryHtml = format === 'pdf' ? join(app.getPath('temp'), `tuxsql-export-${randomUUID()}.html`) : undefined
+      temporaryOutput = options?.compress ? join(app.getPath('temp'), `tuxsql-export-${randomUUID()}.${extensions[format]}`) : filePath
+      temporaryHtml = format === 'pdf' ? join(app.getPath('temp'), `tuxsql-export-${randomUUID()}.html`) : undefined
       const exportFormat = format === 'pdf' ? 'html' : format
       const exportOptions = options && { ...options, createTable: undefined }
       const report = await exportData({ driver, connectionId, query: statement, format: exportFormat, options: exportOptions, signal: controller.signal, onProgress: (value) => progress(event, jobId, value), destination: createWriteStream(temporaryHtml ?? temporaryOutput, { mode: 0o600 }) })
       if (format === 'pdf' && temporaryHtml) {
         const printer = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } })
         try { await printer.loadURL(pathToFileURL(temporaryHtml).toString()); const pdf = await printer.webContents.printToPDF({ printBackground: true, pageSize: 'A4' }); await writeFile(temporaryOutput, pdf, { mode: 0o600 }) }
-        finally { printer.destroy(); await unlink(temporaryHtml).catch(() => undefined) }
+        finally { printer.destroy() }
       }
       if (options?.compress) {
-        try {
-          const contents = await readFile(temporaryOutput)
-          const entry = await encodeZipArchive(contents, `${baseName}.${extensions[format]}`, { compressionLevel: options.zipLevel ?? 6, comment: (options.zipComment ?? '').slice(0, 500), password: options.zipPassword || undefined })
-          await writeFile(filePath, entry, { mode: 0o600 })
-        } finally { await unlink(temporaryOutput).catch(() => undefined) }
+        const contents = await readFile(temporaryOutput)
+        const entry = await encodeZipArchive(contents, `${baseName}.${extensions[format]}`, { compressionLevel: options.zipLevel ?? 6, comment: (options.zipComment ?? '').slice(0, 500), password: options.zipPassword || undefined })
+        await writeFile(filePath, entry, { mode: 0o600 })
       }
       if (options?.autoDeleteDays || options?.autoDeleteCount) {
-        const directory = join(filePath, '..')
-        const files = await readdir(directory, { withFileTypes: true })
-        const candidates = await Promise.all(files.filter((item) => item.isFile() && item.name.startsWith(`${baseName}_`) && extname(item.name) === `.${outputExtension}`).map(async (item) => ({ path: join(directory, item.name), mtime: (await stat(join(directory, item.name))).mtimeMs })))
-        candidates.sort((left, right) => right.mtime - left.mtime)
-        const keep = Math.max(1, options.autoDeleteCount ?? 20); const cutoff = Date.now() - Math.max(1, options.autoDeleteDays ?? 30) * 86_400_000
-        await Promise.all(candidates.slice(keep).map((item) => unlink(item.path).catch(() => undefined)))
-        await Promise.all(candidates.filter((item) => item.mtime < cutoff && item.path !== filePath).map((item) => unlink(item.path).catch(() => undefined)))
+        const plan = await planExportRetention(filePath, { baseName, extension: outputExtension, maxAgeDays: options.autoDeleteDays, keepCount: options.autoDeleteCount })
+        await deleteExportFilesAfterConfirmation(plan, async (retentionPlan) => {
+          const names = retentionPlan.files.map((item) => item.slice(retentionPlan.directory.length + 1))
+          const detail = [...names.slice(0, 8), ...(names.length > 8 ? [`… and ${names.length - 8} more`] : [])].join('\n')
+          const confirmation: MessageBoxOptions = {
+            type: 'warning', title: 'Delete old exports?', message: `Delete ${retentionPlan.files.length} old export file${retentionPlan.files.length === 1 ? '' : 's'} from the selected output folder?`,
+            detail: `${retentionPlan.directory}\n\n${detail}`, buttons: ['Delete old files', 'Keep all files'], defaultId: 1, cancelId: 1, noLink: true
+          }
+          const parent = BrowserWindow.fromWebContents(event.sender)
+          const answer = parent ? await dialog.showMessageBox(parent, confirmation) : await dialog.showMessageBox(confirmation)
+          return answer.response === 0
+        })
       }
       await chmod(filePath, 0o600)
       return { path: filePath, report }
-    } finally { activeJobs.delete(jobId) }
+    } finally {
+      if (temporaryOutput && temporaryOutput !== filePath) await unlink(temporaryOutput).catch(() => undefined)
+      if (temporaryHtml) await unlink(temporaryHtml).catch(() => undefined)
+      activeJobs.delete(jobId)
+    }
   })
 
   ipcMain.handle('import-export:select-source', async (event, jobId: string, format: ImportFormat, options?: ImportExportOptions) => {

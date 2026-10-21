@@ -165,7 +165,7 @@ export default function Panel(): React.JSX.Element {
       }
       setStep(steps.length - 1); setMessage('')
     } catch (error) { let detail = error instanceof Error ? error.message : direction === 'export' ? 'Data export failed.' : 'Data Import failed.'; if (direction === 'import') detail = `Errors: 1\nWarnings: 0\nRows imported: 0\n\n${detail}`; if (writeLog) { const savedLogPath = await window.tuxsql.saveImportExportLog(detail).catch(() => null); if (savedLogPath) { detail += `\nError log: ${savedLogPath}`; setLogPath(savedLogPath) } } setReport(detail); setStep(steps.length - 1); setMessage('') }
-    finally { if (connectedId) void window.tuxsql.disconnect(connectedId); setBusy(false) }
+    finally { if (connectedId) void window.tuxsql.disconnect(connectedId); setZipPassword(''); setBusy(false) }
   }
 
   async function saveTemplate(): Promise<void> {

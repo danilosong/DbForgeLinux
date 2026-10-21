@@ -1,5 +1,5 @@
 import type { DatabaseModel } from '../schema/model.js'
-import { writeDocumentation, type DocumenterOptions, type DocumentFormat, type WrittenDocumentation } from './index.js'
+import { writeDocumentation, type DocumenterAccount, type DocumenterOptions, type DocumentFormat, type WrittenDocumentation } from './index.js'
 
 export interface DocumentationBatchItem {
   database: string
@@ -12,6 +12,10 @@ export interface DocumentationBatchItem {
   folderName?: string
   descriptions?: Record<string, string>
   includeDiagram?: boolean
+  includeUsers?: boolean
+  coverPage?: boolean
+  breadcrumbs?: boolean
+  palette?: DocumenterOptions['palette']
   excludedColumns?: string[]
   excludedIndexes?: string[]
   formats?: DocumentFormat[]
@@ -27,6 +31,7 @@ export async function generateDocumentationBatch(
   items: DocumentationBatchItem[],
   dependencies: {
     inspect(database: string): Promise<DatabaseModel>
+    inspectAccounts?(database: string): Promise<DocumenterAccount[]>
     write?: (model: DatabaseModel, options: DocumenterOptions & { outputDirectory: string }) => Promise<WrittenDocumentation>
   }
 ): Promise<DocumentationBatchResult[]> {
@@ -45,8 +50,10 @@ export async function generateDocumentationBatch(
       const options: DocumenterOptions & { outputDirectory: string } = {
         ...item,
         outputDirectory,
+        accounts: item.includeUsers ? await dependencies.inspectAccounts?.(database) : undefined,
         formats: item.formats ?? ['html', 'markdown']
       }
+      if (item.includeUsers && !dependencies.inspectAccounts) throw new Error('A origem de contas não foi configurada para documentar usuários.')
       delete (options as Partial<DocumentationBatchItem>).database
       results.push({ database, output: await write(model, options) })
     } catch (error) {

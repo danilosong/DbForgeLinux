@@ -37,6 +37,7 @@
     "screenshots:connection": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/connection-dialog-e2e.mjs",
     "screenshots:compare-modules": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/compare-modules-screenshots.mjs",
     "screenshots:report-card": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/report-card-screenshots.mjs",
+    "screenshots:readme": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 xvfb-run -a node scripts/readme-screenshots.mjs",
     "screenshots:source-control": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/source-control-screenshots.mjs",
     "e2e:report-card": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE REPORT_CARD_REPEAT=10 xvfb-run -a node scripts/report-card-screenshots.mjs"
   },

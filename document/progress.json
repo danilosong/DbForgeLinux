@@ -3,7 +3,7 @@
   "bars": [
     {
       "label": "Cobertura de funcionalidades de referência",
-      "value": 95.0,
+      "value": 95.3,
       "source": "document/paridade/FIDELIDADE-MEDIDA.md"
     },
     {

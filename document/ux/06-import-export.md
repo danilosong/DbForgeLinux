@@ -1,106 +1,209 @@
 # UX 06 — Wizards de Import/Export de dados
 
-> Fidelidade REA: rótulos conferidos contra REA ui-text (Data Export/Import Wizard, modos Append/Update/Append-Update/Delete, Errors handling, templates .det/.dit). Termos do corpo sem tag não-REA permanecem decisões de UX Linux; ver `fidelidade-parts/B.md`.
+> Fidelidade REA: rótulos conferidos contra REA ui-text (Data Export/Import Wizard, modos Append/Update/Append-Update/Delete, Errors handling, templates .det/.dit) e **observação direta da VM de referência `dbforge-ref`** (dbForge Studio for MySQL v2026.2.82, capturas em `re/original-observation/07-import-export/`).
 
-Reusa `01-shell.md` (Dialog, FormField, Banner, ProgressBar) e `02` (FilePicker). Formatos v1: CSV, TSV, JSON, XML, SQL (INSERT), Excel (XLSX), HTML, Markdown (export); import: CSV, TSV, JSON, XML, XLSX, SQL. Google Sheets: P3 (fora, só desabilitado/oculto).
+Reusa `01-shell.md` (Dialog, FormField, Banner, ProgressBar) e `02` (FilePicker). Formatos v1: CSV, TSV, JSON, XML, SQL (INSERT), Excel (XLSX), HTML, Markdown (export); import: CSV, TSV, JSON, XML, XLSX, SQL. Google Sheets: P3 (desabilitado/oculto). Formatos legados Windows (MS Access, DBF, ODBC): fora do escopo Linux.
 
 ## 1. Entradas
-- **Export:** Data > Export Data… ; Explorer > tabela/view/database > Export Data…; grid de resultado [Export ▾] (exporta o resultado atual); aba de resultado > Export.
-- **Import:** Data > Import Data…; Explorer > tabela > Import Data… (destino pré-selecionado).
+- **Export:** Menu Data > Export Data…; Database Explorer > tabela/view/database > Export Data…; grid de resultado [Export ▾] (exporta o resultado da consulta atual); aba de dados > Export.
+- **Import:** Menu Data > Import Data…; Database Explorer > tabela > Import Data… (destino pré-selecionado).
 - Tarefas guardadas ("Save template", seção 6) acessíveis em Tools > Data Tasks.
 
 ## 2. Estrutura do wizard
+Diálogo modal redimensionável 780x580 (min 700x520). 
+- Cabeçalho: Título dinâmico que reflete o formato selecionado (ex.: "Data Export CSV" ou "Data Import from CSV").
+- Stepper lateral/horizontal com passos numerados (passo ativo em accent, concluídos com ✓, futuros em cinza; clique em passo anterior concluído permite navegação direta).
+- Rodapé padronizado:
+  - Esquerda: botão com dropdown `[Save ▾]` ("Save Template..." e "Save Command Line File...").
+  - Direita: `[< Back]` `[Next >]` `[Export]` / `[Import]` `[Cancel]`.
+  - Teclas: `Enter` = Next/ação primária; `Esc` = Cancelar (com diálogo de confirmação se já houver configurações feitas); `Ctrl+←` / `Ctrl+→` = Back/Next. Validação em cada etapa antes de avançar.
 
-Diálogo modal redimensionável 760x560 (min 680x500). Cabeçalho com título e **stepper** horizontal (passos numerados, atual destacado em accent, concluídos com ✓, futuros cinza; clique em passo concluído volta). Corpo da página. Rodapé: [Save Template…] à esquerda; [< Back] [Next >] [Cancel] à direita; último passo: [Export]/[Import]. Enter = Next/primário; Esc = cancelar (confirma se já configurou algo). Ctrl+←/→ Back/Next. Cada passo valida antes de avançar; Next desabilitado com tooltip se incompleto.
+## 3. EXPORT DATA WIZARD (9 Passos Observados na VM)
 
-## 3. EXPORT
+Passos: **1 Export format → 2 Source → 3 Output settings → 4 Options → 5 Data formats → 6 Exported rows → 7 Errors handling → 8 Export → 9 Finish**.
 
-Passos: **1 Formato → 2 Origem → 3 Opções → 4 Colunas/Mapeamento → 5 Destino/Preview → 6 Execução → 7 Relatório**.
+### 3.1 Passo 1: Export format
+- Categorias no topo: `All Items` | `Formats` | `Templates`.
+- Alternância de visualização: Grade de cartões de ícones grandes vs Lista detalhada.
+- 14 Formatos de referência: HTML, Text, MS Excel, MS Excel 2007, Google Sheets (P3), MS Access (Windows), RTF, PDF, JSON, XML, CSV, ODBC (Windows), DBF (Windows), SQL.
+- No TuxSQL (Linux): formatos suportados são CSV, TSV, JSON, XML, SQL, Excel (XLSX), HTML e Markdown.
+- Painel inferior: descrição explicativa do formato focado.
+- Seção "User Templates" com link "Load Template...".
 
-### 3.1 Formato
-Grade de cartões (ícone + nome + descrição curta): CSV, TSV, JSON, XML, SQL, Excel, HTML, Markdown. Seleção por clique/teclado. Preselecionado o último usado.
+### 3.2 Passo 2: Source
+- Conexão e Database (seletores combo).
+- Árvore de objetos "Tables and Views" com caixas de seleção (checkbox).
+- Campo de busca instantânea com filtro por nome.
+- Ao abrir pelo menu de contexto de uma tabela, ela já vem marcada por padrão.
+- Validação: bloqueia avanço se nenhum objeto for selecionado ("Select at least one table or view").
 
-### 3.2 Origem
-Árvore com checkboxes de conexão > database > tabelas/views (lazy, estados do Explorer), ou "Resultado da consulta" (quando iniciado do grid, fixa a origem). Busca; Select all/none; contador "5 objetos". Opção por objeto: [Colunas…] [WHERE opcional] (campo SQL simples). Erro: "Selecione ao menos um objeto".
+### 3.3 Passo 3: Output settings
+- Modo de destino:
+  - `( ) Export data into separated files`: campo de pasta de destino (`Folder`), gravando um arquivo por tabela.
+  - `(•) Export data into single file`: campo de arquivo único (`File name`, padrão `~/Documents/TuxSQL/Export/<tabela>.<ext>`).
+- Opções de arquivo:
+  - `☑ Append timestamp to the file name`: adiciona carimbo de data e hora formatado.
+  - `☐ Auto delete old files`: política de retenção (arquivos com mais de N dias ou quantidade maior que N).
+  - `☐ Use compression (Zip)`: compactação com nível de compressão, senha, comentário e criptografia.
+- "Exported files preview": exibe em tempo real o caminho e nome final gerado com o timestamp resolvido.
 
-### 3.3 Opções (por formato)
-| Formato | Opções |
+### 3.4 Passo 4: Options (Específicas por formato)
+| Formato | Opções Disponíveis |
 |---|---|
-| CSV/TSV | Delimiter (`,` `;` Tab `|` custom), Quote char (`"`), Quote: Needed/All/Strings, Escape, Header (checkbox), Null as (vazio/`NULL`/custom), Line ending (LF padrão Linux/CRLF), Encoding (UTF-8, UTF-8 BOM, Latin1…), Date format |
-| JSON | Estrutura: array de objetos / objeto por tabela; Pretty print; Binary as base64; Null as null |
-| XML | Root name, Row name, Atributos vs elementos, Pretty print, Encoding |
-| SQL | Incluir CREATE TABLE, DROP IF EXISTS, INSERT multi-linha (tamanho do lote, padrão 500), Column names nos INSERT, Disable keys/FK checks, Quote com crases, Dados e/ou estrutura |
-| Excel | Uma planilha por tabela / tudo em uma, Header em negrito, Auto-width, Limite 1.048.576 linhas (aviso e divisão em abas) |
-| HTML | Tabela estilizada simples, escape de HTML |
-| Markdown | Pipe table, escape de `|` |
-Comuns: limite de linhas, formato de data/hora (ISO padrão), decimal separator, [Reset to defaults].
+| CSV/TSV | Encoding (Unicode UTF-8 padrão, Latin1, ASCII), Field Delimiter (`,`, `;`, Tab, `|`, custom), Field Quote (`"`, `'`, None), Quote strategy (Needed, All, Strings only), Escape char, ☑ Include column header, ☐ Force field quotes, Line ending (LF Linux padrão / CRLF), Null as (vazio, `NULL`, custom) |
+| JSON | Estrutura (Array de objetos ou Objeto único por tabela), Pretty print com indentação, Binary as base64, Null as null |
+| XML | Root element name, Row element name, Atributos vs Elementos filhos, Pretty print, Encoding |
+| SQL | Incluir DDL (CREATE TABLE, DROP IF EXISTS), INSERT multi-row (lote padrão 500 linhas), Nomes de colunas explícitos nos INSERTs, Disable foreign key checks, Quote identificadores com crases, Dados e/ou estrutura |
+| Excel (XLSX) | Uma planilha por tabela ou arquivo único, Cabeçalhos em negrito, Auto-ajuste de largura de colunas, Divisão de abas em caso de limite de 1.048.576 linhas |
+| HTML / Markdown | Tabela HTML estilizada responsiva / Markdown Pipe table com escape de pipes |
 
-### 3.4 Colunas/Mapeamento
-Por objeto selecionado (lista à esquerda), grade à direita: [✓ incluir] | Coluna origem | Tipo | Nome de saída (editável) | Formato. Reordenar por arrastar. [Select all/none].
+### 3.5 Passo 5: Data formats
+- Abas superiores: `Columns` | `Formats`.
+- Aba `Columns`: Grade com `[☑] Include` | `Column Name` | `Alias` (editável) | `Data Type` (Integer, String, HexString para BLOBs, DateTime, Float).
+- Aba `Formats`: Formato de data/hora (ISO padrão, customizado), separador decimal (ponto/vírgula), separador de milhares, representação booleana (True/False, 1/0).
 
-### 3.5 Destino e Preview
-- Destino: Pasta (FilePicker de diretório, padrão `~/Documents` via XDG) + padrão de nome `{table}_{date}.{ext}` (variáveis listadas); modo "Um arquivo por tabela" vs "Arquivo único" (quando suportado); Se existir: Perguntar/Sobrescrever/Renomear; Opção "Abrir pasta ao terminar" (xdg-open); "Copiar para a área de transferência" (apenas pequenos volumes, limite 10 MB).
-- **Preview** (painel inferior): primeiras 20 linhas formatadas no formato final em Monaco somente leitura / grid, com estado loading e erro; atualiza ao mudar opções.
+### 3.6 Passo 6: Exported rows
+- Seletor de escopo de registros:
+  - `(•) Export all rows`: todas as linhas da tabela.
+  - `( ) Export selected rows only`: apenas linhas marcadas previamente no grid de dados.
+  - `( ) Export a range of rows`: intervalo personalizado (`Start from: [1]`, `Count: [1000]`; 0 para todas a partir do início).
 
-### 3.6 Execução
-Tela com: barra de progresso global (determinada quando contagem conhecida), tabela por objeto (Objeto | Status ⏳/✓/✕ | Linhas | Tempo | Arquivo), contador de linhas/s, tempo decorrido, [Cancel] (para ao final do lote atual, "Cancelando…"), [Run in background] (minimiza para toast persistente com progresso; o Output registra). Erro em objeto: pergunta (config. padrão "Skip and continue") [Parar] [Continuar]. 
+### 3.7 Passo 7: Errors handling
+- Estratégia de falha:
+  - `(•) Abort at the first error`: interrompe a exportação imediatamente no primeiro erro.
+  - `( ) Prompt a user for an action`: exibe diálogo interativo perguntando se deseja parar ou ignorar.
+  - `( ) Ignore all errors`: continua a exportação ignorando registros ou tabelas problemáticas.
+- Configurações de log:
+  - `☑ Write a report to a log file`: grava arquivo de log detalhado em `$XDG_STATE_HOME/tuxsql/logs/DataExport.log`.
 
-### 3.7 Relatório
-Resumo: título ✓ verde "Export concluído" / âmbar "Concluído com avisos" / vermelho "Falhou". Tabela de resultados (por objeto: linhas, tamanho, tempo, caminho clicável), lista de avisos/erros (copiável), ações: [Open File] [Open Folder] [Copy Log] [Export again] [Close]. Log completo gravado em `$XDG_STATE_HOME/tuxsql/logs`.
+### 3.8 Passo 8: Export (Execução)
+- Barra de progresso determinada com percentual.
+- Tabela por objeto: Objeto | Status (⏳ Executando / ✓ Concluído / ✕ Erro) | Linhas Exportadas | Taxa (linhas/seg) | Tempo Decorrido.
+- Botão `[Cancel]` com interrupção segura.
+- Botão `[Run in background]` para liberar a janela do assistente.
 
-## 4. IMPORT
+### 3.9 Passo 9: Finish (Conclusão e Relatório)
+- Título de conclusão: "Data Export finished successfully." (verde) ou "Data Export finished with errors." (âmbar).
+- Total de linhas e tabelas processadas ("Exported {0} of {1} rows.").
+- Ações rápidas de encerramento:
+  - `[Open File]` (abre o arquivo exportado no visualizador padrão via `xdg-open`).
+  - `[Open Containing Folder]` (abre a pasta no gerenciador de arquivos).
+  - `[Show log file]` (abre o arquivo de log).
+  - `[Export more]` (retorna ao passo inicial para nova tarefa).
+  - `[Close]`.
 
-Passos: **1 Origem → 2 Formato/Opções de leitura → 3 Destino → 4 Mapeamento → 5 Modo/Opções → 6 Preview/Validação → 7 Execução → 8 Relatório**.
+---
 
-### 4.1 Origem
-FilePicker (arquivo, suporte a arrastar e soltar e múltiplos arquivos para formatos tabulares); formato detectado pela extensão (alterável). Mostra tamanho e data. Erro: arquivo ilegível/vazio.
+## 4. IMPORT DATA WIZARD (10 Passos Observados na VM)
 
-### 4.2 Opções de leitura
-CSV/TSV: delimiter (auto-detect com sugestão), quote, escape, encoding (auto-detect + select), header na 1ª linha, pular N linhas, tratar vazio como NULL, trim, formato de data (detectado). JSON: caminho do array (auto), achatar objetos aninhados (dotted). XML: elemento de linha (seleção em árvore). XLSX: planilha (select), intervalo, header. SQL: executa script (sem mapeamento; passos 3–4 pulados; aviso de segurança "Execute apenas scripts confiáveis"). Preview das primeiras 20 linhas atualiza em tempo real.
+Passos: **1 Source file → 2 Destination → 3 Options → 4 Data formats → 5 Mapping → 6 Modes → 7 Output → 8 Errors handling → 9 Import → 10 Finish**.
 
-### 4.3 Destino
-Seleção de conexão/database e **tabela existente** ou **Nova tabela** (nome sugerido pelo arquivo; tipos inferidos: INT/DECIMAL/DATETIME/VARCHAR(n)/TEXT/JSON, editáveis na grade do passo 4). Para múltiplos arquivos: um destino por arquivo (tabela de pares).
+### 4.1 Passo 1: Source file
+- Formatos de importação (10): CSV, TSV, Text, MS Excel (XLSX), XML, JSON, SQL. (Google Sheets, MS Access e ODBC desabilitados/fora de escopo).
+- Campo `File name:` no rodapé com botão `[...]` para seleção via FilePicker ou suporte a arrastar e soltar (drag & drop).
+- Exibição de metadados do arquivo: tamanho em bytes, data de modificação e codificação detectada.
 
-### 4.4 Mapeamento
-Grade: Coluna origem (com amostra) | → | Coluna destino (combo, "<ignorar>") | Tipo destino | Transformação (None/Trim/Upper/Lower/Date format…) | Chave. Botões: Auto-map por nome (padrão), Clear, Map by position. Avisos: tipo incompatível (âmbar), destino NOT NULL sem origem/default (vermelho, bloqueia), coluna sem mapeamento. Nova tabela: coluna "Create" com PK opcional.
+### 4.2 Passo 2: Destination
+- Seleção de Conexão e Database de destino.
+- Escolha da tabela:
+  - **Tabela existente**: selecionada no combo com listagem das tabelas do banco.
+  - **Nova tabela** (`New Table`): digitação do nome de uma nova tabela a ser criada dinamicamente. Os tipos e constraints são inferidos automaticamente a partir dos dados no passo de mapeamento.
 
-### 4.5 Modo e opções
-Modo: **Append** (INSERT), **Update** (por chave), **Append/Update** (upsert via ON DUPLICATE KEY), **Delete** (por chave), **Repopulate** (TRUNCATE + INSERT, confirmação destrutiva digitando nome da tabela). Opções: tamanho do lote (500), usar transação única (padrão) vs por lote, comportamento em erro (Parar e reverter / Pular linha e registrar / Ignorar duplicados), desabilitar FK checks (aviso), arquivo de rejeitados (`.rejected.csv`), limitar linhas (teste).
+### 4.3 Passo 3: Options (Opções de Leitura)
+- CSV/TSV: Delimitador de campos, caractere de aspas, caractere de escape, número da linha de cabeçalho (Header row), quantidade de linhas a pular no início, tratamento de strings vazias como `NULL`.
+- JSON: caminho do array raiz, opção de achatar (flatten) objetos aninhados com notação de ponto.
+- XML: seleção do nó raiz e elemento repetidor de registro (row element).
+- Excel: seleção da planilha/aba interna e intervalo de células.
+- Preview instantâneo das primeiras 20 linhas lidas com o parser ativo.
 
-### 4.6 Preview/Validação
-Botão [Validate]: dry-run nas primeiras N linhas (rollback) com relatório: linhas OK/erro, mensagens por linha (conversão, truncamento, chave duplicada), grid com células problemáticas destacadas (status.error 15%). Resumo: "12.450 linhas · 3 com erro". [Next] só permitido com confirmação se houver erros.
+### 4.4 Passo 4: Data formats
+- Formato de interpretação de datas e horas (`YYYY-MM-DD`, `DD/MM/YYYY`, etc.).
+- Tratamento de casas decimais e separadores de milhar.
+- Representação de valores booleanos e campos binários (Hex / Base64).
 
-### 4.7 Execução e Relatório
-Mesmas telas de §3.6/§3.7 com contadores: Inseridas/Atualizadas/Ignoradas/Rejeitadas. Relatório oferece [Open rejected file] e [Open table data]. Em erro e modo transação única: "Importação revertida; nenhuma linha gravada" (vermelho). Cancelamento: reverte o lote atual (ou tudo no modo transação única) e informa.
+### 4.5 Passo 5: Mapping (Mapeamento de Colunas)
+- Grade de mapeamento:
+  - `Coluna de Origem (com amostra de dados)` → `[→]` → `Coluna de Destino` | `Tipo de Dados Destino` | `Chave Primária (PK)` | `Transformação` (Nenhuma, Trim, Maiúsculas, Minúsculas).
+- Botões de conveniência: `[Auto-map by Name]`, `[Map by Position]`, `[Clear Mapping]`.
+- Avisos visuais: incompatibilidade de tipos de dados (âmbar), coluna NOT NULL sem valor padrão e sem mapeamento (vermelho, bloqueante).
+- Nova tabela: permite definir nomes de colunas, tipos SQL (`INT`, `VARCHAR(255)`, `DATETIME`, `DECIMAL`, `TEXT`), nulabilidade e seleção de PK.
 
-## 5. Estados e erros comuns
+### 4.6 Passo 6: Modes (Modo de Importação)
+- Modos suportados:
+  - **Append** (`INSERT`): insere novas linhas; falha em chaves duplicadas.
+  - **Update**: atualiza registros existentes que coincidam na chave primária/única.
+  - **Append/Update**: upsert (`INSERT ... ON DUPLICATE KEY UPDATE`).
+  - **Delete**: remove do banco as linhas existentes que correspondam às chaves do arquivo.
+  - **Repopulate**: executa `TRUNCATE TABLE` seguido de inserção completa (exige confirmação destrutiva digitando o nome da tabela).
+- Opções de execução:
+  - Tamanho do lote (batch size, padrão 500 linhas).
+  - Usar transação única com rollback total vs transação por lote.
+  - Desabilitar temporariamente checagem de Foreign Keys (`FOREIGN_KEY_CHECKS=0`).
 
+### 4.7 Passo 7: Output
+- Modo de execução:
+  - `(•) Execute data import directly against the database`: executa a importação direta via driver MySQL com queries parametrizadas.
+  - `( ) Generate synchronization script and open in editor`: gera script SQL completo contendo os INSERTs/UPDATEs para revisão e execução manual.
+
+### 4.8 Passo 8: Errors handling
+- Estratégia de erro idêntica à exportação: Abort at first error, Prompt user for action, Ignore all errors.
+- Geração de arquivo de rejeitados: `☑ Write rejected rows to a separate file` (`<origem>.rejected.csv`).
+- Arquivo de log detalhado.
+
+### 4.9 Passo 9: Import (Execução)
+- Progresso em tempo real: linhas lidas, inseridas, atualizadas, ignoradas e rejeitadas.
+- Estimativa de tempo restante e velocidade em linhas por segundo.
+- Botão `[Cancel]` com reversão de transação se configurado modo transação única.
+
+### 4.10 Passo 10: Finish (Conclusão e Relatório)
+- Relatório consolidado: linhas processadas com sucesso vs linhas rejeitadas.
+- Ações:
+  - `[Open rejected file]` (se houver erros).
+  - `[Open table data]` (abre o grid de dados da tabela no editor).
+  - `[Show log file]`.
+  - `[Import more]`.
+  - `[Close]`.
+
+---
+
+## 5. O que o TuxSQL ainda NÃO faz (Diferenças Objetivas em relação ao Original)
+1. **Conector Google Sheets com OAuth 2.0 (Pendente/P3):** No original há opção de autenticação direta em nuvem para planilhas Google Sheets. No TuxSQL o conector está oculto/desabilitado por focar em ferramentas locais sem telemetria/nuvem.
+2. **Compactação Zip com Criptografia no Wizard de Exportação (Pendente):** No original há a opção direta "Use compression (Zip)" com senha no passo Output Settings. O TuxSQL exporta os arquivos diretamente no sistema de arquivos local.
+3. **Regra de Limpeza Periódica de Arquivos Antigos (Pendente):** O original implementa rotina de exclusão automática no destino ("Auto delete old files older than N days / quantity more than N"). O TuxSQL preserva os arquivos sem remoção automática em background.
+4. **Formato Binário de Templates .det e .dit:** O original usa serializadores binários de templates do Windows. O TuxSQL adota formato JSON limpo em `$XDG_CONFIG_HOME/tuxsql/data-tasks`.
+5. **Drivers Legados Windows MS Access, DBF e ODBC DSN (Divergência Intencional Linux):** Suporte exclusivo a formatos abertos e universais.
+
+## 6. Estados de Interface
 | Estado | Comportamento |
 |---|---|
-| Loading (listas/preview) | Skeleton + spinner |
-| Vazio (sem origem) | Mensagem + CTA |
-| Erro de arquivo/permissão | InlineErrorPanel (ex.: "Sem permissão para gravar em /pasta") |
-| Disco cheio / perda de conexão em execução | Falha do objeto; retry [Tentar de novo] se conexão voltar; relatório mostra o ponto de parada |
-| Sucesso | Relatório verde + toast se rodando em background |
-Segurança: caminhos nunca incluem credenciais; senhas nunca em templates; export de dados sensíveis sem aviso (nenhum), mas conexões Prod mostram faixa vermelha no passo Origem.
+| Carregando dados / Preview | Shimmer skeleton na grade de pré-visualização + spinner no rodapé |
+| Arquivo de Origem Vazio / Inválido | Banner de erro bloqueando o botão [Next >] |
+| Violação de Mapeamento (NOT NULL) | Ícone de exclamação vermelho na linha da coluna com tooltip explicativo |
+| Execução em Andamento | Barra de progresso com contador dinâmico e cálculo de velocidade (linhas/s) |
+| Falha Parcial com Rejeitados | Selo âmbar no Finish com link direto para abrir arquivo `.rejected.csv` |
+| Modo Repopulate (Destrutivo) | Diálogo com fundo vermelho exigindo digitação do nome exato da tabela |
 
-## 6. Templates (tarefas salvas)
-[Save Template…] guarda formato, origem, opções, mapeamento e destino (sem segredos) com nome. [Load Template] no passo 1. Gerenciador simples (lista, renomear, excluir). Arquivo JSON em `$XDG_CONFIG_HOME/tuxsql/data-tasks`. Linha de comando/agendamento: fora do escopo (P3).
+## 7. Atalhos de Teclado
+- Próximo passo: `Ctrl+→` ou `Enter`
+- Passo anterior: `Ctrl+←`
+- Cancelar: `Esc`
+- Executar (último passo): `Ctrl+Enter`
+- Selecionar tudo nas listas: `Ctrl+A`
+- Atualizar preview: `F5`
 
-## 7. Atalhos
-Next/Back Ctrl+→/Ctrl+←; Cancelar Esc; Executar Ctrl+Enter no último passo; Select all (listas) Ctrl+A; Preview refresh F5.
-
-## 8. Temas e acessibilidade
-Tokens de 01; stepper com texto + ícone (não só cor); progresso com aria-valuenow e anúncios em marcos de 25%; tabelas navegáveis por teclado.
+## 8. Temas e Acessibilidade
+- Tokens de design system de `01-shell.md` plenamente respeitados no tema Claro e Escuro.
+- Stepper possui marcação `aria-current="step"`, números explícitos e ícones de status além da cor.
+- Grids de mapeamento totalmente navegáveis por teclado (`Tab`, setas, `Space` para alternar combos).
 
 ## 9. Componentes
-WizardDialog (stepper + rodapé), FormatCard, CheckTree, ColumnMappingGrid, OptionsForm (por formato), FilePicker/FolderPicker, PreviewPane, ProgressList, ReportView, TemplateManager, ConfirmDestructiveDialog.
+`WizardDialog`, `Stepper`, `FormatGalleryCard`, `ObjectCheckTree`, `OutputSettingsForm`, `OptionsForm`, `ColumnMappingGrid`, `DataFormatForm`, `ExecutionProgressCard`, `ReportSummaryView`, `TemplateManagerModal`.
 
-## 10. Critérios de aceite
-- Cada formato exporta com as opções descritas, e preview reflete mudanças.
-- Import permite mapeamento, validação dry-run e todos os modos; erros geram arquivo de rejeitados.
-- Execução cancelável com semântica de reversão clara; relatório sempre exibido.
-- Claro/escuro e teclado completos; templates salvos e recarregados.
+## 10. Critérios de Aceite
+- Exportação nos formatos CSV, TSV, JSON, XML, SQL e XLSX gera arquivos válidos com opções customizáveis.
+- Importação executa mapeamento automático por nome, validação de tipos e modos Append/Update/Upsert/Repopulate.
+- Importação em tabela nova infere tipos primitivos corretos e gera schema MySQL compatível (`utf8mb4`).
+- Tela Finish oferece ações seguras de abertura de arquivo, pasta e log através de IPC.
 
 ## Textos de interface (referência)
 Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).

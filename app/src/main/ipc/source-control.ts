@@ -45,6 +45,10 @@ export function registerSourceControlIpc({ driver, userDataDir }: IpcDeps): void
   ipcMain.handle('source-control:push', (_event, path: string, confirmed: boolean) => new GitRepository(path).push(confirmed))
   ipcMain.handle('source-control:log', (_event, path: string, limit?: number, file?: string) => new GitRepository(path).log(limit, file))
   ipcMain.handle('source-control:commit-diff', (_event, path: string, hash: string, file?: string) => new GitRepository(path).diffCommit(hash, file))
+  ipcMain.handle('source-control:graph', (_event, path: string, limit?: number) => new GitRepository(path).graph(limit))
+  ipcMain.handle('source-control:conflict-read', (_event, path: string, file: string) => new GitRepository(path).readConflict(file))
+  ipcMain.handle('source-control:conflict-save', (_event, path: string, file: string, contents: string) => new GitRepository(path).saveConflictResolution(file, contents))
+  ipcMain.handle('source-control:conflict-resolve', (_event, path: string, file: string) => new GitRepository(path).markConflictResolved(file))
 
   ipcMain.handle('source-control:create-project', async (_event, name: string) => {
     const folder = await chooseFolder('Choose Projects location')
