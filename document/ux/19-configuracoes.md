@@ -35,7 +35,7 @@ Idioma da UI: Auto, English, Português (Brasil), Español… (carregado de cat�
 ### Layout & Windows
 Padrão de docks, auto-ocultar, restaurar layout padrão [Reset Layout]; posição do painel de resultados (abaixo/direita); abas: posição (topo/baixo), mostrar ícones/fechar, limite de abas antes de overflow, abrir novo documento ao lado.
 ### Startup / Files & Backups
-Abrir último workspace/Start Page/vazio; pasta padrão de scripts (`~/Documents/TuxSQL Song`); auto-save e backup de rascunhos; encoding padrão (UTF-8), fim de linha (LF); preservar BOM.
+Abrir último workspace/Start Page/vazio; pasta padrão de scripts (`~/Documents/TuxSQL`); auto-save e backup de rascunhos; encoding padrão (UTF-8), fim de linha (LF); preservar BOM.
 ### Text Editor > General / Fonts / Syntax Colors [C fonts/colors; "Text Editor" e campos "Font Name"/"Font Size" REA ui-text]
 General: números de linha, folding, minimap, guias de indentação, destaque da linha atual, whitespace visível (None/Selection/All), quebra de linha, tab size (4)/inserir espaços, trim trailing whitespace ao salvar, bracket matching/auto-close, multicursor Alt+clique, scroll beyond last line, colar com PRIMARY (Linux) [I].
 Fonts: família monoespaçada (lista do sistema com preview e busca), tamanho (8–32), altura de linha, ligaduras (off), peso. Amostra ao vivo.

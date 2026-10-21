@@ -25,7 +25,7 @@ build embutido. Assim o botão **Atualizar** (git + rebuild + reinício) muda o 
 
    ```bash
    mkdir -p ~/.config/tuxsql
-   echo '{"repoPath":"/caminho/para/TuxSQL Song"}' > ~/.config/tuxsql/dev-link.json
+   echo '{"repoPath":"/caminho/para/TuxSQL"}' > ~/.config/tuxsql/dev-link.json
    ```
 
 3. Garanta que o clone foi compilado ao menos uma vez (`cd app && pnpm install && pnpm build`).
