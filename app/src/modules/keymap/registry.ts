@@ -34,8 +34,8 @@ export const keymapCommands: readonly KeymapCommand[] = [
   { command: 'Explain Plan', shortcut: 'Ctrl+L', context: 'Editor' },
   { command: 'Toggle Results', shortcut: 'Ctrl+Alt+ArrowDown', context: 'Editor' },
   { command: 'Format Document', shortcut: 'Ctrl+K Ctrl+D', context: 'Editor' },
-  { command: 'Comment Selection', shortcut: 'Ctrl+/', context: 'Editor' },
-  { command: 'Comment Selection (alternate)', shortcut: 'Ctrl+K C', context: 'Editor' },
+  { command: 'Toggle Block Comment', shortcut: 'Ctrl+/', context: 'Editor' },
+  { command: 'Comment Selection', shortcut: 'Ctrl+K C', context: 'Editor' },
   { command: 'Go To Line', shortcut: 'Ctrl+G', context: 'Editor' },
   { command: 'Find', shortcut: 'Ctrl+F', context: 'Editor' },
   { command: 'Complete', shortcut: 'Ctrl+Space', context: 'Editor' },
@@ -77,6 +77,40 @@ export const keymapCommands: readonly KeymapCommand[] = [
   { command: 'Show Server Variables', shortcut: 'Ctrl+D Ctrl+V', context: 'Global' },
   { command: 'Show Service Control', shortcut: 'Ctrl+D Ctrl+R', context: 'Global' },
   { command: 'Format Selection (alternate)', shortcut: '', context: 'Editor' }
+  ,{ command: 'Make Uppercase', shortcut: 'Ctrl+Shift+U', context: 'Editor' }
+  ,{ command: 'Make Lowercase', shortcut: 'Ctrl+U', context: 'Editor' }
+  ,{ command: 'Uncomment Selection', shortcut: 'Ctrl+K U', context: 'Editor' }
+  ,{ command: 'Move Selected Lines Up', shortcut: 'Alt+ArrowUp', context: 'Editor' }
+  ,{ command: 'Move Selected Lines Down', shortcut: 'Alt+ArrowDown', context: 'Editor' }
+  ,{ command: 'Join Lines', shortcut: 'Shift+Alt+L', context: 'Editor' }
+  ,{ command: 'Join Lines (alternate)', shortcut: 'Shift+Alt+J', context: 'Editor' }
+  ,{ command: 'Incremental Search', shortcut: 'Ctrl+I', context: 'Editor' }
+  ,{ command: 'View White Space', shortcut: 'Ctrl+K E', context: 'Editor' }
+  ,{ command: 'Word Wrap', shortcut: 'Ctrl+K O', context: 'Editor' }
+  ,{ command: 'Add Backticks to All Identifiers', shortcut: 'Ctrl+K Ctrl+[', context: 'Editor' }
+  ,{ command: 'Remove Unnecessary Backticks', shortcut: 'Ctrl+K Ctrl+]', context: 'Editor' }
+  ,{ command: 'Qualify object names', shortcut: 'Ctrl+K Ctrl+Q', context: 'Editor' }
+  ,{ command: 'Expand wildcards', shortcut: 'Ctrl+K Ctrl+Y', context: 'Editor' }
+  ,{ command: 'Select Current Statement', shortcut: 'Ctrl+Shift+A', context: 'Editor' }
+  ,{ command: 'Execute To Cursor', shortcut: 'Ctrl+Shift+F10', context: 'Editor' }
+  ,{ command: 'Run To Cursor', shortcut: 'Ctrl+F10', context: 'Debugger' }
+  ,{ command: 'Go To Definition', shortcut: 'F12', context: 'Editor' }
+  ,{ command: 'Jump Between Syntax Pairs', shortcut: 'Ctrl+F12', context: 'Editor' }
+  ,{ command: 'Rename', shortcut: 'F2', context: 'Editor' }
+  ,{ command: 'Insert Snippet', shortcut: 'Ctrl+K X', context: 'Editor' }
+  ,{ command: 'List Members', shortcut: 'Ctrl+K L', context: 'Editor' }
+  ,{ command: 'Parameter Info', shortcut: 'Ctrl+K P', context: 'Editor' }
+  ,{ command: 'Quick Info', shortcut: 'Ctrl+K I', context: 'Editor' }
+  ,{ command: 'Complete Word', shortcut: 'Ctrl+K W', context: 'Editor' }
+  ,{ command: 'Refresh Suggestions', shortcut: 'Ctrl+Shift+R', context: 'Editor' }
+  ,{ command: 'Toggle Bookmark', shortcut: 'Ctrl+B T', context: 'Editor' }
+  ,{ command: 'Previous Bookmark', shortcut: 'Ctrl+B P', context: 'Editor' }
+  ,{ command: 'Next Bookmark', shortcut: 'Ctrl+B N', context: 'Editor' }
+  ,{ command: 'Clear Bookmarks', shortcut: 'Ctrl+B C', context: 'Editor' }
+  ,{ command: 'Toggle Outline Expansion', shortcut: 'Ctrl+M M', context: 'Editor' }
+  ,{ command: 'Toggle All Outlining', shortcut: 'Ctrl+M L', context: 'Editor' }
+  ,{ command: 'Stop Outlining', shortcut: 'Ctrl+M P', context: 'Editor' }
+  ,{ command: 'Start Automatic Outlining', shortcut: 'Ctrl+M S', context: 'Editor' }
 ] as const
 
 export function normalizeKeymapShortcut(value: string): string {
