@@ -164,6 +164,13 @@ textarea { resize: vertical; }
 .workbench { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(200px, 280px) minmax(0, 1fr); }
 .app-shell:has(.right-dock) .workbench { margin-right: min(420px, 42vw); }
 .workbench.explorer-hidden { grid-template-columns: minmax(0, 1fr); }
+.project-explorer-dock { position: fixed; z-index: 45; right: 24px; top: 86px; bottom: 34px; width: min(390px, 38vw); min-width: 300px; display: flex; flex-direction: column; overflow: auto; background: var(--bg-app); color: var(--text); border: 1px solid var(--border); box-shadow: 0 8px 28px #0004; }
+.project-explorer-dock[hidden] { display: none; }
+.project-explorer-dock > header { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.project-explorer-dock > header strong { flex: 1; }
+.project-explorer-dock > .source-control-panel { max-width: none; padding: 10px; overflow: auto; }
+.project-explorer-tab { position: fixed; z-index: 44; right: 0; top: 44%; writing-mode: vertical-rl; transform: rotate(180deg); padding: 10px 6px; border: 1px solid var(--border); border-radius: 5px 0 0 5px; background: var(--bg-surface); color: var(--text); }
+.project-explorer-tab.open { right: 414px; }
 .explorer-dock { min-width: 0; overflow: hidden; display: flex; flex-direction: column; border-right: 1px solid var(--border); background: var(--bg-surface-alt); }
 .dock-heading { min-height: 32px; display: flex; justify-content: space-between; align-items: center; padding: 4px 8px 4px 12px; border-bottom: 1px solid var(--border); }
 .dock-heading > div { display: flex; gap: 3px; }
@@ -243,6 +250,7 @@ textarea { resize: vertical; }
 .panel-hidden .document-workspace { grid-template-rows: 30px minmax(0, 1fr) 0 0; }
 .panel-hidden .bottom-panel { display: none; }
 .document-main { min-height: 0; display: grid; grid-template-rows: 34px minmax(80px, 1fr) minmax(80px, 28%); }
+.document-main:has(.grid-card-view) { grid-template-rows: 34px minmax(80px, 1fr) minmax(210px, 42%); }
 .document-workspace:has(.start-page) { grid-template-rows: 30px minmax(0, 1fr) 5px 200px; }
 .vertical-splitter, .horizontal-splitter { touch-action: none; background: var(--border); }
 .vertical-splitter { cursor: col-resize; width: 5px; }
@@ -314,6 +322,12 @@ textarea { resize: vertical; }
 .result-grid td[style*="position: sticky"] { background: var(--bg-surface); }
 .grid-status { margin: 0; padding: 3px 8px; color: var(--text-secondary); }
 .grid-master-detail { max-height: 220px; overflow: auto; padding: 6px; border-top: 1px solid var(--border); background: var(--bg-surface-alt); }
+.grid-card-view { flex: 1; min-height: 0; overflow: auto; margin: 8px; padding: 12px; border: 1px solid var(--border); background: var(--bg-surface); }
+.grid-card-view > header { display: flex; justify-content: center; align-items: center; gap: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.grid-card-view dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 16px; }
+.grid-card-view dl > div { border-bottom: 1px solid var(--border); padding: 8px 4px; min-width: 0; }
+.grid-card-view dt { color: var(--text-secondary); font-size: 12px; margin-bottom: 4px; }
+.grid-card-view dd { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; }
 .grid-master-detail > header,.grid-viewer > header,.grid-stats > header,.grid-pivot > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .grid-master-detail h4 { margin: 6px 0; }
 .grid-detail-scroll { max-width: 100%; overflow: auto; }

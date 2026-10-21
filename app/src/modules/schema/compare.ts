@@ -1,5 +1,16 @@
 import type { DatabaseModel, SchemaDifference, SchemaObject, TableModel, ViewModel } from './model.js'
 import { createObject, createTable, diffTables, dropObject } from './ddl.js'
+import { splitBackupSql } from '../database-tools/splitSql.js'
+
+/** Schema synchronization accepts object DDL only, never arbitrary statements from an imported model. */
+export function assertSchemaUpdateScript(script: string): string[] {
+  const statements = splitBackupSql(script).map((statement) => statement.trim()).filter(Boolean)
+  const objectDdl = /^(?:CREATE(?:\s+OR\s+REPLACE)?\s+(?:(?:TEMPORARY|ALGORITHM\s*=\s*(?:UNDEFINED|MERGE|TEMPTABLE)|DEFINER\s*=\s*[^\s]+|SQL\s+SECURITY\s+(?:DEFINER|INVOKER))\s+)*(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER|EVENT)|ALTER\s+TABLE|DROP\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER|EVENT))\b/i
+  if (!statements.length || statements.some((statement) => !objectDdl.test(statement))) {
+    throw new Error('Schema update script contains a statement outside the supported object DDL allowlist.')
+  }
+  return statements
+}
 
 export interface CompareOptions { includeDrops?: boolean }
 export interface SchemaComparison { differences: SchemaDifference[]; script: string }
@@ -44,11 +55,11 @@ export function compareSchemas(source: DatabaseModel, target: DatabaseModel, opt
     const old = sourceOther.find((candidate) => candidate.kind === object.kind && candidate.name === object.name)
     if (!old) {
       differences.push({ kind: object.kind, object: object.name, change: 'added', detail: `${object.kind} adicionado` })
-      script.push(createObject(object, source.name))
+      script.push(schemaObjectScript(object, source.name))
     } else if (normalizeCreate(old) !== normalizeCreate(object)) {
       differences.push({ kind: object.kind, object: object.name, change: 'changed', detail: `Definição de ${object.kind} alterada` })
       if (object.kind === 'view') script.push(`CREATE OR REPLACE VIEW ${ident(source.name)}.${ident(object.name)} AS ${(object as ViewModel).definition};`)
-      else if (includeDrops) script.push(dropObject(old, source.name), createObject(object, source.name))
+      else if (includeDrops) script.push(dropObject(old, source.name), schemaObjectScript(object, source.name))
     }
   }
   for (const table of source.tables) if (!targetTables.has(table.name)) {
@@ -67,6 +78,14 @@ function byName<T extends { name: string }>(items: T[]): Map<string, T> { return
 function ident(value: string): string { return `\`${value.replaceAll('`', '``')}\`` }
 function objects(db: DatabaseModel): SchemaObject[] { return [...db.views, ...db.procedures, ...db.functions, ...db.triggers, ...db.events] }
 function normalizeCreate(object: SchemaObject): string { return (object.createSql ?? ('definition' in object ? String(object.definition) : '')).replace(/\s+/g, ' ').trim().toLowerCase() }
+
+function schemaObjectScript(object: SchemaObject, database: string): string {
+  const sql = createObject(object, database).trim()
+  if (!['procedure', 'function', 'trigger', 'event'].includes(object.kind)) return sql
+  let delimiter = '$$DBFL_SCHEMA_SYNC$$'
+  while (sql.includes(delimiter)) delimiter += '$'
+  return `DELIMITER ${delimiter}\n${sql.replace(/;\s*$/, '')}${delimiter}\nDELIMITER ;`
+}
 
 function tableDiffs(source: TableModel, target: TableModel, sourceDatabase: string, targetDatabase: string): SchemaDifference[] {
   const result: SchemaDifference[] = []

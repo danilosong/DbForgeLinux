@@ -8,6 +8,7 @@ import type { IpcDeps } from './registry.js'
 import { exportData, importData, generateImportSql, previewExport, previewImport, type ExportFormat, type ImportFormat, type ImportMode, type JobProgress, type ImportPreview } from '../../modules/data-export-import/index.js'
 import { once } from 'node:events'
 import type { ImportExportOptions, ImportExportTemplate } from '../../shared/contracts/import-export.js'
+import { encodeZipArchive } from '../../modules/archive/index.js'
 
 interface ActiveJob { controller: AbortController; senderId: number }
 interface SelectedSource { file: string; senderId: number }
@@ -27,10 +28,14 @@ function startJob(event: IpcMainInvokeEvent, jobId: string): AbortController {
 }
 
 function assertOptions(options?: ImportExportOptions): void {
+  if (options?.compress !== undefined && typeof options.compress !== 'boolean') throw new Error('Opção de compactação inválida.')
   if (options?.encoding && !allowedEncodings.includes(options.encoding)) throw new Error('Encoding não suportado.')
   if (options?.columnMapping && Object.values(options.columnMapping).some((column) => typeof column !== 'string')) throw new Error('Mapeamento de colunas inválido.')
   if (options?.columnTypes && Object.values(options.columnTypes).some((type) => !['String', 'Integer', 'Float', 'DateTime', 'HexString'].includes(type))) throw new Error('Tipo de coluna inválido.')
   if (options?.onRowError && !['abort', 'continue', 'prompt'].includes(options.onRowError)) throw new Error('Política de erro inválida.')
+  if (options?.zipLevel !== undefined && (!Number.isInteger(options.zipLevel) || options.zipLevel < 0 || options.zipLevel > 9)) throw new Error('Nível ZIP inválido.')
+  if (options?.zipPassword !== undefined && (typeof options.zipPassword !== 'string' || options.zipPassword.length > 256)) throw new Error('Senha ZIP inválida.')
+  if (options?.zipComment !== undefined && (typeof options.zipComment !== 'string' || options.zipComment.length > 500)) throw new Error('Comentário ZIP inválido.')
 }
 
 async function askOnImportRowError(event: IpcMainInvokeEvent, row: number, message: string): Promise<'continue' | 'abort'> {
@@ -82,22 +87,31 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
     const extensions: Record<ExportFormat, string> = { csv: 'csv', text: 'txt', json: 'json', xml: 'xml', sql: 'sql', html: 'html', xlsx: 'xlsx', pdf: 'pdf' }
     const baseName = (options?.fileName || 'export').replace(/[\\/\\0]/g, '_').slice(0, 120)
     const stamp = options?.appendTimestamp ? `_${new Date().toISOString().replace(/[:.]/g, '-')}` : ''
-    const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Data Export Wizard', defaultPath: `${baseName}${stamp}.${extensions[format]}`, filters: [{ name: format.toUpperCase(), extensions: [extensions[format]] }] })
+    const outputExtension = options?.compress ? 'zip' : extensions[format]
+    const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Data Export Wizard', defaultPath: `${baseName}${stamp}.${outputExtension}`, filters: [{ name: options?.compress ? 'ZIP archive' : format.toUpperCase(), extensions: [outputExtension] }] })
     if (canceled || !filePath) throw new Error('Exportação cancelada.')
     const controller = startJob(event, jobId)
     try {
+      const temporaryOutput = options?.compress ? join(app.getPath('temp'), `dbforge-export-${randomUUID()}.${extensions[format]}`) : filePath
       const temporaryHtml = format === 'pdf' ? join(app.getPath('temp'), `dbforge-export-${randomUUID()}.html`) : undefined
       const exportFormat = format === 'pdf' ? 'html' : format
-      const report = await exportData({ driver, connectionId, query: statement, format: exportFormat, options, signal: controller.signal, onProgress: (value) => progress(event, jobId, value), destination: createWriteStream(temporaryHtml ?? filePath, { mode: 0o600 }) })
+      const report = await exportData({ driver, connectionId, query: statement, format: exportFormat, options, signal: controller.signal, onProgress: (value) => progress(event, jobId, value), destination: createWriteStream(temporaryHtml ?? temporaryOutput, { mode: 0o600 }) })
       if (format === 'pdf' && temporaryHtml) {
         const printer = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } })
-        try { await printer.loadURL(pathToFileURL(temporaryHtml).toString()); const pdf = await printer.webContents.printToPDF({ printBackground: true, pageSize: 'A4' }); await writeFile(filePath, pdf, { mode: 0o600 }) }
+        try { await printer.loadURL(pathToFileURL(temporaryHtml).toString()); const pdf = await printer.webContents.printToPDF({ printBackground: true, pageSize: 'A4' }); await writeFile(temporaryOutput, pdf, { mode: 0o600 }) }
         finally { printer.destroy(); await unlink(temporaryHtml).catch(() => undefined) }
+      }
+      if (options?.compress) {
+        try {
+          const contents = await readFile(temporaryOutput)
+          const entry = await encodeZipArchive(contents, `${baseName}.${extensions[format]}`, { compressionLevel: options.zipLevel ?? 6, comment: (options.zipComment ?? '').slice(0, 500), password: options.zipPassword || undefined })
+          await writeFile(filePath, entry, { mode: 0o600 })
+        } finally { await unlink(temporaryOutput).catch(() => undefined) }
       }
       if (options?.autoDeleteDays || options?.autoDeleteCount) {
         const directory = join(filePath, '..')
         const files = await readdir(directory, { withFileTypes: true })
-        const candidates = await Promise.all(files.filter((item) => item.isFile() && item.name.startsWith(`${baseName}_`) && extname(item.name) === `.${extensions[format]}`).map(async (item) => ({ path: join(directory, item.name), mtime: (await stat(join(directory, item.name))).mtimeMs })))
+        const candidates = await Promise.all(files.filter((item) => item.isFile() && item.name.startsWith(`${baseName}_`) && extname(item.name) === `.${outputExtension}`).map(async (item) => ({ path: join(directory, item.name), mtime: (await stat(join(directory, item.name))).mtimeMs })))
         candidates.sort((left, right) => right.mtime - left.mtime)
         const keep = Math.max(1, options.autoDeleteCount ?? 20); const cutoff = Date.now() - Math.max(1, options.autoDeleteDays ?? 30) * 86_400_000
         await Promise.all(candidates.slice(keep).map((item) => unlink(item.path).catch(() => undefined)))

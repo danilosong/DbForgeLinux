@@ -2,24 +2,24 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { createDefaultConnection } from '../../src/shared/connectionDefaults.js'
 import { MysqlDriver } from '../../src/main/db/MysqlDriver.js'
 import { compareSchemas, inspectDatabase } from '../../src/modules/schema/index.js'
+import { mysqlTestPrefix } from '../mysqlTestNames.js'
 
 const enabled = process.env.MYSQL_INTEGRATION === '1'
 describe.skipIf(!enabled)('schema synchronization integration', () => {
   const driver = new MysqlDriver()
   let connectionId: string
-  const suffix = `${process.pid}_${Date.now()}`
-  const schemaA = `schema_a_${suffix}`
-  const schemaB = `schema_b_${suffix}`
+  const prefix = mysqlTestPrefix('schema_compare')
+  const schemaA = `${prefix}_source`
+  const schemaB = `${prefix}_target`
 
   afterAll(async () => {
     if (!connectionId) return
-    await driver.executeSql(connectionId, `DROP DATABASE IF EXISTS \`${schemaA}\`; DROP DATABASE IF EXISTS \`${schemaB}\`;`)
-    await driver.disconnect(connectionId)
+    try { await driver.executeSql(connectionId, `DROP DATABASE IF EXISTS \`${schemaA}\`; DROP DATABASE IF EXISTS \`${schemaB}\`;`) } finally { await driver.disconnect(connectionId) }
   })
 
   it('synchronizes two databases and confirms equal introspection', async () => {
     connectionId = await driver.connect({
-      ...createDefaultConnection('schema-integration', 'Schema integration'),
+      ...createDefaultConnection(mysqlTestPrefix('connection'), 'Schema integration'),
       host: process.env.MYSQL_HOST ?? '127.0.0.1', port: Number(process.env.MYSQL_PORT ?? 33067), user: 'root', password: 'integration-only'
     })
     await driver.executeSql(connectionId, `CREATE DATABASE \`${schemaA}\`; CREATE DATABASE \`${schemaB}\`; CREATE TABLE \`${schemaA}\`.parent (id INT NOT NULL PRIMARY KEY); CREATE TABLE \`${schemaB}\`.parent (id INT NOT NULL PRIMARY KEY, label VARCHAR(40) NOT NULL DEFAULT 'x'); CREATE TABLE \`${schemaB}\`.child (id INT NOT NULL PRIMARY KEY, parent_id INT NOT NULL, CONSTRAINT fk_parent FOREIGN KEY (parent_id) REFERENCES \`${schemaB}\`.parent(id) ON DELETE CASCADE);`)

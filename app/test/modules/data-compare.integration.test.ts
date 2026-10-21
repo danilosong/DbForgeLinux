@@ -2,25 +2,25 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { createDefaultConnection } from '../../src/shared/connectionDefaults.js'
 import { MysqlDriver } from '../../src/main/db/MysqlDriver.js'
 import { compareData, type DataCompareEndpoint, type SyncStatement } from '../../src/modules/data-compare/index.js'
+import { mysqlTestPrefix } from '../mysqlTestNames.js'
 
 const enabled = process.env.MYSQL_INTEGRATION === '1'
 
 describe.skipIf(!enabled)('data comparison synchronization integration', () => {
   const driver = new MysqlDriver()
   let connectionId = ''
-  const suffix = `${process.pid}_${Date.now()}`
-  const sourceDatabase = `data_source_${suffix}`
-  const targetDatabase = `data_target_${suffix}`
+  const prefix = mysqlTestPrefix('data_compare')
+  const sourceDatabase = `${prefix}_source`
+  const targetDatabase = `${prefix}_target`
 
   afterAll(async () => {
     if (!connectionId) return
-    await driver.executeSql(connectionId, `DROP DATABASE IF EXISTS \`${sourceDatabase}\`; DROP DATABASE IF EXISTS \`${targetDatabase}\`;`)
-    await driver.disconnect(connectionId)
+    try { await driver.executeSql(connectionId, `DROP DATABASE IF EXISTS \`${sourceDatabase}\`; DROP DATABASE IF EXISTS \`${targetDatabase}\`;`) } finally { await driver.disconnect(connectionId) }
   })
 
   it('compares, applies parameterized sync statements transactionally, then compares equal', async () => {
     connectionId = await driver.connect({
-      ...createDefaultConnection('data-compare-integration', 'Data Compare integration'),
+      ...createDefaultConnection(mysqlTestPrefix('connection'), 'Data Compare integration'),
       host: process.env.MYSQL_HOST ?? '127.0.0.1',
       port: Number(process.env.MYSQL_PORT ?? 33067),
       user: 'root',

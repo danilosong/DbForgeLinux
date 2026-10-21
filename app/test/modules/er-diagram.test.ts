@@ -2,7 +2,7 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { autoLayout, buildDiagram, createVirtualRelation, deserializeDiagram, moveTable, serializeDiagram, validateVirtualRelation, VirtualRelationStore } from '../../src/modules/er-diagram/index.js'
+import { autoLayout, buildDiagram, createVirtualRelation, deserializeDiagram, moveTable, relationCardinality, serializeDiagram, validateVirtualRelation, VirtualRelationStore } from '../../src/modules/er-diagram/index.js'
 import { avoidTableOverlap, routeERRelation } from '../../src/modules/er-diagram/routing.js'
 import type { DatabaseModel } from '../../src/modules/schema/model.js'
 
@@ -26,7 +26,8 @@ describe('ER diagram module', () => {
 
   it('lays out relation dependencies before their child and tolerates cycles', () => {
     const points = autoLayout(['parent', 'child', 'other'], [{ from: 'parent', to: 'child' }])
-    expect(points.child.x).toBeGreaterThan(points.parent.x)
+    expect(points.parent).toEqual({ x: 40, y: 40 })
+    expect(points.child).toEqual({ x: 400, y: 40 })
     expect(Object.keys(autoLayout(['a', 'b'], [{ from: 'a', to: 'b' }, { from: 'b', to: 'a' }]))).toEqual(['a', 'b'])
   })
 
@@ -40,6 +41,14 @@ describe('ER diagram module', () => {
     expect(path).toBe('M 165 100 L 165 82 L 525 82 L 525 240')
     const laneY = 82
     expect(boxes.every((box) => laneY < box.position.y)).toBe(true)
+  })
+
+  it('shows nullable and unique FK cardinality on both relation ends', () => {
+    const relation = buildDiagram(schema, 'conn').relations[0]
+    expect(relation.cardinality).toEqual({ from: '0..N', to: '1' })
+    const nullableSchema: DatabaseModel = { ...schema, tables: schema.tables.map((table) => table.name === 'orders' ? { ...table, columns: table.columns.map((column) => column.name === 'customer_id' ? { ...column, nullable: true } : column), indexes: [...table.indexes, { name: 'uq_customer', kind: 'UNIQUE', columns: [{ name: 'customer_id' }] }] } : table) }
+    const optional = buildDiagram(nullableSchema, 'conn').relations[0]
+    expect(relationCardinality(nullableSchema, optional)).toEqual({ from: '0..1', to: '0..1' })
   })
 
   it('moves a dropped table to a nearby free slot instead of overlapping another card', () => {

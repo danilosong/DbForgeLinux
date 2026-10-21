@@ -69,6 +69,26 @@ export function applyKeywordCaseAtOffset(sql: string, offset: number, mode: 'upp
   const word = /[A-Za-z_][\w$]*$/.exec(before)?.[0]
   if (!word || !sqlKeywords.has(word.toLowerCase())) return sql
   const start = caret - word.length
+  // Do not rewrite text inside quoted identifiers, strings, or SQL comments.
+  let quote = ''
+  let lineComment = false
+  let blockComment = false
+  for (let index = 0; index < start; index += 1) {
+    const char = sql[index]!
+    const next = sql[index + 1]
+    if (lineComment) { if (char === '\n') lineComment = false; continue }
+    if (blockComment) { if (char === '*' && next === '/') { blockComment = false; index += 1 }; continue }
+    if (quote) {
+      if (char === '\\' && quote !== '`') { index += 1; continue }
+      if (char === quote && next === quote) { index += 1; continue }
+      if (char === quote) quote = ''
+      continue
+    }
+    if ((char === '-' && next === '-' && (!sql[index + 2] || /\s/.test(sql[index + 2]!))) || char === '#') { lineComment = true; if (char === '-') index += 1; continue }
+    if (char === '/' && next === '*') { blockComment = true; index += 1; continue }
+    if (char === "'" || char === '"' || char === '`') quote = char
+  }
+  if (quote || lineComment || blockComment) return sql
   const replacement = mode === 'upper' ? word.toUpperCase() : word.toLowerCase()
   return replacement === word ? sql : `${sql.slice(0, start)}${replacement}${sql.slice(caret)}`
 }

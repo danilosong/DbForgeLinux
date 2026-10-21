@@ -13,6 +13,7 @@ export interface DiagramRelation {
   onDelete?: string
   onUpdate?: string
   comment?: string
+  cardinality?: RelationCardinality
 }
 export interface ERDiagram {
   version: 1
@@ -24,3 +25,4 @@ export interface ERDiagram {
 }
 export interface VirtualRelationInput { name: string; fromTable: string; fromColumns: string[]; toTable: string; toColumns: string[]; comment?: string }
 export interface ERDiagramSource extends Pick<DatabaseModel, 'name' | 'tables'> { kind: 'database' }
+export interface RelationCardinality { from: '1' | 'N' | '0..1' | '0..N'; to: '1' | 'N' | '0..1' | '0..N' }

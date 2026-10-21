@@ -13,6 +13,8 @@ export interface DocumenterOptions {
   coverPage?: boolean
   descriptions?: Record<string, string>
   includeDiagram?: boolean
+  excludedColumns?: string[]
+  excludedIndexes?: string[]
   formats?: DocumentFormat[]
   outputDirectory?: string
   folderName?: string
@@ -69,8 +71,8 @@ function diagram(model: DatabaseModel): string {
 
 function htmlTable(table: TableModel, options: DocumenterOptions): string {
   const anchor = `table-${slug(table.name)}`
-  const columns = table.columns.map((column) => `<tr><td>${escapeHtml(column.name)}</td><td><code>${escapeHtml(column.type)}</code></td><td>${column.nullable ? 'Yes' : 'No'}</td><td>${escapeHtml(column.default ?? '')}</td><td>${column.autoIncrement ? 'AUTO_INCREMENT' : ''}</td><td>${escapeHtml(column.comment ?? '')}</td></tr>`).join('')
-  const indexes = table.indexes.map((index) => `<li><strong>${escapeHtml(index.name)}</strong> (${escapeHtml(index.kind)}): ${index.columns.map((column) => escapeHtml(column.name)).join(', ')}</li>`).join('') || '<li>None</li>'
+  const columns = table.columns.filter((column) => !options.excludedColumns?.includes(`${table.name}.${column.name}`)).map((column) => `<tr><td>${escapeHtml(column.name)}</td><td><code>${escapeHtml(column.type)}</code></td><td>${column.nullable ? 'Yes' : 'No'}</td><td>${escapeHtml(column.default ?? '')}</td><td>${column.autoIncrement ? 'AUTO_INCREMENT' : ''}</td><td>${escapeHtml(column.comment ?? '')}</td></tr>`).join('')
+  const indexes = table.indexes.filter((index) => !options.excludedIndexes?.includes(`${table.name}.${index.name}`)).map((index) => `<li><strong>${escapeHtml(index.name)}</strong> (${escapeHtml(index.kind)}): ${index.columns.map((column) => escapeHtml(column.name)).join(', ')}</li>`).join('') || '<li>None</li>'
   const fks = table.foreignKeys.map((fk) => `<li>${escapeHtml(fk.name)}: (${fk.columns.map(escapeHtml).join(', ')}) → ${escapeHtml(fk.referencedDatabase ?? '')}.${escapeHtml(fk.referencedTable)} (${fk.referencedColumns.map(escapeHtml).join(', ')})</li>`).join('') || '<li>None</li>'
   const checks = table.checks.map((check) => `<li>${escapeHtml(check.name)}: <code>${escapeHtml(check.expression)}</code></li>`).join('') || '<li>None</li>'
   return `<section id="${anchor}"><h3>Table: ${escapeHtml(table.name)}</h3><p>${escapeHtml(description(options, `table.${table.name}`))}</p><p>${escapeHtml(table.engine ?? '')} ${escapeHtml(table.charset ?? '')} ${escapeHtml(table.collation ?? '')}</p><table><thead><tr><th>Column</th><th>Type</th><th>Nullable</th><th>Default</th><th>Flags</th><th>Comment</th></tr></thead><tbody>${columns}</tbody></table><h4>Indexes</h4><ul>${indexes}</ul><h4>Foreign keys</h4><ul>${fks}</ul><h4>Checks</h4><ul>${checks}</ul></section>`
@@ -78,8 +80,8 @@ function htmlTable(table: TableModel, options: DocumenterOptions): string {
 
 function markdownTable(table: TableModel, options: DocumenterOptions): string {
   const lines = [`### Table: ${escapeMarkdown(table.name)}`, '', escapeMarkdown(description(options, `table.${table.name}`)), '', '| Column | Type | Nullable | Default | Comment |', '| --- | --- | --- | --- | --- |']
-  for (const column of table.columns) lines.push(`| ${escapeMarkdown(column.name)} | ${escapeMarkdown(column.type)} | ${column.nullable ? 'Yes' : 'No'} | ${escapeMarkdown(column.default ?? '')} | ${escapeMarkdown(column.comment ?? '')} |`)
-  lines.push('', 'Indexes:', ...table.indexes.map((index) => `- ${escapeMarkdown(index.name)} (${index.kind}): ${index.columns.map((column) => escapeMarkdown(column.name)).join(', ')}`), '', 'Foreign keys:', ...table.foreignKeys.map((fk) => `- ${escapeMarkdown(fk.name)}: ${fk.columns.map(escapeMarkdown).join(', ')} → ${escapeMarkdown(fk.referencedDatabase ?? '')}.${escapeMarkdown(fk.referencedTable)} (${fk.referencedColumns.map(escapeMarkdown).join(', ')})`), '', 'Checks:', ...table.checks.map((check) => `- ${escapeMarkdown(check.name)}: \`${escapeMarkdown(check.expression)}\``), '')
+  for (const column of table.columns.filter((item) => !options.excludedColumns?.includes(`${table.name}.${item.name}`))) lines.push(`| ${escapeMarkdown(column.name)} | ${escapeMarkdown(column.type)} | ${column.nullable ? 'Yes' : 'No'} | ${escapeMarkdown(column.default ?? '')} | ${escapeMarkdown(column.comment ?? '')} |`)
+  lines.push('', 'Indexes:', ...table.indexes.filter((item) => !options.excludedIndexes?.includes(`${table.name}.${item.name}`)).map((index) => `- ${escapeMarkdown(index.name)} (${index.kind}): ${index.columns.map((column) => escapeMarkdown(column.name)).join(', ')}`), '', 'Foreign keys:', ...table.foreignKeys.map((fk) => `- ${escapeMarkdown(fk.name)}: ${fk.columns.map(escapeMarkdown).join(', ')} → ${escapeMarkdown(fk.referencedDatabase ?? '')}.${escapeMarkdown(fk.referencedTable)} (${fk.referencedColumns.map(escapeMarkdown).join(', ')})`), '', 'Checks:', ...table.checks.map((check) => `- ${escapeMarkdown(check.name)}: \`${escapeMarkdown(check.expression)}\``), '')
   return lines.join('\n')
 }
 

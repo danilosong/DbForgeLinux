@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ConnectionRecord, ConnectionSummary, DatabaseObject, DatabaseObjectKind } from '../../../../shared/contracts'
+import { databaseObjectDragType } from '../../../../shared/databaseObjectDrag.js'
 import { Button } from './Button'
 import { useI18n } from '../i18n/useI18n.js'
 import { explorerContextMenu, type ExplorerMenuItem } from './explorerContextMenu.js'
@@ -133,7 +134,7 @@ export function DatabaseExplorer(props: Props): React.JSX.Element {
                     const members = dbObjects.filter((object) => object.kind === kind)
                     const groupKey = `${dbKey}:${kind}`
                     return <div className="object-group" key={kind}><div className="object-group-heading"><button className="object-group-name" onClick={() => toggleKind(groupKey)}>{expandedKinds.includes(groupKey) ? '▾' : '▸'} {t(`explorer.kind.${kind}`)} ({members.length})</button><button className="object-create" title={t('explorer.menu.newObject')} onClick={() => onCreateObject(connection, database, kind)}>＋</button></div>
-                      {expandedKinds.includes(groupKey) && members.map((object) => <button key={`${kind}:${object.name}`} className="object-name" onClick={() => onSelectObject(connection, database, object)} onDoubleClick={() => kind === 'table' || kind === 'view' ? onSelectTop(connection, database, object) : onGenerateScript(connection, database, object)} onContextMenu={(event) => { onSelectObject(connection, database, object); showContextMenu(event, { connection, database, object, target: kind }) }}>{icon} {object.name}</button>)}
+                      {expandedKinds.includes(groupKey) && members.map((object) => <button key={`${kind}:${object.name}`} className="object-name" draggable={kind === 'table' || kind === 'view'} onDragStart={(event) => { if (kind !== 'table' && kind !== 'view') return; event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData(databaseObjectDragType, JSON.stringify({ connectionId: connection.recordId, database, kind, name: object.name })); event.dataTransfer.setData('text/plain', `${database}.${object.name}`) }} onClick={() => onSelectObject(connection, database, object)} onDoubleClick={() => kind === 'table' || kind === 'view' ? onSelectTop(connection, database, object) : onGenerateScript(connection, database, object)} onContextMenu={(event) => { onSelectObject(connection, database, object); showContextMenu(event, { connection, database, object, target: kind }) }}>{icon} {object.name}</button>)}
                     </div>
                   })}</div>}
                 </div>

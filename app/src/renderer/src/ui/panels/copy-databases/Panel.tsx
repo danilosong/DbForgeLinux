@@ -52,7 +52,7 @@ export default function CopyDatabasesPanel(): React.JSX.Element {
         const elapsedMs = performance.now() - started
         setProgress((current) => ({ ...current, [database]: { status: report.errors.length ? 'error' : 'complete', elapsedMs, message: `${report.rows} ${t('copy.rows')} · ${report.errors.length} ${t('copy.errors')}` } }))
       } catch (error) { setProgress((current) => ({ ...current, [database]: { status: 'error', elapsedMs: performance.now() - started, message: errorText(error) } })) }
-      finally { if (targetConnection) await window.dbforge.disconnect(targetConnection.id); if (sourceConnection) await window.dbforge.disconnect(sourceConnection.id) }
+      finally { await Promise.allSettled([...(targetConnection ? [window.dbforge.disconnect(targetConnection.id)] : []), ...(sourceConnection ? [window.dbforge.disconnect(sourceConnection.id)] : [])]) }
     }
     setBusy(false); setMessage(t('copy.finished'))
   }

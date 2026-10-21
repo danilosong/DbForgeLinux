@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareSchemas, createObject, diffTables, quoteIdentifier, SchemaIntrospector, type DatabaseModel, type TableModel } from '../../src/modules/schema/index.js'
+import { assertSchemaUpdateScript, compareSchemas, createObject, diffTables, quoteIdentifier, SchemaIntrospector, type DatabaseModel, type TableModel } from '../../src/modules/schema/index.js'
 
 const table = (name: string, columns = ['id']): TableModel => ({
   kind: 'table', name,
@@ -9,6 +9,23 @@ const table = (name: string, columns = ['id']): TableModel => ({
 const database = (name: string, tables: TableModel[]): DatabaseModel => ({ kind: 'database', name, tables, views: [], procedures: [], functions: [], triggers: [], events: [] })
 
 describe('schema DDL and diff', () => {
+  it('allows object DDL scripts while rejecting executable side statements from offline models', () => {
+    expect(assertSchemaUpdateScript('CREATE TABLE `app`.`items` (`id` INT);')).toHaveLength(1)
+    expect(assertSchemaUpdateScript('DELIMITER $$\nCREATE PROCEDURE p() BEGIN INSERT INTO t VALUES (1); END$$\nDELIMITER ;')).toHaveLength(1)
+    expect(() => assertSchemaUpdateScript('CREATE VIEW v AS SELECT 1; DELETE FROM accounts;')).toThrow(/allowlist/)
+    expect(() => assertSchemaUpdateScript('CREATE PROCEDURE p() BEGIN SELECT 1; END$$\nGRANT ALL ON *.* TO attacker;')).toThrow(/allowlist/)
+  })
+
+  it('wraps routine bodies with a delimiter and blocks trailing executable SQL from snapshot DDL', () => {
+    const source = database('app', [])
+    const routine = { kind: 'procedure' as const, name: 'p', definition: 'BEGIN SELECT 1; END', createSql: 'CREATE DEFINER=`app`@`localhost` PROCEDURE `p`() BEGIN SELECT 1; END' }
+    const result = compareSchemas(source, { ...source, procedures: [routine] })
+    expect(assertSchemaUpdateScript(result.script)).toHaveLength(1)
+    const injected = { ...source, views: [{ kind: 'view' as const, name: 'v', definition: 'SELECT 1', createSql: 'CREATE VIEW `v` AS SELECT 1; DELETE FROM accounts;' }] }
+    const malicious = compareSchemas(source, injected).script
+    expect(() => assertSchemaUpdateScript(malicious)).toThrow(/allowlist/)
+  })
+
   it('escapes identifiers and generates CREATE TABLE definitions', () => {
     expect(quoteIdentifier('a`b')).toBe('`a``b`')
     expect(createObject(table('items'), 'my db')).toContain('CREATE TABLE `my db`.`items`')

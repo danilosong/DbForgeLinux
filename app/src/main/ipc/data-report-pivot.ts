@@ -1,9 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { dialog, ipcMain, BrowserWindow, writeFile } from './registry.js'
 import type { IpcDeps } from './registry.js'
-import { buildPivot, exportPivot, type PivotConfig, type PivotResult, type ReportExportFormat } from '../../modules/data-report-pivot/index.js'
+import { buildPivot, exportPivot, validateReportQuery, type PivotConfig, type PivotResult, type ReportExportFormat } from '../../modules/data-report-pivot/index.js'
 import type { SqlValue } from '../db/DbDriver.js'
-import { splitSqlStatements } from '../../shared/sqlStatements.js'
 
 const datasetLimit = 20_000
 const datasets = new Map<string, { senderId: number; rows: Array<Record<string, unknown>>; columns: string[]; truncated: boolean; createdAt: number }>()
@@ -14,15 +13,10 @@ function pruneDatasets(): void {
   while (datasets.size > 10) datasets.delete(datasets.keys().next().value as string)
 }
 
-function validateSelect(query: string): void {
-  const statements = splitSqlStatements(query).map((item) => item.sql.trim()).filter(Boolean)
-  if (statements.length !== 1 || !/^SELECT\b/i.test(statements[0]!)) throw new Error('Report Pivot accepts one SELECT statement at a time.')
-}
-
 export function registerDataReportPivotIpc({ driver }: IpcDeps): void {
   ipcMain.handle('report-pivot:load', async (event, connectionId: string, query: string) => {
     if (!connectionId) throw new Error('Choose an active connection.')
-    validateSelect(query)
+    validateReportQuery(query)
     const rows: Array<Record<string, unknown>> = []
     let truncated = false
     for await (const row of driver.streamRows(connectionId, query, [] as SqlValue[])) {

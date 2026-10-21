@@ -2,11 +2,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import mysql from 'mysql2/promise'
 import { createDefaultConnection } from '../src/shared/connectionDefaults.js'
 import { MysqlDriver } from '../src/main/db/MysqlDriver.js'
+import { mysqlTestPrefix } from './mysqlTestNames.js'
 
 const enabled = process.env.MYSQL_INTEGRATION === '1'
 describe.skipIf(!enabled)('Connection properties integration', () => {
   const driver = new MysqlDriver()
-  const database = `martelo_connection_${process.pid}`
+  const database = mysqlTestPrefix('connection_properties')
   const adminConfig = { host: process.env.MYSQL_HOST ?? '127.0.0.1', port: Number(process.env.MYSQL_PORT ?? 33067), user: process.env.MYSQL_USER ?? 'root', password: process.env.MYSQL_PASSWORD ?? 'integration-only' }
   let admin: mysql.Connection | undefined
 
@@ -17,13 +18,12 @@ describe.skipIf(!enabled)('Connection properties integration', () => {
 
   afterAll(async () => {
     if (admin) {
-      await admin.query(`DROP DATABASE IF EXISTS \`${database}\``)
-      await admin.end()
+      try { await admin.query(`DROP DATABASE IF EXISTS \`${database}\``) } finally { await admin.end() }
     }
   })
 
   it('tests a connection without a default database and enumerates selectable databases', async () => {
-    const record = { ...createDefaultConnection('dialog-test', '127.0.0.1:33067'), host: adminConfig.host, port: adminConfig.port, user: adminConfig.user, database: undefined }
+    const record = { ...createDefaultConnection(mysqlTestPrefix('connection_record'), '127.0.0.1:33067'), host: adminConfig.host, port: adminConfig.port, user: adminConfig.user, database: undefined }
     const result = await driver.testConnection({ ...record, password: adminConfig.password, showAllDatabases: false })
     expect(result.serverVersion).toBeTruthy()
     expect(result.databases).toContain(database)

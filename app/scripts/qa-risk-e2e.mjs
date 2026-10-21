@@ -5,14 +5,21 @@ import { join } from 'node:path'
 import { once } from 'node:events'
 import { _electron as electron } from 'playwright'
 import mysql from 'mysql2/promise'
+import { mysqlTestPrefix, mysqlTestUser } from './mysql-test-prefix.mjs'
 
 const electronPath = join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux')
 const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-risk-'))
 const admin = await mysql.createConnection({ host: '127.0.0.1', port: 33067, user: 'root', password: process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only', multipleStatements: true })
 let app
-let connectionId = ''
-let riskUser = ''
-const suffix = `${process.pid}_${Date.now()}`
+const testPrefix = mysqlTestPrefix('risk_qa')
+const database = testPrefix
+const testUser = mysqlTestUser('risk')
+const uiSecurityUser = mysqlTestUser('riskui')
+const tableTx = `${testPrefix}_tx`
+const compareSourceTable = `${testPrefix}_compare_src`
+const compareTargetTable = `${testPrefix}_compare_dst`
+const csvTable = `${testPrefix}_csv`
+const designerTableName = `${testPrefix}_designer`
 const csvPath = join(dataRoot, 'hundred-thousand.csv')
 const sqlPath = join(dataRoot, 'risk-open.sql')
 const savePath = join(dataRoot, 'risk-save.sql')
@@ -28,12 +35,14 @@ async function waitForProcess(queryPrefix) {
 }
 
 try {
-  await admin.query("DROP USER IF EXISTS 'dbforge_smoke'@'%'; CREATE USER 'dbforge_smoke'@'%' IDENTIFIED BY ''")
-  await admin.query('GRANT ALL PRIVILEGES ON sample.* TO `dbforge_smoke`@`%`')
-  await admin.query("GRANT CREATE USER ON *.* TO 'dbforge_smoke'@'%'; GRANT SELECT ON mysql.* TO 'dbforge_smoke'@'%'")
-  await admin.query(`CREATE TABLE IF NOT EXISTS sample.qa_tx_${suffix} (id INT PRIMARY KEY, value VARCHAR(80)) ENGINE=InnoDB`)
-  await admin.query(`CREATE TABLE IF NOT EXISTS sample.qa_compare_src_${suffix} (id INT PRIMARY KEY, value VARCHAR(80)); CREATE TABLE IF NOT EXISTS sample.qa_compare_dst_${suffix} (id INT PRIMARY KEY, value VARCHAR(80)); INSERT INTO sample.qa_compare_src_${suffix} VALUES (1,'new'),(2,'source'); INSERT INTO sample.qa_compare_dst_${suffix} VALUES (1,'old'),(3,'target')`)
-  await admin.query(`CREATE TABLE sample.qa_csv_${suffix} (id INT PRIMARY KEY, value VARCHAR(80)) ENGINE=InnoDB`)
+  await admin.query(`CREATE DATABASE \`${database}\``)
+  await admin.query(`CREATE USER '${testUser}'@'%' IDENTIFIED BY ''`)
+  await admin.query(`GRANT ALL PRIVILEGES ON \`${database}\`.* TO '${testUser}'@'%'`)
+  await admin.query(`GRANT CREATE USER ON *.* TO '${testUser}'@'%'`)
+  await admin.query(`GRANT SELECT ON mysql.* TO '${testUser}'@'%'`)
+  await admin.query(`CREATE TABLE \`${database}\`.\`${tableTx}\` (id INT PRIMARY KEY, value VARCHAR(80)) ENGINE=InnoDB`)
+  await admin.query(`CREATE TABLE \`${database}\`.\`${compareSourceTable}\` (id INT PRIMARY KEY, value VARCHAR(80)); CREATE TABLE \`${database}\`.\`${compareTargetTable}\` (id INT PRIMARY KEY, value VARCHAR(80)); INSERT INTO \`${database}\`.\`${compareSourceTable}\` VALUES (1,'new'),(2,'source'); INSERT INTO \`${database}\`.\`${compareTargetTable}\` VALUES (1,'old'),(3,'target')`)
+  await admin.query(`CREATE TABLE \`${database}\`.\`${csvTable}\` (id INT PRIMARY KEY, value VARCHAR(80)) ENGINE=InnoDB`)
   await writeFile(sqlPath, 'SELECT 71 AS opened;\n', 'utf8')
   await writeFile(csvPath, 'id,value\n' + Array.from({ length: 100_000 }, (_, index) => `${index + 1},row-${index + 1}`).join('\n') + '\n', 'utf8')
 
@@ -48,13 +57,13 @@ try {
   await page.getByLabel('Connection name').fill('Risk QA MySQL')
   await page.getByLabel('Host').fill('127.0.0.1')
   await page.getByLabel('Port').fill('33067')
-  await page.getByLabel('User').fill('dbforge_smoke')
-  await page.getByRole('textbox', { name: 'Database' }).fill('sample')
+  await page.getByLabel('User').fill(testUser)
+  await page.getByRole('textbox', { name: 'Database' }).fill(database)
   await page.getByRole('button', { name: 'Connect', exact: true }).click()
   await page.getByRole('heading', { name: 'Database Connection Properties' }).waitFor({ state: 'detached', timeout: 30_000 })
   await app.evaluate(({ dialog }, savePath) => { dialog.showSaveDialog = async () => ({ canceled: false, filePath: savePath }) }, savePath)
   await app.evaluate(({ dialog }, csvPath) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [csvPath] }) }, csvPath)
-  const outcome = await page.evaluate(async ({ suffix, sqlPath }) => {
+  const outcome = await page.evaluate(async ({ database, tableTx, compareSourceTable, compareTargetTable, csvTable, designerTableName, securityUser, sqlPath }) => {
     const api = window.dbforge
     const record = (await api.getConnections()).find((item) => item.name === 'Risk QA MySQL')
     if (!record) throw new Error('QA connection was not persisted')
@@ -62,19 +71,19 @@ try {
     const outcomes = {}
     try {
       // Manual transaction: explicit rollback and commit both survive reconnects.
-      await api.executeSql(connected.id, `DELETE FROM sample.qa_tx_${suffix}`)
+      await api.executeSql(connected.id, `DELETE FROM \`${database}\`.\`${tableTx}\``)
       await api.beginTransaction(connected.id)
-      await api.executeSql(connected.id, `INSERT INTO sample.qa_tx_${suffix} VALUES (1,'rollback')`)
-      const pendingCount = (await api.executeSql(connected.id, `SELECT COUNT(*) AS n FROM sample.qa_tx_${suffix}`))[0]
+      await api.executeSql(connected.id, `INSERT INTO \`${database}\`.\`${tableTx}\` VALUES (1,'rollback')`)
+      const pendingCount = (await api.executeSql(connected.id, `SELECT COUNT(*) AS n FROM \`${database}\`.\`${tableTx}\``))[0]
       const pendingRows = pendingCount.resultStoreId ? await api.readResultRows(pendingCount.resultStoreId, 0, 1) : pendingCount.rows
       if (pendingCount.resultStoreId) await api.disposeResult(pendingCount.resultStoreId)
       outcomes.pendingTransactionRows = Number(pendingRows[0]?.n)
       await api.rollbackTransaction(connected.id)
-      outcomes.rollbackRows = (await api.executeSql(connected.id, `SELECT COUNT(*) AS n FROM sample.qa_tx_${suffix} LIMIT 1`))[0].rows[0].n
+      outcomes.rollbackRows = (await api.executeSql(connected.id, `SELECT COUNT(*) AS n FROM \`${database}\`.\`${tableTx}\` LIMIT 1`))[0].rows[0].n
       await api.beginTransaction(connected.id)
-      await api.executeSql(connected.id, `INSERT INTO sample.qa_tx_${suffix} VALUES (2,'commit')`)
+      await api.executeSql(connected.id, `INSERT INTO \`${database}\`.\`${tableTx}\` VALUES (2,'commit')`)
       await api.commitTransaction(connected.id)
-      outcomes.commitRows = (await api.executeSql(connected.id, `SELECT id FROM sample.qa_tx_${suffix} LIMIT 10`))[0].rows.map((row) => Number(row.id))
+      outcomes.commitRows = (await api.executeSql(connected.id, `SELECT id FROM \`${database}\`.\`${tableTx}\` LIMIT 10`))[0].rows.map((row) => Number(row.id))
 
       // Long streaming query cancellation must reject and leave the pool usable.
       const cancelId = crypto.randomUUID()
@@ -93,23 +102,21 @@ try {
       outcomes.multiResults = multi.map((result) => result.rows[0] && Number(Object.values(result.rows[0])[0]))
 
       // Table Designer IPC: create and alter a real InnoDB table.
-      const tableName = `qa_designer_${suffix}`
-      const table = { kind: 'table', name: tableName, columns: [{ name: 'id', type: 'INT', nullable: false, autoIncrement: true }], indexes: [{ name: 'PRIMARY', kind: 'PRIMARY', columns: [{ name: 'id' }] }], foreignKeys: [], checks: [], engine: 'InnoDB', charset: 'utf8mb4' }
-      outcomes.createdDdl = await api.applyTableEditor(connected.id, 'sample', null, table)
-      const original = await api.loadObjectEditor({ connectionId: connected.id, database: 'sample', kind: 'table', name: tableName })
+      const table = { kind: 'table', name: designerTableName, columns: [{ name: 'id', type: 'INT', nullable: false, autoIncrement: true }], indexes: [{ name: 'PRIMARY', kind: 'PRIMARY', columns: [{ name: 'id' }] }], foreignKeys: [], checks: [], engine: 'InnoDB', charset: 'utf8mb4' }
+      outcomes.createdDdl = await api.applyTableEditor(connected.id, database, null, table)
+      const original = await api.loadObjectEditor({ connectionId: connected.id, database, kind: 'table', name: designerTableName })
       const modified = { ...original, columns: [...original.columns, { name: 'label', type: 'VARCHAR(100)', nullable: true }] }
-      outcomes.alteredDdl = await api.applyTableEditor(connected.id, 'sample', original, modified)
+      outcomes.alteredDdl = await api.applyTableEditor(connected.id, database, original, modified)
 
       // Data Compare uses parameterized statements and requires a second compare to be empty.
-      const sourceTable = `qa_compare_src_${suffix}`; const targetTable = `qa_compare_dst_${suffix}`
-      const before = await api.compareData(connected.id, 'sample', sourceTable, connected.id, 'sample', targetTable, ['id'], ['id', 'value'])
+      const before = await api.compareData(connected.id, database, compareSourceTable, connected.id, database, compareTargetTable, ['id'], ['id', 'value'])
       outcomes.compareBefore = before.report
-      const synced = await api.synchronizeData(connected.id, 'sample', sourceTable, connected.id, 'sample', targetTable, ['id'], ['id', 'value'], true, true)
+      const synced = await api.synchronizeData(connected.id, database, compareSourceTable, connected.id, database, compareTargetTable, ['id'], ['id', 'value'], true, true)
       outcomes.sync = synced
-      outcomes.compareAfter = (await api.compareData(connected.id, 'sample', sourceTable, connected.id, 'sample', targetTable, ['id'], ['id', 'value'])).report
+      outcomes.compareAfter = (await api.compareData(connected.id, database, compareSourceTable, connected.id, database, compareTargetTable, ['id'], ['id', 'value'])).report
 
       // Security Manager IPC create/drop. Use no password for the disposable account.
-      const user = `qa_risk_${Date.now()}`
+      const user = securityUser
       outcomes.securityCreate = await api.applySecurityChanges(connected.id, [{ kind: 'createUser', account: { user, host: '%' }, password: '' }], true)
       outcomes.securityCreated = (await api.listSecurityAccounts(connected.id)).some((account) => account.user === user && account.host === '%')
       outcomes.securityDrop = await api.applySecurityChanges(connected.id, [{ kind: 'dropUser', account: { user, host: '%' } }], true)
@@ -118,11 +125,11 @@ try {
       // Import wizard source selection plus its 100k row transactional import.
       const jobId = crypto.randomUUID()
       outcomes.csvPreview = await api.selectImportSource(jobId, 'csv', { delimiter: ',', quote: '"', header: true, encoding: 'utf8' })
-      outcomes.csvImport = await api.importData(connected.id, `sample.qa_csv_${suffix}`, 'csv', 'append', [], { delimiter: ',', quote: '"', header: true, encoding: 'utf8', onRowError: 'abort' }, jobId)
-      outcomes.csvCount = (await api.executeSql(connected.id, `SELECT COUNT(*) AS n FROM sample.qa_csv_${suffix} LIMIT 1`))[0].rows[0].n
+      outcomes.csvImport = await api.importData(connected.id, `${database}.${csvTable}`, 'csv', 'append', [], { delimiter: ',', quote: '"', header: true, encoding: 'utf8', onRowError: 'abort' }, jobId)
+      outcomes.csvCount = (await api.executeSql(connected.id, `SELECT COUNT(*) AS n FROM \`${database}\`.\`${csvTable}\` LIMIT 1`))[0].rows[0].n
     } finally { /* Keep the connection alive for the server-side disconnect scenario below. */ }
     return outcomes
-  }, { suffix, sqlPath })
+  }, { database, tableTx, compareSourceTable, compareTargetTable, csvTable, designerTableName, securityUser: uiSecurityUser, sqlPath })
   const [uncanceledSleep] = await admin.query("SELECT ID FROM information_schema.PROCESSLIST WHERE INFO = 'SELECT SLEEP(30) AS sleeping'")
   if (uncanceledSleep.length) throw new Error('Canceled SLEEP query is still running on the MySQL server')
 
@@ -158,7 +165,7 @@ try {
   await page.getByRole('tab', { name: /Result 2 \(1\)/ }).waitFor({ timeout: 30_000 })
 
   // Table Data editing stays virtualized and posts parameterized keyed edits.
-  const tableSql = `SELECT * FROM sample.qa_tx_${suffix} LIMIT 100;`
+  const tableSql = `SELECT * FROM \`${database}\`.\`${tableTx}\` LIMIT 100;`
   await writeFile(tableSqlPath, tableSql, 'utf8')
   await app.evaluate(({ dialog }, filePath) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filePath] }) }, tableSqlPath)
   await page.locator('summary').filter({ hasText: 'File' }).click()
@@ -195,7 +202,7 @@ try {
   await page.getByRole('textbox', { name: 'New value' }).press('Enter')
   await page.locator('.grid-edit-toolbar').getByRole('button', { name: 'Post / Apply' }).click()
   await page.getByText(/1 inserted/).waitFor({ timeout: 15_000 })
-  const [insertedCheck] = await admin.query(`SELECT id FROM sample.qa_tx_${suffix} WHERE id = 3`)
+  const [insertedCheck] = await admin.query(`SELECT id FROM \`${database}\`.\`${tableTx}\` WHERE id = 3`)
   if (!insertedCheck.length) throw new Error('Inline grid insert did not post')
   const inserted = page.locator('.result-grid tbody tr').filter({ hasText: 'inserted-inline' }).last()
   await inserted.locator('td').first().click()
@@ -209,24 +216,24 @@ try {
 
   const connectionNode = page.locator('.connection-node').filter({ hasText: 'Risk QA MySQL' })
   if (await connectionNode.getByRole('button', { name: 'Expandir conexão' }).count()) await connectionNode.getByRole('button', { name: 'Expandir conexão' }).click()
-  const sampleDatabase = page.locator('.database-node').filter({ hasText: '◈ sample' })
-  await sampleDatabase.locator('.database-name span').click()
-  const tableGroup = sampleDatabase.locator('.object-group').filter({ has: page.locator('.object-group-name', { hasText: 'Tables' }) })
+  const testDatabaseNode = page.locator('.database-node').filter({ hasText: `◈ ${database}` })
+  await testDatabaseNode.locator('.database-name span').click()
+  const tableGroup = testDatabaseNode.locator('.object-group').filter({ has: page.locator('.object-group-name', { hasText: 'Tables' }) })
   await tableGroup.getByRole('button', { name: /Tables/ }).click()
-  const designerTable = tableGroup.locator('.object-name').filter({ hasText: `qa_designer_${suffix}` })
+  const designerTable = tableGroup.locator('.object-name').filter({ hasText: designerTableName })
   await designerTable.click({ button: 'right' })
   await page.getByRole('button', { name: 'Design', exact: true }).click()
   await page.locator('.object-editor').waitFor()
   await page.getByRole('button', { name: 'Add Column' }).click()
   await page.getByLabel(/Column 3 name/).fill('ui_added')
   await page.locator('.object-editor-toolbar').getByRole('button', { name: 'Apply Changes' }).click()
-  await page.getByText(new RegExp(`Tabela qa_designer_${suffix} atualizada\\.`)).waitFor({ timeout: 30_000 })
+  await page.getByText(new RegExp(`Tabela ${designerTableName} atualizada\\.`)).waitFor({ timeout: 30_000 })
 
   const toolsMenu = page.locator('summary').filter({ hasText: 'Tools' })
   await toolsMenu.click()
   await page.getByRole('button', { name: /security/i }).click()
   await page.locator('.security-panel').waitFor()
-  const uiUser = `qa_ui_${suffix}`
+  const uiUser = uiSecurityUser
   await page.locator('.security-panel').getByRole('button', { name: 'New User' }).click()
   await page.locator('.security-panel').getByLabel('User name').fill(uiUser)
   await page.locator('.security-panel').getByLabel('Host').fill('%')
@@ -249,9 +256,9 @@ try {
   if (outcome.lostResult === 'resolved' || outcome.reconnectAfterLoss !== 1) throw new Error(`Connection loss/reconnect mismatch: ${JSON.stringify(outcome)}`)
   if (outcome.multiResults.length !== 2 || outcome.multiResults[0] !== 101 || outcome.multiResults[1] !== 202) throw new Error(`Multiple statements mismatch: ${JSON.stringify(outcome.multiResults)}`)
   if (!outcome.createdDdl.length || !outcome.alteredDdl.length) throw new Error('Table Designer DDL was not applied')
-  const [gridResult] = await admin.query(`SELECT value FROM sample.qa_tx_${suffix} WHERE id = 2`)
+  const [gridResult] = await admin.query(`SELECT value FROM \`${database}\`.\`${tableTx}\` WHERE id = 2`)
   if (gridResult[0]?.value !== 'edited-inline') throw new Error(`Inline grid edit did not post: ${JSON.stringify(gridResult)}`)
-  const [deletedGridRows] = await admin.query(`SELECT id FROM sample.qa_tx_${suffix} WHERE id = 3`)
+  const [deletedGridRows] = await admin.query(`SELECT id FROM \`${database}\`.\`${tableTx}\` WHERE id = 3`)
   if (deletedGridRows.length) throw new Error('Inline grid delete did not post')
   const screenshots = await Promise.all(['table-data-grid-edit-light.png', 'table-data-grid-edit-dark.png'].map((name) => stat(join(process.cwd(), '..', 'document', 'evidence', 'ui', name))))
   if (screenshots.some((item) => item.size < 10_000)) throw new Error('Grid edit screenshots were not captured')
@@ -272,11 +279,9 @@ try {
       } finally { if (timer) clearTimeout(timer) }
     }
   }
-  if (connectionId) await admin.query(`DROP USER IF EXISTS '${riskUser}'@'%'`).catch(() => undefined)
-  const [temporaryAccounts] = await admin.query("SELECT User FROM mysql.user WHERE User LIKE 'qa_risk_%'").catch(() => [[]])
-  for (const account of temporaryAccounts) await admin.query(`DROP USER IF EXISTS '${String(account.User).replaceAll("'", "''")}'@'%'`).catch(() => undefined)
-  await admin.query(`DROP TABLE IF EXISTS sample.qa_tx_${suffix}, sample.qa_compare_src_${suffix}, sample.qa_compare_dst_${suffix}, sample.qa_designer_${suffix}, sample.qa_csv_${suffix}`).catch(() => undefined)
-  await admin.query("DROP USER IF EXISTS 'dbforge_smoke'@'%'").catch(() => undefined)
+  await admin.query(`DROP DATABASE IF EXISTS \`${database}\``).catch(() => undefined)
+  await admin.query(`DROP USER IF EXISTS '${testUser}'@'%'`).catch(() => undefined)
+  await admin.query(`DROP USER IF EXISTS '${uiSecurityUser}'@'%'`).catch(() => undefined)
   await admin.end()
   await rm(dataRoot, { recursive: true, force: true })
 }

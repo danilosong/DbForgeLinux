@@ -8,7 +8,7 @@ const enabled = process.env.MYSQL_INTEGRATION === '1'
 describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
   const driver = new MysqlDriver()
   const testDatabase = `dbforge_debug_test_${process.pid}_${randomUUID().slice(0, 8)}`
-  const procedure = `routine_debug_${process.pid}`
+  const procedure = `routine_debug_${process.pid}_${randomUUID().slice(0, 8)}`
   const debugId = randomUUID()
   let connectionId = ''
   let controller: Awaited<ReturnType<MysqlDriver['openDedicatedSession']>> | undefined
@@ -34,7 +34,7 @@ describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
 
   it('deploys the helper, pauses in a dedicated target session, steps, and restores the original DDL', async () => {
     connectionId = await driver.connect({
-      ...createDefaultConnection('routine-debug-test', 'Routine debugger integration'),
+      ...createDefaultConnection(`dbforge_test_routine_connection_${process.pid}_${randomUUID().slice(0, 8)}`, 'Routine debugger integration'),
       host: process.env.MYSQL_HOST ?? '127.0.0.1', port: Number(process.env.MYSQL_PORT ?? 33067), user: 'root', password: 'integration-only'
     })
     controller = await driver.openDedicatedSession(connectionId)

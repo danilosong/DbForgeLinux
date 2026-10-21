@@ -37,6 +37,16 @@ describe('Database Explorer context menus', () => {
     expect(menuPaths(explorerContextMenu('server'))).toContain('newDatabase')
   })
 
+  it('offers full script generation and send-to destinations across object contexts', () => {
+    for (const kind of ['table', 'view', 'procedure', 'function', 'trigger', 'event'] as const) {
+      const paths = menuPaths(explorerContextMenu(kind))
+      expect(paths).toContain('generateScriptAs.dropAndCreate.clipboard')
+      expect(paths).toContain('generateScriptAs.crud.file')
+      expect(paths).toContain('sendTo.databaseDiagram')
+    }
+    expect(menuPaths(explorerContextMenu('server'))).toContain('sendTo.queryBuilder')
+  })
+
   it('has translated labels for every menu item in English and Brazilian Portuguese', () => {
     const ids = new Set<string>()
     const collect = (items: ExplorerMenuItem[]): void => { for (const item of items) { if (item.type === 'separator') continue; ids.add(item.id); if (item.type === 'submenu') collect(item.items) } }

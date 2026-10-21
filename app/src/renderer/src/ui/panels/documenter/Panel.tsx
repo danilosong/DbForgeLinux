@@ -29,8 +29,12 @@ export default function Panel(): React.JSX.Element {
   const [result, setResult] = useState<WrittenDocumentation | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [tree, setTree] = useState<Array<{name:string;columns:string[];indexes:string[]}>>([])
+  const [excludedColumns, setExcludedColumns] = useState<string[]>([])
+  const [excludedIndexes, setExcludedIndexes] = useState<string[]>([])
   const folderName = useMemo(() => `${(database || 'documentation').replace(/[^a-zA-Z0-9_-]/g, '_')}${appendTimestamp ? `_${localDateTime().stamp}` : ''}`, [database, appendTimestamp])
   useEffect(() => setConnectionId(activeConnection?.id ?? ''), [activeConnection?.id])
+  useEffect(() => { if (!connectionId || !database.trim()) { setTree([]); return }; let live = true; void window.dbforge.listDocumenterObjects(connectionId, database).then((items) => { if (live) setTree(items) }).catch(() => { if (live) setTree([]) }); return () => { live = false } }, [connectionId, database])
 
   async function previewDoc(): Promise<void> {
     setError('')
@@ -41,7 +45,7 @@ export default function Panel(): React.JSX.Element {
     if (!window.confirm(t('documenter.confirm'))) return
     setBusy(true); setError('')
     try {
-      const paths = await window.dbforge.generateDatabaseDocumentation({ connectionId, database, title: title || undefined, author, copyright, logo, created: localDateTime().date, folderName, descriptions: { cover: description }, formats, outputDirectory: directory, includeDiagram: diagram, confirmed: true })
+      const paths = await window.dbforge.generateDatabaseDocumentation({ connectionId, database, title: title || undefined, author, copyright, logo, created: localDateTime().date, folderName, descriptions: { cover: description }, formats, outputDirectory: directory, includeDiagram: diagram, excludedColumns, excludedIndexes, confirmed: true })
       setResult(paths)
       if (openAfter) {
         const first = paths.html ?? paths.pdf ?? paths.markdown
@@ -57,7 +61,7 @@ export default function Panel(): React.JSX.Element {
     <fieldset><legend>{t('documenter.scope')}</legend>
       {activeConnection ? <p>{t('documenter.connection')}: <strong>{activeConnection.name}</strong></p> : <label>{t('documenter.connection')} <input value={connectionId} onChange={(event) => setConnectionId(event.target.value)} /></label>}
       <label>{t('documenter.database')} <input value={database} onChange={(event) => setDatabase(event.target.value)} /></label>
-      <details><summary>{t('documenter.tree')}</summary><ul><li><label><input type="checkbox" defaultChecked /> {t('documenter.cover')}</label></li><li><details open><summary>{activeConnection?.name || connectionId || t('documenter.server')}</summary><ul><li><label><input type="checkbox" defaultChecked /> {database || t('documenter.database')}</label><ul><li>{t('documenter.objectsWillBeIncluded')}</li></ul></li><li><label><input type="checkbox" defaultChecked /> {t('documenter.users')}</label></li></ul></details></li></ul></details>
+      <details><summary>{t('documenter.tree')}</summary><ul><li><label><input type="checkbox" defaultChecked /> {t('documenter.cover')}</label></li><li><details open><summary>{activeConnection?.name || connectionId || t('documenter.server')} / {database || t('documenter.database')}</summary><ul>{tree.map((table) => <li key={table.name}><details><summary>{table.name}</summary><ul><li><strong>{t('documenter.columnsTree')}</strong><ul>{table.columns.map((column) => { const key = `${table.name}.${column}`; return <li key={key}><label><input type="checkbox" checked={!excludedColumns.includes(key)} onChange={(event) => setExcludedColumns((current) => event.target.checked ? current.filter((item) => item !== key) : [...current, key])} />{column}</label></li> })}</ul></li><li><strong>{t('documenter.indexesTree')}</strong><ul>{table.indexes.map((index) => { const key = `${table.name}.${index}`; return <li key={key}><label><input type="checkbox" checked={!excludedIndexes.includes(key)} onChange={(event) => setExcludedIndexes((current) => event.target.checked ? current.filter((item) => item !== key) : [...current, key])} />{index}</label></li> })}</ul></li></ul></details></li>)}</ul></details></li><li><label><input type="checkbox" defaultChecked /> {t('documenter.users')}</label></li></ul></details>
     </fieldset>
     <fieldset><legend>{t('documenter.cover')}</legend>
       <nav aria-label={t('documenter.breadcrumb')}>{t('documenter.server')} / {database || t('documenter.database')} / {t('documenter.cover')}</nav>

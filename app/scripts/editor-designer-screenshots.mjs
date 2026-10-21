@@ -5,22 +5,25 @@ import { join } from 'node:path'
 import { once } from 'node:events'
 import { _electron as electron } from 'playwright'
 import mysql from 'mysql2/promise'
+import { mysqlTestPrefix, mysqlTestUser } from './mysql-test-prefix.mjs'
 
 const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-editor-designer-'))
 const evidenceRoot = join(process.cwd(), '..', 'document', 'evidence', 'ui')
 const sqlEvidence = join(evidenceRoot, '04-sql-editor')
 const tableEvidence = join(evidenceRoot, '03-table-designer')
 const admin = await mysql.createConnection({ host: '127.0.0.1', port: 33067, user: 'root', password: process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only' })
-const tableName = `martelo_ui_${process.pid}`
-const dbUser = `martelo_ui_${process.pid}`
+const database = mysqlTestPrefix('editor_designer_ui')
+const tableName = `${database}_customers`
+const dbUser = mysqlTestUser('editor_designer_ui')
 let app
 try {
   await mkdir(sqlEvidence, { recursive: true })
   await mkdir(tableEvidence, { recursive: true })
-  await admin.query(`CREATE USER IF NOT EXISTS '${dbUser}'@'%' IDENTIFIED BY ''`)
-  await admin.query(`GRANT ALL PRIVILEGES ON sample.* TO '${dbUser}'@'%'`)
-  await admin.query(`CREATE TABLE IF NOT EXISTS sample.\`${tableName}\` (id INT PRIMARY KEY AUTO_INCREMENT, customer_name VARCHAR(80) NOT NULL, note VARCHAR(100) NULL) ENGINE=InnoDB`)
-  await admin.query(`INSERT INTO sample.\`${tableName}\` (customer_name, note) VALUES ('Ada', NULL) ON DUPLICATE KEY UPDATE customer_name=VALUES(customer_name)`)
+  await admin.query(`CREATE DATABASE \`${database}\``)
+  await admin.query(`CREATE USER '${dbUser}'@'%' IDENTIFIED BY ''`)
+  await admin.query(`GRANT ALL PRIVILEGES ON \`${database}\`.* TO '${dbUser}'@'%'`)
+  await admin.query(`CREATE TABLE \`${database}\`.\`${tableName}\` (id INT PRIMARY KEY AUTO_INCREMENT, customer_name VARCHAR(80) NOT NULL, note VARCHAR(100) NULL) ENGINE=InnoDB`)
+  await admin.query(`INSERT INTO \`${database}\`.\`${tableName}\` (customer_name, note) VALUES ('Ada', NULL)`)
   app = await electron.launch({ executablePath: join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux'), args: [], env: { ...process.env, XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
   const page = await app.firstWindow()
   page.setDefaultTimeout(10000)
@@ -31,7 +34,7 @@ try {
   await page.getByLabel('Host').fill('127.0.0.1')
   await page.getByLabel('Port').fill('33067')
   await page.getByLabel('User').fill(dbUser)
-  await page.getByRole('textbox', { name: 'Database' }).fill('sample')
+  await page.getByRole('textbox', { name: 'Database' }).fill(database)
   await page.getByRole('button', { name: 'Connect', exact: true }).click()
   await page.getByRole('heading', { name: 'Database Connection Properties' }).waitFor({ state: 'detached', timeout: 30000 })
   console.log('Connection active.')
@@ -69,7 +72,7 @@ try {
   console.log('Autocomplete captured.')
   await page.keyboard.press('Escape')
   await page.locator('.node-name').filter({ hasText: 'Martelo UI MySQL' }).click()
-  const db = page.locator('.database-name').filter({ hasText: 'sample' }).first()
+  const db = page.locator('.database-name').filter({ hasText: database }).first()
   await db.locator('span').click()
   await page.locator('.object-group-name').filter({ hasText: 'Tables' }).click()
   await page.locator('.object-name').filter({ hasText: tableName }).click({ button: 'right' })
@@ -102,7 +105,7 @@ try {
       } finally { if (timer) clearTimeout(timer) }
     }
   }
-  await admin.query(`DROP TABLE IF EXISTS sample.\`${tableName}\``).catch(() => undefined)
+  await admin.query(`DROP DATABASE IF EXISTS \`${database}\``).catch(() => undefined)
   await admin.query(`DROP USER IF EXISTS '${dbUser}'@'%'`).catch(() => undefined)
   await admin.end()
   await rm(dataRoot, { recursive: true, force: true })

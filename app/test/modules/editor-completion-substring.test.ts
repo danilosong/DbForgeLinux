@@ -27,4 +27,17 @@ describe('SQL keyword case option', () => {
     expect(applyKeywordCaseAtOffset('SELECT * FROM t', 6, 'lower')).toBe('select * FROM t')
     expect(applyKeywordCaseAtOffset('select * from t', 6, 'as-typed')).toBe('select * from t')
   })
+  it('uppercases keywords as they are typed without touching identifiers, strings, or comments', () => {
+    const type = (source: string): string => {
+      let sql = ''
+      for (const char of source) {
+        sql += char
+        sql = applyKeywordCaseAtOffset(sql, sql.length, 'upper')
+      }
+      return sql
+    }
+    expect(type('select * from customers limit 50;')).toBe('SELECT * FROM customers LIMIT 50;')
+    expect(type("select 'select', `select`, customers -- select\nfrom customers /* select */;"))
+      .toBe("SELECT 'select', `select`, customers -- select\nFROM customers /* select */;")
+  })
 })

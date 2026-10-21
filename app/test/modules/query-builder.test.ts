@@ -4,6 +4,8 @@ import type { QueryBuilderModel } from '../../src/modules/query-builder/index.js
 import type { DbDriver } from '../../src/main/db/DbDriver.js'
 import { exportFormats } from '../../src/renderer/src/ui/panels/import-export/formats.js'
 import { columnPortY, joinPath } from '../../src/modules/query-builder/diagram.js'
+import { joinFromDraggedColumns } from '../../src/modules/query-builder/drag-drop.js'
+import { parseDatabaseObjectDrag } from '../../src/shared/databaseObjectDrag.js'
 
 function model(): QueryBuilderModel {
   return {
@@ -19,6 +21,15 @@ function model(): QueryBuilderModel {
 }
 
 describe('query builder', () => {
+  it('creates joins from dragged columns and rejects same-table or malformed drags', () => {
+    const join = joinFromDraggedColumns({ table: 'o', column: 'customer_id' }, { table: 'c', column: 'id' }, 'LEFT')
+    expect(join).toEqual({ leftTable: 'o', rightTable: 'c', type: 'LEFT', conditions: [{ left: { table: 'o', column: 'customer_id' }, operator: '=', right: { table: 'c', column: 'id' } }] })
+    expect(joinFromDraggedColumns({ table: 'o', column: 'id' }, { table: 'o', column: 'amount' }, 'INNER')).toBeNull()
+    expect(joinFromDraggedColumns({ table: 'o', column: '' }, { table: 'c', column: 'id' }, 'INNER')).toBeNull()
+    const payload = parseDatabaseObjectDrag(JSON.stringify({ connectionId: 'conn', database: 'shop', kind: 'view', name: 'active_orders' }))
+    expect(payload).toEqual({ connectionId: 'conn', database: 'shop', kind: 'view', name: 'active_orders' })
+    expect(parseDatabaseObjectDrag('{bad json')).toBeNull()
+  })
   it('anchors the visual join path at the selected table-column rows', () => {
     const value = model()
     expect(columnPortY(value.tables[0], 'customer_id', 32)).toBe(131)

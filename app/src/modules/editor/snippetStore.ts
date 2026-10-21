@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
-import { dirname } from 'node:path'
+import { mkdir, readFile, readdir, rename, unlink, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import type { SqlSnippet } from './snippets.js'
 
 export interface UserSnippet extends SqlSnippet { id: string; category: string; scope: 'sql' }
@@ -19,10 +19,13 @@ export function validateSnippet(value: unknown, existing: readonly UserSnippet[]
 }
 
 export class UserSnippetStore {
-  constructor(readonly filePath: string) {}
+  private readonly snippetsDirectory: string
+  constructor(readonly filePath: string) { this.snippetsDirectory = join(dirname(filePath), 'items') }
   async list(): Promise<UserSnippet[]> {
     try {
-      const value: unknown = JSON.parse(await readFile(this.filePath, 'utf8'))
+      const files = (await readdir(this.snippetsDirectory).catch((error: NodeJS.ErrnoException) => { if (error.code === 'ENOENT') return []; throw error })).filter((name) => /^[0-9a-f-]{36}\.json$/i.test(name))
+      const migrated = await readFile(join(this.snippetsDirectory, '.migrated'), 'utf8').then(() => true).catch((error: NodeJS.ErrnoException) => { if (error.code === 'ENOENT') return false; throw error })
+      const value: unknown = migrated ? await Promise.all(files.map(async (name) => JSON.parse(await readFile(join(this.snippetsDirectory, name), 'utf8')))) : JSON.parse(await readFile(this.filePath, 'utf8'))
       if (!Array.isArray(value) || value.length > 5000) throw new Error('Snippet file is invalid.')
       return value.filter((item): item is UserSnippet => Boolean(item && typeof item === 'object' && typeof (item as UserSnippet).id === 'string' && typeof (item as UserSnippet).label === 'string' && typeof (item as UserSnippet).prefix === 'string' && typeof (item as UserSnippet).description === 'string' && typeof (item as UserSnippet).body === 'string' && typeof (item as UserSnippet).category === 'string' && (item as UserSnippet).scope === 'sql'))
     } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') return []; throw error }
@@ -45,5 +48,15 @@ export class UserSnippetStore {
     await this.write([...existing, ...imported]); return imported.length
   }
   async export(): Promise<string> { return `${JSON.stringify(await this.list(), null, 2)}\n` }
-  private async write(items: UserSnippet[]): Promise<void> { await mkdir(dirname(this.filePath), { recursive: true, mode: 0o700 }); const temp = `${this.filePath}.${randomUUID()}.tmp`; await writeFile(temp, `${JSON.stringify(items, null, 2)}\n`, { mode: 0o600 }); await rename(temp, this.filePath) }
+  private async write(items: UserSnippet[]): Promise<void> {
+    await mkdir(this.snippetsDirectory, { recursive: true, mode: 0o700 })
+    await writeFile(join(this.snippetsDirectory, '.migrated'), '1\n', { mode: 0o600 })
+    const wanted = new Set(items.map((item) => `${item.id}.json`))
+    for (const name of await readdir(this.snippetsDirectory)) if (/^[0-9a-f-]{36}\.json$/i.test(name) && !wanted.has(name)) await unlink(join(this.snippetsDirectory, name))
+    for (const item of items) {
+      if (!/^[0-9a-f-]{36}$/i.test(item.id)) throw new Error('Snippet id is invalid.')
+      const target = join(this.snippetsDirectory, `${item.id}.json`); const temp = `${target}.${randomUUID()}.tmp`
+      await writeFile(temp, `${JSON.stringify(item, null, 2)}\n`, { mode: 0o600 }); await rename(temp, target)
+    }
+  }
 }

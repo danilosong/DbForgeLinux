@@ -1,6 +1,7 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron'
-import { chmod, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises'
-import { createBackupSql, restoreBackup } from '../../modules/database-tools/backup.js'
+import { randomUUID } from 'node:crypto'
+import { chmod, lstat, mkdir, readFile, readdir, realpath, stat, writeFile } from 'node:fs/promises'
+import { buildDropObjectStatements, cleanupOwnedBackupFiles, createBackupSql, createBackupSqlWithOptions, decodeBackupFile, encodeBackupFile, restoreBackup, type BackupOptions, type BackupProject } from '../../modules/database-tools/backup.js'
 import { BackupScheduleStore, cronMatches, scheduledBackupPath } from '../../modules/database-tools/scheduler.js'
 import { join, resolve } from 'node:path'
 import { findInvalidObjects, searchObjectText } from '../../modules/database-tools/index.js'
@@ -11,6 +12,7 @@ import { formatSqlFiles, previewSqlFiles } from '../../modules/editor/batchForma
 import { executeLargeScript, type ScriptErrorAction, type ScriptEncoding } from '../../modules/database-tools/largeScript.js'
 
 const quote = (identifier: string): string => `\`${identifier.replaceAll('`', '``')}\``
+const SAFE_BACKUP_NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,100}(?:\.sql|\.zip)?$/i
 function assertTarget(connectionId: string, database: string): void { if (!connectionId || !database.trim()) throw new Error('Selecione uma conexão e um database.') }
 
 export function registerDatabaseToolsIpc(deps: IpcDeps): void {
@@ -19,6 +21,21 @@ export function registerDatabaseToolsIpc(deps: IpcDeps): void {
   const scriptErrorResolvers = new Map<string, (action: ScriptErrorAction) => void>()
   const approvedFormatPaths = new Set<string>()
   const approvedLargeScripts = new Set<string>()
+  const approvedBackupDirectories = new Set<string>()
+  const selectedRestoreFiles = new Map<string, Buffer>()
+  const backupJobs = new Map<string, AbortController>()
+  const restoreJobs = new Map<string, { controller: AbortController; connectionId: string; executionId: string }>()
+  const ownedBackupManifest = join(userDataDir, 'assistant-backup-files.json')
+  const readOwnedBackups = async (): Promise<string[]> => { try { const value: unknown = JSON.parse(await readFile(ownedBackupManifest, 'utf8')); return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [] } catch { return [] } }
+  const writeOwnedBackups = async (paths: string[]): Promise<void> => { await mkdir(userDataDir, { recursive: true, mode: 0o700 }); await writeFile(ownedBackupManifest, JSON.stringify([...new Set(paths)], null, 2), { mode: 0o600 }); await chmod(ownedBackupManifest, 0o600) }
+  const validBackupOptions = (options: BackupOptions): void => {
+    if (!options || typeof options !== 'object' || !Array.isArray(options.objectKinds) || !options.objectKinds.every((kind) => ['table', 'view', 'procedure', 'function', 'trigger', 'event'].includes(kind))) throw new Error('Invalid backup content selection.')
+    if (typeof options.directory !== 'string' || !approvedBackupDirectories.has(resolve(options.directory))) throw new Error('Choose the backup directory using the folder dialog first.')
+    if (!SAFE_BACKUP_NAME.test(options.fileName) || typeof options.includeData !== 'boolean' || typeof options.zip !== 'boolean' || !Number.isInteger(options.compressionLevel) || options.compressionLevel < 0 || options.compressionLevel > 9 || typeof options.comment !== 'string' || Buffer.byteLength(options.comment, 'utf8') > 60_000 || typeof options.charset !== 'string' || options.charset.length > 32 || typeof options.appendTimestamp !== 'boolean') throw new Error('Invalid backup options.')
+    if (['singleTransaction', 'includeRoutines', 'includeTriggers', 'includeEvents', 'extendedInserts'].some((key) => typeof (options as unknown as Record<string, unknown>)[key] !== 'boolean')) throw new Error('Invalid backup options.')
+    if (options.password !== undefined && (typeof options.password !== 'string' || options.password.length < 8 || options.password.length > 1024)) throw new Error('Backup password must contain at least 8 characters.')
+    if (!['abort', 'ignore', 'log'].includes(options.errorPolicy) || !Number.isInteger(options.autoDeleteDays) || options.autoDeleteDays < 0 || !Number.isInteger(options.autoDeleteCount) || options.autoDeleteCount < 0) throw new Error('Invalid backup retention or error handling options.')
+  }
   ipcMain.handle('database-tools:format-select', async (_event, directories: boolean) => {
     const properties = directories ? ['openDirectory', 'multiSelections'] as ('openDirectory' | 'multiSelections')[] : ['openFile', 'multiSelections'] as ('openFile' | 'multiSelections')[]
     const options = { title: 'Select SQL files or folders', properties, filters: directories ? undefined : [{ name: 'SQL files', extensions: ['sql'] }] }
@@ -144,7 +161,8 @@ export function registerDatabaseToolsIpc(deps: IpcDeps): void {
     const validate = async (object: DatabaseObject): Promise<void> => {
       if (object.kind === 'view') await driver.queryRows(connectionId, `SELECT * FROM ${quote(database)}.${quote(object.name)} LIMIT 0`)
     }
-    return findInvalidObjects(objects, definition, validate)
+    const report = await findInvalidObjects(objects, definition, validate)
+    return { ...report, invalid: report.invalid.map((item) => ({ ...item, database })), errors: report.errors.map((item) => ({ ...item, database })) }
   })
   ipcMain.handle('database-tools:backup', async (_event, connectionId: string, database: string, includeData: boolean) => {
     assertTarget(connectionId, database)
@@ -157,6 +175,73 @@ export function registerDatabaseToolsIpc(deps: IpcDeps): void {
     await chmod(selected.filePath, 0o600)
     return { path: selected.filePath, rows: backup.rows, skipped: backup.skipped }
   })
+  ipcMain.handle('database-tools:backup-directory', async () => {
+    const window = BrowserWindow.getFocusedWindow(); const selected = window ? await dialog.showOpenDialog(window, { title: 'Choose backup folder', properties: ['openDirectory', 'createDirectory'] }) : await dialog.showOpenDialog({ title: 'Choose backup folder', properties: ['openDirectory', 'createDirectory'] })
+    if (selected.canceled || !selected.filePaths[0]) return null
+    const directory = await realpath(selected.filePaths[0]); if (!(await stat(directory)).isDirectory()) throw new Error('Selected backup location must be a folder.')
+    approvedBackupDirectories.add(resolve(directory)); return directory
+  })
+  ipcMain.handle('database-tools:backup-project:save', async (_event, project: BackupProject) => {
+    if (!project || project.version !== 1 || typeof project.connectionId !== 'string' || typeof project.database !== 'string' || !project.options || typeof project.options !== 'object') throw new Error('Invalid backup project.')
+    const { password: _discarded, ...safeOptions } = project.options as BackupOptions
+    void _discarded
+    const safeProject: BackupProject = { version: 1, connectionId: project.connectionId, database: project.database, options: safeOptions }
+    const window = BrowserWindow.getFocusedWindow(); const selected = window ? await dialog.showSaveDialog(window, { title: 'Save backup project', defaultPath: `${project.database}-backup.json`, filters: [{ name: 'Backup project', extensions: ['json'] }] }) : await dialog.showSaveDialog({ title: 'Save backup project', defaultPath: `${project.database}-backup.json`, filters: [{ name: 'Backup project', extensions: ['json'] }] })
+    if (selected.canceled || !selected.filePath) return null
+    await writeFile(selected.filePath, JSON.stringify(safeProject, null, 2), { encoding: 'utf8', mode: 0o600 }); await chmod(selected.filePath, 0o600); return selected.filePath
+  })
+  ipcMain.handle('database-tools:backup-project:load', async () => {
+    const window = BrowserWindow.getFocusedWindow(); const selected = window ? await dialog.showOpenDialog(window, { title: 'Open backup project', properties: ['openFile'], filters: [{ name: 'Backup project', extensions: ['json'] }] }) : await dialog.showOpenDialog({ title: 'Open backup project', properties: ['openFile'], filters: [{ name: 'Backup project', extensions: ['json'] }] })
+    if (selected.canceled || !selected.filePaths[0]) return null
+    const project = JSON.parse(await readFile(selected.filePaths[0], 'utf8')) as BackupProject
+    if (project.version !== 1 || !project.options || typeof project.options !== 'object' || 'password' in (project.options as object)) throw new Error('Backup project is invalid or contains credential fields.')
+    return project
+  })
+  ipcMain.handle('database-tools:backup:run', async (event, connectionId: string, database: string, options: BackupOptions, jobId: string) => {
+    assertTarget(connectionId, database); if (!jobId || backupJobs.has(jobId)) throw new Error('Invalid or duplicate backup job id.')
+    validBackupOptions(options); const controller = new AbortController(); backupJobs.set(jobId, controller)
+    try {
+      const schema = await inspectDatabase((sql, parameters) => driver.queryRows(connectionId, sql, parameters), database)
+      const backup = await createBackupSqlWithOptions(schema, options, async (table, offset, limit) => driver.queryRows(connectionId, `SELECT * FROM ${quote(database)}.${quote(table)} LIMIT ${limit} OFFSET ${offset}`), controller.signal, (progress) => event.sender.send('database-tools:backup:progress', { jobId, progress }))
+      if (controller.signal.aborted) throw new Error('Backup cancelled.')
+      const directory = await realpath(options.directory); if (directory !== resolve(options.directory)) throw new Error('Backup folder changed after it was selected.')
+      const timestamp = new Date().toISOString().replaceAll(':', '-').replace(/\.\d{3}Z$/, 'Z')
+      const base = options.fileName.replace(/\.(?:sql|zip)$/i, '')
+      const finalName = `${base}${options.appendTimestamp ? `-${timestamp}` : ''}${options.zip ? '.zip' : '.sql'}`
+      if (!SAFE_BACKUP_NAME.test(finalName)) throw new Error('Backup file name is invalid.')
+      const destination = resolve(directory, finalName); if (resolve(destination, '..') !== directory) throw new Error('Backup must be saved directly inside the selected folder.')
+      event.sender.send('database-tools:backup:progress', { jobId, progress: { phase: 'write', completed: 0, total: 1, detail: finalName } })
+      const output = await encodeBackupFile(backup.sql, options)
+      await writeFile(destination, output, { flag: 'wx', mode: 0o600 }); await chmod(destination, 0o600)
+      const owned = await readOwnedBackups(); owned.push(destination); await writeOwnedBackups(owned)
+      if (options.autoDeleteDays > 0 || options.autoDeleteCount > 0) {
+        event.sender.send('database-tools:backup:progress', { jobId, progress: { phase: 'cleanup', completed: 0, total: owned.length, detail: 'Checking assistant-created backup files' } })
+        const result = await cleanupOwnedBackupFiles(directory, owned, options.autoDeleteDays, options.autoDeleteCount)
+        await writeOwnedBackups(result.paths)
+      }
+      return { path: destination, rows: backup.rows, skipped: backup.skipped }
+    } finally { backupJobs.delete(jobId) }
+  })
+  ipcMain.handle('database-tools:backup:cancel', (_event, jobId: string) => { backupJobs.get(jobId)?.abort() })
+  ipcMain.handle('database-tools:restore:select-file', async () => {
+    const window = BrowserWindow.getFocusedWindow(); const selected = window ? await dialog.showOpenDialog(window, { title: 'Select backup file', properties: ['openFile'], filters: [{ name: 'Backup files', extensions: ['sql', 'zip'] }] }) : await dialog.showOpenDialog({ title: 'Select backup file', properties: ['openFile'], filters: [{ name: 'Backup files', extensions: ['sql', 'zip'] }] })
+    if (selected.canceled || !selected.filePaths[0]) return null
+    const filePath = selected.filePaths[0]; const info = await lstat(filePath); if (!info.isFile() || info.isSymbolicLink() || info.size > 50 * 1024 * 1024) throw new Error('Restore file must be a regular file under 50 MB.')
+    const selectionId = randomUUID(); const contents = await readFile(filePath); selectedRestoreFiles.set(selectionId, contents)
+    let preview: string | undefined
+    try { preview = await decodeBackupFile(contents) } catch (error) { if (!(error instanceof Error && error.message.includes('password'))) throw error }
+    return { name: filePath.split(/[\\/]/).at(-1) ?? filePath, contents: preview, selectionId }
+  })
+  ipcMain.handle('database-tools:restore:preview', async (_event, selectionId: string, password: string) => { const file = selectedRestoreFiles.get(selectionId); if (!file) throw new Error('Select a backup file again before previewing.'); return decodeBackupFile(file, password || undefined) })
+  ipcMain.handle('database-tools:restore:run-selected', async (event, connectionId: string, database: string, confirmation: string, selectionId: string, password: string, errorPolicy: 'abort' | 'ignore' | 'log', jobId: string) => {
+    assertTarget(connectionId, database); if (confirmation !== database) throw new Error(`Restore requires typing the destination database name: ${database}.`)
+    const file = selectedRestoreFiles.get(selectionId); if (!file || file.length > 50 * 1024 * 1024) throw new Error('Select a backup file again before restoring.')
+    if (!['abort', 'ignore', 'log'].includes(errorPolicy) || !jobId || restoreJobs.has(jobId)) throw new Error('Invalid restore job request.')
+    const controller = new AbortController(); const job = { controller, connectionId, executionId: `${jobId}:0` }; restoreJobs.set(jobId, job); let statementIndex = 0
+    try { const script = await decodeBackupFile(file, password || undefined); await driver.setDatabase(connectionId, database); const report = await restoreBackup(database, confirmation, script, async (statement) => { job.executionId = `${jobId}:${++statementIndex}`; await driver.executeSql(connectionId, statement, job.executionId) }, errorPolicy !== 'abort', controller.signal, (progress) => event.sender.send('database-tools:restore:progress', { jobId, progress })); selectedRestoreFiles.delete(selectionId); return report }
+    finally { restoreJobs.delete(jobId) }
+  })
+  ipcMain.handle('database-tools:restore:cancel', (_event, jobId: string) => { const job = restoreJobs.get(jobId); if (job) { job.controller.abort(); void driver.cancelQuery(job.connectionId, job.executionId).catch(() => undefined) } })
   ipcMain.handle('database-tools:select-backup', async () => {
     const options = { title: 'Restore Database...', properties: ['openFile'] as ('openFile')[], filters: [{ name: 'SQL backup', extensions: ['sql'] }] }
     const window = BrowserWindow.getFocusedWindow(); const selected = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
@@ -181,12 +266,9 @@ export function registerDatabaseToolsIpc(deps: IpcDeps): void {
     await driver.setDatabase(targetConnectionId, targetDatabase)
     if (dropIfExists) {
       const objects = await driver.listDatabaseObjects(targetConnectionId, targetDatabase)
-      const order = ['trigger', 'event', 'procedure', 'function', 'view', 'table'] as const
       await driver.executeSql(targetConnectionId, 'SET FOREIGN_KEY_CHECKS=0')
       try {
-        for (const kind of order) for (const object of objects.filter((item) => item.kind === kind)) {
-          await driver.executeSql(targetConnectionId, `DROP ${kind.toUpperCase()} IF EXISTS ${quote(targetDatabase)}.${quote(object.name)}`)
-        }
+        for (const statement of buildDropObjectStatements(targetDatabase, objects)) await driver.executeSql(targetConnectionId, statement)
       } finally { await driver.executeSql(targetConnectionId, 'SET FOREIGN_KEY_CHECKS=1') }
     }
     const report = await restoreBackup(targetDatabase, targetDatabase, backup.sql, async (statement) => { await driver.executeSql(targetConnectionId, statement) })

@@ -21,20 +21,28 @@ try {
     await page.locator('.workbench').waitFor()
   }
   const openDatabaseAction = async (title, selector) => {
-    await page.locator('summary').filter({ hasText: 'Database' }).click()
+    await page.locator('summary').filter({ hasText: /^Database$/ }).click()
     await page.locator('.menu-popup .menu-action').filter({ hasText: new RegExp(title, 'i') }).last().click()
     await page.locator(selector).waitFor()
   }
-  const capture = async (menuTitle, selector, basename) => {
+  const capture = async (menuTitle, selector, basename, prepare) => {
     await chooseTheme('light')
     await openDatabaseAction(menuTitle, selector)
-    await page.screenshot({ path: join(evidenceDirectory, `${basename}-light.png`) })
+    if (prepare) await prepare(page)
+    if (basename === 'backup-restore') await page.locator('.backup-wizard').screenshot({ path: join(evidenceDirectory, `${basename}-light.png`) })
+    else await page.screenshot({ path: join(evidenceDirectory, `${basename}-light.png`) })
     await chooseTheme('dark')
-    await page.screenshot({ path: join(evidenceDirectory, `${basename}-dark.png`) })
+    if (prepare) await prepare(page)
+    if (basename === 'backup-restore') await page.locator('.backup-wizard').screenshot({ path: join(evidenceDirectory, `${basename}-dark.png`) })
+    else await page.screenshot({ path: join(evidenceDirectory, `${basename}-dark.png`) })
   }
   await capture('Database documentation', '.documenter-panel', 'documenter-cover')
+  await capture('Master-Detail Browser', '.master-detail-panel', 'master-detail-browser')
+  await capture('Copy Databases', '.copy-databases-panel', 'copy-databases')
+  await capture('Find Invalid Objects', '.database-tools-panel', 'find-invalid-objects', (currentPage) => currentPage.locator('.database-tools-tabs').getByRole('button', { name: /Find Invalid Objects/ }).click())
+  await capture('Backup / Restore', '.database-tools-panel', 'backup-restore', (currentPage) => currentPage.locator('.database-tools-tabs').getByRole('button', { name: /Backup\/Restore/ }).click())
   await capture('Report Designer', '.report-pivot-panel', 'report-pivot-dnd')
-  console.log(`Documenter and Report/Pivot screenshots saved in ${evidenceDirectory}`)
+  console.log(`Documenter, Copy Databases, Master-Detail, Database Tools and Report/Pivot screenshots saved in ${evidenceDirectory}`)
 } finally {
   if (app) {
     const child = app.process()

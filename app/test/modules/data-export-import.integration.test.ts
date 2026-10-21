@@ -3,24 +3,24 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { MysqlDriver } from '../../src/main/db/MysqlDriver.js'
 import { createDefaultConnection } from '../../src/shared/connectionDefaults.js'
 import { exportData, importData } from '../../src/modules/data-export-import/index.js'
+import { mysqlTestPrefix } from '../mysqlTestNames.js'
 
 const enabled = process.env.MYSQL_INTEGRATION === '1'
 describe.skipIf(!enabled)('data import/export MySQL integration', () => {
   const driver = new MysqlDriver()
-  const suffix = `${process.pid}_${Date.now()}`
-  const database = `imex_test_${suffix}`
-  const table = `imex_${suffix}`
+  const prefix = mysqlTestPrefix('import_export')
+  const database = prefix
+  const table = `${prefix}_rows`
   let connectionId = ''
 
   afterAll(async () => {
     if (!connectionId) return
-    await driver.executeSql(connectionId, `DROP DATABASE IF EXISTS \`${database}\``)
-    await driver.disconnect(connectionId)
+    try { await driver.executeSql(connectionId, `DROP DATABASE IF EXISTS \`${database}\``) } finally { await driver.disconnect(connectionId) }
   })
 
   it('imports and streams 100k rows without collecting the export in memory', async () => {
     connectionId = await driver.connect({
-      ...createDefaultConnection('imex-integration', 'Import/export integration'),
+      ...createDefaultConnection(mysqlTestPrefix('connection'), 'Import/export integration'),
       host: process.env.MYSQL_HOST ?? '127.0.0.1',
       port: Number(process.env.MYSQL_PORT ?? 33067),
       user: process.env.MYSQL_USER ?? 'root',

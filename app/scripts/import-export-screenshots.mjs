@@ -1,14 +1,15 @@
-/* global process, console, setTimeout, clearTimeout */
+/* global process, console, setTimeout, clearTimeout, document */
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { once } from 'node:events'
 import mysql from 'mysql2/promise'
 import { _electron as electron } from 'playwright'
+import { mysqlTestPrefix } from './mysql-test-prefix.mjs'
 
-const suffix = `${process.pid}_${Date.now()}`
-const database = `imex_ui_${suffix}`
-const table = `items_${suffix}`
+const testPrefix = mysqlTestPrefix('import_export_ui')
+const database = testPrefix
+const table = `${testPrefix}_items`
 const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-imex-ui-'))
 const admin = await mysql.createConnection({ host: process.env.MYSQL_HOST ?? '127.0.0.1', port: Number(process.env.MYSQL_PORT ?? 33067), user: process.env.MYSQL_USER ?? 'root', password: process.env.MYSQL_PASSWORD ?? 'integration-only' })
 let app
@@ -58,7 +59,9 @@ try {
     await page.locator('.io-footer button.button-primary').click()
     await page.locator('.io-source-list').waitFor()
     await page.screenshot({ path: join(evidenceDirectory, `import-export-source-${theme.toLowerCase()}.png`) })
-    await page.locator('.panel-dialog-close').click()
+    await page.locator('.io-footer button.button-primary').click()
+    await page.screenshot({ path: join(evidenceDirectory, `import-export-zip-${theme.toLowerCase()}.png`) })
+    await page.evaluate(() => [...document.querySelectorAll('.panel-dialog-close')].at(-1)?.click())
   }
   console.log(`Import/export screenshots saved in ${evidenceDirectory}`)
 } finally {

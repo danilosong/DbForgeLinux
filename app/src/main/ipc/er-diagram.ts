@@ -8,6 +8,9 @@ export function registerERDiagramIpc({ driver, userDataDir }: IpcDeps): void {
   const store = new VirtualRelationStore(`${userDataDir}/er-diagram`)
   ipcMain.handle('er-diagram:load', async (_event, activeConnectionId: string, database: string, connectionId: string) => {
     if (!activeConnectionId || !connectionId || !database.trim()) throw new Error('Selecione uma conexão e um database.')
+    const counts = await driver.queryRows(activeConnectionId, "SELECT COUNT(*) AS total FROM information_schema.tables WHERE table_schema = ? AND table_type = 'BASE TABLE'", [database])
+    const tableCount = Number(counts[0]?.total ?? 0)
+    if (tableCount > 250) throw new Error(`O diagrama aceita até 250 tabelas por vez. Esta database tem ${tableCount}; remova tabelas do diagrama ou selecione um conjunto menor.`)
     const [schema, relations] = await Promise.all([
       inspectDatabase((sql, parameters) => driver.queryRows(activeConnectionId, sql, parameters), database),
       store.read(connectionId, database)

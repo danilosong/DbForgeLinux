@@ -83,7 +83,7 @@ describe('IPC runtime guard', () => {
 
     const git = wrapIpcHandler('source-control:push', () => 'ok', config, () => true)
     const gitEvent = { ...event, sender: { ...event.sender, id: 92 } }
-    for (let i = 0; i < 8; i++) await git(gitEvent, '/tmp/repo')
-    expect(() => git(gitEvent, '/tmp/repo')).toThrow(/rate limit/)
+    for (let i = 0; i < 8; i++) await git(gitEvent, '/tmp/repo', true)
+    expect(() => git(gitEvent, '/tmp/repo', true)).toThrow(/rate limit/)
   })
 })

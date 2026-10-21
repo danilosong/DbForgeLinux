@@ -8,26 +8,26 @@ import { generateData } from '../../src/modules/data-generation/index.js'
 import { compareData } from '../../src/modules/data-compare/index.js'
 import { writeDocumentation } from '../../src/modules/documenter/index.js'
 import type { DatabaseModel, TableModel } from '../../src/modules/schema/model.js'
+import { mysqlTestPrefix } from '../mysqlTestNames.js'
 
 const enabled = process.env.MYSQL_INTEGRATION === '1'
 describe.skipIf(!enabled)('M14, M9 Data Compare e M15 MySQL integration', () => {
   const driver = new MysqlDriver()
-  const suffix = `${process.pid}_${Date.now()}`
-  const db = `imex_${suffix}`
-  const sourceDb = `cmp_a_${suffix}`
-  const targetDb = `cmp_b_${suffix}`
+  const prefix = mysqlTestPrefix('data_generator_compare_docs')
+  const db = `${prefix}_generated`
+  const sourceDb = `${prefix}_source`
+  const targetDb = `${prefix}_target`
   let connectionId = ''
 
   afterAll(async () => {
     if (connectionId) {
-      await driver.executeSql(connectionId, `DROP DATABASE IF EXISTS \`${db}\`; DROP DATABASE IF EXISTS \`${sourceDb}\`; DROP DATABASE IF EXISTS \`${targetDb}\`;`)
-      await driver.disconnect(connectionId)
+      try { await driver.executeSql(connectionId, `DROP DATABASE IF EXISTS \`${db}\`; DROP DATABASE IF EXISTS \`${sourceDb}\`; DROP DATABASE IF EXISTS \`${targetDb}\`;`) } finally { await driver.disconnect(connectionId) }
     }
   })
 
   it('generates 100k FK rows, synchronizes A to B, and writes documentation artifacts', async () => {
     connectionId = await driver.connect({
-      ...createDefaultConnection('m14-integration', 'Data modules integration'), host: process.env.MYSQL_HOST ?? '127.0.0.1',
+      ...createDefaultConnection(mysqlTestPrefix('connection'), 'Data modules integration'), host: process.env.MYSQL_HOST ?? '127.0.0.1',
       port: Number(process.env.MYSQL_PORT ?? 33067), user: 'root', password: 'integration-only'
     })
     await driver.executeSql(connectionId, `CREATE DATABASE \`${db}\`; CREATE DATABASE \`${sourceDb}\`; CREATE DATABASE \`${targetDb}\`;`)
@@ -78,7 +78,9 @@ describe.skipIf(!enabled)('M14, M9 Data Compare e M15 MySQL integration', () => 
     try {
       const artifacts = await writeDocumentation(schema, { outputDirectory, formats: ['html', 'markdown'], includeDiagram: true })
       expect((await readFile(artifacts.html!, 'utf8')).startsWith('<!doctype html>')).toBe(true)
-      expect((await readFile(artifacts.markdown!, 'utf8')).startsWith('# Database documentation')).toBe(true)
+      const markdown = await readFile(artifacts.markdown!, 'utf8')
+      expect(markdown.startsWith('---')).toBe(true)
+      expect(markdown).toContain('# Database documentation')
       expect((await readFile(artifacts.diagram!, 'utf8')).startsWith('<svg')).toBe(true)
     } finally { await rm(outputDirectory, { recursive: true, force: true }) }
   }, 240_000)

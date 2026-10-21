@@ -27,11 +27,11 @@ export function explorerContextMenu(kind: 'table' | 'view' | 'procedure' | 'func
     action('duplicateObject'), scriptMenu(), ...commonObjectTail()
   ]
   if (kind === 'view') return [
-    action('openEditor'), action('openData'), action('selectAllRows'), separator, action('exportData'), scriptItem('create'),
+    action('openEditor'), action('openData'), action('selectAllRows'), separator, action('exportData'), scriptMenu(),
     sendTo(), action('editPrivileges'), action('showDetails'), separator, action('deleteObject', 'Delete'), separator, action('refresh', 'F5'), action('properties', 'Ctrl+W, P')
   ]
   if (kind === 'procedure' || kind === 'function' || kind === 'trigger' || kind === 'event') return [
-    action('openEditor'), scriptItem('create'), scriptItem('drop'), sendTo(), action('editPrivileges'), action('showDetails'), separator,
+    action('openEditor'), scriptMenu(), sendTo(), action('editPrivileges'), action('showDetails'), separator,
     action('deleteObject', 'Delete'), separator, action('refresh', 'F5'), action('properties', 'Ctrl+W, P')
   ]
   if (kind === 'database') return [
@@ -40,7 +40,7 @@ export function explorerContextMenu(kind: 'table' | 'view' | 'procedure' | 'func
     action('refresh', 'F5'), action('properties', 'Ctrl+W, P')
   ]
   return [
-    action('newDatabase'), action('newConnection'), separator, action('refresh', 'F5'), action('tableMaintenance'), action('flush'), separator,
+    action('newDatabase'), action('newConnection'), separator, action('refresh', 'F5'), action('tableMaintenance'), action('flush'), sendTo(), separator,
     action('editPrivileges'), action('serverDetails'), action('properties', 'Ctrl+W, P')
   ]
 }

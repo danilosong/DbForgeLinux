@@ -1,6 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import { MysqlDriver } from '../src/main/db/MysqlDriver.js'
 import { createDefaultConnection } from '../src/shared/connectionDefaults.js'
+import { mysqlTestPrefix } from './mysqlTestNames.js'
 
 const enabled = process.env.MYSQL_INTEGRATION === '1'
 describe.skipIf(!enabled)('MySQL driver risk-flow integration', () => {
@@ -11,7 +12,7 @@ describe.skipIf(!enabled)('MySQL driver risk-flow integration', () => {
 
   it('kills a server-side streaming query when canceled, then reuses the pool', async () => {
     connectionId = await driver.connect({
-      ...createDefaultConnection('stream-cancel-risk', 'Streaming cancel risk'),
+      ...createDefaultConnection(mysqlTestPrefix('stream_cancel_connection'), 'Streaming cancel risk'),
       host: process.env.MYSQL_HOST ?? '127.0.0.1',
       port: Number(process.env.MYSQL_PORT ?? 33067),
       user: process.env.MYSQL_USER ?? 'root',

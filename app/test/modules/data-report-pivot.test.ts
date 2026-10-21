@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { buildPivot, buildPivotChart, exportPivot, type PivotConfig } from '../../src/modules/data-report-pivot/index.js'
+import { buildPivot, buildPivotChart, exportPivot, validateReportQuery, type PivotConfig } from '../../src/modules/data-report-pivot/index.js'
+import { createReportDesign, exportDesignedReport, parseReportDesign, placeReportField, reportPages } from '../../src/modules/data-report-pivot/report-design.js'
 
 describe('Data Report Pivot', () => {
   const rows = [
@@ -27,6 +28,18 @@ describe('Data Report Pivot', () => {
     expect(chart).toMatchObject({ type: 'bar', title: 'Sales', labels: ['year: 2024 Q1'], series: [{ values: [15] }] })
   })
 
+  it('moves report fields between bands, validates saved JSON, and paginates preview rows', () => {
+    const design = createReportDesign('Quarterly', ['region', 'sales'])
+    const updated = placeReportField(design, 'sales', 'Page Header')
+    expect(updated.bands.Detail).toEqual(['region'])
+    expect(updated.bands['Page Header']).toEqual(['sales'])
+    expect(parseReportDesign(JSON.stringify(updated))).toEqual(updated)
+    expect(() => parseReportDesign('{"version":2}')).toThrow('Unsupported report design')
+    expect(reportPages(Array.from({ length: 45 }, (_, index) => index), 20)).toHaveLength(3)
+    expect(exportDesignedReport(updated, ['region', 'sales'], [['<20>', 20]], 'html')).toContain('&lt;20&gt;')
+    expect(exportDesignedReport(updated, ['region', 'sales'], [['North', 20]], 'csv')).toBe('"region"\r\n"North"')
+  })
+
   it('exports escaped CSV, HTML, and a valid single-page PDF', () => {
     const pivot = buildPivot([{ name: 'A, "B"', value: 42 }], { rows: [{ field: 'name' }], columns: [], values: [{ field: 'value', aggregation: 'sum' }] })
     const csv = exportPivot(pivot, 'csv') as string
@@ -35,5 +48,12 @@ describe('Data Report Pivot', () => {
     const pdf = exportPivot(pivot, 'pdf') as Buffer
     expect(pdf.subarray(0, 8).toString('latin1')).toBe('%PDF-1.4')
     expect(pdf.toString('latin1')).toContain('%%EOF')
+  })
+
+  it('rejects report SELECT forms that write server-side files or lock rows, including comments between keywords', () => {
+    expect(() => validateReportQuery("SELECT * FROM items INTO OUTFILE '/tmp/export.csv'")).toThrow(/read-only SELECT/)
+    expect(() => validateReportQuery("SELECT * FROM items INTO/* hidden */DUMPFILE '/tmp/export.bin'")).toThrow(/read-only SELECT/)
+    expect(() => validateReportQuery('SELECT * FROM items FOR UPDATE')).toThrow(/read-only SELECT/)
+    expect(() => validateReportQuery('SELECT \'INTO OUTFILE\' AS message')).not.toThrow()
   })
 })

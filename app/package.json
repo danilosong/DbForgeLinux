@@ -18,7 +18,10 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
     "test": "vitest run",
+    "mysql:clean-test": "node scripts/mysql-clean-test.mjs",
+    "test:integration": "pnpm mysql:clean-test && MYSQL_INTEGRATION=1 vitest run",
     "perf:benchmark": "vitest run test/performance-benchmark.test.ts --reporter=verbose",
+    "perf:startup": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/startup-benchmark.mjs",
     "dist:deb": "pnpm build && electron-builder --linux deb --config packaging/electron-builder.yml",
     "smoke:e2e": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/smoke-e2e.mjs",
     "screenshots:updater": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/updater-screenshots.mjs",
@@ -29,9 +32,13 @@
     "screenshots:data-compare-options": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/data-compare-options-screenshots.mjs",
     "screenshots:editor-designer": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/editor-designer-screenshots.mjs",
     "screenshots:connection": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/connection-dialog-e2e.mjs",
-    "screenshots:compare-modules": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/compare-modules-screenshots.mjs"
+    "screenshots:compare-modules": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/compare-modules-screenshots.mjs",
+    "screenshots:report-card": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/report-card-screenshots.mjs",
+    "screenshots:source-control": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/source-control-screenshots.mjs",
+    "e2e:report-card": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE REPORT_CARD_REPEAT=10 xvfb-run -a node scripts/report-card-screenshots.mjs"
   },
   "dependencies": {
+    "@zip.js/zip.js": "^2.24.0",
     "debug": "^4.4.3",
     "electron-updater": "^6.8.9",
     "ms": "^2.1.3",

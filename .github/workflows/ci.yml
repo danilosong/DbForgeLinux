@@ -27,6 +27,8 @@ jobs:
           cache: pnpm
           cache-dependency-path: app/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      - name: Install 7-Zip for ZIP AES interoperability tests
+        run: sudo apt-get update && sudo apt-get install -y 7zip
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test
@@ -67,6 +69,12 @@ jobs:
           cache: pnpm
           cache-dependency-path: app/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
+      - run: pnpm mysql:clean-test
+        env:
+          MYSQL_HOST: 127.0.0.1
+          MYSQL_PORT: '33067'
+          MYSQL_USER: root
+          MYSQL_PASSWORD: integration-only
       - run: pnpm typecheck
       - run: pnpm test
         env:

@@ -6,10 +6,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { once } from 'node:events'
 import { _electron as electron } from 'playwright'
+import { mysqlTestPrefix } from './mysql-test-prefix.mjs'
 
 const appPath = join(process.cwd(), 'dist', 'linux-unpacked', existsSync(join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux')) ? 'dbforgelinux' : 'electron')
 const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-extras-ui-'))
 const evidenceDirectory = join(process.cwd(), '..', 'document', 'evidence', 'ui')
+const runPrefix = mysqlTestPrefix('extras_ui')
+const snippetName = `${runPrefix}_snippet`
 let app
 try {
   await mkdir(evidenceDirectory, { recursive: true })
@@ -42,26 +45,24 @@ try {
     await page.screenshot({ path: join(evidenceDirectory, `${name}-dark.png`) })
     await closePanel(title)
   }
-  await page.evaluate(async () => window.dbforge.queueSchemaUpdate({ connectionId: 'extras-ui-e2e', database: 'sample', source: 'Playwright sample', script: 'ALTER TABLE `customers` ADD COLUMN `nickname` VARCHAR(80);' }))
+  await page.evaluate(async ({ runPrefix }) => window.dbforge.queueSchemaUpdate({ connectionId: `${runPrefix}_connection`, database: runPrefix, source: `Playwright ${runPrefix}`, script: `ALTER TABLE \`${runPrefix}_table\` ADD COLUMN \`nickname\` VARCHAR(80);` }), { runPrefix })
   await capturePanel('Data Compare', '.compare-panel', 'data-compare')
   await capturePanel('Schema Compare', '.compare-panel', 'schema-compare', 'Database')
   await capturePanel('Schema Update Script', '.extras-schema-panel', 'schema-update')
   await capturePanel('Code Snippets', '.snippets-panel', 'code-snippets')
   await capturePanel('Toolbox', '.toolbox-panel', 'toolbox')
   await capturePanel('Find Object / Invalid Objects', '.database-tools-panel', 'database-tools')
-  await capturePanel('Database documentation', '.documenter-panel', 'documenter-cover', 'Database')
-  await capturePanel('Data Report / Pivot', '.report-pivot-panel', 'report-pivot-dnd', 'Database')
   await capturePanel('ER Diagram', '.er-panel', 'er-diagram')
   await openPanel('Code Snippets', '.snippets-panel')
   await page.getByRole('button', { name: 'New snippet' }).click()
-  await page.getByLabel('Name', { exact: true }).fill('Playwright sample')
+  await page.getByLabel('Name', { exact: true }).fill(snippetName)
   await page.getByLabel('Prefix', { exact: true }).fill('pwsel')
   await page.locator('.snippet-form textarea').fill('SELECT ${1:columns} FROM ${2:table};$0')
   await page.getByRole('button', { name: 'Save snippet' }).click()
-  await page.locator('.snippet-layout nav').getByRole('button', { name: /Playwright sample/ }).waitFor()
+  await page.locator('.snippet-layout nav').getByRole('button', { name: new RegExp(snippetName) }).waitFor()
   await closePanel('Code Snippets')
   await openPanel('Toolbox', '.toolbox-panel')
-  await page.locator('.toolbox-panel').getByRole('button', { name: /Playwright sample/ }).waitFor()
+  await page.locator('.toolbox-panel').getByRole('button', { name: new RegExp(snippetName) }).waitFor()
   await page.evaluate(async () => window.dbforge.removeSchemaUpdates((await window.dbforge.listSchemaUpdates()).map((item) => item.id)))
   console.log(`Extras screenshots saved in ${evidenceDirectory}`)
 } finally {

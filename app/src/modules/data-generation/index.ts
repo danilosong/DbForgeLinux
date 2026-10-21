@@ -21,15 +21,21 @@ function uniqueKey(values: unknown[]): string { return values.map((value) => Buf
 function orderTables(tables: TableModel[], database: string): TableModel[] {
   const byName = new Map(tables.map((table) => [table.name, table]))
   const active = new Set<string>(); const done = new Set<string>(); const ordered: TableModel[] = []
+  const path: string[] = []
   const visit = (table: TableModel): void => {
-    if (done.has(table.name) || active.has(table.name)) return
+    if (done.has(table.name)) return
+    if (active.has(table.name)) {
+      const cycleStart = path.indexOf(table.name)
+      throw new Error(`Cyclic foreign-key dependency cannot be generated safely in one pass: ${[...path.slice(cycleStart), table.name].join(' → ')}. Remove one table from the selection or seed the referenced rows first.`)
+    }
     active.add(table.name)
+    path.push(table.name)
     for (const fk of table.foreignKeys) {
       const sameDatabase = !fk.referencedDatabase || fk.referencedDatabase === database
       const parent = sameDatabase ? byName.get(fk.referencedTable) : undefined
       if (parent) visit(parent)
     }
-    active.delete(table.name); done.add(table.name); ordered.push(table)
+    path.pop(); active.delete(table.name); done.add(table.name); ordered.push(table)
   }
   tables.forEach(visit)
   return ordered

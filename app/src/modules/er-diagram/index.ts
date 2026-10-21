@@ -5,6 +5,7 @@ import type { DatabaseModel, ForeignKeyModel } from '../schema/model.js'
 import type { DiagramPoint, DiagramRelation, ERDiagram, VirtualRelationInput } from './types.js'
 
 export type { DiagramPoint, DiagramRelation, DiagramTable, ERDiagram, VirtualRelationInput } from './types.js'
+export { type RelationCardinality } from './types.js'
 const CARD_WIDTH = 260
 const LAYER_GAP = 100
 const ROW_GAP = 40
@@ -44,9 +45,9 @@ function physicalRelation(table: string, fk: ForeignKeyModel): DiagramRelation {
 
 export function buildDiagram(source: DatabaseModel, connectionId: string, virtualRelations: DiagramRelation[] = []): ERDiagram {
   const names = source.tables.map((table) => table.name)
-  const physical = source.tables.flatMap((table) => table.foreignKeys.filter((fk) => names.includes(fk.referencedTable)).map((fk) => physicalRelation(table.name, fk)))
+  const physical = source.tables.flatMap((table) => table.foreignKeys.filter((fk) => names.includes(fk.referencedTable)).map((fk) => ({ ...physicalRelation(table.name, fk), cardinality: relationCardinality(source, physicalRelation(table.name, fk)) })))
   const positions = autoLayout(names, physical.map((relation) => ({ from: relation.toTable, to: relation.fromTable })))
-  const validVirtuals = virtualRelations.filter((relation) => names.includes(relation.fromTable) && names.includes(relation.toTable))
+  const validVirtuals = virtualRelations.filter((relation) => names.includes(relation.fromTable) && names.includes(relation.toTable)).map((relation) => ({ ...relation, cardinality: relationCardinality(source, relation) }))
   return {
     version: 1, connectionId, database: source.name,
     tables: source.tables.map((table) => ({
@@ -60,6 +61,15 @@ export function buildDiagram(source: DatabaseModel, connectionId: string, virtua
     })),
     relations: [...physical, ...validVirtuals], virtualRelations: validVirtuals
   }
+}
+
+/** Cardinality from child (from) and referenced parent (to) ends of a relation. */
+export function relationCardinality(source: DatabaseModel, relation: DiagramRelation): import('./types.js').RelationCardinality {
+  const child = source.tables.find((table) => table.name === relation.fromTable)
+  const foreignKey = child?.foreignKeys.find((item) => item.name === relation.name && item.columns.join('\0') === relation.fromColumns.join('\0'))
+  const nullable = foreignKey ? foreignKey.columns.some((name) => child?.columns.find((column) => column.name === name)?.nullable) : relation.fromColumns.some((name) => child?.columns.find((column) => column.name === name)?.nullable)
+  const unique = Boolean(child?.indexes.some((index) => (index.kind === 'PRIMARY' || index.kind === 'UNIQUE') && index.columns.length === relation.fromColumns.length && index.columns.every((column, i) => column.name === relation.fromColumns[i])))
+  return { from: unique ? (nullable ? '0..1' : '1') : '0..N', to: nullable ? '0..1' : '1' }
 }
 
 export function moveTable(diagram: ERDiagram, tableName: string, position: DiagramPoint): ERDiagram {

@@ -78,6 +78,24 @@ describe('data generation', () => {
     expect(['active', 'inactive', 'pending']).toContain(generateValue({ ...context, column: status }))
   })
 
+  it('infers the expanded semantic catalog and produces stable localized values', () => {
+    const cases = [
+      [{ name: 'first_name', type: 'varchar(80)', nullable: false }, 'firstName'],
+      [{ name: 'phone_number', type: 'varchar(24)', nullable: false }, 'phone'],
+      [{ name: 'company_name', type: 'varchar(80)', nullable: false }, 'company'],
+      [{ name: 'website_url', type: 'varchar(120)', nullable: false }, 'url'],
+      [{ name: 'client_ip', type: 'varchar(24)', nullable: false }, 'ip'],
+      [{ name: 'record_uuid', type: 'char(36)', nullable: false }, 'uuid'],
+      [{ name: 'metadata', type: 'json', nullable: false }, 'json']
+    ] as const
+    for (const [column, kind] of cases) expect(inferKind(column)).toBe(kind)
+    const context = { random: seededRandom('catalog'), locale: 'pt-BR' as const, rowIndex: 0, table: parent, column: { name: 'record_uuid', type: 'char(36)', nullable: false } }
+    const firstValue = generateValue(context)
+    expect(firstValue).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+    expect(generateValue({ ...context, random: seededRandom('catalog') })).toBe(firstValue)
+    expect(generateValue({ ...context, column: { name: 'city', type: 'varchar(80)', nullable: false } })).toMatch(/São Paulo|Rio de Janeiro|Recife|Curitiba|Manaus/)
+  })
+
   it('starts generated unique numeric values after existing values and supports explicit unique values', async () => {
     const { driver } = mockDriver([{ id: 40, name: 'existing' }])
     const preview = await previewData({ schema, table: parent, count: 2, driver, connectionId: 'c', database: 'test', seed: 1 })
@@ -90,6 +108,14 @@ describe('data generation', () => {
     const { driver, inserts } = mockDriver()
     const controller = new AbortController(); controller.abort()
     await expect(generateData({ driver, connectionId: 'c', database: 'test', schema, tables: ['parents'], rowsPerTable: 1, signal: controller.signal })).rejects.toMatchObject({ name: 'AbortError' })
+    expect(inserts).toEqual([])
+  })
+
+  it('detects selected-table FK cycles before opening a generation transaction', async () => {
+    const a: TableModel = { ...parent, name: 'cycle_a', foreignKeys: [{ name: 'fk_a_b', columns: ['id'], referencedTable: 'cycle_b', referencedColumns: ['id'] }] }
+    const b: TableModel = { ...parent, name: 'cycle_b', foreignKeys: [{ name: 'fk_b_a', columns: ['id'], referencedTable: 'cycle_a', referencedColumns: ['id'] }] }
+    const { driver, inserts } = mockDriver()
+    await expect(generateData({ driver, connectionId: 'c', database: 'test', schema: { ...schema, tables: [a, b] }, rowsPerTable: 1 })).rejects.toThrow(/cyclic foreign-key dependency/i)
     expect(inserts).toEqual([])
   })
 })

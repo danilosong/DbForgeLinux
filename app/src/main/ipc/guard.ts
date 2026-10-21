@@ -34,6 +34,7 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'data-generator:inspect': [id, ident], 'data-generator:preview': [id, ident, ident, object, opt(s('string-number'))], 'data-generator:generate': [object],
   'report-pivot:load': [id, sql], 'report-pivot:build': [id, object], 'report-pivot:export': [object, enumOf('csv', 'xlsx')],
   'database-tools:search': [id, ident, text, object], 'database-tools:invalid': [id, ident], 'database-tools:backup': [id, ident, bool], 'database-tools:select-backup': [],
+  'database-tools:backup-directory': [], 'database-tools:backup-project:save': [object], 'database-tools:backup-project:load': [], 'database-tools:backup:run': [id, ident, object, id], 'database-tools:backup:cancel': [id], 'database-tools:restore:select-file': [], 'database-tools:restore:preview': [id, text], 'database-tools:restore:run-selected': [id, ident, text, id, text, enumOf('abort', 'ignore', 'log'), id], 'database-tools:restore:cancel': [id],
   'database-tools:format-select': [bool], 'database-tools:format-run': [s('array-text', { maxItems: 1000 }), bool, bool, object], 'database-tools:format-preview': [s('array-text', { maxItems: 1000 }), bool, object], 'database-tools:large-select': [], 'database-tools:large-run': [id, text, path, enumOf('utf8', 'utf16le', 'latin1', 'windows1252'), id], 'database-tools:large-cancel': [id], 'database-tools:large-error-action': [id, enumOf('stop', 'continue', 'ignore-all')],
   'database-tools:maintenance': [id, ident, enumOf('ANALYZE', 'OPTIMIZE', 'CHECK', 'REPAIR', 'CHECKSUM'), strings],
   'database-tools:restore': [id, ident, text, sql, opt(bool)], 'database-tools:copy': [id, ident, id, ident, text, bool, opt(bool)],
@@ -44,7 +45,7 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'db:result-read': [id, integer, integer], 'db:result-dispose': [id], 'db:cancel': [id, id], 'db:transaction-begin': [id], 'db:transaction-commit': [id], 'db:transaction-rollback': [id],
   'db:tables': [id, ident], 'db:objects': [id, ident], 'db:show-create': [id, ident, object], 'db:set-database': [id, ident],
   'file:open-sql': [], 'file:open-sql-path': [path], 'file:save-sql': [opt(path), sql],
-  'documenter:preview': [id, ident, opt(text)], 'documenter:generate': [object], 'documenter:open': [path], 'editor:metadata': [id, ident, opt(bool)], 'editor:invalidate-metadata': [id, opt(ident)],
+  'documenter:tree': [id, ident], 'documenter:preview': [id, ident, opt(text)], 'documenter:generate': [object], 'documenter:open': [path], 'editor:metadata': [id, ident, opt(bool)], 'editor:invalidate-metadata': [id, opt(ident)],
   'er-diagram:load': [id, ident, id], 'er-diagram:save-relations': [id, ident, objects], 'er-diagram:save-file': [object], 'er-diagram:open-file': [],
   'schema-update:list': [], 'schema-update:queue': [object], 'schema-update:queue-table': [id, ident, s('nullable-object'), object], 'schema-update:remove': [strings], 'schema-update:execute': [strings, trueOnly],
   'snippets:list': [], 'snippets:save': [object], 'snippets:delete': [id], 'snippets:import': [enumOf('en', 'pt-BR')], 'snippets:export': [enumOf('en', 'pt-BR')],
@@ -62,16 +63,19 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'routine-debugger:engine:inspect': [id], 'routine-debugger:engine:deploy': [id, trueOnly], 'routine-debugger:engine:remove': [id, trueOnly], 'routine-debugger:compile': [object],
   'routine-debugger:start': [object, s('array-null-text', { maxItems: 64 }), objects, bool, bool], 'routine-debugger:command': [id, enumOf('into', 'over', 'out', 'continue', 'stop'), opt(integer)],
   'routine-debugger:breakpoints': [id, objects], 'routine-debugger:watches': [id, strings], 'routine-debugger:snapshot': [id],
-  'schema-compare:compare': [id, ident, id, ident, opt(bool)], 'schema-compare:synchronize': [id, ident, sql, trueOnly],
+  'schema-compare:inspect': [id, ident], 'schema-compare:compare': [id, ident, id, ident, opt(bool)], 'schema-compare:load-offline': [enumOf('Scripts Folder', 'Snapshot')], 'schema-compare:compare-models': [object, object, opt(bool)], 'schema-compare:save-snapshot': [id, ident], 'schema-compare:synchronize': [id, ident, sql, trueOnly],
   'security:accounts': [id], 'security:details': [id, object], 'security:preview': [id, objects], 'security:apply': [id, objects, trueOnly],
   'service-control:list': [], 'service-control:action': [ident, enumOf('start', 'stop', 'restart')],
   'sessions:list': [id, opt(object)], 'sessions:details': [id, integer], 'sessions:kill': [id, intArray, enumOf('connection', 'query'), trueOnly],
   'sessions:variables': [id, opt(scope)], 'sessions:status': [id, opt(scope)], 'sessions:set-variable': [id, object, object],
-  'source-control:choose-repository': [], 'source-control:status': [path], 'source-control:init': [path], 'source-control:diff': [path, opt(s('relative-path')), opt(bool)],
+  'source-control:choose-repository': [], 'source-control:choose-project-folder': [], 'source-control:clone-repository': [text, path, ident], 'source-control:link-database': [object], 'source-control:has-remote': [path],
+  'source-control:status': [path], 'source-control:init': [path], 'source-control:diff': [path, opt(s('relative-path')), opt(bool)],
   'source-control:commit': [path, text, strings], 'source-control:branches': [path], 'source-control:create-branch': [path, ident], 'source-control:checkout-branch': [path, ident],
-  'source-control:delete-branch': [path, ident, trueOnly], 'source-control:fetch': [path], 'source-control:pull': [path], 'source-control:push': [path],
-  'source-control:log': [path, opt(integer)], 'source-control:commit-diff': [path, ident, opt(s('relative-path'))], 'source-control:create-project': [text],
-  'source-control:open-project': [], 'source-control:add-file': [path], 'source-control:write-script': [path, s('relative-path'), sql], 'source-control:export-schema': [id, ident, opt(path)]
+  'source-control:delete-branch': [path, ident, trueOnly], 'source-control:fetch': [path], 'source-control:pull': [path, trueOnly], 'source-control:push': [path, trueOnly],
+  'source-control:log': [path, opt(integer), opt(s('relative-path'))], 'source-control:commit-diff': [path, ident, opt(s('relative-path'))], 'source-control:create-project': [text],
+  'source-control:open-project': [], 'source-control:open-project-path': [path], 'source-control:recent-projects': [], 'source-control:close-project': [path],
+  'source-control:project-files': [path], 'source-control:read-scripts': [path, strings], 'source-control:apply-scripts': [id, ident, objects, trueOnly],
+  'source-control:add-file': [path], 'source-control:write-script': [path, s('relative-path'), sql], 'source-control:export-schema': [id, ident, opt(path)]
 }
 
 export interface TrustedRendererConfig { rendererFile: string; rendererUrl?: string }
@@ -185,7 +189,7 @@ export function isTrustedIpcFrame(event: GuardEvent, config: TrustedRendererConf
 function rateLimit(channel: string, senderId: number, args: readonly unknown[], now = Date.now()): void {
   const mutatingSql = channel === 'db:execute' && typeof args[1] === 'string' && /\b(drop|truncate|alter|create|grant|revoke|insert|update|delete|replace)\b/i.test(args[1])
   const queryBuilderMutation = channel === 'query-builder:execute' && typeof args[1] === 'object' && args[1] !== null && ['INSERT', 'UPDATE', 'DELETE'].includes(String((args[1] as Record<string, unknown>).statement))
-  const destructive = mutatingSql || queryBuilderMutation || /^(grid-editing:apply|security:apply|sessions:kill|database-tools:(restore|copy)|object-editor:(apply|apply-table|mutate)|schema-compare:synchronize|schema-update:execute|import-export:import|data-generator:generate|routine-debugger:(engine:(deploy|remove)|start)|service-control:action|updater:apply|source-control:(commit|init|checkout-branch|delete-branch|fetch|pull|push))$/.test(channel)
+  const destructive = mutatingSql || queryBuilderMutation || /^(grid-editing:apply|security:apply|sessions:kill|database-tools:(restore|copy|maintenance|large-run|format-run)|object-editor:(apply|apply-table|mutate)|schema-compare:synchronize|schema-update:execute|import-export:import|data-generator:generate|routine-debugger:(engine:(deploy|remove)|start)|service-control:action|updater:apply|source-control:(commit|init|checkout-branch|delete-branch|fetch|pull|push))$/.test(channel)
   const git = channel.startsWith('source-control:')
   const limit = destructive ? 8 : git ? 30 : channel === 'db:execute' ? 60 : 120
   const key = `${senderId}:${channel}`

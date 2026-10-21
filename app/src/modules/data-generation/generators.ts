@@ -39,6 +39,11 @@ const countryCodes: Record<Locale, string[]> = {
   'pt-BR': ['BR', 'AR', 'CA', 'DE', 'ES', 'FR', 'GB', 'IT', 'JP', 'US'],
   'en-US': ['AU', 'BR', 'CA', 'DE', 'ES', 'FR', 'GB', 'IN', 'JP', 'US']
 }
+const cities: Record<Locale, string[]> = { 'pt-BR': ['São Paulo', 'Rio de Janeiro', 'Recife', 'Curitiba', 'Manaus'], 'en-US': ['Austin', 'Boston', 'Chicago', 'Denver', 'Seattle'] }
+const companies: Record<Locale, string[]> = { 'pt-BR': ['Aurora Sistemas', 'Horizonte Serviços', 'Ipê Comércio', 'Norte Digital'], 'en-US': ['Blue Oak Labs', 'Cedar Works', 'Northstar Supply', 'Pioneer Systems'] }
+const domains = ['example.test', 'mail.test', 'sample.test']
+const first = (locale: Locale): string[] => firstNames[locale]
+const last = (locale: Locale): string[] => lastNames[locale]
 
 function pick<T>(values: readonly T[], random: Random): T { return values[Math.floor(random() * values.length)] }
 
@@ -101,12 +106,23 @@ export interface GenerationContext {
 export function inferKind(column: ColumnModel, spec?: GeneratorSpec): GeneratorSpec['kind'] {
   if (spec?.kind && spec.kind !== 'auto') return spec.kind
   const label = `${column.name} ${column.comment ?? ''}`.toLowerCase()
+  if (/uuid|guid/.test(label)) return 'uuid'
   if (/email|e-mail|correo/.test(label)) return 'email'
+  if (/phone|mobile|telephone|telefone|celular|fone/.test(label)) return 'phone'
+  if (/url|website|uri|site/.test(label)) return 'url'
+  if (/(?:^|[_\s])ip(?:[_\s]|$)|ip_address/.test(label)) return 'ip'
+  if (/company|empresa|organization/.test(label)) return 'company'
+  if (/city|cidade/.test(label)) return 'city'
+  if (/json/.test(column.type.toLowerCase())) return 'json'
+  if (/first.?name|given.?name|primeiro.?nome/.test(label)) return 'firstName'
+  if (/last.?name|surname|sobrenome/.test(label)) return 'lastName'
   if (/country|country_code|pais|país/.test(label)) return 'country'
   if (/status|state|active|enabled|state_code/.test(label) || /^enum\s*\(/i.test(column.type)) return 'status'
-  if (/name|nome|first|last/.test(label)) return 'name'
+  if (/name|nome/.test(label)) return 'name'
   if (/address|endereco|street|logradouro/.test(label)) return 'address'
-  if (/date|data|time|created|updated/.test(label)) return 'date'
+  if (/money|price|amount|salary|cost|valor|preco|preço|currency/.test(label) || /decimal|numeric/.test(column.type.toLowerCase())) return 'money'
+  if (/time|hour|hora/.test(label)) return 'time'
+  if (/(?:^|[_\s])(date|data|created|updated)(?:[_\s]|$)/.test(label)) return 'date'
   if (/lorem|description|descricao|comment|comentario/.test(label)) return 'lorem'
   if (/int|decimal|numeric|float|double|year/.test(column.type.toLowerCase())) return 'number'
   if (/char|text|enum|set|json/.test(column.type.toLowerCase())) return 'lorem'
@@ -135,14 +151,29 @@ export function generateValue(ctx: GenerationContext): unknown {
     if (!ctx.foreignValues?.length) throw new Error(`Nenhum valor de origem disponível para ${column.name}.`)
     return pick(ctx.foreignValues, random)
   }
-  if (kind === 'name') return `${pick(firstNames[locale], random)} ${pick(lastNames[locale], random)}`
-  if (kind === 'email') return `${pick(firstNames[locale], random).toLowerCase()}.${pick(lastNames[locale], random).toLowerCase()}${ctx.rowIndex}@example.test`
+  if (kind === 'name') return `${pick(first(locale), random)} ${pick(last(locale), random)}`
+  if (kind === 'firstName') return pick(first(locale), random)
+  if (kind === 'lastName') return pick(last(locale), random)
+  if (kind === 'email') return `${pick(first(locale), random).toLowerCase()}.${pick(last(locale), random).toLowerCase()}${ctx.rowIndex}@${pick(domains, random)}`
+  if (kind === 'phone') return locale === 'pt-BR' ? `+55 11 9${String(Math.floor(random() * 1e8)).padStart(8, '0')}` : `+1 555 ${String(Math.floor(random() * 1e7)).padStart(7, '0')}`
+  if (kind === 'url') return `https://www.${pick(companies[locale], random).toLowerCase().replace(/[^a-z0-9]+/g, '')}.example.test/`
+  if (kind === 'ip') return `192.0.2.${1 + Math.floor(random() * 253)}`
+  if (kind === 'uuid') return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (char) => { const value = Math.floor(random() * 16); return (char === 'x' ? value : (value & 3) | 8).toString(16) })
+  if (kind === 'company') return pick(companies[locale], random)
+  if (kind === 'city') return pick(cities[locale], random)
   if (kind === 'country') return pick(countryCodes[locale], random)
   if (kind === 'status') {
     const values = /^enum\s*\((.*)\)$/i.exec(column.type)?.[1]?.match(/'((?:''|\\.|[^'])*)'/g)?.map((value) => value.slice(1, -1).replaceAll("''", "'"))
     return values?.length ? pick(values, random) : pick(['active', 'inactive', 'pending', 'archived'], random)
   }
   if (kind === 'address') return `${pick(streets[locale], random)}, ${1 + Math.floor(random() * 9999)}`
+  if (kind === 'time') return `${String(Math.floor(random() * 24)).padStart(2, '0')}:${String(Math.floor(random() * 60)).padStart(2, '0')}:${String(Math.floor(random() * 60)).padStart(2, '0')}`
+  if (kind === 'json') return JSON.stringify({ id: ctx.rowIndex + 1, name: pick(first(locale), random), active: random() < 0.5 })
+  if (kind === 'enum') return generateEnum(column, random)
+  if (kind === 'money') {
+    const min = spec?.min ?? 0; const max = spec?.max ?? 10000
+    return Math.round((min + random() * (max - min)) * 100) / 100
+  }
   if (kind === 'date') {
     const day = Math.floor(random() * 365 * 12)
     const date = new Date(Date.UTC(2020, 0, 1 + day))
@@ -161,6 +192,12 @@ export function generateValue(ctx: GenerationContext): unknown {
   if (/int|decimal|numeric|float|double|year/i.test(column.type)) return Math.floor(random() * 1000)
   if (/blob|binary/i.test(column.type)) return Buffer.from(`sample-${ctx.rowIndex}`)
   return pick(lorem[locale], random)
+}
+
+function generateEnum(column: ColumnModel, random: Random): string {
+  const values = /^enum\s*\((.*)\)$/i.exec(column.type)?.[1]?.match(/'(?:''|\\.|[^'])*'/g)?.map((value) => value.slice(1, -1).replaceAll("''", "'"))
+  if (!values?.length) throw new Error(`A coluna ${column.name} não declara valores ENUM.`)
+  return pick(values, random)
 }
 
 export function isUniqueColumn(table: TableModel, columnName: string): boolean {

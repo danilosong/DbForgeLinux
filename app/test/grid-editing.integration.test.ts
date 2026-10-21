@@ -2,25 +2,27 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { MysqlDriver } from '../src/main/db/MysqlDriver.js'
 import { buildGridChange, type EditableResult } from '../src/modules/grid-editing/index.js'
 import { createDefaultConnection } from '../src/shared/connectionDefaults.js'
+import { mysqlTestPrefix } from './mysqlTestNames.js'
 
 const enabled = process.env.MYSQL_INTEGRATION === '1'
 describe.skipIf(!enabled)('grid editing MySQL integration', () => {
   const driver = new MysqlDriver()
   let connectionId = ''
-  const database = `grid_edit_${process.pid}`
-  const table = 'rows_for_edit'
+  const prefix = mysqlTestPrefix('grid_edit')
+  const database = prefix
+  const table = `${prefix}_rows`
   const descriptor: EditableResult = { database, table, keyColumns: ['id'], columns: [
     { name: 'id', dataType: 'int', columnType: 'int', nullable: false, defaultValue: null, extra: '' },
     { name: 'value', dataType: 'varchar', columnType: 'varchar(80)', nullable: false, defaultValue: null, extra: '' }
   ] }
 
   beforeAll(async () => {
-    connectionId = await driver.connect({ ...createDefaultConnection('grid-edit-test', 'Grid edit integration'), host: process.env.MYSQL_HOST ?? '127.0.0.1', port: Number(process.env.MYSQL_PORT ?? 33067), user: process.env.MYSQL_USER ?? 'root', password: process.env.MYSQL_PASSWORD ?? 'integration-only' })
+    connectionId = await driver.connect({ ...createDefaultConnection(prefix, 'Grid edit integration'), host: process.env.MYSQL_HOST ?? '127.0.0.1', port: Number(process.env.MYSQL_PORT ?? 33067), user: process.env.MYSQL_USER ?? 'root', password: process.env.MYSQL_PASSWORD ?? 'integration-only' })
     await driver.executeSql(connectionId, `CREATE DATABASE \`${database}\``)
     await driver.executeSql(connectionId, `CREATE TABLE \`${database}\`.\`${table}\` (id INT PRIMARY KEY, value VARCHAR(80) NOT NULL) ENGINE=InnoDB`)
     await driver.executeSql(connectionId, `INSERT INTO \`${database}\`.\`${table}\` VALUES (1, 'before')`)
   })
-  afterAll(async () => { if (connectionId) { await driver.executeSql(connectionId, `DROP DATABASE IF EXISTS \`${database}\``).catch(() => undefined); await driver.disconnect(connectionId) } })
+  afterAll(async () => { if (connectionId) { try { await driver.executeSql(connectionId, `DROP DATABASE IF EXISTS \`${database}\``).catch(() => undefined) } finally { await driver.disconnect(connectionId) } } })
 
   it('posts keyed changes atomically, detects concurrent modifications, and honors document rollback', async () => {
     const row = { id: 1, value: 'before' }

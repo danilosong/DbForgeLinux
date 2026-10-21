@@ -1,3 +1,5 @@
 export * from './types.js'
 export * from './pivot.js'
 export * from './export.js'
+export * from './report-design.js'
+export * from './query-validation.js'

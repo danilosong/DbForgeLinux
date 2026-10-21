@@ -42,6 +42,13 @@ describe('documenter', () => {
     expect(output.markdown).toContain('logo: ACME')
     expect(generateDocumentation(model, { coverPage: false }).html).not.toContain('class="cover"')
   })
+  it('excludes individual columns and indexes from generated documentation', () => {
+    const output = generateDocumentation(model, { excludedColumns: ['users.display|name'], excludedIndexes: ['users.PRIMARY'] })
+    expect(output.html).not.toContain('display|name')
+    expect(output.html).not.toContain('<strong>PRIMARY</strong>')
+    expect(output.markdown).not.toContain('display\\|name')
+    expect(output.markdown).not.toContain('PRIMARY (PRIMARY)')
+  })
 
   it('writes HTML, Markdown, SVG and PDF bytes through the isolated printer interface', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'dbforge-doc-'))

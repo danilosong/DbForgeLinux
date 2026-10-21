@@ -1,0 +1,7 @@
+import type { ScriptErrorAction } from '../../../../modules/database-tools/largeScript.js'
+import { useI18n } from '../i18n/useI18n.js'
+
+export function ExecutionErrorDialog(props: { message: string; onAction(action: ScriptErrorAction): void }): React.JSX.Element {
+  const { t } = useI18n()
+  return <div className="execution-error-backdrop"><section className="execution-error-dialog" role="alertdialog" aria-modal="true" aria-labelledby="execution-error-title"><h2 id="execution-error-title">{props.message}</h2><p>{t('utilities.dialogHelp')}</p><div><button className="button-danger" onClick={() => props.onAction('stop')}>{t('utilities.stop')}</button><button className="button-primary" onClick={() => props.onAction('continue')}>{t('utilities.continue')}</button><button onClick={() => props.onAction('ignore-all')}>{t('utilities.ignoreAll')}</button></div></section><style>{`.execution-error-backdrop{position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,.48);display:grid;place-items:center;padding:24px}.execution-error-dialog{width:min(520px,100%);background:var(--surface-raised);color:var(--text);border:1px solid var(--border);border-radius:8px;box-shadow:0 16px 48px rgba(0,0,0,.38);padding:20px}.execution-error-dialog h2{font-size:16px;line-height:1.4;margin:0 0 10px}.execution-error-dialog p{color:var(--muted)}.execution-error-dialog>div{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}.execution-error-dialog button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}`}</style></div>
+}

@@ -7,10 +7,11 @@ import { join } from 'node:path'
 import { once } from 'node:events'
 import { _electron as electron } from 'playwright'
 import mysql from 'mysql2/promise'
+import { mysqlTestPrefix } from './mysql-test-prefix.mjs'
 
 const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-connection-ui-'))
 const evidenceRoot = join(process.cwd(), '..', 'document', 'evidence', 'ui', '01-connection')
-const database = `martelo_connection_${process.pid}`
+const database = mysqlTestPrefix('connection_dialog')
 const admin = await mysql.createConnection({ host: '127.0.0.1', port: 33067, user: 'root', password: process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only' })
 let app
 try {
