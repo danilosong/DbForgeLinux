@@ -21,6 +21,7 @@ export function mergeSettings(value: unknown): AppSettings {
     execution: { ...defaultSettings.execution, ...safeObject(data.execution) },
     grid: { ...defaultSettings.grid, ...safeObject(data.grid) },
     connections: { ...defaultSettings.connections, ...safeObject(data.connections) },
+    updater: { ...defaultSettings.updater, ...safeObject(data.updater) },
     shortcuts: { ...defaultSettings.shortcuts, ...safeObject(data.shortcuts), bindings }
   }
   validateSettings(merged)
@@ -50,6 +51,9 @@ export function validateSettings(settings: AppSettings): void {
   bounded(settings.grid.maxTextLength, 100, 1000000, 'Grid text length')
   bounded(settings.connections.connectionTimeoutSeconds, 1, 600, 'Connection timeout')
   bounded(settings.connections.commandTimeoutSeconds, 0, 86400, 'Connection command timeout')
+  if (!['auto', 'dev', 'release'].includes(settings.updater.channel)) throw new Error('Invalid update channel.')
+  if (!['startup', 'daily'].includes(settings.updater.interval)) throw new Error('Invalid update interval.')
+  if (settings.updater.ignoredVersion.length > 40 || !/^[\w.+-]*$/.test(settings.updater.ignoredVersion)) throw new Error('Invalid ignored update version.')
   if (!/^#[0-9a-f]{6}$/i.test(settings.appearance.accent)) throw new Error('Accent color must be a six digit hex color.')
   if (!['auto', 'light', 'dark', 'high-contrast'].includes(settings.appearance.theme)) throw new Error('Invalid theme.')
   if (!['system', 'en', 'pt-BR', 'es'].includes(settings.language.locale)) throw new Error('Invalid language.')

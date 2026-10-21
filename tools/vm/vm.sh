@@ -34,7 +34,7 @@ qemu_base() {
     -drive "file=$DISK,if=none,id=sys,format=qcow2,cache=writeback,discard=unmap" -device ich9-ahci,id=ahci -device ide-hd,drive=sys,bus=ahci.0
     -device qemu-xhci -device usb-tablet -device usb-kbd
     -vga std
-    -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:${VM_RDP_PORT:-33389}-:3389" -device e1000e,netdev=n0
+    -netdev "user,id=n0,hostfwd=tcp:127.0.0.1:${VM_RDP_PORT:-33389}-:3389${VM_NO_NET:+,restrict=on}" -device e1000e,netdev=n0
     -rtc base=localtime
     -qmp "unix:$QMP,server,nowait"
     -pidfile "$PIDFILE"
@@ -45,7 +45,7 @@ qemu_base() {
     args+=(-drive "if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd" -drive "if=pflash,format=raw,file=$VARS")
   fi
   if [ -d "$SHARE" ] && [ -n "$(ls -A "$SHARE" 2>/dev/null)" ]; then
-    args+=(-drive "file=fat:ro:$SHARE,format=raw,if=none,id=share,readonly=on" -device ide-hd,drive=share,bus=ahci.1)
+    args+=(-drive "file=fat:ro:$SHARE,format=raw,if=none,id=share,readonly=on" -device usb-storage,drive=share,removable=on)
   fi
   printf '%s\0' "${args[@]}"
 }
@@ -106,6 +106,7 @@ VM Windows simples para estudar o dbForge original (QEMU/KVM)
   $0 shot [arq.png]           screenshot da tela do Windows (para o Claude analisar)
   $0 type "texto" | key ctrl alt delete | click X Y [right|double]   controle por teclado/mouse
 Rede: o Windows enxerga o host em 10.0.2.2 (ex.: MySQL de teste em 10.0.2.2:33067). RDP do host: 127.0.0.1:33389.
+VM_NO_NET=1 inicia sem internet (útil no OOBE do Windows para criar conta local offline).
 Variáveis: VM_DIR VM_RAM(6G) VM_CPUS(4) VM_DISK_SIZE(60G) VM_UEFI=1 VM_DISPLAY=gtk|none VM_W/VM_H (resolução do convidado p/ cliques)
 USAGE
 }

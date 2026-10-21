@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { ConnectionRecord } from '../../../../../shared/contracts.js'
 import type { ExportFormat, ImportFormat, ImportMode } from '../../../../../modules/data-export-import/types.js'
 import type { ImportExportTemplate } from '../../../../../shared/contracts/import-export.js'
-import { usePanelConnection } from '../registry'
+import { usePanelConnection, usePanelNavigation } from '../registry'
 import { exportFormats, importFormats } from './formats.js'
 
 type Direction = 'export' | 'import'
@@ -14,6 +14,9 @@ export default function Panel(): React.JSX.Element {
   const { t } = useI18n()
 
   const activeConnection = usePanelConnection()
+  const { selectedObject, selectedIntent } = usePanelNavigation()
+  const selectedExplorerTable = selectedObject?.object.name
+  const selectedExplorerDatabase = selectedObject?.database
   const [records, setRecords] = useState<ConnectionRecord[]>([]); const [connection, setConnection] = useState('')
   const [direction, setDirection] = useState<Direction>('export'); const [exportFormat, setExportFormat] = useState<ExportFormat>('csv'); const [importFormat, setImportFormat] = useState<ImportFormat>('csv')
   const [query, setQuery] = useState('SELECT * FROM `table_name` LIMIT 1000'); const [table, setTable] = useState('')
@@ -34,6 +37,15 @@ export default function Panel(): React.JSX.Element {
   }, [direction, step, query, sourceFile, table, mapping, mode, keys])
   useEffect(() => { void window.dbforge.getConnections().then((items) => { const selected = items.find((item) => item.id === activeConnection?.recordId || item.name === activeConnection?.name)?.id ?? items[0]?.id ?? ''; setRecords(items); setConnection(selected) }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar conexões.')); void window.dbforge.listImportExportTemplates().then(setTemplates).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar templates.')) }, [activeConnection?.name, activeConnection?.recordId])
   useEffect(() => window.dbforge.onImportExportProgress(jobId, setProgress), [jobId])
+  useEffect(() => {
+    if (!selectedExplorerTable || !selectedExplorerDatabase) return
+    const target = selectedExplorerTable.replaceAll('`', '``')
+    const databaseName = selectedExplorerDatabase.replaceAll('`', '``')
+    setTable(selectedExplorerTable)
+    setQuery(`SELECT * FROM \`${databaseName}\`.\`${target}\` LIMIT 1000`)
+    if (selectedIntent === 'importData') setDirection('import')
+    else if (selectedIntent === 'exportData') setDirection('export')
+  }, [selectedExplorerTable, selectedExplorerDatabase, selectedIntent])
 
   async function chooseSource(): Promise<void> {
     setMessage('')

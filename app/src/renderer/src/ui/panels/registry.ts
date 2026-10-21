@@ -31,10 +31,14 @@ import type { TextMatch } from '../../modules/navigation/search.js'
 export const PanelConnectionContext = createContext<ConnectionSummary | undefined>(undefined)
 export const PanelEditorContext = createContext<{ sql: string; onFindings(findings: CodeAnalysisFinding[]): void; insertText?(text: string, snippet?: boolean): void }>({ sql: '', onFindings: () => undefined })
 export interface SelectedExplorerObject { connection: ConnectionSummary; database: string; object: DatabaseObject }
-export const PanelNavigationContext = createContext<{ matches: Array<TextMatch & { documentId: string; documentLabel: string }>; onNavigate(match: TextMatch & { documentId: string }): void; selectedObject?: SelectedExplorerObject; onSelectSchemaObject(object: DatabaseObject): void; onOpenObjectViewer(): void; metadata: EditorMetadata }>({ matches: [], onNavigate: () => undefined, onSelectSchemaObject: () => undefined, onOpenObjectViewer: () => undefined, metadata: { database: '', databases: [], objects: [], routines: [] } })
+export const PanelNavigationContext = createContext<{ matches: Array<TextMatch & { documentId: string; documentLabel: string }>; onNavigate(match: TextMatch & { documentId: string }): void; selectedObject?: SelectedExplorerObject; selectedIntent?: string; onSelectSchemaObject(object: DatabaseObject): void; onOpenObjectViewer(): void; metadata: EditorMetadata }>({ matches: [], onNavigate: () => undefined, onSelectSchemaObject: () => undefined, onOpenObjectViewer: () => undefined, metadata: { database: '', databases: [], objects: [], routines: [] } })
 
 export function usePanelConnection(): ConnectionSummary | undefined {
  return useContext(PanelConnectionContext)
+}
+export function usePanelNavigation(): { selectedObject?: SelectedExplorerObject; selectedIntent?: string } {
+ const { selectedObject, selectedIntent } = useContext(PanelNavigationContext)
+ return { selectedObject, selectedIntent }
 }
 
 export interface PanelRegistration{id:string;titleKey:string;icon:string;component:ComponentType;presentation?:'document'|'modal'|'dock'}

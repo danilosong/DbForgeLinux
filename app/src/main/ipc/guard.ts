@@ -47,6 +47,7 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'schema-update:list': [], 'schema-update:queue': [object], 'schema-update:queue-table': [id, ident, s('nullable-object'), object], 'schema-update:remove': [strings], 'schema-update:execute': [strings, trueOnly],
   'snippets:list': [], 'snippets:save': [object], 'snippets:delete': [id], 'snippets:import': [enumOf('en', 'pt-BR')], 'snippets:export': [enumOf('en', 'pt-BR')],
   'history:list': [opt(object)], 'history:record': [object],
+  'updater:check': [], 'updater:apply': [object], 'updater:cancel': [], 'updater:status': [],
   'import-export:export': [id, sql, outputFormat, opt(object), opt(id)], 'import-export:select-source': [id, fileFormat, opt(object)], 'import-export:preview-export': [id, sql, id],
   'import-export:import': [id, ident, fileFormat, enumOf('append', 'upsert', 'update', 'delete'), strings, opt(object), opt(id)], 'import-export:cancel': [id], 'import-export:templates:list': [],
   'import-export:templates:save': [object], 'import-export:templates:delete': [id],

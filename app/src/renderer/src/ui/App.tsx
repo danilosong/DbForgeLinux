@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Editor from '@monaco-editor/react'
 import type { editor as MonacoEditor, IRange } from 'monaco-editor'
-import type { ConnectionRecord, ConnectionSummary, ConnectionTestResult, DatabaseObject, DatabaseObjectKind, EditorMetadata, ObjectEditorTarget, QueryResult, SqlExecutionHistoryEntry } from '../../../shared/contracts'
+import type { ConnectionRecord, ConnectionSummary, ConnectionTestResult, DatabaseObject, DatabaseObjectKind, EditorMetadata, EditorObjectMetadata, ObjectEditorTarget, QueryResult, SqlExecutionHistoryEntry } from '../../../shared/contracts'
 import type { CodeAnalysisFinding } from '../../../shared/contracts/code-analysis.js'
+import type { UpdateStatus } from '../../../shared/contracts/updater.js'
 import { splitSqlStatements, statementAtOffset } from '../../../shared/sqlStatements'
-import { buildSqlSuggestions } from '../../../modules/editor/completion.js'
+import { applyKeywordCaseAtOffset, buildSqlSuggestions } from '../../../modules/editor/completion.js'
 import { formatSql } from '../../../modules/editor/formatter.js'
 import { createDefaultConnection } from '../../../shared/connectionDefaults'
 import { Button } from './components/Button'
 import { ConnectionManager } from './components/ConnectionManager'
 import { ConnectionPropertiesDialog, type ConnectionAction, type ConnectionSecrets } from './components/ConnectionPropertiesDialog'
-import { DatabaseExplorer } from './components/DatabaseExplorer'
+import { DatabaseExplorer, type ExplorerContext } from './components/DatabaseExplorer'
+import { buildExplorerSql, quoteExplorerIdentifier, type ScriptKind } from './components/explorerContextMenu.js'
 import { AboutDialog } from './components/AboutDialog'
 import { ResultGrid } from './components/ResultGrid'
 import { PanelDialog } from './components/PanelDialog'
@@ -41,9 +43,14 @@ export default function App(): React.JSX.Element {
   const [newDialog, setNewDialog] = useState(false)
   const [managerOpen, setManagerOpen] = useState(false)
   const [aboutOpen, setAboutOpen] = useState(false)
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false)
+  const [updateLogOpen, setUpdateLogOpen] = useState(false)
+  const [updateState, setUpdateState] = useState<UpdateStatus>({ phase: 'idle', currentVersion: '0.1.0', summary: [], log: [] })
   const [openPanel, setOpenPanel] = useState<string | null>(null)
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => (localStorage.getItem('dbforge.theme') as ThemeMode | null) ?? 'auto')
   const [appSettings, setAppSettings] = useState<AppSettings>(structuredClone(defaultSettings))
+  const appSettingsRef = useRef(appSettings)
+  appSettingsRef.current = appSettings
   const [userSnippets, setUserSnippets] = useState<UserSnippet[]>([])
   const userSnippetsRef = useRef(userSnippets)
   userSnippetsRef.current = userSnippets
@@ -65,6 +72,10 @@ export default function App(): React.JSX.Element {
   const [executionId, setExecutionId] = useState('')
   const [resultIndex, setResultIndex] = useState(-1)
   const [queryElapsed, setQueryElapsed] = useState(0)
+  const [serverVersion, setServerVersion] = useState('')
+  const [editorPosition, setEditorPosition] = useState({ line: 1, column: 1 })
+  const [completionDetails, setCompletionDetails] = useState<EditorObjectMetadata | undefined>()
+  const [resultPresentation, setResultPresentation] = useState<'grid' | 'text'>('grid')
   const [autoCommit, setAutoCommit] = useState(true)
   const [transactionRevision, setTransactionRevision] = useState(0)
   const [transactionCommitted, setTransactionCommitted] = useState(true)
@@ -90,6 +101,8 @@ export default function App(): React.JSX.Element {
   const [findInFiles, setFindInFiles] = useState(false)
   const [findMatches, setFindMatches] = useState<Array<TextMatch & { documentId: string; documentLabel: string }>>([])
   const [selectedExplorerObject, setSelectedExplorerObject] = useState<SelectedExplorerObject>()
+  const [selectedExplorerIntent, setSelectedExplorerIntent] = useState<string>()
+  const [selectedExplorerContext, setSelectedExplorerContext] = useState<ExplorerContext>()
   const [status, setStatus] = useState('Ready')
   const [output, setOutput] = useState<OutputEntry[]>([])
   const [loadError, setLoadError] = useState('')
@@ -97,6 +110,16 @@ export default function App(): React.JSX.Element {
   const theme = themeMode === 'auto' ? (systemDark ? 'dark' : 'light') : themeMode
   const currentConnection = active[0]
   const currentRecord = records.find((record) => record.id === currentConnection?.recordId)
+  useEffect(() => {
+    if (!currentConnection) { setServerVersion(''); return }
+    let cancelled = false
+    const record = records.find((item) => item.id === currentConnection.recordId)
+    if (!record) return
+    void window.dbforge.testConnection(record).then((result) => {
+      if (!cancelled) setServerVersion(result.serverVersion)
+    }).catch(() => { if (!cancelled) setServerVersion('') })
+    return () => { cancelled = true }
+  }, [currentConnection, records])
   const activeObjectTab = documents.find((tab) => tab.id === selectedDocument)?.objectEditor
   const activePanelTab = documents.find((tab) => tab.id === selectedDocument)?.panelId
   const activeSql = selectedDocument !== 'start' && !activeObjectTab && !activePanelTab
@@ -127,6 +150,17 @@ export default function App(): React.JSX.Element {
     const onChange = (event: MediaQueryListEvent): void => setSystemDark(event.matches)
     media.addEventListener('change', onChange)
     return () => { media.removeEventListener('change', onChange); window.removeEventListener('dbforge:settings-changed', onSettingsChanged); window.removeEventListener('dbforge:close-panel', onClosePanel) }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    const unsubscribe = window.dbforge.onUpdaterStatus((next) => {
+      if (!active) return
+      setUpdateState(next)
+      if (next.phase === 'available') setUpdateDialogOpen(true)
+    })
+    void window.dbforge.updaterStatus().then((next) => { if (active) setUpdateState(next) }).catch(() => undefined)
+    return () => { active = false; unsubscribe() }
   }, [])
 
   useEffect(() => {
@@ -190,6 +224,35 @@ export default function App(): React.JSX.Element {
     setOutput((current) => [...current, { timestamp, origin, message: maskSecrets(message), tone }].slice(-500))
   }
 
+  async function checkForUpdates(): Promise<void> {
+    try {
+      const next = await window.dbforge.updaterCheck()
+      setUpdateState(next)
+      if (next.phase === 'available' || next.phase === 'error') setUpdateDialogOpen(true)
+    } catch (error) { setUpdateState((current) => ({ ...current, phase: 'error', message: error instanceof Error ? error.message : 'Update check failed.' })); setUpdateDialogOpen(true) }
+  }
+
+  async function applyUpdate(): Promise<void> {
+    try {
+      let next = await window.dbforge.updaterApply(false)
+      if (next.phase === 'blocked' && (queryBusy || (!autoCommit && !transactionCommitted))) {
+        if (window.confirm(next.message ?? t('updates.busyConfirm'))) next = await window.dbforge.updaterApply(true)
+      }
+      setUpdateState(next)
+    } catch (error) { setUpdateState((current) => ({ ...current, phase: 'error', message: error instanceof Error ? error.message : 'Update failed.' })) }
+  }
+
+  async function ignoreUpdate(): Promise<void> {
+    if (!updateState.newVersion) return
+    try {
+      const { settings } = await window.dbforge.loadSettings()
+      const next = await window.dbforge.saveSettings({ ...settings, updater: { ...settings.updater, ignoredVersion: updateState.newVersion } })
+      setAppSettings(next)
+      setUpdateState((current) => ({ ...current, phase: 'up-to-date', message: undefined, summary: [] }))
+      setUpdateDialogOpen(false)
+    } catch (error) { log('Updater', error instanceof Error ? error.message : 'Could not ignore this version.', 'error') }
+  }
+
   function openNewConnection(): void {
     setDialogRecord(createDefaultConnection(crypto.randomUUID(), 'root@localhost'))
     setNewDialog(true)
@@ -205,6 +268,7 @@ export default function App(): React.JSX.Element {
   }
 
   async function runConnectionAction(record: ConnectionRecord, secrets: ConnectionSecrets, remember: boolean, action: ConnectionAction): Promise<ConnectionTestResult | void> {
+    if (action === 'connect' && !record.database?.trim() && !window.confirm(t('explorer.connect.noDefaultDatabase'))) return
     const ephemeral: string[] = []
     const requestRecord = structuredClone(record)
     const storedRecord = structuredClone(record)
@@ -533,7 +597,7 @@ export default function App(): React.JSX.Element {
       if (next.length) setPanelVisible(false)
       if (pageQueries[selectedDocument] && (next[0]?.rowCount ?? next[0]?.rows.length ?? 0) < 1000) setPageQueries((current) => { const updated = { ...current }; delete updated[selectedDocument]; return updated })
       setErrors([])
-      setStatus('Ready')
+      setStatus(t('editor.query.success'))
       setQueryElapsed(performance.now() - startedAt)
       await persistExecutionHistory(sql, startedAt, true, next.reduce((sum, result) => sum + (result.rowCount ?? result.rows.length), 0))
       if (currentConnection.database && /\b(CREATE|ALTER|DROP|TRUNCATE|RENAME)\b/i.test(sql)) {
@@ -711,6 +775,98 @@ export default function App(): React.JSX.Element {
     openRegisteredPanel('object-viewer')
   }
 
+  async function handleExplorerContextAction(action: string, context: ExplorerContext): Promise<void> {
+    const { connection, database, object } = context
+    const db = database ?? connection.database ?? ''
+    const record = records.find((item) => item.id === connection.recordId)
+    if (record?.advanced.readOnly && ['newTable', 'importData', 'generateData', 'truncateTable', 'duplicateObject', 'editPrivileges', 'rename', 'deleteObject'].includes(action)) {
+      log('Explorer', t('explorer.readOnly'), 'warning')
+      return
+    }
+    setSelectedExplorerContext(context)
+    if (object) setSelectedExplorerObject({ connection, database: db, object })
+    else setSelectedExplorerObject(undefined)
+    if (context.target === 'database' && database) { try { await window.dbforge.setDatabase(connection.id, database) } catch { /* keep the selected database context for the panel */ } }
+    setSelectedExplorerIntent(action)
+    const openScript = (sql: string, label: string): void => { openSqlDocument(label, sql) }
+    if (action.startsWith('sendTo.')) {
+      const destination = action.slice('sendTo.'.length)
+      if (destination === 'queryBuilder') openRegisteredPanel('query-builder')
+      else if (destination === 'masterDetail' && object && db) selectTop(connection, db, object)
+      else if (destination === 'databaseDiagram') openRegisteredPanel('er-diagram')
+      else if (destination === 'dataReport' || destination === 'chartDesigner' || destination === 'pivotTable') openRegisteredPanel('data-report-pivot')
+      return
+    }
+    const script = /^(create|drop|dropAndCreate|select|insert|update|delete|crud)\.(newSqlWindow|file|clipboard)$/.exec(action)
+    if (script && object && db) {
+      const operation = script[1] as ScriptKind
+      let createSql = ''
+      if (operation === 'create' || operation === 'dropAndCreate') {
+        try { createSql = await window.dbforge.showCreateObject(connection.id, db, object) }
+        catch (error) { log('Explorer', error instanceof Error ? error.message : 'Unable to load object definition.', 'error'); return }
+      }
+      const sql = buildExplorerSql(operation, object.kind, db, object.name, createSql)
+      const destination = script[2]
+      if (destination === 'newSqlWindow') openScript(sql, `${operation.toUpperCase()} ${object.name}`)
+      else if (destination === 'clipboard') { try { await navigator.clipboard.writeText(sql) } catch { log('Explorer', 'Could not copy SQL to the clipboard.', 'warning') } }
+      else {
+        try { await window.dbforge.saveSqlFile(undefined, sql) }
+        catch (error) { log('Explorer', error instanceof Error ? error.message : 'Could not save SQL file.', 'error') }
+      }
+      return
+    }
+    if (action === 'newTable' && db) { openObjectEditor(connection, db, 'table', 'new_table', true); return }
+    if (action === 'newDatabase') { openScript('CREATE DATABASE `database_name`;', 'New Database'); return }
+    if (action === 'newConnection') { openNewConnection(); return }
+    if (action === 'openEditor' && object && db) { openObjectEditor(connection, db, object.kind, object.name); return }
+    if (action === 'openData' && object && db) { selectTop(connection, db, object); return }
+    if (action === 'selectAllRows' && object && db) { openScript(`SELECT * FROM ${quoteExplorerIdentifier(db)}.${quoteExplorerIdentifier(object.name)};`, `${object.name} · all rows`); return }
+    if (action === 'exportData' || action === 'importData') { openRegisteredPanel('import-export'); return }
+    if (action === 'generateData') { openRegisteredPanel('data-generator'); return }
+    if (action === 'tableMaintenance' && !object) { openRegisteredPanel('database-tools'); return }
+    if (action === 'tableMaintenance' && object && db) {
+      const target = `${quoteExplorerIdentifier(db)}.${quoteExplorerIdentifier(object.name)}`
+      openScript([`ANALYZE TABLE ${target};`, `CHECK TABLE ${target};`, `OPTIMIZE TABLE ${target};`, `REPAIR TABLE ${target};`].join('\n'), `Maintenance · ${object.name}`)
+      return
+    }
+    if (action === 'flush') {
+      const target = object && db ? ` ${quoteExplorerIdentifier(db)}.${quoteExplorerIdentifier(object.name)}` : ''
+      openScript(`FLUSH TABLES${target};`, 'Flush Tables')
+      return
+    }
+    if (action === 'truncateTable' && object && db) {
+      if (!window.confirm(t('explorer.truncate.prompt', [object.name]))) return
+      await truncateTable(connection, db, object)
+      return
+    }
+    if (action === 'duplicateObject' && object && db) {
+      const name = window.prompt(t('explorer.duplicate.prompt'), `${object.name}_copy`)?.trim()
+      if (name) openScript(`CREATE TABLE ${quoteExplorerIdentifier(db)}.${quoteExplorerIdentifier(name)} LIKE ${quoteExplorerIdentifier(db)}.${quoteExplorerIdentifier(object.name)};`, `Duplicate ${object.name}`)
+      return
+    }
+    if (action === 'editPrivileges') { openRegisteredPanel('security'); return }
+    if ((action === 'showDetails' || action === 'properties') && object) { showObjectProperties(connection, db, object); return }
+    if (action === 'showDetails' || action === 'properties') { openRegisteredPanel(context.target === 'server' ? 'sessions' : 'database-tools'); return }
+    if (action === 'serverDetails') { openRegisteredPanel('sessions'); return }
+    if (action === 'backup' && db) { try { await window.dbforge.backupDatabase(connection.id, db, true) } catch (error) { log('Explorer', error instanceof Error ? error.message : 'Backup failed.', 'error') }; return }
+    if (action === 'rename' && object && db) {
+      const next = window.prompt(t('explorer.rename.prompt', [object.name]), object.name)?.trim()
+      if (next && next !== object.name) await renameTable(connection, db, object, next)
+      return
+    }
+    if (action === 'deleteObject' && object && db) {
+      if (!window.confirm(t('explorer.delete.prompt', [object.kind, object.name]))) return
+      await dropObject(connection, db, object)
+      return
+    }
+    if (action === 'refresh') {
+      if (context.target === 'server') { const record = records.find((item) => item.id === connection.recordId); if (record) await expandRecord(record) }
+      else if (database) await loadObjects(connection, database)
+      else { const record = records.find((item) => item.id === connection.recordId); if (record) await expandRecord(record) }
+      return
+    }
+  }
+
   const runFindRef = useRef(runFind)
   runFindRef.current = runFind
   useEffect(() => { if (findOpen) runFindRef.current() }, [findOpen, findQuery, findRegex, findCase, findScope, findInFiles, documents, sqlByDocument, selectedDocument])
@@ -725,8 +881,9 @@ export default function App(): React.JSX.Element {
         editor.trigger('toolbox', snippet ? 'editor.action.insertSnippet' : 'type', snippet ? { snippet: text } : { text })
       }
     }
-    const navigationContext = { matches: navigationMatches, onNavigate: navigateToMatch, selectedObject: selectedExplorerObject, onSelectSchemaObject: (object: DatabaseObject) => { if (currentConnection && editorMetadata.database) { setSelectedExplorerObject({ connection: currentConnection, database: editorMetadata.database, object }); openRegisteredPanel('object-viewer') } }, onOpenObjectViewer: () => openRegisteredPanel('object-viewer'), metadata: editorMetadata }
-    return <PanelConnectionContext.Provider value={currentConnection}><PanelEditorContext.Provider value={editorContext}><PanelNavigationContext.Provider value={navigationContext}><Component /></PanelNavigationContext.Provider></PanelEditorContext.Provider></PanelConnectionContext.Provider>
+    const panelConnection = selectedExplorerContext ? { ...selectedExplorerContext.connection, database: selectedExplorerContext.database ?? selectedExplorerContext.connection.database } : currentConnection
+    const navigationContext = { matches: navigationMatches, onNavigate: navigateToMatch, selectedObject: selectedExplorerContext?.object && selectedExplorerContext.database ? { connection: selectedExplorerContext.connection, database: selectedExplorerContext.database, object: selectedExplorerContext.object } : selectedExplorerObject, selectedIntent: selectedExplorerIntent, onSelectSchemaObject: (object: DatabaseObject) => { if (currentConnection && editorMetadata.database) { setSelectedExplorerObject({ connection: currentConnection, database: editorMetadata.database, object }); openRegisteredPanel('object-viewer') } }, onOpenObjectViewer: () => openRegisteredPanel('object-viewer'), metadata: editorMetadata }
+    return <PanelConnectionContext.Provider value={panelConnection}><PanelEditorContext.Provider value={editorContext}><PanelNavigationContext.Provider value={navigationContext}><Component /></PanelNavigationContext.Provider></PanelEditorContext.Provider></PanelConnectionContext.Provider>
   }
 
   function renderErrorList(): React.JSX.Element {
@@ -771,12 +928,23 @@ export default function App(): React.JSX.Element {
         else if (customBinding.command === 'Format Selection') formatEditor('selection')
         else if (customBinding.command === 'Format Current Statement') formatEditor('statement')
         else if (customBinding.command === 'Code Analysis') void runCodeAnalysis()
-        else if (customBinding.command === 'Stop Execution') void cancelSql()
+        else if (customBinding.command.startsWith('Stop Execution')) void cancelSql()
         else if (customBinding.command === 'Comment Selection') editorRef.current?.trigger('keyboard', 'editor.action.commentLine', null)
         else if (customBinding.command === 'Comment Selection (alternate)') editorRef.current?.trigger('keyboard', 'editor.action.commentLine', null)
         else if (customBinding.command === 'Show Database Explorer') setExplorerVisible((value) => !value)
         else if (customBinding.command === 'Show Output') { setPanelVisible(true); setPanelTab('Output') }
         else if (customBinding.command === 'Show Error List') { setPanelVisible(true); setPanelTab('Error List') }
+        else if (customBinding.command === 'Show Security Manager') openRegisteredPanel('security')
+        else if (customBinding.command === 'Show Session Manager') openRegisteredPanel('sessions')
+        else if (customBinding.command === 'Show Server Variables') openRegisteredPanel('database-tools')
+        else if (customBinding.command === 'Show Service Control') openRegisteredPanel('service-control')
+        else if (customBinding.command === 'Show Schema View') openRegisteredPanel('schema-view')
+        else if (customBinding.command === 'Show Data Viewer') openRegisteredPanel('object-viewer')
+        else if (customBinding.command === 'Show Document Outline') openRegisteredPanel('document-outline')
+        else if (customBinding.command === 'Show Code Snippets') openRegisteredPanel('snippets-manager')
+        else if (customBinding.command === 'Show Project Explorer') setExplorerVisible(true)
+        else if (customBinding.command === 'Show Properties' && selectedExplorerObject) showObjectProperties(selectedExplorerObject.connection, selectedExplorerObject.database, selectedExplorerObject.object)
+        else if (customBinding.command === 'View Start Page') setSelectedDocument('start')
         else if (customBinding.command === 'Options') openRegisteredPanel('options')
         else if (customBinding.command === 'Source Control Manager') openRegisteredPanel('source-control')
         else if (customBinding.command === 'Find in Database') openRegisteredPanel('database-tools')
@@ -793,7 +961,11 @@ export default function App(): React.JSX.Element {
         else window.dispatchEvent(new CustomEvent('dbforge:shortcut-command', { detail: { command: customBinding.command } }))
         return
       }
-      if (event.key === 'F4' && selectedExplorerObject) { event.preventDefault(); showObjectProperties(selectedExplorerObject.connection, selectedExplorerObject.database, selectedExplorerObject.object) }
+      const targetIsInput = event.target instanceof HTMLElement && (event.target.matches('input, textarea, select') || event.target.isContentEditable)
+      if (event.key === 'F2' && selectedExplorerObject?.object.kind === 'table' && !activeSql && !targetIsInput) { event.preventDefault(); const { connection, database, object } = selectedExplorerObject; const next = window.prompt(t('explorer.rename.prompt', [object.name]), object.name)?.trim(); if (next && next !== object.name) void renameTable(connection, database, object, next) }
+      else if (event.key === 'F5' && selectedExplorerObject && !activeSql && !targetIsInput) { event.preventDefault(); void loadObjects(selectedExplorerObject.connection, selectedExplorerObject.database) }
+      else if (event.key === 'Delete' && selectedExplorerObject && !activeSql && !targetIsInput) { event.preventDefault(); const { connection, database, object } = selectedExplorerObject; if (window.confirm(t('explorer.delete.prompt', [object.kind, object.name]))) void dropObject(connection, database, object) }
+      else if (event.key === 'F4' && selectedExplorerObject) { event.preventDefault(); showObjectProperties(selectedExplorerObject.connection, selectedExplorerObject.database, selectedExplorerObject.object) }
       else if (ctrl && event.key.toLowerCase() === 'f' && activeSql) { event.preventDefault(); openFind(false, false) }
       else if (ctrl && event.key.toLowerCase() === 'h' && activeSql) { event.preventDefault(); openFind(true, false) }
       else if (ctrl && event.shiftKey && event.key.toLowerCase() === 'f') { event.preventDefault(); openFind(false, true) }
@@ -808,26 +980,22 @@ export default function App(): React.JSX.Element {
 
   useEffect(() => () => completionProviderRef.current?.dispose(), [])
 
-  function cycleDocument(direction: number): void {
-    const index = documents.findIndex((tab) => tab.id === selectedDocument)
-    setSelectedDocument(documents[(index + direction + documents.length) % documents.length]?.id ?? 'start')
-  }
-
   return <main className="app-shell" aria-label="dbForgeLinux">
     <header className="app-menubar">
       <strong className="brand">dbForgeLinux</strong>
       <nav className="menu-row" aria-label="Menu principal">
-        <details><summary>File</summary><div className="menu-popup"><MenuAction label="New SQL Document" shortcut={shortcutFor('New SQL Document')} onClick={newSql} /><MenuAction label="Open SQL File…" shortcut={shortcutFor('Open SQL File')} onClick={() => void openSqlFile()} /><MenuAction label="Save SQL" shortcut={shortcutFor('Save SQL')} onClick={() => void saveCurrentSql()} disabled={!activeSql} /><MenuAction label="Database Connection…" shortcut={shortcutFor('New Connection')} onClick={openNewConnection} /><MenuAction label="Connection Manager…" onClick={() => setManagerOpen(true)} /><MenuAction label="Exit" shortcut={shortcutFor('Exit')} onClick={() => window.close()} /></div></details>
-        <details><summary>Edit</summary><div className="menu-popup"><MenuAction label="Undo" shortcut="Ctrl+Z" disabled /><MenuAction label="Redo" shortcut="Ctrl+Y" disabled /><MenuAction label={t('nav.find')} shortcut="Ctrl+F" onClick={() => openFind()} disabled={!activeSql} /><MenuAction label={t('nav.replace')} shortcut="Ctrl+H" onClick={() => openFind(true)} disabled={!activeSql} /><MenuAction label={t('nav.findInFiles')} shortcut="Ctrl+Shift+F" onClick={() => openFind(false, true)} /></div></details>
-        <details><summary>View</summary><div className="menu-popup"><MenuAction label="Database Explorer" shortcut={shortcutFor('Show Database Explorer')} onClick={() => setExplorerVisible((value) => !value)} /><MenuAction label="Output" shortcut={shortcutFor('Show Output')} onClick={() => { setPanelVisible(true); setPanelTab('Output') }} /><MenuAction label="Error List" shortcut={shortcutFor('Show Error List')} onClick={() => { setPanelVisible(true); setPanelTab('Error List') }} /><MenuAction label={t('nav.documentOutline')} shortcut="Ctrl+Alt+U" onClick={() => openRegisteredPanel('document-outline')} /><MenuAction label={t('nav.schemaView')} onClick={() => openRegisteredPanel('schema-view')} /><MenuAction label={t('nav.propertiesF4')} shortcut="F4" onClick={() => selectedExplorerObject && showObjectProperties(selectedExplorerObject.connection, selectedExplorerObject.database, selectedExplorerObject.object)} disabled={!selectedExplorerObject} /><div className="menu-divider" /><span className="menu-caption">Theme</span>{(['auto', 'light', 'dark'] as ThemeMode[]).map((mode) => <MenuAction key={mode} label={mode[0].toUpperCase() + mode.slice(1)} checked={themeMode === mode} onClick={() => setThemeMode(mode)} />)}</div></details>
-        <details><summary>Database</summary><div className="menu-popup">{panelRegistry.filter((item) => item.id === 'schema-compare' || item.id === 'documenter').map((item) => <MenuAction key={item.id} label={`${item.icon} ${panelMenuTitle(item.titleKey, t)}`} onClick={() => openRegisteredPanel(item.id)} />)}<MenuAction label="New Connection…" onClick={openNewConnection} /><MenuAction label="Connect" onClick={() => currentRecord && void connectFromExplorer(currentRecord)} disabled={!records.length || Boolean(currentConnection)} /><MenuAction label="Disconnect" onClick={() => currentConnection && void disconnect(currentConnection)} disabled={!currentConnection} /><MenuAction label="Refresh" shortcut="F5" onClick={() => currentRecord && void expandRecord(currentRecord)} disabled={!currentConnection} /></div></details>
-        <details><summary>SQL</summary><div className="menu-popup"><MenuAction label="New SQL" shortcut={shortcutFor('New SQL Document')} onClick={newSql} /><MenuAction label="Format Document" shortcut={shortcutFor('Format Document')} onClick={() => formatEditor('document')} disabled={!activeSql} /><MenuAction label="Format Selection" shortcut={shortcutFor('Format Selection')} onClick={() => formatEditor('selection')} disabled={!activeSql} /><MenuAction label="Format Statement" shortcut={shortcutFor('Format Current Statement')} onClick={() => formatEditor('statement')} disabled={!activeSql} /><MenuAction label="Code Analysis" shortcut="Ctrl+Alt+A" onClick={() => void runCodeAnalysis()} disabled={!activeSql} /><MenuAction label="Execute" shortcut={shortcutFor('Execute SQL')} onClick={() => void runSql()} disabled={!activeSql || !currentConnection || queryBusy} /><MenuAction label="Execute Current Statement" shortcut={shortcutFor('Execute Current Statement')} onClick={() => void runSql('current')} disabled={!activeSql || !currentConnection || queryBusy} /><MenuAction label={queryBusy ? 'Cancel' : 'Cancel'} shortcut={shortcutFor('Stop Execution')} onClick={() => void cancelSql()} disabled={!queryBusy} /></div></details>
-        <details><summary>Data</summary><div className="menu-popup"><MenuAction label="Refresh Result" shortcut="F5" onClick={() => void runSql()} disabled={!activeSql || !currentConnection} /><MenuAction label="Export Data…" disabled /></div></details>
-        <details><summary>Tools</summary><div className="menu-popup">{panelRegistry.filter((item) => !['schema-compare','documenter','options'].includes(item.id)).map((item) => <MenuAction key={item.id} label={`${item.icon} ${panelMenuTitle(item.titleKey, t)}`} onClick={() => openRegisteredPanel(item.id)} />)}<div className="menu-divider" /><MenuAction label="Connection Manager…" onClick={() => setManagerOpen(true)} /><MenuAction label="Options…" shortcut="Ctrl+," onClick={() => openRegisteredPanel('options')} /></div></details>
-        <details><summary>Window</summary><div className="menu-popup"><MenuAction label="Next Tab" shortcut="Ctrl+Tab" onClick={() => cycleDocument(1)} /><MenuAction label="Previous Tab" shortcut="Ctrl+Shift+Tab" onClick={() => cycleDocument(-1)} /><MenuAction label="Close Tab" shortcut="Ctrl+W" onClick={() => closeTab(selectedDocument)} disabled={!activeSql} /></div></details>
-        <details><summary>Help</summary><div className="menu-popup"><MenuAction label={t('about.documentation')} shortcut="F1" onClick={() => void window.dbforge.openAboutLink('documentation')} /><MenuAction label={t('about.title')} onClick={() => setAboutOpen(true)} /></div></details>
+        <details><summary>{t('menu.file')}</summary><div className="menu-popup"><MenuAction label={t('menu.newSql')} shortcut={shortcutFor('New SQL Document')} onClick={newSql} /><MenuAction label={t('menu.openFile')} shortcut={shortcutFor('Open SQL File')} onClick={() => void openSqlFile()} /><MenuAction label={t('menu.close')} shortcut={shortcutFor('Close Tab')} onClick={() => closeTab(selectedDocument)} disabled={!activeSql} /><MenuAction label={t('menu.openProject')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.save')} shortcut={shortcutFor('Save SQL')} onClick={() => void saveCurrentSql()} disabled={!activeSql} /><MenuAction label={t('menu.saveAs')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.saveAll')} shortcut={shortcutFor('Save All')} onClick={() => void saveAllSql()} /><MenuAction label={t('menu.print')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.recentFiles')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.exit')} shortcut={shortcutFor('Exit')} onClick={() => window.close()} /></div></details>
+        <details><summary>{t('menu.edit')}</summary><div className="menu-popup"><MenuAction label={t('menu.undo')} shortcut="Ctrl+Z" disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.redo')} shortcut="Ctrl+Y" disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.cut')} shortcut="Ctrl+X" disabled={!activeSql} title={!activeSql ? t('menu.notAvailable') : undefined} /><MenuAction label={t('menu.copy')} shortcut="Ctrl+C" disabled={!activeSql} title={!activeSql ? t('menu.notAvailable') : undefined} /><MenuAction label={t('menu.paste')} shortcut="Ctrl+V" disabled={!activeSql} title={!activeSql ? t('menu.notAvailable') : undefined} /><MenuAction label={t('menu.duplicate')} shortcut="Ctrl+D" disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.delete')} shortcut="Delete" disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.selectAll')} shortcut="Ctrl+A" disabled={!activeSql} title={!activeSql ? t('menu.notAvailable') : undefined} /><MenuAction label={t('menu.goTo')} shortcut={shortcutFor('Go To Line')} onClick={() => editorRef.current?.trigger('keyboard', 'editor.action.gotoLine', null)} disabled={!activeSql} /><MenuAction label={t('menu.findReplace')} shortcut="Ctrl+H" onClick={() => openFind(true)} disabled={!activeSql} /><MenuAction label={t('nav.findInFiles')} shortcut="Ctrl+Shift+F" onClick={() => openFind(false, true)} /><MenuAction label={t('menu.advanced')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.bookmarks')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.outlining')} onClick={() => openRegisteredPanel('document-outline')} disabled={!activeSql} /><MenuAction label={t('menu.codeCompletion')} shortcut="Ctrl+Space" onClick={() => editorRef.current?.trigger('keyboard', 'editor.action.triggerSuggest', null)} disabled={!activeSql} /></div></details>
+        <details><summary>{t('menu.view')}</summary><div className="menu-popup"><MenuAction label={t('menu.startPage')} shortcut="Ctrl+W, S" onClick={() => setSelectedDocument('start')} /><MenuAction label={t('menu.databaseExplorer')} shortcut={shortcutFor('Show Database Explorer')} onClick={() => setExplorerVisible((value) => !value)} /><MenuAction label={t('menu.projectExplorer')} shortcut="Ctrl+W, J" disabled title={t('menu.notAvailable')} /><MenuAction label={t('nav.objectViewer')} onClick={() => openRegisteredPanel('object-viewer')} /><MenuAction label={t('menu.aiAssistant')} shortcut="Ctrl+\\, C" onClick={() => setOpenPanel('ai-assistant')} /><MenuAction label={t('nav.schemaView')} shortcut="Ctrl+W, C" onClick={() => openRegisteredPanel('schema-view')} /><MenuAction label={t('menu.dataViewer')} shortcut="Ctrl+W, R" onClick={() => openRegisteredPanel('object-viewer')} /><MenuAction label={t('nav.documentOutline')} shortcut="Ctrl+W, U" onClick={() => openRegisteredPanel('document-outline')} disabled={!activeSql} /><MenuAction label={t('menu.snippets')} shortcut="Ctrl+W, T" onClick={() => openRegisteredPanel('snippets-manager')} /><MenuAction label={t('nav.output')} shortcut="Ctrl+W, O" onClick={() => { setPanelVisible(true); setPanelTab('Output') }} /><MenuAction label={t('nav.errorList')} shortcut="Ctrl+W, E" onClick={() => { setPanelVisible(true); setPanelTab('Error List') }} /><MenuAction label={t('nav.propertiesF4')} shortcut="Ctrl+W, P" onClick={() => selectedExplorerObject && showObjectProperties(selectedExplorerObject.connection, selectedExplorerObject.database, selectedExplorerObject.object)} disabled={!selectedExplorerObject} /><MenuAction label={t('menu.queryBuilder')} onClick={() => openRegisteredPanel('query-builder')} /><MenuAction label={t('menu.profiler')} onClick={() => openRegisteredPanel('profiler')} /><MenuAction label={t('menu.pivot')} onClick={() => openRegisteredPanel('data-report-pivot')} /><div className="menu-divider" /><MenuAction label={t('menu.themeAuto')} checked={themeMode === 'auto'} onClick={() => setThemeMode('auto')} /><MenuAction label={t('menu.themeLight')} checked={themeMode === 'light'} onClick={() => setThemeMode('light')} /><MenuAction label={t('menu.themeDark')} checked={themeMode === 'dark'} onClick={() => setThemeMode('dark')} /></div></details>
+        <details><summary>{t('menu.database')}</summary><div className="menu-popup"><MenuAction label={t('menu.newConnection')} onClick={openNewConnection} /><MenuAction label={t('menu.newObject')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.newDatabase')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.diagram')} onClick={() => openRegisteredPanel('er-diagram')} /><MenuAction label={t('menu.masterDetail')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.reportDesigner')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.pivot')} onClick={() => openRegisteredPanel('data-report-pivot')} /><MenuAction label={t('menu.security')} shortcut="Ctrl+D, Q" onClick={() => openRegisteredPanel('security')} /><MenuAction label={t('menu.sessions')} shortcut="Ctrl+D, S" onClick={() => openRegisteredPanel('sessions')} /><MenuAction label={t('menu.serverVariables')} shortcut="Ctrl+D, V" onClick={() => openRegisteredPanel('database-tools')} /><MenuAction label={t('menu.serviceControl')} shortcut="Ctrl+D, R" onClick={() => openRegisteredPanel('service-control')} /><MenuAction label={t('menu.findObject')} shortcut="Ctrl+D, F" onClick={() => openRegisteredPanel('database-tools')} /><MenuAction label={t('menu.largeScript')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.maintenance')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.flush')} disabled title={t('menu.notAvailable')} /></div></details>
+        <details><summary>{t('menu.comparison')}</summary><div className="menu-popup"><MenuAction label={t('menu.newSchemaCompare')} onClick={() => openRegisteredPanel('schema-compare')} /><MenuAction label={t('menu.newDataCompare')} onClick={() => openRegisteredPanel('data-compare')} /><MenuAction label={t('menu.editComparison')} onClick={() => window.dispatchEvent(new CustomEvent('schema-compare:action',{detail:'edit'}))} /><MenuAction label={t('panel.schema.compare.xObjectsFilter')} onClick={() => window.dispatchEvent(new CustomEvent('schema-compare:action',{detail:'filter'}))} /><MenuAction label={t('menu.refresh')} onClick={() => window.dispatchEvent(new CustomEvent('schema-compare:action',{detail:'refresh'}))} /><MenuAction label={t('menu.stop')} onClick={() => void cancelSql()} disabled={!queryBusy} /><MenuAction label={t('panel.schema.compare.xViewScript')} onClick={() => window.dispatchEvent(new CustomEvent('schema-compare:action',{detail:'script'}))} /><MenuAction label={t('panel.schema.compare.xReport')} onClick={() => window.dispatchEvent(new CustomEvent('schema-compare:action',{detail:'report'}))} /><MenuAction label={t('menu.synchronize')} onClick={() => window.dispatchEvent(new CustomEvent('schema-compare:action',{detail:'sync'}))} /></div></details>
+        {activeSql && <details><summary>{t('menu.sql')}</summary><div className="menu-popup"><MenuAction label={t('menu.beginTransaction')} onClick={() => void toggleAutoCommit(false)} disabled={!currentConnection || !autoCommit} /><MenuAction label={t('menu.rollback')} onClick={() => void finishTransaction('rollback')} disabled={!currentConnection || transactionCommitted} /><MenuAction label={t('menu.commit')} onClick={() => void finishTransaction('commit')} disabled={!currentConnection || transactionCommitted} /><MenuAction label={t('menu.execute')} shortcut="F5" onClick={() => void runSql()} disabled={!currentConnection || queryBusy} /><MenuAction label={t('menu.executeCurrent')} shortcut="F8" onClick={() => void runSql('current')} disabled={!currentConnection || queryBusy} /><MenuAction label={t('menu.stopExecution')} shortcut={shortcutFor('Stop Execution (Alt+Pause)')} onClick={() => void cancelSql()} disabled={!queryBusy} /><MenuAction label={t('menu.editParameters')} shortcut="Ctrl+Shift+P" disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.resultsText')} shortcut="Ctrl+T" disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.resultsGrid')} shortcut="Ctrl+Shift+D" disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.estimatedPlan')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.profiling')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.sendReport')} disabled title={t('menu.notAvailable')} /></div></details>}
+        <details><summary>{t('menu.tools')}</summary><div className="menu-popup"><MenuAction label={t('menu.formatter')} onClick={() => formatEditor('document')} disabled={!activeSql} /><MenuAction label={t('menu.snippetsManager')} onClick={() => openRegisteredPanel('snippets-manager')} /><MenuAction label={t('menu.importExport')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.customize')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.resetToolbar')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.options')} shortcut={shortcutFor('Options')} onClick={() => openRegisteredPanel('options')} /></div></details>
+        <details><summary>{t('menu.window')}</summary><div className="menu-popup"><MenuAction label={t('menu.float')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.pin')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.horizontal')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.vertical')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.closeAll')} onClick={() => documents.filter((tab) => tab.id !== 'start').forEach((tab) => closeTab(tab.id))} /><MenuAction label={t('menu.resetLayout')} onClick={() => { setExplorerVisible(true); setPanelVisible(true); setExplorerWidth(280); setPanelHeight(200) }} /><div className="menu-divider" />{documents.map((tab) => <MenuAction key={tab.id} label={`${tab.id === selectedDocument ? '✓ ' : ''}${tab.label}`} onClick={() => setSelectedDocument(tab.id)} />)}</div></details>
+        <details><summary>{t('menu.help')}</summary><div className="menu-popup"><MenuAction label={t('menu.contents')} shortcut="F1" onClick={() => void window.dbforge.openAboutLink('documentation')} /><MenuAction label={t('menu.gettingStarted')} onClick={() => setSelectedDocument('start')} /><MenuAction label={t('updates.check')} onClick={() => void checkForUpdates()} /><MenuAction label={t('menu.about')} onClick={() => setAboutOpen(true)} /></div></details>
       </nav>
       <span className="menubar-status">{status}</span>
+      <button className="menubar-ai" onClick={() => setOpenPanel('ai-assistant')}>{t('menu.aiAssistant')} <small>AI</small></button>
     </header>
     {vaultWarning && <div role="alert" className="vault-warning"><span>{vaultWarning}</span><button aria-label="Dismiss vault warning" onClick={() => setVaultWarning('')}>×</button></div>}
     <div className="app-toolbar">
@@ -842,6 +1010,7 @@ export default function App(): React.JSX.Element {
       <Button variant="primary" onClick={() => void runSql()} disabled={!activeSql || !currentConnection || queryBusy}>▶ Execute</Button>
       <Button variant="danger" onClick={() => void cancelSql()} disabled={!queryBusy}>■ Stop</Button>
       <label className="autocommit-toggle"><input type="checkbox" checked={autoCommit} disabled={!currentConnection} onChange={(event) => void toggleAutoCommit(event.target.checked)} />Auto-commit</label>
+      <Button onClick={() => void toggleAutoCommit(false)} disabled={!currentConnection || !autoCommit}>{t('menu.beginTransaction')}</Button>
       <Button onClick={() => void finishTransaction('commit')} disabled={autoCommit}>Commit</Button>
       <Button onClick={() => void finishTransaction('rollback')} disabled={autoCommit}>Rollback</Button>
       <Button onClick={() => setPanelVisible((value) => !value)} title="Toggle Results">Results</Button>
@@ -850,7 +1019,7 @@ export default function App(): React.JSX.Element {
     </div>
     {loadError && <div className="storage-error" role="alert">{loadError}<Button onClick={() => void loadConnections()}>Tentar de novo</Button></div>}
     <div className={`workbench${explorerVisible ? '' : ' explorer-hidden'}${panelVisible ? '' : ' panel-hidden'}`} style={{ gridTemplateColumns: explorerVisible ? `${explorerWidth}px 5px minmax(0, 1fr)` : 'minmax(0, 1fr)' }}>
-      {explorerVisible && <DatabaseExplorer records={records} active={active} databases={databases} objects={objects} loadingObjects={loadingObjects} connecting={connecting} errors={connectionErrors} onNew={openNewConnection} onManage={() => setManagerOpen(true)} onConnect={(record) => void connectFromExplorer(record)} onDisconnect={(connection) => void disconnect(connection)} onExpand={(record) => void expandRecord(record)} onLoadObjects={loadObjects} onSelectDatabase={(connection, database) => void selectDatabase(connection, database)} onSelectTop={selectTop} onGenerateScript={(connection, database, object) => void generateScript(connection, database, object)} onDropObject={(connection, database, object) => void dropObject(connection, database, object)} onOpenObject={(connection, database, object) => openObjectEditor(connection, database, object.kind, object.name)} onCreateObject={(connection, database, kind) => openObjectEditor(connection, database, kind, `new_${kind}`, true)} onRenameTable={(connection, database, object, name) => void renameTable(connection, database, object, name)} onTruncateTable={(connection, database, object) => void truncateTable(connection, database, object)} onSelectObject={(connection, database, object) => setSelectedExplorerObject({ connection, database, object })} onProperties={showObjectProperties} onEdit={openEdit} />}
+      {explorerVisible && <DatabaseExplorer records={records} active={active} databases={databases} objects={objects} loadingObjects={loadingObjects} connecting={connecting} errors={connectionErrors} onNew={openNewConnection} onManage={() => setManagerOpen(true)} onConnect={(record) => void connectFromExplorer(record)} onDisconnect={(connection) => void disconnect(connection)} onExpand={(record) => void expandRecord(record)} onLoadObjects={loadObjects} onSelectDatabase={(connection, database) => void selectDatabase(connection, database)} onSelectTop={selectTop} onGenerateScript={(connection, database, object) => void generateScript(connection, database, object)} onDropObject={(connection, database, object) => void dropObject(connection, database, object)} onOpenObject={(connection, database, object) => openObjectEditor(connection, database, object.kind, object.name)} onCreateObject={(connection, database, kind) => openObjectEditor(connection, database, kind, `new_${kind}`, true)} onRenameTable={(connection, database, object, name) => void renameTable(connection, database, object, name)} onTruncateTable={(connection, database, object) => void truncateTable(connection, database, object)} onSelectObject={(connection, database, object) => setSelectedExplorerObject({ connection, database, object })} onProperties={showObjectProperties} onEdit={openEdit} onContextAction={(action, context) => void handleExplorerContextAction(action, context)} />}
       {explorerVisible && <div className="vertical-splitter" role="separator" aria-orientation="vertical" aria-label="Resize Database Explorer" onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)} onPointerMove={(event) => { if (event.buttons) setExplorerWidth(Math.min(Math.floor(window.innerWidth * 0.5), Math.max(200, event.clientX))) }} />}
       <section className="document-workspace" style={{ gridTemplateRows: panelVisible ? `30px minmax(0, 1fr) 5px ${panelHeight}px` : '30px minmax(0, 1fr) 0 0' }}>
         <div className="document-tabs" role="tablist" aria-label="Documents">
@@ -859,11 +1028,14 @@ export default function App(): React.JSX.Element {
           </div>)}
           <button className="tab-overflow" title="Todas as abas" onClick={() => window.alert(documents.map((tab) => tab.label).join('\n'))}>⌄</button>
         </div>
-        {selectedDocument === 'start' ? <StartPage files={documents.filter((tab) => tab.id !== 'start' && !tab.objectEditor && !tab.panelId && tab.filePath).slice(-10).reverse()} connections={records} onNewSql={newSql} onOpenSql={() => void openSqlFile()} onNewConnection={openNewConnection} onManageConnections={() => setManagerOpen(true)} onOpenFile={setSelectedDocument} onConnect={(record) => void connectFromExplorer(record)} /> : activeObjectTab ? <ObjectEditor key={selectedDocument} target={activeObjectTab} isNew={activeObjectTab.isNew} isProduction={currentConnection?.environment === 'prod'} onApplied={() => { const connection = active.find((item) => item.id === activeObjectTab.connectionId); if (connection) void loadObjects(connection, activeObjectTab.database) }} /> : activePanelTab ? (() => { const entry = panelRegistry.find((item) => item.id === activePanelTab); if (!entry) return <div className="tool-document-empty">Painel indisponível.</div>; const Panel = entry.component; return <div className="tool-document">{panelContents(Panel)}</div> })() : <div className="document-main">
+        {selectedDocument === 'start' ? <StartPage files={documents.filter((tab) => tab.id !== 'start' && !tab.objectEditor && !tab.panelId && tab.filePath).slice(-10).reverse()} connections={records} onNewSql={newSql} onOpenSql={() => void openSqlFile()} onNewConnection={openNewConnection} onManageConnections={() => setManagerOpen(true)} onOpenFile={setSelectedDocument} onConnect={(record) => void connectFromExplorer(record)} /> : activeObjectTab ? <ObjectEditor key={selectedDocument} target={activeObjectTab} isNew={activeObjectTab.isNew} isProduction={currentConnection?.environment === 'prod'} autoCommit={autoCommit} transactionRevision={transactionRevision} transactionCommitted={transactionCommitted} onApplied={() => { const connection = active.find((item) => item.id === activeObjectTab.connectionId); if (connection) void loadObjects(connection, activeObjectTab.database) }} /> : activePanelTab ? (() => { const entry = panelRegistry.find((item) => item.id === activePanelTab); if (!entry) return <div className="tool-document-empty">Painel indisponível.</div>; const Panel = entry.component; return <div className="tool-document">{panelContents(Panel)}</div> })() : <div className="document-main">
           <div className="sql-context-toolbar"><span>{documents.find((tab) => tab.id === selectedDocument)?.label}</span><span>{activeTitle}</span><span className="metadata-state">{metadataLoading ? 'Loading schema…' : editorMetadata.objects.length ? `${editorMetadata.objects.length} schema objects` : ''}</span><Button onClick={() => formatEditor('document')}>Format</Button><Button onClick={() => formatEditor('statement')}>Format statement</Button><Button variant="primary" onClick={() => void runSql()} disabled={!currentConnection || queryBusy}>▶ Execute</Button><Button onClick={() => void runSql('current')} disabled={!currentConnection || queryBusy}>Current statement</Button></div>
           {findOpen && <div className="find-toolbar"><input type="search" aria-label={t('nav.find')} placeholder={t('nav.find')} value={findQuery} onChange={(event) => setFindQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') cycleFind(event.shiftKey ? -1 : 1) }} /><Button onClick={() => cycleFind(-1)} title={t('nav.previous')}>↑</Button><Button onClick={() => cycleFind(1)} title={t('nav.next')}>↓</Button><label><input type="checkbox" checked={findRegex} onChange={(event) => setFindRegex(event.target.checked)} />{t('nav.regex')}</label><label><input type="checkbox" checked={findCase} onChange={(event) => setFindCase(event.target.checked)} />{t('nav.caseSensitive')}</label><select aria-label={t('nav.scope')} value={findScope} onChange={(event) => setFindScope(event.target.value as typeof findScope)}><option value="document">{t('nav.document')}</option><option value="selection">{t('nav.selection')}</option><option value="open">{t('nav.openDocuments')}</option></select>{findReplaceMode && <><input aria-label={t('nav.replace')} placeholder={t('nav.replace')} value={replaceQuery} onChange={(event) => setReplaceQuery(event.target.value)} /><Button onClick={replaceCurrentMatch}>{t('nav.replaceOne')}</Button><Button onClick={replaceAllMatches}>{t('nav.replaceAll')}</Button></>}<span>{findMatches.length}</span><Button onClick={() => { setFindOpen(false); setFindReplaceMode(false) }} title={t('nav.close')}>×</Button></div>}
           <div className="editor-surface"><Editor height="100%" language="sql" theme={theme === 'dark' || theme === 'high-contrast' ? 'vs-dark' : 'vs'} value={sqlByDocument[selectedDocument] ?? ''} onMount={(editor, monaco) => {
             editorRef.current = editor
+            editor.onDidChangeModelContent(() => { const model = editor.getModel(); const position = editor.getPosition(); if (!model || !position) return; const value = model.getValue(); const offset = model.getOffsetAt(position); const adjusted = applyKeywordCaseAtOffset(value, offset, appSettingsRef.current.editor.keywordCase); if (adjusted !== value) { let start = 0; while (start < value.length && value[start] === adjusted[start]) start++; let suffix = 0; while (suffix < value.length - start && value[value.length - suffix - 1] === adjusted[adjusted.length - suffix - 1]) suffix++; const from = model.getPositionAt(start); const to = model.getPositionAt(value.length - suffix); const range = new monaco.Range(from.lineNumber, from.column, to.lineNumber, to.column); editor.executeEdits('keyword-case', [{ range, text: adjusted.slice(start, adjusted.length - suffix) }]) } const current = model.getValue(); const caret = model.getPositionAt(Math.min(offset, current.length)); const suggestions = buildSqlSuggestions(current, Math.min(offset, current.length), metadataRef.current, userSnippetsRef.current); const match = suggestions.find((item) => item.kind === 'table' && metadataRef.current.objects.some((object) => object.name.toLowerCase() === item.label.toLowerCase())); const detail = match && metadataRef.current.objects.find((object) => object.name.toLowerCase() === match.label.toLowerCase()); setCompletionDetails(detail); setEditorPosition({ line: caret.lineNumber, column: caret.column }) })
+            editor.onKeyDown((event) => { if (event.keyCode === monaco.KeyCode.Escape) setCompletionDetails(undefined) })
+            editor.onDidBlurEditorText(() => setCompletionDetails(undefined))
             completionProviderRef.current?.dispose()
             completionProviderRef.current = monaco.languages.registerCompletionItemProvider('sql', {
               triggerCharacters: ['.'],
@@ -873,17 +1045,18 @@ export default function App(): React.JSX.Element {
                 const word = model.getWordUntilPosition(position)
                 const range = new monaco.Range(position.lineNumber, word.startColumn, position.lineNumber, position.column)
                 const kinds = { database: monaco.languages.CompletionItemKind.Module, table: monaco.languages.CompletionItemKind.Struct, column: monaco.languages.CompletionItemKind.Field, routine: monaco.languages.CompletionItemKind.Function, keyword: monaco.languages.CompletionItemKind.Keyword, snippet: monaco.languages.CompletionItemKind.Snippet }
-                return { suggestions: buildSqlSuggestions(source, offset, metadataRef.current, userSnippetsRef.current).map((item) => ({ label: item.label, kind: kinds[item.kind], detail: item.detail, insertText: item.insertText, filterText: item.kind === 'snippet' ? item.detail.split(' · ')[0] : item.label, insertTextRules: item.kind === 'snippet' ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : monaco.languages.CompletionItemInsertTextRule.None, range })) }
+                return { suggestions: buildSqlSuggestions(source, offset, metadataRef.current, userSnippetsRef.current).map((item) => ({ label: item.schema ? { label: item.label, description: item.schema, detail: item.detail } : item.label, kind: kinds[item.kind], detail: item.detail, documentation: { value: completionDocumentation(item, metadataRef.current) }, insertText: item.insertText, filterText: item.kind === 'snippet' ? item.detail.split(' · ')[0] : item.label, insertTextRules: item.kind === 'snippet' ? monaco.languages.CompletionItemInsertTextRule.InsertAsSnippet : monaco.languages.CompletionItemInsertTextRule.None, range })) }
               }
             })
+            editor.onDidChangeCursorPosition(({ position }) => setEditorPosition({ line: position.lineNumber, column: position.column }))
             const formatAction = (id: string, label: string, target: 'document' | 'selection' | 'statement', keybindings?: number[]): void => { editor.addAction({ id, label, ...(keybindings ? { keybindings } : {}), run: () => formatEditor(target) }) }
             formatAction('dbforge.format-document', 'Format Document', 'document')
             formatAction('dbforge.format-selection', 'Format Selection', 'selection')
             formatAction('dbforge.format-statement', 'Format Statement', 'statement')
-          }} onChange={(value) => { setSqlByDocument((current) => ({ ...current, [selectedDocument]: value ?? '' })); setDocuments((current) => current.map((tab) => tab.id === selectedDocument ? { ...tab, modified: true } : tab)) }} options={{ minimap: { enabled: appSettings.editor.minimap }, fontFamily: appSettings.editor.fontName, fontSize: appSettings.editor.fontSize, automaticLayout: true, fontLigatures: appSettings.editor.ligatures, lineNumbers: appSettings.editor.lineNumbers ? 'on' : 'off', tabCompletion: 'on', suggestOnTriggerCharacters: appSettings.editor.autoComplete, quickSuggestions: appSettings.editor.autoComplete, quickSuggestionsDelay: appSettings.editor.completionDelayMs, wordWrap: appSettings.editor.wordWrap ? 'on' : 'off', tabSize: appSettings.editor.tabSize, insertSpaces: appSettings.editor.insertSpaces, folding: appSettings.editor.folding, renderLineHighlight: appSettings.editor.highlightCurrentLine ? 'line' : 'none' }} /></div>
+          }} onChange={(value) => { const nextValue = value ?? ''; setSqlByDocument((current) => ({ ...current, [selectedDocument]: nextValue })); setDocuments((current) => current.map((tab) => tab.id === selectedDocument ? { ...tab, modified: true } : tab)) }} options={{ minimap: { enabled: appSettings.editor.minimap }, fontFamily: appSettings.editor.fontName, fontSize: appSettings.editor.fontSize, automaticLayout: true, fontLigatures: appSettings.editor.ligatures, lineNumbers: appSettings.editor.lineNumbers ? 'on' : 'off', tabCompletion: 'on', suggestOnTriggerCharacters: appSettings.editor.autoComplete, quickSuggestions: appSettings.editor.autoComplete, quickSuggestionsDelay: appSettings.editor.completionDelayMs, wordWrap: appSettings.editor.wordWrap ? 'on' : 'off', tabSize: appSettings.editor.tabSize, insertSpaces: appSettings.editor.insertSpaces, folding: appSettings.editor.folding, renderLineHighlight: appSettings.editor.highlightCurrentLine ? 'line' : 'none' }} />{completionDetails && <aside className="editor-completion-details" aria-label={t('editor.completion.details')}><strong>{completionDetails.name}</strong><small>{completionDetails.kind} · {editorMetadata.database} · {completionDetails.engine || t('editor.completion.engineUnknown')}</small><table><thead><tr><th>{t('editor.completion.column')}</th><th>{t('editor.completion.type')}</th><th>{t('editor.completion.null')}</th></tr></thead><tbody>{completionDetails.columns.map((column) => <tr key={column.name}><td>{column.name}</td><td>{column.type}</td><td>{column.nullable === false ? 'NOT NULL' : 'NULL'}</td></tr>)}</tbody></table></aside>}</div>
           <div className="result-view">
-            <div className="result-tabs" role="tablist">{results.map((result, index) => <button key={index} role="tab" aria-selected={resultIndex === index} className={resultIndex === index ? 'selected' : ''} onClick={() => setResultIndex(index)}>Result {index + 1} ({result.rowCount ?? result.rows.length})</button>)}<button role="tab" aria-selected={resultIndex === -1} className={resultIndex === -1 ? 'selected' : ''} onClick={() => setResultIndex(-1)}>Messages</button><button role="tab" aria-selected={resultIndex === -2} className={resultIndex === -2 ? 'selected' : ''} onClick={() => setResultIndex(-2)}>Query History</button></div>
-            {resultIndex >= 0 && results[resultIndex] ? <ResultGrid result={results[resultIndex]} index={resultIndex} currentConnection={currentConnection ?? undefined} autoCommit={autoCommit} transactionRevision={transactionRevision} transactionCommitted={transactionCommitted} fetchRows={(offset, limit) => window.dbforge.readResultRows(results[resultIndex].resultStoreId!, offset, limit)} onLoadMore={pageQueries[selectedDocument] ? () => loadMorePage(resultIndex) : undefined} /> : resultIndex === -2 ? <div className="query-history"><div className="history-toolbar"><input aria-label="Search Query History" placeholder="Search SQL, connection, database…" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} /><span>{historyLoading ? 'Loading…' : `${history.length} entries`}</span></div><div className="query-messages">{history.length ? history.map((entry) => <article className="history-row" key={entry.id}><button className="history-entry" onClick={() => openSqlDocument('History query', entry.sql)}><span>{new Date(entry.timestamp).toLocaleString()} · {entry.connection}{entry.database ? ` · ${entry.database}` : ''} · {(entry.elapsedMs / 1000).toFixed(3)} s · {entry.success ? 'Success' : 'Failed'}</span><code>{entry.sql}</code></button><Button onClick={() => replayHistory(entry)}>Re-run</Button></article>) : <p>{historyLoading ? 'Loading…' : 'Histórico vazio.'}</p>}</div></div> : <div className="query-messages" aria-live="polite">{queryBusy && <p>Executando…</p>}{queryMessages.map((message, index) => <p key={index}>{message}</p>)}{!queryBusy && !queryMessages.length && <p>Messages de execução aparecerão aqui.</p>}{results.filter((result) => !result.columns.length).map((result, index) => <p key={`affected-${index}`}>Affected rows: {result.affectedRows} · Last insert id: {result.insertId}</p>)}{queryElapsed > 0 && <small>{(queryElapsed / 1000).toFixed(3)} s</small>}</div>}
+            <div className="result-tabs" role="tablist"><span className="result-presentation">{t('editor.results.as')} <button className={resultPresentation === 'text' ? 'selected' : ''} onClick={() => setResultPresentation('text')}>{t('editor.results.text')}</button><button className={resultPresentation === 'grid' ? 'selected' : ''} onClick={() => setResultPresentation('grid')}>{t('editor.results.grid')}</button></span>{results.map((result, index) => <button key={index} role="tab" aria-selected={resultIndex === index} className={resultIndex === index ? 'selected' : ''} onClick={() => setResultIndex(index)}>Result {index + 1} ({result.rowCount ?? result.rows.length})</button>)}<button role="tab" aria-selected={resultIndex === -1} className={resultIndex === -1 ? 'selected' : ''} onClick={() => setResultIndex(-1)}>Messages</button><button role="tab" aria-selected={resultIndex === -2} className={resultIndex === -2 ? 'selected' : ''} onClick={() => setResultIndex(-2)}>Query History</button></div>
+            {resultIndex >= 0 && results[resultIndex] ? resultPresentation === 'text' ? <pre className="result-text">{JSON.stringify(results[resultIndex].rows, null, 2)}</pre> : <ResultGrid result={results[resultIndex]} index={resultIndex} currentConnection={currentConnection ?? undefined} autoCommit={autoCommit} transactionRevision={transactionRevision} transactionCommitted={transactionCommitted} fetchRows={(offset, limit) => window.dbforge.readResultRows(results[resultIndex].resultStoreId!, offset, limit)} onLoadMore={pageQueries[selectedDocument] ? () => loadMorePage(resultIndex) : undefined} /> : resultIndex === -2 ? <div className="query-history"><div className="history-toolbar"><input aria-label="Search Query History" placeholder="Search SQL, connection, database…" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} /><span>{historyLoading ? 'Loading…' : `${history.length} entries`}</span></div><div className="query-messages">{history.length ? history.map((entry) => <article className="history-row" key={entry.id}><button className="history-entry" onClick={() => openSqlDocument('History query', entry.sql)}><span>{new Date(entry.timestamp).toLocaleString()} · {entry.connection}{entry.database ? ` · ${entry.database}` : ''} · {(entry.elapsedMs / 1000).toFixed(3)} s · {entry.success ? 'Success' : 'Failed'}</span><code>{entry.sql}</code></button><Button onClick={() => replayHistory(entry)}>Re-run</Button></article>) : <p>{historyLoading ? 'Loading…' : 'Histórico vazio.'}</p>}</div></div> : <div className="query-messages" aria-live="polite">{queryBusy && <p>Executando…</p>}{queryMessages.map((message, index) => <p key={index}>{message}</p>)}{!queryBusy && !queryMessages.length && <p>Messages de execução aparecerão aqui.</p>}{results.filter((result) => !result.columns.length).map((result, index) => <p key={`affected-${index}`}>Affected rows: {result.affectedRows} · Last insert id: {result.insertId}</p>)}{queryElapsed > 0 && <small>{(queryElapsed / 1000).toFixed(3)} s</small>}</div>}
           </div>
         </div>}
         <div className="horizontal-splitter" role="separator" aria-orientation="horizontal" aria-label="Resize Output panel" onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)} onPointerMove={(event) => { if (event.buttons) setPanelHeight(Math.min(480, Math.max(80, window.innerHeight - event.clientY))) }} />
@@ -892,23 +1065,18 @@ export default function App(): React.JSX.Element {
         </section>
       </section>
     </div>
-    <footer className="status-bar"><span>{status}</span><button onClick={() => currentRecord && setManagerOpen(true)}>{activeTitle}</button>{currentConnection && currentRecord?.environment !== 'none' && <span className={`environment-badge env-${currentRecord?.environment ?? 'none'}`} style={{ '--environment-color': currentRecord?.color ?? (currentRecord?.environment === 'prod' ? '#c62828' : currentRecord?.environment === 'test' ? '#ed6c02' : '#2e7d32') } as React.CSSProperties}>{t(`conn.environment.${currentRecord?.environment ?? 'none'}`)}</span>}{currentRecord?.category && <span className="connection-category">{currentRecord.category}</span>}<span>{currentConnection?.database ?? ''}</span><span>Ln 1, Col 1</span><span>UTF-8</span><span>LF</span><span>{results.length ? `${results.reduce((sum, item) => sum + (item.rowCount ?? item.rows.length), 0)} rows` : ''}</span><span className="toolbar-spacer" />{themeMode.toUpperCase()}</footer>
+    <footer className="status-bar"><span>{currentConnection ? t('editor.connection.connected') : status}</span><button onClick={() => currentRecord && setManagerOpen(true)}>{currentConnection ? `${currentConnection.host} (${serverVersion || currentRecord?.type || 'MySQL'}) · ${currentConnection.user}` : activeTitle}</button>{currentConnection && currentRecord?.environment !== 'none' && <span className={`environment-badge env-${currentRecord?.environment ?? 'none'}`} style={{ '--environment-color': currentRecord?.color ?? (currentRecord?.environment === 'prod' ? '#c62828' : currentRecord?.environment === 'test' ? '#ed6c02' : '#2e7d32') } as React.CSSProperties}>{t(`conn.environment.${currentRecord?.environment ?? 'none'}`)}</span>}{currentRecord?.category && <span className="connection-category">{currentRecord.category}</span>}<span>{currentConnection?.database ?? ''}</span>{status === t('editor.query.success') && <span>{status} · {(queryElapsed / 1000).toFixed(3)} s</span>}<span>Ln {editorPosition.line}, Col {editorPosition.column}, Ch {editorPosition.column - 1}</span><span>UTF-8</span><span>LF</span><span>{results.length ? `${results.reduce((sum, item) => sum + (item.rowCount ?? item.rows.length), 0)} rows` : ''}</span><span className="toolbar-spacer" />{updateState.phase === 'checking' ? <button className="update-status" onClick={() => void checkForUpdates()}>{t('updates.checking')}</button> : updateState.phase === 'available' ? <button className="update-status available" onClick={() => setUpdateDialogOpen(true)}>{t('updates.available', [updateState.newVersion ?? ''])}</button> : updateState.phase === 'up-to-date' ? <span className="update-status">{t('updates.updated')}</span> : null}{themeMode.toUpperCase()}</footer>
     {dialogRecord && <ConnectionPropertiesDialog initial={dialogRecord} isNew={newDialog} names={records.filter((record) => record.id !== dialogRecord.id).map((record) => record.name)} onAction={runConnectionAction} onTrustHostKey={async (record) => { await window.dbforge.saveConnection(record); upsertRecord(record) }} onCancel={() => setDialogRecord(null)} />}
     {openPanel && (() => { const entry = panelRegistry.find((item) => item.id === openPanel); if (!entry) return null; const contents = panelContents(entry.component); return entry.presentation === 'dock' ? <aside className="right-dock" aria-label={t(entry.titleKey)}><header><strong>{t(entry.titleKey)}</strong><button onClick={() => setOpenPanel(null)} aria-label={`Close ${t(entry.titleKey)}`}>×</button></header>{contents}</aside> : <PanelDialog title={t(entry.titleKey)} onClose={() => setOpenPanel(null)}>{contents}</PanelDialog> })()}
     {managerOpen && <ConnectionManager records={records} onNew={() => { setManagerOpen(false); openNewConnection() }} onEdit={(record) => { setManagerOpen(false); openEdit(record) }} onDuplicate={(record) => { setManagerOpen(false); setDialogRecord({ ...structuredClone(record), id: crypto.randomUUID(), name: `${record.name} copy`, lastUsedAt: undefined }); setNewDialog(true) }} onDelete={deleteRecords} onClose={() => setManagerOpen(false)} />}
     {aboutOpen && <AboutDialog onClose={() => setAboutOpen(false)} />}
+    {updateDialogOpen && <PanelDialog title={t('updates.dialogTitle')} onClose={() => setUpdateDialogOpen(false)}><section className="update-dialog"><h2>{t('updates.dialogTitle')}</h2><p>{t('updates.version', [updateState.currentVersion, updateState.newVersion ?? updateState.currentVersion])}</p><p>{t('updates.channel', [t(updateState.channel === 'dev' ? 'updates.dev' : 'updates.release')])}</p>{updateState.message && <p role="status">{updateState.message}</p>}{updateState.summary.length > 0 && <><h3>{t('updates.summary')}</h3><ul>{updateState.summary.map((line, index) => <li key={`${index}:${line}`}>{line}</li>)}</ul></>}{updateState.progress !== undefined && <label>{t('updates.progress', [updateState.progress])}<progress max={100} value={updateState.progress} /></label>}<details open={updateLogOpen} onToggle={(event) => setUpdateLogOpen(event.currentTarget.open)}><summary>{t('updates.log')}</summary><pre>{updateState.log.join('\n')}</pre></details><footer><Button onClick={() => setUpdateDialogOpen(false)}>{t('updates.later')}</Button>{['checking', 'building', 'downloading'].includes(updateState.phase) && <Button onClick={() => void window.dbforge.updaterCancel().then(setUpdateState)}>{t('updates.cancel')}</Button>}{updateState.phase === 'available' && <><Button onClick={() => void ignoreUpdate()}>{t('updates.ignore')}</Button><Button variant="primary" onClick={() => void applyUpdate()}>{t('updates.apply')}</Button></>}</footer></section></PanelDialog>}
   </main>
 
 }
 
-function panelMenuTitle(titleKey: string, translate: (key: string) => string): string {
-  if (titleKey.startsWith('extras.')) return translate(titleKey)
-  if (titleKey.startsWith('panels.')) return titleKey.slice('panels.'.length).replaceAll('-', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
-  return titleKey.split('.').at(-1) ?? titleKey
-}
-
-function MenuAction({ label, shortcut, onClick, disabled = false, checked }: { label: string; shortcut?: string; onClick?: () => void; disabled?: boolean; checked?: boolean }): React.JSX.Element {
-  return <button className="menu-action" disabled={disabled} onClick={(event) => { onClick?.(); event.currentTarget.closest('details')?.removeAttribute('open') }}>
+function MenuAction({ label, shortcut, onClick, disabled = false, checked, title }: { label: string; shortcut?: string; onClick?: () => void; disabled?: boolean; checked?: boolean; title?: string }): React.JSX.Element {
+  return <button className="menu-action" disabled={disabled} title={title} onClick={(event) => { onClick?.(); event.currentTarget.closest('details')?.removeAttribute('open') }}>
     <span>{checked === undefined ? '' : checked ? '✓' : '　'}{label}</span>{shortcut && <small>{shortcut}</small>}
   </button>
 }
@@ -942,4 +1110,11 @@ function readStoredDocuments(): DocumentTab[] {
     }
   } catch { /* discard malformed renderer state */ }
   return [{ id: 'start', label: 'Start Page', modified: false }]
+}
+
+function completionDocumentation(item: ReturnType<typeof buildSqlSuggestions>[number], metadata: EditorMetadata): string {
+  const object = metadata.objects.find((candidate) => candidate.name.toLowerCase() === item.label.toLowerCase())
+  if (!object) return `**${item.label}**\n\n${item.kind}${item.schema ? ` · ${item.schema}` : ''}\n\n${item.detail}`
+  const columns = object.columns.map((column) => `| ${column.name} | ${column.type} | ${column.nullable === false ? 'NOT NULL' : 'NULL'} |`).join('\n')
+  return `**${object.name}**\n\n${object.kind} · ${metadata.database} · ${object.engine || 'engine unknown'}\n\n| Column | Type | Nullability |\n| --- | --- | --- |\n${columns}`
 }

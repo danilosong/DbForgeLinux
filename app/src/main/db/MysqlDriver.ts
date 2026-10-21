@@ -49,6 +49,10 @@ export class MysqlDriver implements DbDriver {
   private readonly pools = new Map<string, ManagedConnection>()
   private readonly executions = new Map<string, { connectionId: string; threadId: number }>()
 
+  hasActiveWork(): boolean {
+    return this.executions.size > 0 || [...this.pools.values()].some((connection) => Boolean(connection.transactionConnection))
+  }
+
   async testConnection(config: DriverConnectionConfig): Promise<ConnectionTestResult> {
     const startedAt = Date.now()
     let tunnel: ActiveSshTunnel | undefined

@@ -21,7 +21,8 @@ import type { GridEditingApi } from './grid-editing.js'
 import type { GridDataApi } from './grid-data.js'
 import type { ExtraToolsApi } from './extra-tools.js'
 import type { AboutApi } from './about.js'
-export interface DbForgeApi extends SecurityApi, SessionsApi, SchemaCompareApi, DataCompareApi, ImportExportApi, ERDiagramApi, QueryBuilderApi, EditorApi, HistoryApi, SourceControlApi, ObjectEditorApi, OptionsApi, DatabaseToolsApi, ReportPivotApi, AiAssistantApi, RoutineDebugContract, ServiceControlApi, CodeAnalysisApi, GridEditingApi, GridDataApi, ExtraToolsApi, AboutApi {
+import type { UpdaterApi } from './updater.js'
+export interface DbForgeApi extends SecurityApi, SessionsApi, SchemaCompareApi, DataCompareApi, ImportExportApi, ERDiagramApi, QueryBuilderApi, EditorApi, HistoryApi, SourceControlApi, ObjectEditorApi, OptionsApi, DatabaseToolsApi, ReportPivotApi, AiAssistantApi, RoutineDebugContract, ServiceControlApi, CodeAnalysisApi, GridEditingApi, GridDataApi, ExtraToolsApi, AboutApi, UpdaterApi {
   getConnections(): Promise<ConnectionRecord[]>
   saveConnection(record: ConnectionRecord): Promise<void>
   deleteConnection(id: string): Promise<void>

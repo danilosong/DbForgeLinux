@@ -1,5 +1,5 @@
-export interface EditorColumnMetadata { name: string; type: string }
-export interface EditorObjectMetadata { name: string; kind: 'table' | 'view'; columns: EditorColumnMetadata[] }
+export interface EditorColumnMetadata { name: string; type: string; nullable?: boolean }
+export interface EditorObjectMetadata { name: string; kind: 'table' | 'view'; columns: EditorColumnMetadata[]; engine?: string }
 export interface EditorRoutineMetadata { name: string; kind: 'procedure' | 'function' }
 export interface EditorMetadata { database: string; databases: string[]; objects: EditorObjectMetadata[]; routines: EditorRoutineMetadata[] }
 

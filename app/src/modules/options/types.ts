@@ -10,6 +10,7 @@ export interface AppSettings {
   execution: { runSelectionOnly: boolean; onError: 'stop' | 'ask' | 'continue'; commandTimeoutSeconds: number; resultRowLimit: number; confirmDestructive: boolean; autoCommit: boolean; showWarnings: boolean }
   grid: { rowHeight: number; zebra: boolean; showBorders: boolean; alignNumbers: boolean; nullText: string; autoFit: boolean; copyHeaders: boolean; maxTextLength: number }
   connections: { connectionTimeoutSeconds: number; commandTimeoutSeconds: number; keepAliveSeconds: number; autoReconnect: boolean; storeCredentials: boolean }
+  updater: { checkOnStartup: boolean; automatic: boolean; channel: 'auto' | 'dev' | 'release'; interval: 'startup' | 'daily'; ignoredVersion: string }
   shortcuts: { scheme: 'default' | 'dbeaver' | 'ssms' | 'vscode'; bindings: KeyBinding[] }
 }
 
@@ -26,5 +27,6 @@ export const defaultSettings: AppSettings = {
   execution: { runSelectionOnly: false, onError: 'stop', commandTimeoutSeconds: 0, resultRowLimit: 1000, confirmDestructive: true, autoCommit: true, showWarnings: true },
   grid: { rowHeight: 26, zebra: true, showBorders: true, alignNumbers: true, nullText: 'NULL', autoFit: true, copyHeaders: true, maxTextLength: 10000 },
   connections: { connectionTimeoutSeconds: 15, commandTimeoutSeconds: 0, keepAliveSeconds: 0, autoReconnect: true, storeCredentials: true },
+  updater: { checkOnStartup: true, automatic: false, channel: 'auto', interval: 'startup', ignoredVersion: '' },
   shortcuts: { scheme: 'default', bindings: defaultKeyBindings.map((item) => ({ ...item })) }
 }

@@ -3,7 +3,7 @@ import { sqlSnippets } from './snippets.js'
 import type { SqlSnippet } from './snippets.js'
 
 export type SqlSuggestionKind = 'database' | 'table' | 'column' | 'routine' | 'keyword' | 'snippet'
-export interface SqlSuggestion { label: string; insertText: string; detail: string; kind: SqlSuggestionKind }
+export interface SqlSuggestion { label: string; insertText: string; detail: string; kind: SqlSuggestionKind; schema?: string }
 
 const keywords = 'ADD ALL ALTER AND AS ASC BEGIN BETWEEN BY CALL CASE CHANGE CHAR CHARACTER CHECK COLLATE COLUMN COMMIT CONSTRAINT CREATE CROSS CURRENT_DATE CURRENT_TIMESTAMP DATABASE DATABASES DEFAULT DELETE DESC DISTINCT DROP ELSE END ESCAPE EXISTS FALSE FETCH FOR FOREIGN FROM FULLTEXT FUNCTION GRANT GROUP HAVING IF IN INDEX INNER INSERT INTERVAL INTO IS JOIN KEY LEFT LIKE LIMIT LOCK LONGTEXT NOT NULL OFFSET ON OR ORDER OUTER PRIMARY PROCEDURE REFERENCES RELEASE RENAME REPLACE RESTRICT RETURN REVOKE RIGHT ROLLBACK SCHEMA SELECT SET SHOW TABLE THEN TRUE TRIGGER UNION UNIQUE UPDATE USE USING VALUES VIEW WHEN WHERE WITH'.split(' ')
 const reservedAliases = new Set('WHERE JOIN LEFT RIGHT INNER OUTER ON GROUP ORDER LIMIT HAVING SET VALUES USING'.split(' '))
@@ -15,29 +15,29 @@ export function buildSqlSuggestions(sql: string, offset: number, metadata: Edito
   const qualifier = /([\w$`]+)\.([\w$`]*)$/.exec(before)
   const prefix = /[\w$`]+$/.exec(before)?.[0] ?? ''
   const normalizedPrefix = cleanIdentifier(prefix).toLowerCase()
-  const make = (label: string, kind: SqlSuggestionKind, detail: string, insertText = quoteSuggestion(label)): SqlSuggestion => ({ label, insertText, kind, detail })
+  const make = (label: string, kind: SqlSuggestionKind, detail: string, insertText = quoteSuggestion(label), schema?: string): SqlSuggestion => ({ label, insertText, kind, detail, ...(schema ? { schema } : {}) })
 
   if (qualifier) {
     const name = cleanIdentifier(qualifier[1]).toLowerCase()
     const aliases = findAliases(sql, metadata)
     const object = metadata.objects.find((item) => item.name.toLowerCase() === name || aliases.get(name)?.toLowerCase() === item.name.toLowerCase())
     if (object) return object.columns
-      .filter((column) => column.name.toLowerCase().startsWith(cleanIdentifier(qualifier[2]).toLowerCase()))
-      .map((column) => make(column.name, 'column', `${column.type} · ${object.name}`, quoteSuggestion(column.name)))
+      .filter((column) => column.name.toLowerCase().includes(cleanIdentifier(qualifier[2]).toLowerCase()))
+      .map((column) => make(column.name, 'column', `${column.type} · ${object.name}`, quoteSuggestion(column.name), metadata.database))
     if (name === metadata.database.toLowerCase() || metadata.databases.some((database) => database.toLowerCase() === name)) {
-      return metadata.objects.filter((item) => item.name.toLowerCase().startsWith(cleanIdentifier(qualifier[2]).toLowerCase())).map((item) => make(item.name, 'table', `${item.kind} · ${metadata.database}`, quoteSuggestion(item.name)))
+      return metadata.objects.filter((item) => item.name.toLowerCase().includes(cleanIdentifier(qualifier[2]).toLowerCase())).map((item) => make(item.name, 'table', `${item.kind} · ${metadata.database}`, quoteSuggestion(item.name), metadata.database))
     }
     return []
   }
 
   const context = /\b(FROM|JOIN|UPDATE|INTO|TABLE)\s+([\w$`]*)$/i.exec(before)
   if (context) return metadata.objects
-    .filter((item) => item.name.toLowerCase().startsWith(cleanIdentifier(context[2]).toLowerCase()))
-    .map((item) => make(item.name, 'table', `${item.kind} · ${metadata.database}`))
+    .filter((item) => item.name.toLowerCase().includes(cleanIdentifier(context[2]).toLowerCase()))
+    .map((item) => make(item.name, 'table', `${item.kind} · ${metadata.database}`, quoteSuggestion(item.name), metadata.database))
 
   const routineContext = /\b(CALL|FUNCTION)\s+([\w$`]*)$/i.exec(before)
   if (routineContext) return metadata.routines
-    .filter((item) => item.name.toLowerCase().startsWith(cleanIdentifier(routineContext[2]).toLowerCase()))
+    .filter((item) => item.name.toLowerCase().includes(cleanIdentifier(routineContext[2]).toLowerCase()))
     .map((item) => make(item.name, 'routine', item.kind))
 
   const results: SqlSuggestion[] = [
@@ -47,7 +47,20 @@ export function buildSqlSuggestions(sql: string, offset: number, metadata: Edito
     ...keywords.map((keyword) => make(keyword, 'keyword', 'SQL keyword', keyword)),
     ...[...sqlSnippets, ...userSnippets].map((snippet) => make(snippet.label, 'snippet', `${snippet.prefix} · ${snippet.description}`, snippet.body))
   ]
-  return results.filter((item) => !normalizedPrefix || item.label.toLowerCase().startsWith(normalizedPrefix) || (item.kind === 'snippet' && item.detail.toLowerCase().startsWith(normalizedPrefix)))
+  return results.filter((item) => !normalizedPrefix || item.label.toLowerCase().includes(normalizedPrefix) || (item.kind === 'snippet' && item.detail.toLowerCase().includes(normalizedPrefix)))
+}
+
+export const sqlKeywords = new Set(keywords.map((keyword) => keyword.toLowerCase()))
+
+export function applyKeywordCaseAtOffset(sql: string, offset: number, mode: 'upper' | 'lower' | 'as-typed'): string {
+  if (mode === 'as-typed') return sql
+  const caret = Math.max(0, Math.min(sql.length, offset))
+  const before = sql.slice(0, caret)
+  const word = /[A-Za-z_][\w$]*$/.exec(before)?.[0]
+  if (!word || !sqlKeywords.has(word.toLowerCase())) return sql
+  const start = caret - word.length
+  const replacement = mode === 'upper' ? word.toUpperCase() : word.toLowerCase()
+  return replacement === word ? sql : `${sql.slice(0, start)}${replacement}${sql.slice(caret)}`
 }
 
 function findAliases(sql: string, metadata: EditorMetadata): Map<string, string> {

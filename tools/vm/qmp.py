@@ -29,10 +29,10 @@ class Qmp:
             if "error" in msg:
                 raise SystemExit(f"QMP erro: {msg['error'].get('desc')}")
 
-    def key(self, *names, hold_ms=60):
+    def key(self, *names, hold_ms=int(os.environ.get("VM_HOLD_MS", 120))):
         self.call("send-key", keys=[{"type": "qcode", "data": n} for n in names], **{"hold-time": hold_ms})
 
-    def type_text(self, text, delay=0.04):
+    def type_text(self, text, delay=float(os.environ.get("VM_TYPE_DELAY", 0.12))):
         for ch in text:
             if ch.isupper():
                 self.key("shift", ch.lower())

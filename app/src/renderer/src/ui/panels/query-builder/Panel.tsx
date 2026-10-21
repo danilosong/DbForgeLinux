@@ -6,7 +6,7 @@ import type { BuiltQuery, ColumnRef, JoinType, QueryAggregate, QueryBuilderModel
 import { buildQuery } from '../../../../../modules/query-builder/index.js'
 import { columnPortY, joinPath } from '../../../../../modules/query-builder/diagram.js'
 import { splitSqlStatements } from '../../../../../shared/sqlStatements.js'
-import { usePanelConnection } from '../registry'
+import { usePanelConnection, usePanelNavigation } from '../registry'
 
 type BuilderTab = 'Selection' | 'Where' | 'Group By' | 'Having' | 'Order By'
 type DocView = 'Diagram' | 'Text' | 'Data'
@@ -17,6 +17,7 @@ export default function QueryBuilderPanel(): React.JSX.Element {
   const { t } = useI18n()
 
   const contextualConnection = usePanelConnection()
+  const { selectedObject } = usePanelNavigation()
   const [connections, setConnections] = useState<ConnectionRecord[]>([]); const [connectionId, setConnectionId] = useState(contextualConnection?.id ?? '')
   const [active, setActive] = useState<ConnectionSummary | undefined>(contextualConnection)
   const [databases, setDatabases] = useState<string[]>([]); const [database, setDatabase] = useState(contextualConnection?.database ?? '')
@@ -66,6 +67,12 @@ export default function QueryBuilderPanel(): React.JSX.Element {
   }, [connectionId, connections])
 
   useEffect(() => { if (active && database) void loadSchema() }, [active, database, loadSchema])
+  useEffect(() => {
+    const name = selectedObject?.object.name
+    const table = schema?.tables.find((item) => item.name === name)
+    if (!table) return
+    setModel((current) => current.tables.length ? current : { ...current, tables: [{ ...table, alias: table.name, x: 40, y: 32 }], selections: table.columns.map((column) => ({ source: { table: table.name, column: column.name }, included: true })) })
+  }, [schema, selectedObject?.object.name])
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'F5') { event.preventDefault(); void execute() }

@@ -18,6 +18,7 @@ linux:
   mimeTypes:
     - application/sql
   target:
+    - AppImage
     - deb
   category: Development;Database;
   maintainer: dbForgeLinux contributors <noreply@github.com>
@@ -33,3 +34,8 @@ deb:
     - libsecret-1-0
 artifactName: dbForgeLinux_${version}_${arch}.${ext}
 npmRebuild: false
+publish:
+  provider: github
+  owner: danilosong
+  repo: DbForgeLinux
+  releaseType: release

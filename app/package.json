@@ -13,7 +13,7 @@
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build",
+    "build": "electron-vite build && node scripts/generate-build-info.mjs",
     "start": "electron-vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
@@ -21,10 +21,13 @@
     "perf:benchmark": "vitest run test/performance-benchmark.test.ts --reporter=verbose",
     "dist:deb": "pnpm build && electron-builder --linux deb --config packaging/electron-builder.yml",
     "smoke:e2e": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/smoke-e2e.mjs",
-    "qa:risk:e2e": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/qa-risk-e2e.mjs"
-    ,"screenshots:extras": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/extras-screenshots.mjs"
+    "screenshots:updater": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/updater-screenshots.mjs",
+    "qa:risk:e2e": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/qa-risk-e2e.mjs",
+    "screenshots:extras": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/extras-screenshots.mjs",
+    "screenshots:editor-designer": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/editor-designer-screenshots.mjs"
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "mysql2": "^3.15.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

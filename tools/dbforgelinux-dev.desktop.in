@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=dbForgeLinux (Development)
+Comment=Run the development build from this repository
+Exec=@REPO_ROOT@/tools/dbforge-dev
+Icon=@REPO_ROOT@/app/packaging/icon.png
+Terminal=false
+Categories=Development;Database;IDE;
+StartupNotify=true

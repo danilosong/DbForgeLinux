@@ -17,6 +17,17 @@ describe('central keymap', () => {
     expect(findKeymapConflicts(keymapCommands)).toEqual([])
   })
 
+  it('registers the menu navigation chords in the shared keymap without collisions', () => {
+    expect(keymapCommands).toEqual(expect.arrayContaining([
+      expect.objectContaining({ command: 'Show Database Explorer', shortcut: 'Ctrl+W Ctrl+L', context: 'Global' }),
+      expect.objectContaining({ command: 'Show Security Manager', shortcut: 'Ctrl+D Ctrl+Q', context: 'Global' }),
+      expect.objectContaining({ command: 'Show Session Manager', shortcut: 'Ctrl+D Ctrl+S', context: 'Global' }),
+      expect.objectContaining({ command: 'Show Service Control', shortcut: 'Ctrl+D Ctrl+R', context: 'Global' }),
+      expect.objectContaining({ command: 'Show Document Outline', shortcut: 'Ctrl+W Ctrl+U', context: 'Global' })
+    ]))
+    expect(findKeymapConflicts(keymapCommands)).toEqual([])
+  })
+
   it('finds conflicts within the same context and with global bindings', () => {
     expect(findKeymapConflicts([
       { command: 'A', shortcut: 'Ctrl+K', context: 'Editor' },

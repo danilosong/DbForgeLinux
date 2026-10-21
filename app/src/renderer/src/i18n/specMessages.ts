@@ -580,4 +580,19 @@ Object.assign(ptBrMessages, { 'debug.ignoreChanges': 'Ignorar alterações e con
 Object.assign(ptBrMessages, { 'grid.limit.rows': 'Ações em resultados grandes são limitadas a {0} linhas.', 'grid.limit.text': 'O texto copiado excede o limite de 8 MB.', 'grid.copied': '{0} linhas copiadas.', 'grid.copy.error': 'Falha ao copiar.', 'grid.stats.error': 'Não foi possível calcular as estatísticas.', 'grid.pivot.error': 'Não foi possível criar a tabela dinâmica.', 'grid.detail.error': 'Não foi possível carregar as linhas de detalhe.', 'grid.detail.found': '{0} relação(ões) de detalhe encontrada(s).', 'grid.apply.confirm': 'Aplicar {0} alteração(ões) pendente(s)? O lote usa uma transação quando o autocommit está habilitado.' })
 Object.assign(ptBrMessages, { 'grid.sort.error': 'Não foi possível ordenar este resultado.', 'grid.sort.drag': 'Clique para ordenar; arraste para reordenar as colunas.', 'grid.freeze': 'Congelar até {0}', 'grid.unfreeze': 'Descongelar colunas', 'grid.filterColumn': 'Filtrar {0}', 'grid.filterColumn.prompt': 'Filtrar {0} por conteúdo:', 'grid.masterDetail.row': 'linha {0}' })
 
+Object.assign(enMessages, {
+  'editor.query.success': 'Query executed successfully.', 'editor.results.text': 'Text', 'editor.results.grid': 'Grid',
+  'td.page.general': 'General', 'td.page.columns': 'Columns', 'td.page.constraints': 'Constraints', 'td.page.indexes': 'Indexes', 'td.page.options': 'Options', 'td.page.triggers': 'Triggers', 'td.page.partitioning': 'Partitioning', 'td.page.data': 'Data', 'td.page.sql': 'SQL',
+  'td.column.properties': 'Column properties', 'td.ddl.preview': 'DDL preview', 'td.refresh': 'Refresh Object', 'td.script': 'Script Changes', 'td.data.refresh': 'Refresh data', 'td.data.record': 'Record {0} of {1}', 'td.data.empty': 'Select Refresh data to load up to 500 records.'
+})
+Object.assign(ptBrMessages, {
+  'editor.query.success': 'Consulta executada com sucesso.', 'editor.results.text': 'Texto', 'editor.results.grid': 'Grade',
+  'td.page.general': 'Geral', 'td.page.columns': 'Colunas', 'td.page.constraints': 'Restrições', 'td.page.indexes': 'Índices', 'td.page.options': 'Opções', 'td.page.triggers': 'Gatilhos', 'td.page.partitioning': 'Particionamento', 'td.page.data': 'Dados', 'td.page.sql': 'SQL',
+  'td.column.properties': 'Propriedades da coluna', 'td.ddl.preview': 'Prévia de DDL', 'td.refresh': 'Atualizar objeto', 'td.script': 'Gerar script', 'td.data.refresh': 'Atualizar dados', 'td.data.record': 'Registro {0} de {1}', 'td.data.empty': 'Selecione Atualizar dados para carregar até 500 registros.'
+})
+Object.assign(enMessages, { 'editor.results.as': 'Results as', 'editor.connection.connected': 'Connected' })
+Object.assign(ptBrMessages, { 'editor.results.as': 'Resultados como', 'editor.connection.connected': 'Conectado' })
+Object.assign(enMessages, { 'editor.completion.details': 'Object details', 'editor.completion.engineUnknown': 'engine unavailable', 'editor.completion.column': 'Column', 'editor.completion.type': 'Type', 'editor.completion.null': 'Nullability' })
+Object.assign(ptBrMessages, { 'editor.completion.details': 'Detalhes do objeto', 'editor.completion.engineUnknown': 'mecanismo indisponível', 'editor.completion.column': 'Coluna', 'editor.completion.type': 'Tipo', 'editor.completion.null': 'Nulabilidade' })
+
 export const ptBrCatalog: Record<string, string> = { ...enMessages, ...generatedPtBrMessages, ...ptBrPanelMessages, ...ptBrMessages }

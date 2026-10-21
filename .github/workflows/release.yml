@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: app/pnpm-lock.yaml
+      - name: Install dependencies
+        working-directory: app
+        run: pnpm install --frozen-lockfile
+      - name: Validate
+        working-directory: app
+        run: pnpm typecheck && pnpm lint && pnpm test
+      - name: Build Linux packages
+        working-directory: app
+        env:
+          DBFORGE_RELEASE_BUILD: '1'
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm build && pnpm exec electron-builder --linux AppImage deb --config packaging/electron-builder.yml --publish always
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            app/dist/*.AppImage
+            app/dist/*.deb
+            app/dist/latest-linux.yml
+            app/dist/*.blockmap

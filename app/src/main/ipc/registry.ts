@@ -33,6 +33,7 @@ import { registerGridEditingIpc } from './grid-editing.js'
 import { registerGridDataIpc } from './grid-data.js'
 import { registerExtraToolsIpc } from './extra-tools.js'
 import { registerAboutIpc } from './about.js'
+import { registerUpdaterIpc } from './updater.js'
 import { SqlExecutionHistoryStore } from '../history/SqlExecutionHistoryStore.js'
 import { join } from 'node:path'
 import { defaultTrustedRendererConfig, installIpcSecurity } from './guard.js'
@@ -65,7 +66,9 @@ export function registerIpcRegistry(deps: IpcDeps): void {
   registerObjectEditorsIpc(deps)
   registerDataReportPivotIpc(deps)
   registerAiAssistantIpc(deps)
-  registerOptionsIpc(new SettingsStore(join(deps.userDataDir, 'settings.json')))
+  const settingsStore = new SettingsStore(join(deps.userDataDir, 'settings.json'))
+  registerOptionsIpc(settingsStore)
+  registerUpdaterIpc(settingsStore, deps.driver)
   registerDatabaseToolsIpc(deps)
   registerRoutineDebuggerIpc(deps)
   registerServiceControlIpc()

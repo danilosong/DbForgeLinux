@@ -1,5 +1,4 @@
 /* global process, console, setTimeout, clearTimeout, window, document */
-import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -7,8 +6,7 @@ import { once } from 'node:events'
 import { _electron as electron } from 'playwright'
 import mysql from 'mysql2/promise'
 
-const packagedElectron = join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux')
-const electronPath = existsSync(packagedElectron) ? packagedElectron : join(process.cwd(), 'dist', 'linux-unpacked', 'electron')
+const electronPath = join(process.cwd(), 'node_modules', 'electron', 'dist', 'electron')
 const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-smoke-'))
 const admin = await mysql.createConnection({ host: '127.0.0.1', port: 33067, user: 'root', password: process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only' })
 const docTable = `smoke_doc_${process.pid}`
@@ -20,7 +18,8 @@ try {
   await admin.query(`CREATE TABLE sample.\`${docTable}\` (id INT PRIMARY KEY, label VARCHAR(40) NOT NULL)`)
   app = await electron.launch({
     executablePath: electronPath,
-    args: [],
+    args: [process.cwd()],
+    cwd: process.cwd(),
     timeout: 90_000,
     env: {
       ...process.env,
@@ -85,11 +84,11 @@ try {
   await mkdir(evidenceDirectory, { recursive: true })
   await page.screenshot({ path: join(evidenceDirectory, 'reconcile-ui-light.png') })
   await page.locator('summary').filter({ hasText: 'View' }).click()
-  await page.getByRole('button', { name: 'Dark', exact: true }).click()
+  await page.getByRole('button', { name: 'Theme: Dark', exact: true }).click()
   await page.locator('.workbench').waitFor()
   await page.screenshot({ path: join(evidenceDirectory, 'reconcile-ui-dark.png') })
   await page.locator('summary').filter({ hasText: 'View' }).click()
-  await page.getByRole('button', { name: 'Light', exact: true }).click()
+  await page.getByRole('button', { name: 'Theme: Light', exact: true }).click()
   await page.getByRole('tab', { name: 'Start Page' }).click()
   const recentFile = page.locator('.start-page').getByRole('button', { name: /recent-e2e\.sql/ })
   await recentFile.waitFor()
@@ -99,17 +98,18 @@ try {
   await page.getByRole('button', { name: 'New SQL', exact: true }).click()
   await page.getByRole('tab', { name: /SQL/ }).last().waitFor()
 
-  const tools = page.locator('summary').filter({ hasText: 'Tools' })
-  await tools.click()
-  await page.getByRole('button', { name: /Find Object \/ Invalid Objects/ }).click()
+  const databaseMenu = page.locator('.menu-row summary').filter({ hasText: 'Database' })
+  await databaseMenu.click()
+  await page.getByRole('button', { name: 'Find Object…' }).click()
   await page.locator('.database-tools-panel').waitFor()
   await page.locator('.panel-dialog-close').click()
-  await tools.click()
-  await page.getByRole('button', { name: /ER Diagram|er-diagram/i }).click()
+  await databaseMenu.click()
+  await page.getByRole('button', { name: 'Database Diagram' }).click()
   await page.locator('.er-panel').waitFor()
   const erDialogClose = page.locator('.panel-dialog-close')
   if (await erDialogClose.count()) await erDialogClose.click()
   else await page.locator('.document-tab.selected .tab-close').click()
+  const tools = page.locator('.menu-row summary').filter({ hasText: 'Tools' })
   await tools.click()
   await page.getByRole('button', { name: 'Options…' }).click()
   await page.locator('.options-panel').waitFor()
@@ -130,6 +130,18 @@ try {
     await chooseTheme('Dark')
     await page.screenshot({ path: join(evidenceDirectory, `${name}-dark.png`) })
   }
+  const captureMenus = async (theme) => {
+    await chooseTheme(theme)
+    for (const menu of ['File', 'Edit', 'View', 'Database', 'Comparison', 'SQL', 'Tools', 'Window', 'Help']) {
+      const summary = page.locator('.menu-row summary').filter({ hasText: new RegExp(`^${menu}$`) })
+      if (!(await summary.count())) continue
+      await summary.click()
+      await page.screenshot({ path: join(evidenceDirectory, `menus-${menu.toLowerCase()}-${theme.toLowerCase()}.png`) })
+      await summary.click()
+    }
+  }
+  await captureMenus('Light')
+  await captureMenus('Dark')
   await page.keyboard.press('Control+Shift+F')
   await page.locator('.find-toolbar input[type="search"]').fill('SELECT')
   await page.locator('.navigation-list button').first().waitFor()
@@ -157,7 +169,21 @@ try {
   await page.locator('.object-viewer').waitFor()
   await page.locator('.object-viewer pre').waitFor()
   await captureBothThemes('object-viewer')
-  console.log('Smoke e2e passed: MySQL connection, open-file SQL, result grid, documentation, navigation panels, object properties, and light/dark evidence.')
+  for (const theme of ['Light', 'Dark']) {
+    await chooseTheme(theme)
+    await smokeObject.click({ button: 'right' })
+    const contextMenu = page.locator('.explorer-context-menu')
+    await contextMenu.waitFor()
+    for (const label of ['New Table', 'Open Editor', 'Open Data in Editor', 'Select All Rows', 'Export Data…', 'Import Data…', 'Generate Data…', 'Table Maintenance…', 'Flush', 'Truncate Table', 'Duplicate Object…', 'Generate Script As', 'Send to', 'Edit Privileges', 'Show Details', 'Rename', 'Delete', 'Refresh', 'Properties']) {
+      const target = ['Generate Script As', 'Send to'].includes(label)
+        ? contextMenu.locator('.explorer-context-submenu > summary').filter({ hasText: label }).first()
+        : contextMenu.locator('button[role="menuitem"]').filter({ hasText: label }).first()
+      await target.waitFor()
+    }
+    await page.screenshot({ path: join(evidenceDirectory, `explorer-table-menu-${theme.toLowerCase()}.png`) })
+    await page.keyboard.press('Escape')
+  }
+  console.log('Smoke e2e passed: MySQL connection, SQL/grid, documentation, navigation panels, object properties, table context actions, and light/dark evidence.')
 } finally {
   if (app) {
     const child = app.process()
