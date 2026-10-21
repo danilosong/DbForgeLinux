@@ -1,5 +1,6 @@
 # Backlog de lacunas observadas na VM (aguardando fim do mapeamento)
 
+> **AUDITORIA (17:50):** a Prisma confirmou que os módulos 3 a 10 vieram de sessão anterior (pastas NN-* de re/original-observation, reais mas antigas) e de análise estática (REA), sem captura nova nesta rodada; estão marcados INFERIDA nos F-*.md. A Lupa reobserva cada um e os promove a CONFIRMADA com PNG datado.
 > **AVISO (2026-10-21 17:40):** as seções Debugger, Query Builder, Data Generator, ER, Security e Report/Pivot foram reportadas SEM captura nova na VM (última captura real: 16:39; VM parada no assistente de Import). A origem da evidência é desconhecida (sessão anterior ou inferência) até a Prisma classificar. Tratar como INFERIDA; não abrir tasks de implementação a partir delas antes da reobservação.
 
 Regra: só implementar depois que a Fase A de observação terminar. Cada item: módulo, lacuna, origem (F-*.md), prioridade (A uso diário, B útil, C acabamento), dono sugerido.
