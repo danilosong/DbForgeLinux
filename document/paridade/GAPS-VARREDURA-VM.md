@@ -20,6 +20,7 @@ Prioridade: **A** = uso diário do editor; **B** = útil; **C** = acabamento.
 | 11 | Janelas acopláveis | *Properties* com categorias/A-Z/descrição, *Data Viewer* com botões de formato, *Schema View* com navegação ◀ ▶, *Code Snippets* com prévia | B | M |
 | 12 | Edit › Find and Replace | *Find in Files* e *Replace in Files* com atalhos `Ctrl+Shift+F` / `Ctrl+Shift+H` | B | P |
 | 13 | Criação como documento | *New Database*, *New Table*, *New Procedure/Function/View/Trigger/Event* abrem um documento próprio (General/SQL) com nome padrão, opções do objeto (conta *Definer*, *SQL Access*, *Deterministic*), grade de parâmetros e **DDL ao vivo**; *Apply Changes* / *Script Changes* | A | M |
-| 14 | Diferença intencional | IA: o original exige conta na nuvem (*Sign In*); o clone usa chave própria. Telemetria: o original vem ligada; o clone não tem | — | — |
+| 14 | Import › tabela nova | Criar tabela a partir do arquivo com **tipos inferidos** (o clone hoje só importa em tabela existente), mapeamento editável (adicionar/editar coluna, *Fill/Clear Mapping*), *Skip Lines* e *Header Position*, delimitador autodetectado, passo *Output* (editor / arquivo / direto), tela final com *Errors / Warnings / Rows imported* e *Import more*. **O clone deve fazer melhor que o original:** usar `utf8mb4` (o original cria `utf8mb3`), `DECIMAL`/`JSON`/`TEXT` quando o conteúdo pedir e permitir escolher PK | A | M |
+| 15 | Diferença intencional | IA: o original exige conta na nuvem (*Sign In*); o clone usa chave própria. Telemetria: o original vem ligada; o clone não tem | — | — |
 
 Como medir: cada item vira linhas em `FIDELIDADE-MEDIDA.md` (rodada 3) com evidência (teste ou captura do clone).
