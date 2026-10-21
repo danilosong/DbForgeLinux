@@ -3,7 +3,7 @@ import { buildQuery, parseQuery, inspectQueryBuilderSchema, selectAllRowsFromTab
 import type { QueryBuilderModel } from '../../src/modules/query-builder/index.js'
 import type { DbDriver } from '../../src/main/db/DbDriver.js'
 import { exportFormats } from '../../src/renderer/src/ui/panels/import-export/formats.js'
-import { columnPortY, joinPath } from '../../src/modules/query-builder/diagram.js'
+import { columnPortY, joinPath, joinPortXs } from '../../src/modules/query-builder/diagram.js'
 import { joinFromDraggedColumns } from '../../src/modules/query-builder/drag-drop.js'
 import { parseDatabaseObjectDrag } from '../../src/shared/databaseObjectDrag.js'
 
@@ -45,6 +45,8 @@ describe('query builder', () => {
     expect(columnPortY(value.tables[0], 'customer_id', 32)).toBe(131)
     expect(columnPortY(value.tables[1], 'id', 32)).toBe(107)
     expect(joinPath(300, 131, 400, 107)).toBe('M 300 131 C 350 131, 350 107, 400 107')
+    expect(joinPortXs(40, 330)).toEqual({ startX: 300, endX: 330 })
+    expect(joinPortXs(330, 40)).toEqual({ startX: 330, endX: 300 })
   })
   it('generates safe parameterized SQL with joins, criteria, grouping, order, and limit', () => {
     const built = buildQuery(model())
