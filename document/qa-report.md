@@ -15,7 +15,7 @@ Executado em 2026-10-20 com Electron empacotado pelo Playwright sob `xvfb-run`, 
 | Compare → sync → compare | **Passou via IPC/MySQL.** A comparação inicial tinha alterações e registros exclusivos; a sincronização foi transacional e a comparação seguinte não teve diferenças. Também coberto por `app/test/modules/data-compare.integration.test.ts`. |
 | Importar CSV de 100 mil linhas | **Passou via IPC do Import/Export e MySQL real.** Dialog de origem, preview, import transacional e contagem final de 100 mil registros; o teste de integração dedicado também cobre import/export em streaming. |
 
-O commit/rollback e os fluxos de Import/Compare foram exercitados pelas APIs IPC chamadas dentro do renderer Playwright; os diálogos de arquivo e o Table Designer/Security Manager também passaram pela interface. A edição inline permanece uma lacuna de produto, pois não há affordance nem contrato de gravação no grid para testar com segurança.
+O commit/rollback e os fluxos de Import/Compare foram exercitados pelas APIs IPC chamadas dentro do renderer Playwright; os diálogos de arquivo e o Table Designer/Security Manager também passaram pela interface. A edição inline agora é exercitável pela UI e está coberta por teste unitário, integração MySQL e smoke Electron; ver Rodada 2.
 
 ## Validação
 
@@ -50,3 +50,29 @@ Executada com MySQL 8.4 descartável em `127.0.0.1:33067`, MariaDB 11.4 descart�
 - Unit tests Source Control, AI, Options, Documenter e instrumentador do Debugger — passaram.
 - `pnpm build`, `pnpm typecheck` e ESLint focado nos arquivos alterados — passaram.
 - A lacuna de AI streaming registrada nesta rodada foi fechada: contrato/preload expõe eventos incrementais, o IPC os encaminha por requestId e o painel atualiza a resposta por frame de animação.
+
+## Rodada 3 — higiene e cobertura de fluxos novos (2026-10-21)
+
+Preparação em MySQL 8.4 descartável `127.0.0.1:33067`. `app/scripts/mysql-clean-test.mjs` remove databases, contas e objetos MySQL de teste prefixados; em `sample`/`sample_b` limita a remoção ao prefixo legado `martelo_ui_*`. A limpeza inicial removeu apenas `sample_b.martelo_ui_3030593` e `sample_b.martelo_ui_3085421`. O job de integração também varreu dois schemas `dbforge_test_smoke_*` deixados por uma execução anterior; o teardown do smoke agora verifica a remoção e repete DROP até confirmar ausência. Após o smoke final, a limpeza encontrou zero resíduos. Nenhum dado não prefixado de `sample`/`sample_b` foi alterado.
+
+Fixtures MySQL de integração e e2e usam nomes prefixados com PID + UUID (`dbforge_test_*` / `dbforge_tu_*`) e removem databases/contas em `afterAll` ou `finally`. O CI executa `pnpm mysql:clean-test` no job Integration após subir o serviço e antes de typecheck/testes; `pnpm test:integration` também limpa antes do Vitest. O script de screenshots Extras passou a usar fixture identificada por execução e sem apontar alterações pendentes ao database `sample`.
+
+| Fluxo | Evidência / resultado |
+|---|---|
+| Comparison | Smoke abre o menu e invoca Nova comparação de esquemas. |
+| Explorer — Generate Script As | Smoke escolhe `CREATE → To New SQL Window` e confere o DDL na aba SQL; não executa DDL. |
+| Table Designer | Smoke percorre General, Columns, Constraints, Indexes, Options, Triggers, Partitioning, Data e SQL em tabela descartável. |
+| Schema Compare | Smoke compara dois schemas temporários diferentes, abre o wizard de sincronização até Summary e cancela sem executar. |
+| Export Data | Smoke seleciona consulta de tabela e avança até “Ready to export”; não clica Export. |
+| Security Manager | Smoke abre a lista de contas e confirma que há usuários visíveis. |
+| Query Builder | Smoke adiciona a tabela filha com FK e valida chip INNER JOIN automático na aba Joins. |
+| Debugger | Smoke verifica `sql_mode` global estrito, implanta o engine se ausente, inicia uma procedure descartável, usa Step Into e encerra a sessão; o schema global do engine só é removido se não existia antes do teste. |
+
+### Validação da Rodada 3
+
+- `pnpm mysql:clean-test` — removeu os schemas temporários legados no início da integração; após smoke, teste de integração e limpeza final, reportou zero objetos removidos.
+- `pnpm smoke:e2e` — passou sob `xvfb-run`: Comparison; CREATE no Explorer; nove páginas do Table Designer; Schema Compare até Summary sem executar; Export até “Ready to export” sem executar; lista do Security Manager; FK → INNER JOIN automático; Debugger deploy + Step Into em modo estrito. SIGTERM no Electron antes do encerramento do Xvfb.
+- `pnpm test` — 221 passaram e 13 opt-in foram ignorados.
+- `pnpm test:integration` — limpeza prefixada + 65 arquivos de teste: 234 passaram, 1 skip.
+- `pnpm typecheck` e `pnpm lint` — passaram.
+- Corrigi a asserção do teste ZIP em `database-backup.test.ts`: o nome do entry é lido usando o comprimento do cabeçalho ZIP, sem limite de bytes incorreto.
