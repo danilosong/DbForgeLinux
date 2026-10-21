@@ -74,9 +74,9 @@ A tela de relatório preview usa as linhas retornadas pelo limite do carregament
 | 27 | Parcial implementado | Database > Tasks reúne os fluxos; View > Tasks mantém uma lista persistida das últimas execuções de Backup/Export/Import/Compare e permite reabrir o fluxo correspondente. Projetos de backup e templates seguem carregados nos seus assistentes; a lista não reabre parâmetros sigilosos nem caminho de arquivo. |
 | 28 | Implementado | Barra de Find Invalid Objects apresenta Analyze, Script as ALTER e Script as DROP; seletor acessível oferece busca, Check All e Uncheck All. Script ALTER permanece habilitado apenas para views com definição recuperada. |
 | 29 | Parcial implementado | Restore tem três etapas, confirmação de destino e Save Command Line: grava script mysql com quoting shell, modo 0700 e prompt de senha. Smoke verifica o conteúdo sem executar a restauração. |
-| 30 | Parcial | O wizard existente oferece Dedicated/Shared e Link/Progress/Finish; a prova e2e dedicada usando repositório Git temporário não foi concluída nesta rodada. |
+| 30 | UI comprovada, backend adaptado para teste seguro | Smoke e2e percorre Link/Progress/Finish nos modelos Dedicated e Shared usando diretório descartável com `.git` e handlers IPC simulados; nenhum comando Git é executado conforme a regra da tarefa. O backend real continua coberto por testes de módulo existentes, não executados nesta rodada por invocarem Git. |
 
-A trilha de startup foi adicionada como marca de renderização/pintura e observação de long tasks; isso não equivale a um perfil completo de CPU/memória. Float agora abre janela nativa independente para uma cópia de leitura do SQL selecionado; sincronização/edição bidirecional está pendente. Arrastar uma aba para outra atribui ambas ao mesmo grupo e orientação, mas painéis divididos reais ainda estão pendentes.
+A trilha de startup foi adicionada como marca de renderização/pintura e observação de long tasks; isso não equivale a um perfil completo de CPU/memória. Smoke e2e comprova a janela nativa Float para cópia de leitura do SQL e o arraste de aba atribui orientação visual comum às duas abas. Edição sincronizada no Float e visualização simultânea dos grupos em painéis divididos continuam pendentes.
 
 ## Rodada de implementação — gaps 31–33
 
