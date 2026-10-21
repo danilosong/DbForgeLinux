@@ -75,6 +75,9 @@ try {
       await designer.getByLabel('Report layout').selectOption(layout)
       await designer.getByLabel('Page orientation').selectOption(layout === 'tabular' ? 'landscape' : 'portrait')
       await designer.getByLabel('Style').selectOption(layout === 'columnar' ? 'Aurora' : layout === 'tabular' ? 'Ocean' : 'Ember')
+      const preview = designer.getByTestId('report-page-preview')
+      await preview.scrollIntoViewIfNeeded()
+      if (layout === 'justified' && !(await preview.locator('.rp-record').count())) throw new Error('Justified preview did not render report cards.')
       await page.screenshot({ path: join(evidence, `data-report-${layout}-${theme.toLowerCase()}.png`) })
     }
   }
