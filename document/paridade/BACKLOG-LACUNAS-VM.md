@@ -133,3 +133,10 @@ Desconhecido: import com linhas reais, formatos não exportados (Excel/JSON/XML)
 ## Report Wizard (F-RPT) — implementado (rodada 12, commit c6aee61); lacunas honestas declaradas pela Forja
 Implementado: assistente opcional de 8 passos (SELECT-only), colunas transferíveis, ordem de agrupamento, layout/orientação/ajuste de página, 5 estilos, título padrão 'TuxSQL Report', fluxo Blank, zonas do Pivot Filter/Column/Row/Data, persistência do Master-Detail (JSON próprio, consulta validada como somente leitura).
 Pendente (prio B): (W1) layout Columnar/Tabular/Justified, orientação e os 5 estilos hoje só são PERSISTIDOS no modelo; aplicar composições visuais distintas no designer e na prévia; (W2) o assistente só oferece a conexão ativa; (W3) abrir um Master-Detail salvo não troca a conexão ativa.
+
+## Segunda passada — P2-04 Schema Compare e Sync Wizard (F-CMP) — CONFIRMADO pela Lupa2 (69 PNGs, re/original-observation/p2-04-schema-compare/)
+Origem obs_p2, destino sample_b (descartável). Confirmado: menu Comparison, New Schema Comparison, Options em 4 páginas; resultado com 20 objetos = 6 Only in Source (Create) + 14 Only in Target (Drop: 8 tabelas, 2 procedures, 1 function, 1 event, 2 triggers); Sync Wizard Output/Options/Additional Scripts/Summary; Action Plan com 19 grupos; script de 176 linhas com USE do destino; F5 no destino terminou com 'Query completed with warnings', 0 erros, 1 warning (utf8/UTF8MB3). Após a execução sample_b ficou só com os objetos da origem (as 14 exclusões foram aplicadas).
+Alerta: a sincronização do original gera DROP em massa sem confirmação adicional visível; o clone mantém confirmação forte e preview obrigatório (diferença intencional, já documentada).
+Verificar no clone (C3): Action Plan agrupado (19 grupos neste cenário), Warning de objeto que exige DETERMINISTIC/NO SQL/READS SQL DATA, e que o painel Schema Update Script reflete o plano.
+Desconhecido: se o botão Synchronize executa ou só abre o script; nome exato do evento em sample_b.
+Atenção operacional: sample_b foi alterado pela sincronização; recompor antes de novas observações de Schema Compare.
