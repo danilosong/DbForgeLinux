@@ -184,8 +184,10 @@ export class UpdateService {
     } catch (error) {
       if (this.controller?.signal.aborted) return this.update({ phase: 'idle', message: 'Update cancelled.', progress: undefined }, 'Update cancelled.')
       if (process.platform === 'linux' && !process.env.APPIMAGE) {
-        await this.options.release.openReleasePage().catch(() => undefined)
-        return this.update({ phase: 'error', message: 'This package cannot update itself here. The release page was opened so you can install the new .deb.' }, textError(error))
+        try {
+          await this.options.release.openReleasePage()
+          return this.update({ phase: 'manual', message: 'This package cannot update itself here. The release page was opened so you can install the new .deb.' }, textError(error))
+        } catch { /* Show the original updater failure when the release page cannot be opened either. */ }
       }
       return this.update({ phase: 'error', message: textError(error) }, textError(error))
     }

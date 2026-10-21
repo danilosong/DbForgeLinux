@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import type { ConnectionRecord, ConnectionTestResult } from '../../../../shared/contracts'
 import { Button, Dialog, Field } from './Button'
+import { useI18n } from '../i18n/useI18n.js'
 
-type Page = 'General' | 'Security' | 'SSH' | 'HTTP' | 'Advanced'
+type Page = 'General' | 'Advanced' | 'Security' | 'HTTP' | 'Embedded'
 export interface ConnectionSecrets {
   password: string
   sshPassword: string
@@ -21,10 +22,11 @@ interface Props {
   onCancel(): void
 }
 
-const PAGES: Page[] = ['General', 'Security', 'SSH', 'HTTP', 'Advanced']
+const PAGES: Page[] = ['General', 'Advanced', 'Security', 'HTTP', 'Embedded']
 const EMPTY_SECRETS: ConnectionSecrets = { password: '', sshPassword: '', sshPassphrase: '', httpPassword: '', proxyPassword: '' }
 
 export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, onTrustHostKey, onCancel }: Props): React.JSX.Element {
+  const { t } = useI18n()
   const [record, setRecord] = useState(initial)
   const [secrets, setSecrets] = useState(EMPTY_SECRETS)
   const [remember, setRemember] = useState(true)
@@ -32,6 +34,10 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState<{ kind: 'loading' | 'success' | 'error'; text: string } | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
+  const [nameEdited, setNameEdited] = useState(!isNew)
+  const [transport, setTransport] = useState<'tcp' | 'socket'>(initial.socketPath ? 'socket' : 'tcp')
+  const [databaseChoices, setDatabaseChoices] = useState<string[]>([])
+  const [loadingDatabases, setLoadingDatabases] = useState(false)
   const duplicateName = useMemo(() => names.some((name) => name.toLocaleLowerCase() === record.name.trim().toLocaleLowerCase() && name !== initial.name), [initial.name, names, record.name])
 
   useEffect(() => {
@@ -42,6 +48,10 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
 
   function update<K extends keyof ConnectionRecord>(key: K, value: ConnectionRecord[K]): void {
     setRecord((current) => ({ ...current, [key]: value }))
+    setStatus(null)
+  }
+  function updateEndpoint(host: string, port: number): void {
+    setRecord((current) => ({ ...current, host, port, ...(!nameEdited ? { name: `${host || 'localhost'}:${port}` } : {}) }))
     setStatus(null)
   }
   function updateSsl(patch: Partial<ConnectionRecord['ssl']>): void { update('ssl', { ...record.ssl, ...patch }) }
@@ -57,8 +67,8 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
     if (!record.host.trim() || /\s/.test(record.host)) next.host = 'Informe um host válido, sem espaços.'
     if (!Number.isInteger(record.port) || record.port < 1 || record.port > 65535) next.port = 'A porta deve estar entre 1 e 65535.'
     if (!record.user.trim()) next.user = 'Informe o usuário.'
-    if (record.ssl.mode.startsWith('verify') && !record.ssl.caPath) next.caPath = 'CA obrigatório para este modo SSL.'
-    if (Boolean(record.ssl.certPath) !== Boolean(record.ssl.keyPath)) next.clientKey = 'Informe o certificado e a chave juntos.'
+    if (!record.ssh.enabled && record.ssl.mode.startsWith('verify') && !record.ssl.caPath) next.caPath = 'CA obrigatório para este modo SSL.'
+    if (!record.ssh.enabled && Boolean(record.ssl.certPath) !== Boolean(record.ssl.keyPath)) next.clientKey = 'Informe o certificado e a chave juntos.'
     if (record.ssh.enabled) {
       if (record.http.enabled) next.transport = 'SSH e HTTP tunneling são mutuamente exclusivos.'
       if (!record.ssh.host.trim()) next.sshHost = 'Informe o host SSH.'
@@ -76,9 +86,8 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
       if (record.ssh.enabled) next.transport = 'SSH e HTTP tunneling são mutuamente exclusivos.'
     }
     setErrors(next)
-    const firstPage: Page | undefined = next.sshHost || next.sshUser || next.sshPort || next.sshPassword || next.privateKeyFile
-      ? 'SSH'
-      : next.caPath || next.clientKey ? 'Security' : next.httpUrl ? 'HTTP' : 'General'
+    const firstPage: Page | undefined = next.sshHost || next.sshUser || next.sshPort || next.sshPassword || next.privateKeyFile || next.caPath || next.clientKey
+      ? 'Security' : next.httpUrl ? 'HTTP' : 'General'
     if (firstPage) setPage(firstPage)
     return next
   }
@@ -90,13 +99,11 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
     try {
       const result = await onAction(attempted, secrets, remember, action)
       if (action === 'test' && result) {
-        const tls = result.tlsVersion ? ` · ${result.tlsVersion}` : ''
-        const ssh = result.sshTunnel ? ' · via SSH' : ''
-        const http = result.httpTunnel ? ' · via HTTP tunnel' : ''
-        setStatus({ kind: 'success', text: `Conexão bem-sucedida · ${result.serverVersion} · ${result.elapsedMs} ms${tls}${ssh}${http}` })
+        setDatabaseChoices(result.databases ?? [])
+        setStatus({ kind: 'success', text: `${t('conn.test.success')} · ${t('conn.test.serverVersion', [result.serverVersion])}` })
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Falha na conexão.'
+      const message = sanitizeError(error, secrets)
       const fingerprint = message.match(/SSH host key não confiável: (SHA256:\S+)/)?.[1]
       if (fingerprint && window.confirm(`Fingerprint SSH ${fingerprint}\n\nConfiar nesta chave e salvar?`)) {
         const trusted = { ...attempted, ssh: { ...attempted.ssh, hostFingerprint: fingerprint } }
@@ -105,14 +112,16 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
         setStatus({ kind: 'loading', text: `Verificando chave e conectando a ${trusted.host}:${trusted.port}…` })
         try {
           const result = await onAction(trusted, secrets, remember, action)
-          if (action === 'test' && result) setStatus({ kind: 'success', text: `Conexão bem-sucedida · ${result.serverVersion} · ${result.elapsedMs} ms · via SSH` })
+          if (action === 'test' && result) { setDatabaseChoices(result.databases ?? []); setStatus({ kind: 'success', text: `${t('conn.test.success')} · ${t('conn.test.serverVersion', [result.serverVersion])}` }) }
           return
         } catch (retryError) {
-          setStatus({ kind: 'error', text: humanizeError(retryError) })
+          window.alert(`${t('conn.test.errorTitle')}\n\n${sanitizeError(retryError, secrets)}`)
+          setStatus(null)
           return
         }
       }
-      setStatus({ kind: 'error', text: humanizeError(error) })
+      window.alert(`${t('conn.test.errorTitle')}\n\n${message}`)
+      setStatus(null)
     } finally {
       setBusy(false)
     }
@@ -120,27 +129,29 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
 
   return <Dialog title="Database Connection Properties" className="connection-dialog">
     <div className="connection-dialog-body">
-      <nav className="connection-pages" aria-label="Propriedades da conexão">
-        {PAGES.map((item) => <button key={item} className={page === item ? 'selected' : ''} onClick={() => setPage(item)}>
-          {item}{Object.keys(errors).length && ((item === 'General' && (errors.name || errors.host || errors.port || errors.user)) || (item === 'Security' && (errors.caPath || errors.clientKey)) || (item === 'SSH' && (errors.sshHost || errors.sshUser || errors.sshPort || errors.sshPassword || errors.privateKeyFile)) || (item === 'HTTP' && errors.httpUrl)) ? <i aria-label="contém erros" /> : null}
+      <nav className="connection-pages" aria-label={t('conn.properties')}>
+        {PAGES.map((item) => <button key={item} className={page === item ? 'selected' : ''} onClick={() => setPage(item)} disabled={item === 'Embedded'} title={item === 'Embedded' ? t('conn.embedded.disabled') : undefined}>
+          {t(`conn.tab.${item.toLowerCase()}`)}{Object.keys(errors).length && ((item === 'General' && (errors.name || errors.host || errors.port || errors.user)) || (item === 'Security' && (errors.caPath || errors.clientKey || errors.sshHost || errors.sshUser || errors.sshPort || errors.sshPassword || errors.privateKeyFile)) || (item === 'HTTP' && errors.httpUrl)) ? <i aria-label={t('conn.hasErrors')} /> : null}
         </button>)}
       </nav>
       <div className="connection-page-content" key={page}>
         {errors.transport && <p className="inline-error" role="alert">{errors.transport}</p>}
         {page === 'General' && <div className="form-grid">
-          <Field label="Type"><select value={record.type} onChange={(event) => update('type', event.target.value as ConnectionRecord['type'])}><option value="mysql">MySQL</option><option value="mariadb">MariaDB</option></select></Field>
-          <Field label="Connection name" error={errors.name}><input autoFocus value={record.name} onChange={(event) => update('name', event.target.value)} placeholder={`${record.user}@${record.host}`} /></Field>
-          <Field label="Host" error={errors.host}><input disabled={Boolean(record.socketPath)} value={record.host} onChange={(event) => update('host', event.target.value)} /></Field>
-          <Field label="Port" error={errors.port}><input type="number" min="1" max="65535" disabled={Boolean(record.socketPath)} value={record.port} onChange={(event) => update('port', Number(event.target.value))} /></Field>
-          <Field label="Socket (Unix)" help="Exemplo: /var/run/mysqld/mysqld.sock"><input value={record.socketPath ?? ''} onChange={(event) => update('socketPath', event.target.value || undefined)} /></Field>
+          <Field label={t('conn.type')}><select value={transport} onChange={(event) => { const next = event.target.value as 'tcp' | 'socket'; setTransport(next); if (next === 'tcp') update('socketPath', undefined) }}><option value="tcp">TCP/IP</option><option value="socket">Socket</option></select></Field>
+          <Field label={t('conn.serverType')}><select value={record.type} onChange={(event) => update('type', event.target.value as ConnectionRecord['type'])}><option value="mysql">MySQL</option><option value="mariadb">MariaDB</option></select></Field>
+          <Field label={t('conn.name')} error={errors.name}><input autoFocus value={record.name} onChange={(event) => { setNameEdited(true); update('name', event.target.value) }} /></Field>
+          <Field label={t('conn.host')} error={errors.host}><input disabled={transport === 'socket'} value={record.host} onChange={(event) => updateEndpoint(event.target.value, record.port)} /></Field>
+          <Field label={t('conn.port')} error={errors.port}><input type="number" min="1" max="65535" disabled={transport === 'socket'} value={record.port} onChange={(event) => updateEndpoint(record.host, Number(event.target.value))} /></Field>
+          {transport === 'socket' && <Field label={t('conn.socket')} help={t('conn.socket.help')}><input value={record.socketPath ?? ''} onChange={(event) => update('socketPath', event.target.value || undefined)} /></Field>}
           <Field label="User" error={errors.user}><input value={record.user} onChange={(event) => update('user', event.target.value)} /></Field>
           <Field label="Password"><input type="password" autoComplete="new-password" value={secrets.password} onChange={(event) => updateSecret('password', event.target.value)} placeholder={record.passwordRef ? '•••••••• (salva no cofre)' : ''} /></Field>
-          <label className="check-field"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /> Save password</label>
-          <Field label="Database"><input value={record.database ?? ''} onChange={(event) => update('database', event.target.value || undefined)} placeholder="opcional" /></Field>
-          <Field label="Connection environment"><select value={record.environment} onChange={(event) => update('environment', event.target.value as ConnectionRecord['environment'])}>{['none', 'dev', 'test', 'prod', 'custom'].map((value) => <option key={value} value={value}>{value === 'none' ? 'None' : value.toUpperCase()}</option>)}</select></Field>
+          <label className="check-field"><input type="checkbox" checked={remember} onChange={(event) => setRemember(event.target.checked)} /> {t('conn.allowSavePassword')}</label>
+          <Field label={t('conn.database')}><select value={record.database ?? ''} onChange={(event) => update('database', event.target.value || undefined)}><option value="">{t('conn.database.choose')}</option>{databaseChoices.map((database) => <option key={database} value={database}>{database}</option>)}{record.database && !databaseChoices.includes(record.database) && <option value={record.database}>{record.database}</option>}</select><div className="field-actions"><Button disabled={loadingDatabases} onClick={() => void loadDatabases()}>{loadingDatabases ? t('conn.database.loading') : t('common.refresh')}</Button></div></Field>
+          <label className="check-field"><input type="checkbox" checked={Boolean(record.showAllDatabases)} onChange={(event) => update('showAllDatabases', event.target.checked)} /> {t('conn.showAllDatabases')}</label>
+          <Field label={t('conn.environment')}><select value={record.environment === 'custom' ? 'none' : record.environment} onChange={(event) => update('environment', event.target.value as ConnectionRecord['environment'])}>{['none', 'dev', 'test', 'prod'].map((value) => <option key={value} value={value}>{t(`conn.environment.${value}`)}</option>)}</select></Field>
           {record.environment === 'custom' && <Field label="Environment label"><input value={record.environmentLabel ?? ''} onChange={(event) => update('environmentLabel', event.target.value)} /></Field>}
           <Field label="Connection color"><input type="color" value={record.color ?? '#2f6fde'} onChange={(event) => update('color', event.target.value)} /></Field>
-          <Field label="Category / folder"><input value={record.category ?? ''} onChange={(event) => update('category', event.target.value || undefined)} /></Field>
+          <Field label={t('conn.category')}><input value={record.category ?? ''} onChange={(event) => update('category', event.target.value || undefined)} placeholder={t('conn.category.hint')} /></Field>
           <Field label="Comment"><textarea rows={3} value={record.comment ?? ''} onChange={(event) => update('comment', event.target.value || undefined)} /></Field>
         </div>}
         {page === 'Security' && <div className="form-grid">

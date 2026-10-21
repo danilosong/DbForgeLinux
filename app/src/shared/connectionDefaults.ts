@@ -21,7 +21,7 @@ export function createDefaultConnection(id: string, name = ''): ConnectionRecord
       keepAliveSeconds: 30,
       hostFingerprint: undefined
     },
-    http: { enabled: false, url: '', timeoutSeconds: 30, rejectUnauthorized: true },
+    http: { enabled: false, url: '', timeoutSeconds: 30, rejectUnauthorized: true, keepAlive: true, useBase64: true, useCredentials: false },
     advanced: {
       connectionTimeoutSeconds: 15,
       commandTimeoutSeconds: 0,
@@ -29,6 +29,9 @@ export function createDefaultConnection(id: string, name = ''): ConnectionRecord
       timeZone: 'SERVER',
       initCommands: '',
       keepAliveSeconds: 0,
+      keepAliveEnabled: false,
+      pingTimeoutSeconds: 240,
+      detectCharacterSet: false,
       compression: false,
       multipleStatements: true,
       tinyInt1isBit: true,

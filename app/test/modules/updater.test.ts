@@ -42,13 +42,13 @@ async function fixture(): Promise<{ root: string; infoPath: string; commit: stri
   return { root, infoPath, commit }
 }
 
-function service(root: string, infoPath: string, options: { buildFails?: boolean; dirty?: boolean; release?: boolean; isBusy?: boolean } = {}): UpdateService {
+function service(root: string, infoPath: string, options: { buildFails?: boolean; dirty?: boolean; release?: boolean; isBusy?: boolean; releaseDownloadFails?: boolean } = {}): UpdateService {
   const settings = { ...preferences, channel: options.release ? 'release' as const : 'auto' as const }
   return new UpdateService({
     appVersion: '0.1.0', buildInfoPath: infoPath, settings: async () => settings, isBusy: () => options.isBusy ?? false,
     release: {
       check: async () => ({ version: '0.2.0', notes: ['release note'], sha512: 'hash' }),
-      download: async () => undefined, cancel: () => undefined, install: () => undefined, openReleasePage: async () => undefined
+      download: async () => { if (options.releaseDownloadFails) throw new Error('Package updater unavailable.') }, cancel: () => undefined, install: () => undefined, openReleasePage: async () => undefined
     },
     runCommand: async (file, args, commandOptions) => {
       if (file === 'pnpm' && args[0] === 'build') {
@@ -105,6 +105,35 @@ describe('development updater', () => {
     const updater = service(root, infoPath, { release: true })
     expect((await updater.check()).phase).toBe('available')
     expect((await updater.apply()).phase).toBe('ready')
+  })
+
+  it('falls back to a manual release page when the Linux package updater is unavailable', async () => {
+    const { root, infoPath } = await fixture()
+    const updater = service(root, infoPath, { release: true, releaseDownloadFails: true })
+    await updater.check()
+    expect((await updater.apply()).phase).toBe(process.platform === 'linux' && !process.env.APPIMAGE ? 'manual' : 'error')
+  })
+
+  it('cancels an in-progress artifact download', async () => {
+    const { infoPath } = await fixture()
+    let notifyStarted!: () => void
+    let rejectDownload!: (error: Error) => void
+    const started = new Promise<void>((resolve) => { notifyStarted = resolve })
+    const updater = new UpdateService({
+      appVersion: '0.1.0', buildInfoPath: infoPath, settings: async () => ({ ...preferences, channel: 'release' }), isBusy: () => false,
+      release: {
+        check: async () => ({ version: '0.2.0', notes: [] }),
+        download: () => new Promise<void>((_resolve, reject) => { rejectDownload = reject; notifyStarted() }),
+        cancel: () => rejectDownload(new Error('Cancelled')),
+        install: () => undefined, openReleasePage: async () => undefined
+      },
+      relaunch: () => undefined
+    })
+    await updater.check()
+    const applying = updater.apply()
+    await started
+    updater.cancel()
+    expect((await applying).phase).toBe('idle')
   })
 })
 

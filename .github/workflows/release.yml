@@ -31,7 +31,7 @@ jobs:
         env:
           DBFORGE_RELEASE_BUILD: '1'
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: pnpm build && pnpm exec electron-builder --linux AppImage deb --config packaging/electron-builder.yml --publish always
+        run: pnpm build && pnpm exec electron-builder --linux AppImage deb --config packaging/electron-builder.yml --publish never
       - name: Publish release assets
         uses: softprops/action-gh-release@v2
         with:

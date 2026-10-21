@@ -182,7 +182,7 @@ export function isTrustedIpcFrame(event: GuardEvent, config: TrustedRendererConf
 function rateLimit(channel: string, senderId: number, args: readonly unknown[], now = Date.now()): void {
   const mutatingSql = channel === 'db:execute' && typeof args[1] === 'string' && /\b(drop|truncate|alter|create|grant|revoke|insert|update|delete|replace)\b/i.test(args[1])
   const queryBuilderMutation = channel === 'query-builder:execute' && typeof args[1] === 'object' && args[1] !== null && ['INSERT', 'UPDATE', 'DELETE'].includes(String((args[1] as Record<string, unknown>).statement))
-  const destructive = mutatingSql || queryBuilderMutation || /^(grid-editing:apply|security:apply|sessions:kill|database-tools:(restore|copy)|object-editor:(apply|apply-table|mutate)|schema-compare:synchronize|schema-update:execute|import-export:import|data-generator:generate|routine-debugger:(engine:(deploy|remove)|start)|service-control:action|source-control:(commit|init|checkout-branch|delete-branch|fetch|pull|push))$/.test(channel)
+  const destructive = mutatingSql || queryBuilderMutation || /^(grid-editing:apply|security:apply|sessions:kill|database-tools:(restore|copy)|object-editor:(apply|apply-table|mutate)|schema-compare:synchronize|schema-update:execute|import-export:import|data-generator:generate|routine-debugger:(engine:(deploy|remove)|start)|service-control:action|updater:apply|source-control:(commit|init|checkout-branch|delete-branch|fetch|pull|push))$/.test(channel)
   const git = channel.startsWith('source-control:')
   const limit = destructive ? 8 : git ? 30 : channel === 'db:execute' ? 60 : 120
   const key = `${senderId}:${channel}`

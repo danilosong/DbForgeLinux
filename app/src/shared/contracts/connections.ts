@@ -31,6 +31,9 @@ export interface SshConfig {
 export interface HttpTunnelConfig {
   enabled: boolean
   url: string
+  keepAlive?: boolean
+  useBase64?: boolean
+  useCredentials?: boolean
   user?: string
   passwordRef?: string
   proxyHost?: string
@@ -50,6 +53,9 @@ export interface AdvancedConnectionConfig {
   sqlMode?: string
   initCommands: string
   keepAliveSeconds: number
+  keepAliveEnabled?: boolean
+  pingTimeoutSeconds?: number
+  detectCharacterSet?: boolean
   compression: boolean
   multipleStatements: boolean
   tinyInt1isBit: boolean
@@ -69,6 +75,7 @@ export interface ConnectionRecord {
   user: string
   passwordRef?: string
   database?: string
+  showAllDatabases?: boolean
   color?: string
   environment: ConnectionEnvironment
   environmentLabel?: string
@@ -99,4 +106,5 @@ export interface ConnectionTestResult {
   tlsVersion?: string
   sshTunnel: boolean
   httpTunnel?: boolean
+  databases?: string[]
 }

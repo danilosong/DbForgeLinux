@@ -70,13 +70,15 @@ export class MysqlDriver implements DbDriver {
         connection = await mysql.createConnection(options)
       }
       const [rows] = await connection.query<Array<RowDataPacket & { version: string }>>('SELECT VERSION() AS version')
+      const [databaseRows] = await connection.query<Array<RowDataPacket & { Database: string }>>('SHOW DATABASES')
       const [tlsRows] = await connection.query<Array<RowDataPacket & { Value: string }>>("SHOW STATUS LIKE 'Ssl_version'")
       return {
         serverVersion: rows[0]?.version ?? 'unknown',
         elapsedMs: Date.now() - startedAt,
         tlsVersion: tlsRows[0]?.Value || undefined,
         sshTunnel: Boolean(tunnel),
-        httpTunnel: Boolean(httpTunnel)
+        httpTunnel: Boolean(httpTunnel),
+        databases: databaseRows.map((row) => row.Database).filter((name) => config.showAllDatabases || !['information_schema', 'mysql', 'performance_schema', 'sys'].includes(name))
       }
     } finally {
       if (connection) await connection.end()

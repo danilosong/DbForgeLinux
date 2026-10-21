@@ -49,9 +49,20 @@ export default function Panel(): React.JSX.Element {
     })).join('\n\n')
   }, [result, selected])
   const fullSyncScript = useMemo(() => {
-    const pieces = [beforeScript.trim(), selectedScript, afterScript.trim()].filter(Boolean)
-    return `${syncOptions.transaction ? 'START TRANSACTION;\\n\\n' : ''}${pieces.join('\\n\\n')}${syncOptions.transaction ? '\\n\\nCOMMIT;' : ''}`
-  }, [beforeScript, selectedScript, afterScript, syncOptions.transaction])
+    let script = [beforeScript.trim(), selectedScript, afterScript.trim()].filter(Boolean).join('\n\n')
+    if (syncOptions.dropCreateTables && result) {
+      script = splitSql(script).flatMap((statement) => {
+        const match = /^ALTER TABLE\s+(?:`[^`]+`\.)?`([^`]+)`/i.exec(statement)
+        if (!match) return [statement]
+        const table = result.target.tables.find((item) => item.name === match[1])
+        return table ? ['DROP TABLE IF EXISTS `' + targetDb.replaceAll('`','``') + '`.`' + table.name.replaceAll('`','``') + '`;', createTable(table,targetDb)] : [statement]
+      }).join('\n\n')
+    }
+    if (syncOptions.checkExists) script = script.replace(/\bCREATE TABLE (?!IF NOT EXISTS)/gi,'CREATE TABLE IF NOT EXISTS ').replace(/\bDROP TABLE (?!IF EXISTS)/gi,'DROP TABLE IF EXISTS ')
+    if (syncOptions.excludeComments) script = script.replace(/^\s*--.*$/gm,'').replace(/\/\*[\s\S]*?\*\//g,'').trim()
+    if (syncOptions.includeUse) script = 'USE `' + targetDb.replaceAll('`','``') + '`;\n\n' + script
+    return `${syncOptions.transaction ? 'START TRANSACTION;\n\n' : ''}${script}${syncOptions.transaction ? '\n\nCOMMIT;' : ''}`
+  }, [beforeScript, selectedScript, afterScript, syncOptions, result, targetDb])
   const destructive = useMemo(() => /\bDROP\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER|EVENT|DATABASE)\b|\bDROP\s+COLUMN\b/i.test(selectedScript), [selectedScript])
   const visible = useMemo(() => result?.differences.filter((item) => {
     const stateMatch = filter === 'all' || (filter === 'different' ? item.change === 'changed' : filter === 'added' ? item.change === 'added' : item.change === 'removed')

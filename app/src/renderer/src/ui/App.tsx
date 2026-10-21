@@ -254,7 +254,7 @@ export default function App(): React.JSX.Element {
   }
 
   function openNewConnection(): void {
-    setDialogRecord(createDefaultConnection(crypto.randomUUID(), 'root@localhost'))
+    setDialogRecord(createDefaultConnection(crypto.randomUUID(), 'localhost:3306'))
     setNewDialog(true)
   }
 
