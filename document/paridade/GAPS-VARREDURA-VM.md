@@ -163,3 +163,14 @@ Observações em palavras próprias, feitas com o trial do usuário. Estado: B =
 | O29 | Source Control › General | Incluir dependências ao confirmar ou atualizar, pasta de origem e pasta temporária | B | Parcial |
 | O30 | Debugging › General | Tempo limite (30 s) e política de *Edit and Continue*: avisar ao alterar, reiniciar sempre ou ignorar e continuar | B | Falta |
 | O31 | Master-Detail › Page / Query Profiler | Papel (A4), orientação, margens, sobreposição e cabeçalho/rodapé na impressão; no profiler: histórico máximo (10), limiar de diferença na comparação (0,001 s), mostrar a consulta e perfilar sem cache | B | Parcial |
+
+## Grade de resultados do original (menu de contexto e barra)
+
+| # | Área | Comportamento observado | Prioridade | Clone |
+|---|---|---|---|---|
+| G1 | Menu de contexto da grade | Refresh (F5), Copy, Copy With Headers, *Copy Data As* (só nomes de colunas, nomes e tipos, CSV, XML, HTML, JSON, Excel), Paste, *Paste As New Records*, *Set Value To* (NULL com Ctrl+0, texto vazio, agora, zero, identificador único), Append, End/Cancel Edit, Delete, *Quick Filter*, *Visible Columns*, *Clear Sorting*, *Data Layout* (grade ou cartões), *Auto-search mode* (Ctrl+I), *Data Viewer* (Ctrl+W, R), *Export Data*, *Generate Script As*, *Send to*, *Print* e *Options* | **M** | Parcial |
+| G2 | Quick Filter | A partir da célula: igual, diferente, maior, maior ou igual, menor, menor ou igual (com o valor no rótulo; igual em Ctrl+Q) e *Condition...* | M | Parcial |
+| G3 | Generate Script As | A partir das linhas selecionadas: INSERT, BULK INSERT, WHERE IN(), WHERE AND/OR e UPDATE, cada um com submenu de destino | M | Falta |
+| G4 | Send to | Query Builder, Data Report, Chart Designer e Pivot Table a partir do resultado | M | Parcial |
+| G5 | Barra e status da grade | Atualizar, cancelar, aplicar e desfazer edição, tamanho de página (1000), navegação entre páginas, alternância grade/cartões, colunas visíveis e busca; o cabeçalho mostra o tipo sob o nome; células nulas ficam em amarelo; status *Record N of M* e mensagem *Query executed successfully* com a duração | M | Parcial |
+| G6 | Menu principal contextual | Com o foco na grade aparece o menu *Data* na barra de menus; com o Query Builder aparece *Query*; com o foco em SQL aparece *SQL* | M | Parcial |
