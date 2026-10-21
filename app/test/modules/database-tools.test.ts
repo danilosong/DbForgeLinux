@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findInvalidObjects, searchObjectText } from '../../src/modules/database-tools/index.js'
+import { assertSafeSearchRegex, findInvalidObjects, searchObjectText } from '../../src/modules/database-tools/index.js'
 import type { DatabaseObject } from '../../src/shared/contracts/sql.js'
 
 const objects: DatabaseObject[] = [{ kind: 'view', name: 'customer_view' }, { kind: 'procedure', name: 'refresh_customer' }]
@@ -11,6 +11,11 @@ describe('database tools', () => {
     expect(searchObjectText(objects, definitions, '^CALL', { names: false, definitions: true, regex: true })).toHaveLength(1)
     expect(() => searchObjectText(objects, definitions, '[', { names: true, definitions: false, regex: true })).toThrow('invalid')
     expect(searchObjectText(objects, definitions, 'customer', { names: false, definitions: true, wholeWord: true })).toHaveLength(0)
+  })
+  it('rejects nested quantified groups that can backtrack exponentially', () => {
+    expect(() => assertSafeSearchRegex('(a+)+$')).toThrow(/backtracking/i)
+    expect(() => searchObjectText(objects, new Map(), '([a-z]+)*$', { names: true, definitions: false, regex: true })).toThrow(/backtracking/i)
+    expect(() => assertSafeSearchRegex('^CALL.*')).not.toThrow()
   })
   it('checks each object and reports invalid definitions separately from scan errors', async () => {
     const result = await findInvalidObjects(objects, async (object) => `CREATE ${object.kind} ${object.name}`, async (object) => {

@@ -31,7 +31,8 @@ export function registerDatabaseToolsIpc(deps: IpcDeps): void {
   const validBackupOptions = (options: BackupOptions): void => {
     if (!options || typeof options !== 'object' || !Array.isArray(options.objectKinds) || !options.objectKinds.every((kind) => ['table', 'view', 'procedure', 'function', 'trigger', 'event'].includes(kind))) throw new Error('Invalid backup content selection.')
     if (typeof options.directory !== 'string' || !approvedBackupDirectories.has(resolve(options.directory))) throw new Error('Choose the backup directory using the folder dialog first.')
-    if (!SAFE_BACKUP_NAME.test(options.fileName) || typeof options.includeData !== 'boolean' || typeof options.zip !== 'boolean' || !Number.isInteger(options.compressionLevel) || options.compressionLevel < 0 || options.compressionLevel > 9 || typeof options.comment !== 'string' || Buffer.byteLength(options.comment, 'utf8') > 60_000 || typeof options.charset !== 'string' || options.charset.length > 32 || typeof options.appendTimestamp !== 'boolean') throw new Error('Invalid backup options.')
+    if (!SAFE_BACKUP_NAME.test(options.fileName) || ['includeStructure', 'includeData', 'includeDefiner', 'includeDrop', 'dropIfExists', 'includeUse', 'noAutoValueOnZero', 'lockTables', 'flushLogs', 'zip'].some((key) => typeof (options as unknown as Record<string, unknown>)[key] !== 'boolean') || !Number.isInteger(options.compressionLevel) || options.compressionLevel < 0 || options.compressionLevel > 9 || typeof options.comment !== 'string' || Buffer.byteLength(options.comment, 'utf8') > 60_000 || typeof options.charset !== 'string' || options.charset.length > 32 || typeof options.appendTimestamp !== 'boolean') throw new Error('Invalid backup options.')
+    if (!options.includeStructure && !options.includeData) throw new Error('Select structure, data, or both for the backup.')
     if (['singleTransaction', 'includeRoutines', 'includeTriggers', 'includeEvents', 'extendedInserts'].some((key) => typeof (options as unknown as Record<string, unknown>)[key] !== 'boolean')) throw new Error('Invalid backup options.')
     if (options.password !== undefined && (typeof options.password !== 'string' || options.password.length < 8 || options.password.length > 1024)) throw new Error('Backup password must contain at least 8 characters.')
     if (!['abort', 'ignore', 'log'].includes(options.errorPolicy) || !Number.isInteger(options.autoDeleteDays) || options.autoDeleteDays < 0 || !Number.isInteger(options.autoDeleteCount) || options.autoDeleteCount < 0) throw new Error('Invalid backup retention or error handling options.')
@@ -219,7 +220,7 @@ export function registerDatabaseToolsIpc(deps: IpcDeps): void {
         const result = await cleanupOwnedBackupFiles(directory, owned, options.autoDeleteDays, options.autoDeleteCount)
         await writeOwnedBackups(result.paths)
       }
-      return { path: destination, rows: backup.rows, skipped: backup.skipped }
+      return { path: destination, rows: backup.rows, objects: backup.objects, skipped: backup.skipped }
     } finally { backupJobs.delete(jobId) }
   })
   ipcMain.handle('database-tools:backup:cancel', (_event, jobId: string) => { backupJobs.get(jobId)?.abort() })

@@ -15,6 +15,7 @@ export type BackupExecutor = (statement: string) => Promise<void>
 export interface RestoreReport { executed: number; errors: Array<{ statement: number; message: string }> }
 export type BackupObjectKind = 'table' | 'view' | 'procedure' | 'function' | 'trigger' | 'event'
 export interface BackupOptions {
+  includeStructure: boolean
   includeData: boolean
   objectKinds: BackupObjectKind[]
   singleTransaction: boolean
@@ -23,6 +24,13 @@ export interface BackupOptions {
   includeEvents: boolean
   extendedInserts: boolean
   charset: string
+  includeDefiner: boolean
+  includeDrop: boolean
+  dropIfExists: boolean
+  includeUse: boolean
+  noAutoValueOnZero: boolean
+  lockTables: boolean
+  flushLogs: boolean
   errorPolicy: 'abort' | 'ignore' | 'log'
   directory: string
   fileName: string
@@ -51,6 +59,7 @@ export async function cleanupOwnedBackupFiles(directory: string, ownedPaths: str
   return { paths: [...outside, ...retained.map((item) => item.path)], deleted }
 }
 const quoteId = (value: string): string => `\`${value.replaceAll('`', '``')}\``
+const unquote = (value: string): string => value.replace(/^`|`$/g, '').replaceAll('``', '`')
 const scrypt = promisify(scryptCb)
 const LEGACY_ARCHIVE_MAGIC = Buffer.from('DBFLZIP1')
 export function buildDropObjectStatements(database: string, objects: DatabaseObject[]): string[] {
@@ -103,27 +112,38 @@ export async function createBackupSql(database: DatabaseModel, includeData: bool
   return { sql: `${sql.join('\n\n')}\n`, skipped, rows: rowsWritten }
 }
 
-export async function createBackupSqlWithOptions(database: DatabaseModel, options: Pick<BackupOptions, 'includeData' | 'objectKinds' | 'includeRoutines' | 'includeTriggers' | 'includeEvents' | 'singleTransaction' | 'extendedInserts' | 'charset' | 'errorPolicy'>, readRows: BackupRows, signal?: AbortSignal, onProgress?: BackupProgressCallback): Promise<{ sql: string; skipped: string[]; rows: number }> {
+export async function createBackupSqlWithOptions(database: DatabaseModel, options: Pick<BackupOptions, 'includeData' | 'objectKinds' | 'includeRoutines' | 'includeTriggers' | 'includeEvents' | 'singleTransaction' | 'extendedInserts' | 'charset' | 'errorPolicy'> & Partial<Pick<BackupOptions, 'includeStructure' | 'includeDefiner' | 'includeDrop' | 'dropIfExists' | 'includeUse' | 'noAutoValueOnZero' | 'lockTables' | 'flushLogs'>>, readRows: BackupRows, signal?: AbortSignal, onProgress?: BackupProgressCallback): Promise<{ sql: string; skipped: string[]; rows: number; objects: number }> {
   const kinds = new Set(options.objectKinds)
   const objects: SchemaObject[] = [...database.tables, ...database.views, ...database.procedures, ...database.functions, ...database.triggers, ...database.events]
   const selected = objects.filter((item) => kinds.has(item.kind as BackupObjectKind) && (options.includeRoutines || !['procedure', 'function'].includes(item.kind)) && (options.includeTriggers || item.kind !== 'trigger') && (options.includeEvents || item.kind !== 'event'))
-  const output = [`-- dbForgeLinux database backup`, `SET NAMES ${/^[A-Za-z0-9_]+$/.test(options.charset) ? options.charset : 'utf8mb4'};`]
+  const includeStructure = options.includeStructure !== false
+  const output = [`-- dbForgeLinux database backup`, ...(options.flushLogs ? ['FLUSH LOGS;'] : []), ...(options.includeUse ? [`USE ${quoteId(database.name)};`] : []), `SET NAMES ${/^[A-Za-z0-9_]+$/.test(options.charset) ? options.charset : 'utf8mb4'};`, ...(options.noAutoValueOnZero ? ["SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';"] : [])]
   const skipped: string[] = []; let rows = 0; let done = 0
-  onProgress?.({ phase: 'schema', completed: 0, total: selected.length, detail: 'Preparing database objects' })
-  for (const object of selected) {
+  const includedObjects = new Set<string>()
+  const structureObjects = includeStructure ? selected : []
+  onProgress?.({ phase: 'schema', completed: 0, total: structureObjects.length, detail: 'Preparing database objects' })
+  for (const object of structureObjects) {
     if (signal?.aborted) throw new Error('Backup cancelled.')
     if (object.kind === 'event' && !options.includeEvents) continue
     if (object.kind === 'event') { skipped.push(`${object.kind} ${object.name} (events are not included by the restore allowlist)`); done++; continue }
     try {
       const ddl = definition(object, database)
       if (!ddl) skipped.push(`${object.kind} ${object.name}`)
-      else output.push(['procedure', 'function', 'trigger'].includes(object.kind) ? `DELIMITER $$\n${ddl.replace(/;\s*$/, '')}$$\nDELIMITER ;` : ddl)
+      else {
+        const qualified = `${quoteId(database.name)}.${quoteId(object.name)}`
+        const body = options.includeDefiner === false ? ddl.replace(/\bDEFINER\s*=\s*(?:`[^`]*`|'[^']*'|[^\s]+)@(?:`[^`]*`|'[^']*'|[^\s]+)\s*/i, '') : ddl
+        if (options.includeDrop) output.push(`DROP ${object.kind.toUpperCase()}${options.dropIfExists ? ' IF EXISTS' : ''} ${qualified};`)
+        output.push(['procedure', 'function', 'trigger'].includes(object.kind) ? `DELIMITER $$\n${body.replace(/;\s*$/, '')}$$\nDELIMITER ;` : body)
+        includedObjects.add(`${object.kind}:${object.name}`)
+      }
     } catch (error) { if (options.errorPolicy === 'abort') throw error; skipped.push(`${object.kind} ${object.name}: ${error instanceof Error ? error.message : 'failed'}`) }
     done++; onProgress?.({ phase: 'schema', completed: done, total: selected.length, detail: `${object.kind} ${object.name}` })
   }
   if (options.includeData) {
-    if (options.singleTransaction) output.push('START TRANSACTION;')
+    if (options.singleTransaction && !options.lockTables) output.push('START TRANSACTION;')
     const tables = selected.filter((item) => item.kind === 'table')
+    for (const table of tables) includedObjects.add(`${table.kind}:${table.name}`)
+    if (options.lockTables && tables.length) output.push(`LOCK TABLES ${tables.map((table) => `${quoteId(database.name)}.${quoteId(table.name)} READ`).join(', ')};`)
     let tableDone = 0
     for (const table of tables) {
       let offset = 0
@@ -151,8 +171,9 @@ export async function createBackupSqlWithOptions(database: DatabaseModel, option
       tableDone++; onProgress?.({ phase: 'data', completed: tableDone, total: tables.length, detail: table.name })
     }
   }
-  if (options.singleTransaction && options.includeData) output.push('COMMIT;')
-  return { sql: `${output.join('\n\n')}\n`, skipped, rows }
+  if (options.lockTables && options.includeData && selected.some((item) => item.kind === 'table')) output.push('UNLOCK TABLES;')
+  if (options.singleTransaction && !options.lockTables && options.includeData) output.push('COMMIT;')
+  return { sql: `${output.join('\n\n')}\n`, skipped, rows, objects: includedObjects.size }
 }
 
 export { encodeZipArchive } from '../archive/index.js'
@@ -201,7 +222,7 @@ export async function restoreBackup(database: string, confirmation: string, scri
   const statements = splitBackupSql(script)
   if (!statements.length) throw new Error('Restore script contains no SQL statements.')
   onProgress?.({ phase: 'inspect', completed: 0, total: statements.length, detail: 'Checking restore script' })
-  const allowed = /^(?:CREATE\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER)|INSERT\s+INTO|SET\s+NAMES|START\s+TRANSACTION|COMMIT)\b/i
+  const allowed = /^(?:CREATE\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER)|DROP\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER)(?:\s+IF\s+EXISTS)?|INSERT\s+INTO|SET\s+NAMES|SET\s+SQL_MODE\s*=\s*['"]NO_AUTO_VALUE_ON_ZERO['"]|USE|LOCK\s+TABLES|UNLOCK\s+TABLES|START\s+TRANSACTION|COMMIT)(?![\w$])/i
   const errors: Array<{ statement: number; message: string }> = []; let executed = 0
   for (let index = 0; index < statements.length; index += 1) {
     if (signal?.aborted) throw new Error('Restore cancelled.')
@@ -209,8 +230,16 @@ export async function restoreBackup(database: string, confirmation: string, scri
     const sanitized = statement.replace(/^(?:\s*--[^\n]*(?:\n|$)|\s*#[^\n]*(?:\n|$))+/, '').replace(/^CREATE\s+(?:ALGORITHM\s*=\s*\w+\s+)?DEFINER\s*=\s*(?:`[^`]*`|'[^']*')@(?:`[^`]*`|'[^']*')\s+/i, 'CREATE ').trim()
     if (!allowed.test(sanitized)) throw new Error(`Restore statement ${index + 1} uses a SQL command that is not allowed.`)
     const scopeSql = stripSqlComments(sanitized)
-    const targetMatch = /^(?:CREATE\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER)|INSERT\s+INTO)\s+(?:IF\s+NOT\s+EXISTS\s+)?((?:`(?:``|[^`])+`|[A-Za-z_$][\w$]*)(?:\s*\.\s*(?:`(?:``|[^`])+`|[A-Za-z_$][\w$]*))?)/i.exec(scopeSql)
-    if (/^(?:CREATE\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER)|INSERT\s+INTO)\b/i.test(scopeSql) && !targetMatch) throw new Error(`Restore statement ${index + 1} has an invalid target identifier.`)
+    if (/^USE\b/i.test(scopeSql)) {
+      const use = /^USE\s+((?:`(?:``|[^`])+`|[A-Za-z_$][\w$]*))$/i.exec(scopeSql)
+      if (!use || unquote(use[1]!) !== database) throw new Error(`Restore statement ${index + 1} targets a database outside ${database}.`)
+    }
+    if (/^LOCK\s+TABLES\b/i.test(scopeSql)) {
+      const lock = /^LOCK\s+TABLES\s+((?:`(?:``|[^`])+`|[A-Za-z_$][\w$]*)\s*\.\s*(?:`(?:``|[^`])+`|[A-Za-z_$][\w$]*)\s+READ)(?:\s*,\s*(?:`(?:``|[^`])+`|[A-Za-z_$][\w$]*)\s*\.\s*(?:`(?:``|[^`])+`|[A-Za-z_$][\w$]*)\s+READ)*$/i.exec(scopeSql)
+      if (!lock || [...scopeSql.matchAll(/(?:`(?:``|[^`])+`|[A-Za-z_$][\w$]*)\s*\./g)].some((match) => unquote(match[0]!.replace(/\s*\.$/, '')) !== database)) throw new Error(`Restore statement ${index + 1} has an invalid table lock target.`)
+    }
+    const targetMatch = /^(?:CREATE\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER)|DROP\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER)(?:\s+IF\s+EXISTS)?|INSERT\s+INTO)\s+(?:IF\s+NOT\s+EXISTS\s+)?((?:`(?:``|[^`])+`|[A-Za-z_$][\w$]*)(?:\s*\.\s*(?:`(?:``|[^`])+`|[A-Za-z_$][\w$]*))?)/i.exec(scopeSql)
+    if (/^(?:CREATE\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER)|DROP\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER)|INSERT\s+INTO)\b/i.test(scopeSql) && !targetMatch) throw new Error(`Restore statement ${index + 1} has an invalid target identifier.`)
     const targetName = targetMatch?.[1]
     if (targetName?.includes('.')) {
       const schema = targetName.split(/\s*\.\s*/)[0]?.replace(/^`|`$/g, '').replace(/``/g, '`')

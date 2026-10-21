@@ -3,6 +3,7 @@ import { execFileSync, spawnSync } from 'node:child_process'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { BoundedWriter, decodeZipEntry } from '../../src/modules/archive/index.js'
 import { buildDropObjectStatements, cleanupOwnedBackupFiles, createBackupSql, createBackupSqlWithOptions, decodeBackupFile, encodeBackupFile, encodeZipArchive, restoreBackup, splitBackupSql } from '../../src/modules/database-tools/backup.js'
 import type { DatabaseModel } from '../../src/modules/schema/model.js'
 
@@ -26,6 +27,17 @@ describe('database backup and restore', () => {
     expect(protectedArchive.includes(Buffer.from([0x01, 0x99]))).toBe(true)
     expect(protectedArchive.includes(contents)).toBe(false)
   })
+  it('enforces the actual decompressed byte limit even when ZIP size fields lie', async () => {
+    const zip = await encodeZipArchive(Buffer.alloc(4096, 65), 'backup.sql', { compressionLevel: 9, comment: '' })
+    const forged = Buffer.from(zip)
+    forged.writeUInt32LE(1, 22)
+    const central = forged.lastIndexOf(Buffer.from([0x50, 0x4b, 0x01, 0x02]))
+    expect(central).toBeGreaterThan(0)
+    forged.writeUInt32LE(1, central + 24)
+    await expect(decodeZipEntry(forged, 'backup.sql', undefined, 128)).rejects.toThrow(/size/i)
+    const writer = new BoundedWriter(128); await writer.init()
+    await expect(writer.writeUint8Array(new Uint8Array(129))).rejects.toThrow(/decompressed size limit/i)
+  })
   it('drops target objects in dependency-safe order and escapes identifiers', () => {
     const statements = buildDropObjectStatements('target`db', [
       { kind: 'table', name: 'detail' }, { kind: 'view', name: 'v' }, { kind: 'trigger', name: 'tr' }, { kind: 'procedure', name: 'p' }
@@ -48,7 +60,7 @@ describe('database backup and restore', () => {
   it('requires explicit destination confirmation and rejects destructive commands', async () => {
     const executed: string[] = []
     await expect(restoreBackup('shop', 'wrong', 'CREATE TABLE x (id int);', async (statement) => { executed.push(statement) })).rejects.toThrow('typing the destination')
-    await expect(restoreBackup('shop', 'shop', 'DROP TABLE customers;', async (statement) => { executed.push(statement) })).rejects.toThrow('not allowed')
+    await expect(restoreBackup('shop', 'shop', 'DROP TABLE IF EXISTS `production`.`users`;', async (statement) => { executed.push(statement) })).rejects.toThrow('outside shop')
     await expect(restoreBackup('shop', 'shop', 'CREATE TABLE `production`.`users` (`id` int);', async (statement) => { executed.push(statement) })).rejects.toThrow('outside shop')
     await expect(restoreBackup('shop', 'shop', 'INSERT INTO `production`.`users` VALUES (1);', async (statement) => { executed.push(statement) })).rejects.toThrow('outside shop')
     await expect(restoreBackup('shop', 'shop', 'CREATE TABLE production/**/.users (`id` int);', async (statement) => { executed.push(statement) })).rejects.toThrow('outside shop')
@@ -77,6 +89,29 @@ describe('database backup and restore', () => {
     await expect(decodeBackupFile(archive, 'wrong-password')).rejects.toThrow()
     const controller = new AbortController(); controller.abort()
     await expect(createBackupSqlWithOptions(model, { includeData: true, objectKinds: ['table'], includeRoutines: false, includeTriggers: false, includeEvents: false, singleTransaction: false, extendedInserts: false, charset: 'utf8mb4', errorPolicy: 'abort' }, async () => [], controller.signal)).rejects.toThrow('cancelled')
+  })
+  it('creates independently selectable structure/data dumps with granular safe SQL options and object totals', async () => {
+    const backup = await createBackupSqlWithOptions(model, {
+      includeStructure: true, includeData: false, objectKinds: ['table', 'view', 'procedure'], includeRoutines: true,
+      includeTriggers: false, includeEvents: false, singleTransaction: false, extendedInserts: false, charset: 'utf8mb4', errorPolicy: 'abort',
+      includeDefiner: false, includeDrop: true, dropIfExists: true, includeUse: true, noAutoValueOnZero: true, flushLogs: true
+    }, async () => [])
+    expect(backup.objects).toBe(3)
+    expect(backup.sql).toContain('FLUSH LOGS;'); expect(backup.sql).toContain('USE `shop`;')
+    expect(backup.sql).toContain("SET SQL_MODE='NO_AUTO_VALUE_ON_ZERO';")
+    expect(backup.sql).toContain('DROP TABLE IF EXISTS `shop`.`customers`;')
+    expect(backup.sql).toContain('DROP PROCEDURE IF EXISTS `shop`.`refresh`;')
+    expect(backup.sql).not.toContain('DEFINER=')
+    const dataOnly = await createBackupSqlWithOptions(model, { includeStructure: false, includeData: true, objectKinds: ['table'], includeRoutines: false, includeTriggers: false, includeEvents: false, singleTransaction: false, extendedInserts: false, charset: 'utf8mb4', errorPolicy: 'abort', lockTables: true }, async (_table, offset) => offset ? [] : [{ id: 1 }])
+    expect(dataOnly.objects).toBe(1); expect(dataOnly.sql).not.toContain('CREATE TABLE')
+    expect(dataOnly.sql).toContain('LOCK TABLES `shop`.`customers` READ;'); expect(dataOnly.sql).toContain('UNLOCK TABLES;')
+  })
+  it('restores generated DROP, USE, and read-lock statements only within the confirmed database', async () => {
+    const executed: string[] = []
+    await restoreBackup('shop', 'shop', 'USE `shop`; DROP TABLE IF EXISTS `shop`.`customers`; LOCK TABLES `shop`.`customers` READ; UNLOCK TABLES;', async (statement) => { executed.push(statement) })
+    expect(executed).toEqual(['USE `shop`', 'DROP TABLE IF EXISTS `shop`.`customers`', 'LOCK TABLES `shop`.`customers` READ', 'UNLOCK TABLES'])
+    await expect(restoreBackup('shop', 'shop', 'USE `production`;', async (statement) => { executed.push(statement) })).rejects.toThrow(/outside shop/i)
+    expect(executed).toHaveLength(4)
   })
   it('stores a ZIP backup in a temporary file and reads the archive back', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'dbfl-backup-'))

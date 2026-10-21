@@ -11,7 +11,7 @@ export interface DatabaseToolsApi {
   chooseBackupDirectory(): Promise<string | null>
   saveBackupProject(project: BackupProject): Promise<string | null>
   loadBackupProject(): Promise<BackupProject | null>
-  runBackup(connectionId: string, database: string, options: BackupOptions, jobId: string): Promise<{ path: string; rows: number; skipped: string[] }>
+  runBackup(connectionId: string, database: string, options: BackupOptions, jobId: string): Promise<{ path: string; rows: number; objects: number; skipped: string[] }>
   cancelBackup(jobId: string): Promise<void>
   onBackupProgress(listener: (event: { jobId: string; progress: BackupProgress }) => void): () => void
   selectBackupToRestore(): Promise<{ name: string; contents: string } | null>
