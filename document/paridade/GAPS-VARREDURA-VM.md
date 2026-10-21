@@ -31,4 +31,10 @@ Prioridade: **A** = uso diário do editor; **B** = útil; **C** = acabamento.
 | 22 | Localizar | Janela *Find and Replace* única (modos Find/Replace, escopo *Look in*, *Search hidden text*, regex) e *Go To Line* com intervalo válido | B | P |
 | | 23 | Diferença intencional | IA: o original exige conta na nuvem (*Sign In*); o clone usa chave própria. Telemetria: o original vem ligada; o clone não tem | — | — |
 
+| 24 | Query Builder: menu Query e subquery | Ao soltar `customers` e `orders` a junção por FK nasce sozinha (losango no canvas). O menu *Query* oferece *Change Type*, *Parent Query*, *Create Subquery*, *Wrap to Subquery*, *Wrap to Insert*, *Group By*, ordenação, selecionar/limpar colunas, *Select All rows from [left/right table]*, *Show Tabbed Editor* e *Send Query to Report*. *Create Subquery* abre uma aba aninhada (*Root Query* / *SubQuery*) com canvas e grade próprios | M | Parcial |
+| 25 | Security Manager | Árvore de usuários agrupada por host mais *Roles*; abas *General* (autenticação, senha, expiração, limites por hora, bloqueio de conta), *Roles*, *Users*, *Global Privileges* (grade Name/Granted com marcação geral e *With Grant Option*) e *Object Privileges*; barra com *Save*, *Undo*, *Script Changes* e *Create User* com menu | M | Parcial |
+| 26 | Tools: skins e personalização | Cinco skins (Visual Studio Blue/Light/Dark, Office Light/Black), *Import and Export Settings*, *Customize*, *Reset Toolbar Layout*; o clone só tem claro/escuro | B | Parcial |
+| 27 | Database › Tasks e Flush | Submenu *Tasks* reúne Export, Import, Backup, Restore, Data Generation, Documentation, *Create Scripts Folder*, Copy Databases e Find Invalid Objects (`Ctrl+Alt+F`); o menu Database ainda tem *Flush...* | B | Verificar |
+| 28 | Find Invalid Objects | Barra *Analyze*, *Script as ALTER*, *Script as DROP*; escolha de bancos num seletor com busca, *Refresh*, *Check All* e *Uncheck All* | B | Existe no clone; comparar a barra |
+
 Como medir: cada item vira linhas em `FIDELIDADE-MEDIDA.md` (rodada 3) com evidência (teste ou captura do clone).
