@@ -42,16 +42,17 @@ async function fixture(): Promise<{ root: string; infoPath: string; commit: stri
   return { root, infoPath, commit }
 }
 
-function service(root: string, infoPath: string, options: { buildFails?: boolean; dirty?: boolean; release?: boolean; isBusy?: boolean; releaseDownloadFails?: boolean } = {}): UpdateService {
+function service(root: string, infoPath: string, options: { buildFails?: boolean; dirty?: boolean; release?: boolean; isBusy?: boolean; releaseDownloadFails?: boolean; gitMissing?: boolean; releaseNotPublished?: boolean } = {}): UpdateService {
   const settings = { ...preferences, channel: options.release ? 'release' as const : 'auto' as const }
   return new UpdateService({
     appVersion: '0.1.0', buildInfoPath: infoPath, settings: async () => settings, isBusy: () => options.isBusy ?? false,
     release: {
-      check: async () => ({ version: '0.2.0', notes: ['release note'], sha512: 'hash' }),
+      check: async () => { if (options.releaseNotPublished) throw new Error('HttpError: 404 Not Found'); return { version: '0.2.0', notes: ['release note'], sha512: 'hash' } },
       download: async () => { if (options.releaseDownloadFails) throw new Error('Package updater unavailable.') }, cancel: () => undefined, install: () => undefined, openReleasePage: async () => undefined
     },
     resolvePnpm: async () => ({ file: 'pnpm', prefix: [], path: process.env.PATH ?? '' }),
     runCommand: async (file, args, commandOptions) => {
+      if (file === 'git' && options.gitMissing) throw Object.assign(new Error('spawn git ENOENT'), { code: 'ENOENT' })
       if (file === 'pnpm' && args[0] === 'build') {
         if (options.buildFails) throw new Error('synthetic build failure')
         const out = join(commandOptions.cwd, 'out.next')
@@ -122,6 +123,23 @@ describe('development updater', () => {
     const busyUpdater = service(cleanRoot, cleanInfo, { isBusy: true })
     await busyUpdater.check()
     expect((await busyUpdater.apply()).phase).toBe('blocked')
+  })
+
+  it('explains that Git is required when the development channel runs without it', async () => {
+    const { root, infoPath } = await fixture()
+    const updater = service(root, infoPath, { gitMissing: true })
+    const checked = await updater.check()
+    expect(checked.phase).toBe('blocked')
+    expect(checked.message).toMatch(/Git is required/)
+    expect(checked.message).toMatch(/release channel/)
+  })
+
+  it('treats a missing GitHub release as "nothing to update" instead of an error', async () => {
+    const { root, infoPath } = await fixture()
+    const updater = service(root, infoPath, { release: true, releaseNotPublished: true })
+    const checked = await updater.check()
+    expect(checked.phase).toBe('up-to-date')
+    expect(checked.message).toBeUndefined()
   })
 
   it('downloads and installs a release through the package-specific updater', async () => {

@@ -6,6 +6,21 @@ import { resolvePnpm } from './toolchain.js'
 import type { BuildInfo, ReleaseUpdate, UpdatePreferences, UpdateServiceOptions, UpdateStatus } from './types.js'
 
 const execFileAsync = promisify(execFile)
+const gitRequiredMessage = 'Git is required for the development update channel but was not found. Install it (for example: sudo apt install git) and try again. Installations from the .deb or AppImage use the release channel and do not need Git.'
+
+class UpdateRequirementError extends Error {}
+
+function isMissingExecutable(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false
+  const candidate = error as { code?: unknown; message?: unknown }
+  return candidate.code === 'ENOENT' || (typeof candidate.message === 'string' && /ENOENT/.test(candidate.message))
+}
+
+function isReleaseNotPublished(error: unknown): boolean {
+  const message = error && typeof error === 'object' ? String((error as { message?: unknown }).message ?? '') : ''
+  return /\b404\b/.test(message) && /HttpError|Not Found|releases?/i.test(message)
+}
+
 const commandTimeout = 15_000
 const buildTimeout = 15 * 60_000
 const maxLogEntries = 500
@@ -104,6 +119,8 @@ export class UpdateService {
       return await this.checkRelease(preferences)
     } catch (error) {
       if (controller.signal.aborted) return this.update({ phase: 'idle', message: 'Update check cancelled.' }, 'Update check cancelled.')
+      if (error instanceof UpdateRequirementError) return this.update({ phase: 'blocked', message: error.message }, error.message)
+      if (isReleaseNotPublished(error)) return this.update({ phase: 'up-to-date', channel: 'release', summary: [], progress: undefined, message: undefined }, 'No release has been published yet.')
       const message = textError(error)
       this.update({ phase: 'error', message }, message)
       return this.status()
@@ -126,8 +143,16 @@ export class UpdateService {
     return (this.options.runCommand ?? runCommand)(file, args, { cwd, timeout, signal, env })
   }
 
+  private async requireGit(cwd: string): Promise<void> {
+    try { await this.command('git', ['--version'], cwd) } catch (error) {
+      if (isMissingExecutable(error)) throw new UpdateRequirementError(gitRequiredMessage)
+      throw error
+    }
+  }
+
   private async checkDev(build: BuildInfo, preferences: UpdatePreferences, signal: AbortSignal): Promise<UpdateStatus> {
     const repo = resolve(build.repoPath!)
+    await this.requireGit(repo)
     const localHead = await this.command('git', ['rev-parse', 'HEAD'], repo, signal)
     let target = localHead
     let remote = false
@@ -200,6 +225,10 @@ export class UpdateService {
     if (!build?.repoPath) return this.update({ phase: 'error', message: 'Development repository metadata is missing.' })
     const repo = resolve(build.repoPath)
     const appRoot = join(repo, 'app')
+    try { await this.requireGit(repo) } catch (error) {
+      if (error instanceof UpdateRequirementError) return this.update({ phase: 'blocked', message: error.message }, error.message)
+      throw error
+    }
     const dirty = (await this.command('git', ['status', '--porcelain'], repo).catch((error) => { throw new Error(textError(error)) })).trim()
     const branch = await this.command('git', ['branch', '--show-current'], repo)
     if (branch !== build.branch) return this.update({ phase: 'blocked', message: `Current branch (${branch || 'detached'}) differs from the build branch (${build.branch}). No source changes were made.` })

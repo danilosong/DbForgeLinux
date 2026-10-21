@@ -13,3 +13,33 @@ Use channel **Automatic** to select the local development channel in a checkout 
 ## Build metadata
 
 Each build writes `out/buildInfo.json`. Release builds omit the local repository path, so they cannot expose a developer checkout or select the development channel automatically.
+
+## Instalar o `.deb` e atualizar pelo repositório (vínculo de desenvolvimento)
+
+O app instalado em `/opt` é somente leitura, então ele não consegue se recompilar. Para quem **desenvolve** o projeto, o pacote
+tem um ponto de entrada (`bootstrap/dev-link.cjs`) que, quando existe um vínculo, executa o build do **repositório** em vez do
+build embutido. Assim o botão **Atualizar** (git + rebuild + reinício) muda o que roda, sem reinstalar o `.deb`.
+
+1. Instale o pacote normalmente (`sudo apt install --reinstall ./dbForgeLinux_0.1.0_amd64.deb`).
+2. Crie o vínculo, apontando para o seu clone:
+
+   ```bash
+   mkdir -p ~/.config/dbforgelinux
+   echo '{"repoPath":"/caminho/para/dbForgeLinux"}' > ~/.config/dbforgelinux/dev-link.json
+   ```
+
+3. Garanta que o clone foi compilado ao menos uma vez (`cd app && pnpm install && pnpm build`).
+4. Para voltar ao build embutido: apague o arquivo ou abra com `DBFORGE_NO_DEV_LINK=1`.
+
+O vínculo é ignorado (e o build embutido é usado) se o build do repositório não existir, não for seu ou for gravável por outros usuários.
+
+## O que cada canal exige
+
+| Canal | Quando | Precisa de |
+|---|---|---|
+| **Release** (padrão para quem só instala) | `.deb` ou AppImage sem vínculo | Nada além de acesso à internet. **Não precisa de Git.** |
+| **Desenvolvimento** | app vinculado a um clone | **Git** e **pnpm** (com Node) instalados, e o clone compilado |
+
+Se o canal de desenvolvimento estiver ativo e o **Git não estiver instalado**, o app mostra um aviso claro (instale com
+`sudo apt install git`) em vez de falhar. Se o `pnpm` não for encontrado, a mensagem indica como informá-lo
+(`DBFORGE_PNPM`). Enquanto nenhuma release tiver sido publicada no GitHub, o canal de release apenas diz que está atualizado.

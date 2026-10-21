@@ -5,7 +5,10 @@ directories:
   buildResources: packaging
 files:
   - out/**/*
+  - bootstrap/**/*
   - package.json
+extraMetadata:
+  main: bootstrap/dev-link.cjs
 fileAssociations:
   - ext: sql
     name: SQL script
