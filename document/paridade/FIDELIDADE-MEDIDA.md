@@ -41,7 +41,7 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 7 | **00 Shell** | Split de documento sincronizado (horizontal/vertical) e abas | `App.tsx:88`, `:1401`, `:1487`, `navigationMessages.ts:2` | `re/original-observation/00-shell/` | **CONFIRMADO (1,0)** |
 | 8 | **10 Query Builder**| Traçado de JOIN conector e subconsultas em abas | `document/evidence/ui/query-builder-joins-dark.png`, `query-builder.test.ts:24` | `re/original-observation/10-query-builder/qb-1.png` | **CONFIRMADO (1,0)** |
 | 9 | **08 Security** | Global Privileges com Granted e With Grant Option por privilégio | `document/evidence/ui/08-13-modules/security-manager-dark.png`, `ipc-guard.test.ts` | `re/original-observation/08-security/global-privileges.png` | **CONFIRMADO (1,0)** |
-| 10 | **07 Import/Export** | Tela final Finish padronizada com ações Open file e Open folder | `AssistantFinish.tsx`, `app/test/systemOpenPath.test.ts`, `specMessages.ts:722` | `re/original-observation/23-deep/import-summary.png` | **CONFIRMADO (1,0)** |
+| 10 | **07 Import/Export** | Finish com Open result file/folder, Show log file e Import/Export more comprovados por cliques na UI | `app/scripts/smoke-e2e.mjs`; `document/evidence/ui/assistant-finish-{import,export,log}.png`; `app/test/systemOpenPath.test.ts` | `re/original-observation/23-deep/import-summary.png` | **CONFIRMADO (1,0)** |
 | 11 | **13 Debugger** | Depuração instrumentada de Triggers via checkpoints e advisory locks | `app/test/modules/routine-debugger.test.ts:41` | `re/original-observation/13-debugger/debug-1.png` | **CONFIRMADO (1,0)** |
 | 12 | **02 Explorer** | Filtro avançado com regex na árvore de conexões/objetos | `explorerFilter.ts`, `app/test/ui/explorerFilter.test.ts`, `smoke-e2e.mjs:149` | `re/original-observation/02-explorer/` | **CONFIRMADO (1,0)** |
 
@@ -65,7 +65,7 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 6 | Janelas Acopláveis (Document Outline, Schema View, Find Results, Object Viewer/Properties) | IGUAL | 1,0 | `document-outline-dark.png`, `schema-view-dark.png`, `find-results-dark.png`, `object-viewer-dark.png` |
 | 7 | Menu de contexto das abas de documento (Close All But This/Pinned, Copy Full Path, grupos horizontal/vertical sincronizados e split view) | IGUAL | 1,0 | `App.tsx:88`, `:1401`, `:1487`, `navigationMessages.ts:2` (splitView vertical/horizontal sincronizado) *(reconciliado em R6!)* |
 | 8 | Diálogo de confirmação para Reset Window Layout e Reset Toolbar Layout | IGUAL | 1,0 | `menus-window-dark.png`, `menus-tools-dark.png` |
-| 9 | Sistema de docas flutuantes livres com ancoragem direcional em cruz | PARCIAL | 0,5 | `document/evidence/ui/shell-dark.png` |
+| 9 | Sistema de docas flutuantes livres com guia de ancoragem direcional em cruz | PARCIAL | 0,5 | `app/scripts/dock-layout-screenshots.mjs` valida por arraste as quatro guias, persistência após fechar/reabrir o painel e reiniciar o app; capturas claro/escuro em `document/evidence/ui/01-shell/`; persistência também coberta por `app/test/modules/dock-layout.test.ts` |
 
 - **Subtotal Módulo 00:** 8,5 / 9,0 = **94,44%** *(R5: 88,89% | Dif: **+5,55%**)*
 
@@ -173,7 +173,7 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 3 | Exportação de linhas selecionadas da grade ativa | IGUAL | 1,0 | `app/test/modules/data-export-import.test.ts` |
 | 4 | Criação de tabela nova no Import com inferência automática de tipos de dados | IGUAL | 1,0 | `app/test/modules/data-export-import.integration.test.ts`, `import-new-table-source-dark.png` |
 | 5 | Padrão técnico superior: criação de tabela em `utf8mb4` com PK (original gera `utf8mb3` obsoleto) | MELHOR | 1,0 [MELHOR] | `NOTES.md:180`, `GAPS-VARREDURA-VM.md:23` |
-| 6 | Tela final "Finish" padronizada com resumo, contadores e ações pós-geração (Open file, Open folder validados) | IGUAL | 1,0 | `AssistantFinish.tsx`, `app/test/systemOpenPath.test.ts`, `specMessages.ts:722` *(reconciliado em R6!)* |
+| 6 | Tela final "Finish" com resumo e ações pós-execução: Open result file/folder, Show log file e Import/Export more | IGUAL | 1,0 | `app/scripts/smoke-e2e.mjs`; `document/evidence/ui/assistant-finish-{import,export,log}.png`; `app/test/systemOpenPath.test.ts` *(cliques UI via stub; apps do sistema não são abertos)* |
 | 7 | Modos de importação em tabela existente (Append, Update, Repopulate) com transação | IGUAL | 1,0 | `app/test/modules/data-export-import.integration.test.ts` |
 | 8 | Formatos legados proprietários (Access MDB, DBF, etc.) desabilitados | AUSENTE | 0,0 | `document/paridade/DIVERGENCIAS-ORIGINAL.md` |
 
@@ -206,7 +206,7 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 3 | Pré-visualização dinâmica das primeiras 50 linhas geradas | IGUAL | 1,0 | `08-13-modules/data-generator-dark.png` |
 | 4 | Data Population Wizard com alerta explícito no Summary sobre truncamento de dados | IGUAL | 1,0 | `app/test/modules/data-generator-ipc.test.ts`, `NOTES.md:184` |
 | 5 | Opções de geração avançadas (desabilitar constraints, lote customizável) | PARCIAL | 0,5 | `app/test/modules/data-generator-ipc.test.ts` |
-| 6 | Catálogo de centenas de geradores temáticos específicos do original | PARCIAL | 0,5 | `08-13-modules/data-generator-dark.png` |
+| 6 | Catálogo de centenas de geradores temáticos específicos do original | PARCIAL | 0,5 | `app/test/modules/data-generation.test.ts` confirma mais de 100 perfis industriais, mapeamentos representativos e preview determinístico; não comprova datasets exclusivos por indústria. |
 
 - **Subtotal Módulo 09:** 5,0 / 6,0 = **83,33%**
 
@@ -292,7 +292,7 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 
 | # | Item Verificável | Avaliação | Nota | Evidência no Clone |
 |---|---|---|:---:|---|
-| 1 | Assistente em 3 passos estruturados com opções avançadas e seleção de colunas chave | IGUAL | 1,0 | `data-compare-source-dark.png`, `data-compare-mapping-dark.png` |
+| 1 | Assistente em 3 passos estruturados com opções avançadas e seleção de colunas chave | IGUAL | 1,0 | `data-compare-source-dark.png`, `data-compare-mapping-dark.png`, `app/test/modules/data-compare-wizard.test.ts` (helpers de copiar/inverter endpoints e exportar JSON) |
 | 2 | Grade virtualizada de diferenças com pares por coluna, NULL em itálico e contadores Record N of M | IGUAL | 1,0 | `data-compare-dark.png` |
 | 3 | Assistente de sincronização com execução transacional por tabela e script parametrizado | IGUAL | 1,0 | `app/test/modules/data-compare.integration.test.ts` |
 | 4 | Mapeamento e comparação baseados em consultas SQL customizadas arbitrárias (Custom Queries) | IGUAL | 1,0 | `Panel.tsx:28`, `:170`, `data-compare.test.ts`, `DIVERGENCIAS-ORIGINAL.md:72` *(implementado em R5!)* |
@@ -308,7 +308,7 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 |---|---|---|:---:|---|
 | 1 | Database Documenter com árvore de objetos, seleção granular de colunas e editor de capa | IGUAL | 1,0 | `documenter-dark.png`, `documenter-cover-dark.png` |
 | 2 | Geração em HTML, Markdown e PDF em diretório timestamp com abertura automática | IGUAL | 1,0 | `app/test/modules/documenter.test.ts` |
-| 3 | Automação e execução em lote via linha de comando (CLI) | PARCIAL | 0,5 | `app/test/modules/data-export-import.test.ts` |
+| 3 | Automação e execução em lote via linha de comando (CLI) | PARCIAL | 0,5 | `app/test/modules/documenter.test.ts`, `npm run documenter:cli -- --help` (compilação e ajuda; conexão real requer integração) |
 | 4 | Gerenciador visual de tarefas recentes integrado na interface (Tasks Explorer via View > Tasks e Database > Tasks) | IGUAL | 1,0 | `DIVERGENCIAS-ORIGINAL.md:70`, `:71` *(implementado em R5!)* |
 
 - **Subtotal Módulo 16 & 17:** 3,5 / 4,0 = **87,50%** *(R4: 62,50% | Dif: **+25,00%**)*
@@ -374,7 +374,7 @@ $$\text{Fidelidade Global Ponderada (Rodada 6)} = \frac{\sum (\text{Nota Módulo
 | **03** | Table Designer, Criação & Card View | 15 | 88,89% | 88,89% | 88,89% | 88,89% | 100,00% | **100,00%** | 0,00% | Paridade plena |
 | **04** | Editor SQL, Refatoração & Busca | 15 | 88,89% | 100,00% | 90,00% | 95,00% | 95,00% | **100,00%** | **+5,00%** | Bookmarks & Outlining |
 | **06** | Schema Compare & Synchronization | 10 | 88,89% | 100,00% | 92,86% | 92,86% | 92,86% | **92,86%** | 0,00% | Estável |
-| **07** | Import & Export Wizard | 8 | 77,78% | 88,89% | 81,25% | 81,25% | 81,25% | **87,50%** | **+6,25%** | Finish com Open file/folder (bd85925) |
+| **07** | Import & Export Wizard | 8 | 77,78% | 88,89% | 81,25% | 81,25% | 81,25% | **87,50%** | **+6,25%** | Smoke UI: abrir saída/log e Import/Export more |
 | **08** | Security, Sessions & Properties | 5 | 100,00% | 100,00% | 100,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
 | **09** | Data Generator | 4 | 68,75% | 93,75% | 83,33% | 83,33% | 83,33% | **83,33%** | 0,00% | Estável |
 | **10** | Query Builder | 4 | 62,50% | 68,75% | 70,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
@@ -397,12 +397,13 @@ $$\text{Fidelidade Global Ponderada (Rodada 6)} = \frac{\sum (\text{Nota Módulo
 
 ---
 
-## 5. Top 5 Maiores Gaps Restantes Priorizados (Fila Rodada 6 Reconciliada)
+## 5. Maiores Gaps Restantes Priorizados (Fila Rodada 6 Reconciliada)
 
 | # | Área / Módulo | O que falta para paridade absoluta com a referência | Prioridade | Esforço (P/M/G) |
 |:---:|---|---|:---:|:---:|
 | 1 | **00 Shell (Layout Livre)** | Sistema de ancoragem direcional em cruz livre para janelas acopláveis (*dockview/docking guides*) | **A** | **G** |
 | 2 | **09 Data Generator** | Catálogo estendido com centenas de perfis pré-definidos para ramos de indústrias específicos | **B** | **P** |
 | 3 | **12 Query Profiler** | Visualizador comparativo dedicado em duas colunas para histórico de execuções de perfil | **B** | **P** |
-| 4 | **13 Debugger** | Suporte estendido a depuração de Event Schedulers / UDFs compiladas | **B** | **M** |
-| 5 | **16/17 Documenter** | Cobertura de automação avançada de scripts em lote (.bat/.sh) via CLI além do export nativo | **C** | **P** |
+| 4 | **16/17 Documenter** | Cobertura de automação avançada de scripts em lote (.bat/.sh) via CLI além do export nativo | **C** | **P** |
+
+> Nesta atualização, o Data Generator ganhou perfis industriais agrupados e o comparador do Profiler passou a mostrar, em colunas, consulta, duração, eventos e árvore do plano. Os testes cobrem a quantidade/mapeamentos representativos de perfis e cálculos de comparação; por isso os itens seguem parciais, sem alegação de paridade visual completa. O gap de Event Schedulers e UDFs compiladas foi encerrado como diferença intencional aceita pelo Arquiteto; o comportamento segue documentado em `DIVERGENCIAS-ORIGINAL.md`.

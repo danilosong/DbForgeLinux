@@ -105,7 +105,10 @@ describe('data generation', () => {
       { name: 'order_date', type: 'date', nullable: false },
       { name: 'description', type: 'text', nullable: false }
     ]
-    expect(dataDomainProfiles).toEqual(['people', 'addresses', 'companies', 'ecommerce', 'finance', 'datetime', 'text'])
+    expect(dataDomainProfiles).toContain('healthcare')
+    expect(dataDomainProfiles).toContain('airline')
+    expect(dataDomainProfiles).toContain('cryptocurrency')
+    expect(dataDomainProfiles.length).toBeGreaterThanOrEqual(100)
     expect(generatorForDomainProfile('people', columns[0]!)).toBe('firstName')
     expect(generatorForDomainProfile('addresses', columns[1]!)).toBe('sequence')
     expect(generatorForDomainProfile('companies', columns[2]!)).toBe('company')
@@ -113,6 +116,9 @@ describe('data generation', () => {
     expect(generatorForDomainProfile('finance', columns[3]!)).toBe('money')
     expect(generatorForDomainProfile('datetime', columns[4]!)).toBe('date')
     expect(generatorForDomainProfile('text', columns[5]!)).toBe('lorem')
+    expect(generatorForDomainProfile('healthcare', { name: 'patient_email', type: 'varchar(120)', nullable: false })).toBe('email')
+    expect(generatorForDomainProfile('airline', { name: 'ticket_status', type: 'varchar(20)', nullable: false })).toBe('status')
+    expect(generatorForDomainProfile('cryptocurrency', { name: 'transaction_amount', type: 'decimal(18,8)', nullable: false })).toBe('money')
 
     const profileTable: TableModel = { ...parent, name: 'profile_preview', columns: [columns[0]!, columns[2]!, columns[3]!, columns[4]!] }
     const generators = Object.fromEntries(profileTable.columns.map((column) => [column.name, { kind: generatorForDomainProfile('people', column) }]))

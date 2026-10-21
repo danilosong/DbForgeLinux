@@ -183,7 +183,10 @@ textarea { resize: vertical; }
 .toolbar-spacer, .footer-spacer { flex: 1; }
 .storage-error { display: flex; justify-content: space-between; align-items: center; padding: 5px 10px; color: var(--error); border-bottom: 1px solid var(--border); }
 .workbench { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(200px, 280px) minmax(0, 1fr); }
-.app-shell:has(.right-dock) .workbench { margin-right: min(420px, 42vw); }
+.app-shell:has(.right-dock.dock-right) .workbench { margin-right: min(420px, 42vw); }
+.app-shell:has(.right-dock.dock-left) .workbench { margin-left: min(420px, 42vw); }
+.app-shell:has(.right-dock.dock-top) .workbench { margin-top: min(34vh, 340px); }
+.app-shell:has(.right-dock.dock-bottom) .workbench { margin-bottom: min(34vh, 340px); }
 .workbench.explorer-hidden { grid-template-columns: minmax(0, 1fr); }
 .project-explorer-dock { position: fixed; z-index: 45; right: 24px; top: 86px; bottom: 34px; width: min(390px, 38vw); min-width: 300px; display: flex; flex-direction: column; overflow: auto; background: var(--bg-app); color: var(--text); border: 1px solid var(--border); box-shadow: 0 8px 28px #0004; }
 .project-explorer-dock[hidden] { display: none; }
@@ -495,10 +498,19 @@ th { position: sticky; top: 0; background: var(--bg-surface-alt); }
 .tool-panel h2 { margin-top: 0; padding-right: 30px; color: var(--text); }
 .tool-document { min-width: 0; min-height: 0; height: 100%; overflow: auto; color: var(--text); background: var(--bg-surface); }
 .tool-document > .tool-panel { min-height: 100%; box-sizing: border-box; padding: 20px; color: var(--text); background: var(--bg-surface); }
-.right-dock { position: fixed; z-index: 30; top: 74px; right: 0; bottom: 28px; display: flex; width: min(420px, 42vw); min-width: 310px; flex-direction: column; border-left: 1px solid var(--border); background: var(--bg-surface); box-shadow: -8px 0 24px rgb(0 0 0 / .16); }
-.right-dock > header { min-height: 36px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+.right-dock { position: fixed; z-index: 30; display: flex; flex-direction: column; border: 1px solid var(--border); background: var(--bg-surface); box-shadow: 0 8px 24px rgb(0 0 0 / .16); }
+.right-dock.dock-right { top: 74px; right: 0; bottom: 28px; width: min(420px, 42vw); min-width: 310px; border-right: 0; }
+.right-dock.dock-left { top: 74px; left: 0; bottom: 28px; width: min(420px, 42vw); min-width: 310px; border-left: 0; }
+.right-dock.dock-top { top: 74px; left: 0; right: 0; height: min(34vh, 340px); }
+.right-dock.dock-bottom { left: 0; right: 0; bottom: 28px; height: min(34vh, 340px); }
+.right-dock > header { min-height: 36px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-bottom: 1px solid var(--border); color: var(--text); cursor: grab; touch-action: none; user-select: none; }
 .right-dock > header button { min-width: 28px; padding: 2px; }
 .right-dock > .ai-panel { min-height: 0; flex: 1; padding: 12px; overflow: auto; }
+.dock-guides { position: absolute; z-index: 2; inset: 36px 0 0; display: grid; grid-template: 1fr 1fr 1fr / 1fr 1fr 1fr; place-items: center; background: rgb(10 18 28 / .25); }
+.dock-guides button,.dock-guide-center { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid var(--accent); border-radius: 6px; color: var(--text); background: var(--bg-surface); font-size: 20px; box-shadow: 0 2px 10px #0004; }
+.dock-guides button { cursor: pointer; }
+.dock-guides button:hover,.dock-guides button:focus-visible { color: white; background: var(--accent); }
+.dock-guide-up { grid-area: 1 / 2; }.dock-guide-left { grid-area: 2 / 1; }.dock-guide-center { grid-area: 2 / 2; color: var(--accent); }.dock-guide-right { grid-area: 2 / 3; }.dock-guide-down { grid-area: 3 / 2; }
 .tool-empty-state { margin: 16px 0; padding: 18px; color: var(--text-secondary); background: var(--bg-surface-alt); border: 1px dashed var(--border); border-radius: 6px; }
 .service-control-panel,.code-analysis-panel { display: flex; flex-direction: column; gap: 10px; padding: 16px; color: var(--text); background: var(--bg-surface); }
 .service-control-panel > p,.code-analysis-toolbar p { margin: 0; color: var(--text-secondary); }

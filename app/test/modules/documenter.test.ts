@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it, vi } from 'vitest'
 import { generateDocumentation, writeDocumentation } from '../../src/modules/documenter/index.js'
+import { generateDocumentationBatch } from '../../src/modules/documenter/automation.js'
 import type { DatabaseModel } from '../../src/modules/schema/model.js'
 
 const model: DatabaseModel = {
@@ -20,6 +21,40 @@ const model: DatabaseModel = {
 }
 
 describe('documenter', () => {
+  it('generates a batch for each database, reports per-database failures, and continues', async () => {
+    const inspected: string[] = []
+    const written: string[] = []
+    const results = await generateDocumentationBatch([
+      { database: 'sales', outputDirectory: '/tmp/docs' },
+      { database: 'missing', outputDirectory: '/tmp/docs' },
+      { database: 'warehouse', outputDirectory: '/tmp/docs', formats: ['html'] }
+    ], {
+      inspect: async (database) => {
+        inspected.push(database)
+        if (database === 'missing') throw new Error('database unavailable')
+        return model
+      },
+      write: async (_schema, options) => {
+        written.push(`${options.title ?? 'default'}:${options.outputDirectory}:${options.formats?.join(',')}`)
+        return { html: `${options.outputDirectory}/index.html` }
+      }
+    })
+
+    expect(inspected).toEqual(['sales', 'missing', 'warehouse'])
+    expect(written).toEqual(['default:/tmp/docs:html,markdown', 'default:/tmp/docs:html'])
+    expect(results).toMatchObject([
+      { database: 'sales', output: { html: '/tmp/docs/index.html' } },
+      { database: 'missing', error: 'database unavailable' },
+      { database: 'warehouse', output: { html: '/tmp/docs/index.html' } }
+    ])
+  })
+
+  it('rejects empty and oversized documentation batches', async () => {
+    const dependencies = { inspect: async () => model }
+    await expect(generateDocumentationBatch([], dependencies)).rejects.toThrow('1 a 100')
+    await expect(generateDocumentationBatch(Array.from({ length: 101 }, (_, index) => ({ database: `db-${index}`, outputDirectory: '/tmp/docs' })), dependencies)).rejects.toThrow('1 a 100')
+  })
+
   it('generates escaped HTML, Markdown and optional relationship SVG', () => {
     const output = generateDocumentation(model, { includeDiagram: true, descriptions: { 'table.users': 'User reference table' } })
     expect(output.html).toContain('<!doctype html>')

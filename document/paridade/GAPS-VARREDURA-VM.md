@@ -111,7 +111,13 @@ O Tasks Explorer é um dock em View e reabre o assistente associado à tarefa re
 
 ### Gap 15 — Finish e abertura das saídas
 
-O bloco Finish comum agora é usado por Import/Export, Backup/Restore, Documenter e Link Database to Source Control. Saídas de arquivo exibem **Open file** e **Open folder** via IPC `file:open-in-system`; o processo principal valida caminho absoluto, tipo regular, existência e ausência de symlink antes de chamar `shell.openPath` (integração do Electron com o abridor do sistema, incluindo `xdg-open` em Linux). Restore sem arquivo de saída mostra o relatório sem ações de abertura. Os demais painéis de execução imediata ainda apresentam o relatório no próprio painel e não têm uma etapa Finish própria; o gap fica parcialmente implementado até que esses fluxos ganhem uma etapa final comum.
+O bloco Finish comum agora é usado por Import/Export, Backup/Restore, Documenter, Link Database to Source Control, Data Generator e Data Compare. Saídas de arquivo exibem **Open result file** e **Open result folder** via IPC `file:open-in-system`; o processo principal valida caminho absoluto, tipo regular, existência e ausência de symlink antes de chamar `shell.openPath` (integração do Electron com o abridor do sistema, incluindo `xdg-open` em Linux). Smoke E2E valida os cliques de arquivo/pasta em Export e Backup por stub, Show log file em Export e as ações de repetição em Import/Export, Data Generator e Data Compare; as capturas ficam em `document/evidence/ui/assistant-finish-*.png`. Restore sem arquivo de saída mostra o relatório sem ações de abertura. O gap segue parcial enquanto outros fluxos de execução imediata não ganharem uma etapa Finish comum.
+
+### Evidência adicional — Source Control, Import/Export e Documenter CLI
+
+- O vínculo de banco ao projeto grava e relê os modelos **Dedicated** e **Shared**, sem persistir senha; confirmado por `app/test/modules/source-control.test.ts`.
+- Import/Export mantém a criação de tabela nova com inferência e DDL `utf8mb4` (gap 14); os testes de módulo relacionados passaram nesta rodada. O smoke E2E comprova na UI Open result file/folder, Show log file e Import/Export more com stub do IPC de abertura; o gap 15 permanece parcial para fluxos ainda sem Finish comum.
+- Documenter agora oferece `npm run documenter:cli -- --manifest <file.json>`. A automação processa até 100 bancos, registra resultado/erro por banco e continua a fila após falha; senha fica somente em `TUXSQL_DB_PASSWORD`. Testes unitários cobrem o processamento em lote e `--help` compila/executa a CLI. Conexão real e PDF pela CLI ainda não têm prova de integração.
 
 ## Auditoria de consistência para release v0.1.0
 
@@ -123,8 +129,9 @@ O bloco Finish comum agora é usado por Import/Export, Backup/Restore, Documente
 
 | Gap | Estado | Evidência / limite |
 |---|---|---|
-| Data Generator: perfis de domínio | Implementado | Perfis People, Addresses, Companies, E-commerce, Finance, Date/Time e Text podem ser escolhidos por coluna ou substituídos por um gerador manual. Teste cobre mapeamentos semânticos e repetibilidade da prévia com seed fixa. |
-| Profiler: histórico em duas colunas | Implementado | Lista de execuções selecionáveis fica ao lado dos detalhes e plano. Duas execuções podem ser marcadas para comparar duração, eventos, counters de sessão e estrutura do plano; variações de custo/estimativa não são consideradas mudança estrutural. Teste cobre deltas e mudança de plano. |
+| Data Generator: perfis de domínio | Ampliado; parcial | O catálogo oferece mais de 100 perfis agrupados por família industrial, escolhíveis por coluna ou substituíveis por gerador manual. Testes cobrem volume do catálogo, mapeamentos semânticos representativos e repetibilidade da prévia com seed fixa. Perfis reutilizam geradores existentes; não reproduzem centenas de datasets/vocabulários exclusivos do original. |
+| Profiler: histórico em duas colunas | Implementado; comparação visual sem captura dedicada | A lista de execuções fica ao lado do comparador. As duas colunas mostram consulta, duração, eventos SQL e árvore do plano; resumo compara duração, eventos, counters de sessão e estrutura do plano. Testes cobrem os deltas e mudança de forma do plano; não há evidência de screenshot nesta rodada. |
+| Debugger: Event Schedulers e UDFs compiladas | Diferença intencional aceita | O gap 4 foi encerrado como diferença intencional pelo Arquiteto. Contrato e interface seguem aceitando procedures e triggers: Events executam pelo scheduler em sessão independente; UDFs compiladas não expõem corpo SQL para instrumentação. |
 
 ## Varredura final do Options do original (páginas já percorridas)
 

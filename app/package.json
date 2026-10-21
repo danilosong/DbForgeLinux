@@ -17,6 +17,7 @@
     "start": "electron-vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
+    "documenter:cli": "tsc -p tsconfig.documenter-cli.json && node out/documenter-cli/modules/documenter/cli.js",
     "test": "vitest run --maxWorkers=4",
     "mysql:clean-test": "node scripts/mysql-clean-test.mjs",
     "test:integration": "pnpm mysql:clean-test && MYSQL_INTEGRATION=1 vitest run --maxWorkers=4",

@@ -11,5 +11,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["src/main", "src/preload", "src/shared"]
+  "include": ["src/main", "src/preload", "src/shared", "src/modules/documenter/cli.ts", "src/modules/documenter/automation.ts"]
 }

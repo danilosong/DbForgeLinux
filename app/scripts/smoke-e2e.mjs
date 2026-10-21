@@ -75,6 +75,12 @@ END`)
     }
   })
   const page = await app.firstWindow()
+  await app.evaluate(({ ipcMain }) => {
+    const calls = []
+    ipcMain.__assistantFinishOpenCalls = calls
+    ipcMain.removeHandler('file:open-in-system')
+    ipcMain.handle('file:open-in-system', (_event, path, kind) => { calls.push({ path, kind }); return '' })
+  })
   await page.waitForFunction(() => window.performance.getEntriesByName('tuxsql:first-paint-settled', 'mark').length > 0, null, { timeout: 15_000 })
   page.on('dialog', (dialog) => dialog.accept())
   await page.addLocatorHandler(page.locator('.panel-dialog-backdrop:has(.update-dialog)'), async () => {
@@ -367,8 +373,12 @@ END`)
   await dataComparePanel.getByRole('button', { name: 'Compare', exact: true }).click()
   try { await dataComparePanel.locator('.compare-results').waitFor({ timeout: 30_000 }) }
   catch { throw new Error(`Custom query comparison did not finish: ${await dataComparePanel.innerText()}`) }
-  const customCompareSummary = await dataComparePanel.locator('p[role="status"]').innerText()
-  if (!/3 rows · 1 Only in Source · 0 Different · 1 Identical · 1 Only in Target/.test(customCompareSummary)) throw new Error(`Custom query comparison counts differ: ${customCompareSummary}`)
+  const customCompareSummary = await dataComparePanel.locator('.compare-results p').filter({ hasText: 'Only in Source / Different / Identical / Only in Target' }).innerText()
+  if (!/3 rows · 1 \/ 1 objects selected · 1 \/ 0 \/ 1 \/ 1 Only in Source \/ Different \/ Identical \/ Only in Target/.test(customCompareSummary)) throw new Error(`Custom query comparison counts differ: ${customCompareSummary}`)
+  await dataComparePanel.locator('.compare-finish .assistant-finish').waitFor()
+  await mkdir(evidenceDirectory, { recursive: true })
+  await dataComparePanel.locator('.compare-finish').screenshot({ path: join(evidenceDirectory, 'assistant-finish-data-compare.png') })
+  await dataComparePanel.locator('.compare-finish').getByRole('button', { name: 'Compare more' }).waitFor()
 
   // Table Designer sections remain accessible in the actual object editor.
   await smokeObject.click({ button: 'right' })
@@ -382,6 +392,18 @@ END`)
   await designer.locator('.object-editor-nav').getByRole('button', { name: /^Data$/i }).click()
   if (!(await designer.locator('.object-editor-nav').getByRole('button', { name: /^Data$/i }).count())) throw new Error('Table Designer Data page is not available.')
   await page.locator('.document-tab.selected .tab-close').click()
+
+  // Data Generator finishes with a result summary and a repeat action.
+  await smokeObject.click({ button: 'right' })
+  await contextMenu.getByRole('menuitem', { name: /Generate Data/ }).click()
+  const dataGenerator = page.locator('.data-generator-panel')
+  await dataGenerator.waitFor()
+  await dataGenerator.getByRole('button', { name: /Select Tables|Selecionar tabelas/ }).click()
+  await dataGenerator.getByLabel(`${docTable} row count`).fill('1')
+  await dataGenerator.getByRole('button', { name: /^Generate$/ }).click()
+  await dataGenerator.locator('.assistant-finish').waitFor({ timeout: 30_000 })
+  await dataGenerator.locator('.assistant-finish').screenshot({ path: join(evidenceDirectory, 'assistant-finish-data-generator.png') })
+  await dataGenerator.locator('.assistant-finish').getByRole('button', { name: /^Generate$/ }).waitFor()
 
   // Query Builder opens from a real table, then adds its foreign-key parent and creates a JOIN.
   await page.getByRole('tab', { name: 'Start Page' }).click().catch(() => undefined)
@@ -441,7 +463,18 @@ END`)
   }
 
 
-  // Export wizard is taken to its last confirmation page but never started.
+  // Export and Import Finish pages exercise OS-opening controls through a main-process stub.
+  const exportPath = join(dataRoot, 'finish-export.csv')
+  const exportErrorLog = join(dataRoot, 'finish-export.log')
+  const importSource = join(dataRoot, 'finish-import.csv')
+  const importScript = join(dataRoot, 'finish-import.sql')
+  await writeFile(importSource, 'id,label\n7,Finish fixture\n', 'utf8')
+  await app.evaluate(({ dialog }, paths) => {
+    dialog.showSaveDialog = async (...args) => {
+      const options = args.at(-1)
+      return { canceled: false, filePath: /log/i.test(options?.title ?? '') ? paths.log : /import/i.test(options?.title ?? '') ? paths.importScript : paths.export }
+    }
+  }, { export: exportPath, log: exportErrorLog, importScript })
   await smokeObject.click({ button: 'right' })
   await contextMenu.getByRole('menuitem', { name: /Export Data/ }).click()
   const exportPanel = page.locator('.io-wizard')
@@ -455,8 +488,60 @@ END`)
     await next.click()
   }
   await exportPanel.getByRole('heading', { name: 'Ready to export' }).first().waitFor()
-  if (await exportPanel.getByRole('button', { name: /^Export$/ }).count() !== 1) throw new Error('Export confirmation step is not visible.')
-  await exportPanel.locator('.io-footer').getByRole('button', { name: /Cancel|Cancelar/ }).click()
+  await exportPanel.locator('.io-footer .button-primary').click()
+  await exportPanel.locator('.assistant-finish').waitFor()
+  await mkdir(evidenceDirectory, { recursive: true })
+  await exportPanel.locator('.assistant-finish').screenshot({ path: join(evidenceDirectory, 'assistant-finish-export.png') })
+  if (!(await exportPanel.getByRole('button', { name: 'Export more', exact: true }).count())) throw new Error('Export Finish must provide Export more.')
+  for (const [label, kind] of [['Open result file', 'file'], ['Open result folder', 'folder']]) {
+    await exportPanel.getByRole('button', { name: label, exact: true }).click()
+    const calls = await app.evaluate(({ ipcMain }) => ipcMain.__assistantFinishOpenCalls)
+    if (!calls.some((call) => call.path === exportPath && call.kind === kind)) throw new Error(`${label} did not call the system-open stub for the result ${kind}.`)
+  }
+  await exportPanel.getByRole('button', { name: 'Export more', exact: true }).click()
+  await exportPanel.locator('.io-toolbar select').first().selectOption('export')
+  await exportPanel.locator('.io-footer .button-primary').click()
+  const secondQuery = exportPanel.locator('textarea').first()
+  for (const selectedSource of await exportPanel.locator('.io-source-list input[type="checkbox"]:checked').all()) await selectedSource.uncheck()
+  if (await secondQuery.count()) await secondQuery.fill('NOT A SELECT')
+  for (let step = 0; step < 5; step += 1) {
+    const next = exportPanel.getByRole('button', { name: /Next|Avançar/ })
+    if (!(await next.count())) break
+    if (await next.isDisabled()) break
+    await next.click()
+  }
+  const writeErrorLog = exportPanel.getByRole('checkbox', { name: /Write an error log/ })
+  if (await writeErrorLog.count() !== 1) throw new Error(`The export error step did not expose Write an error log: ${await exportPanel.innerText()}`)
+  await writeErrorLog.check()
+  await exportPanel.locator('.io-footer .button-primary').click()
+  await exportPanel.locator('.io-footer .button-primary').click()
+  const runExport = exportPanel.locator('.io-footer .button-primary')
+  if (await runExport.count()) await runExport.click()
+  const showLog = exportPanel.getByRole('button', { name: 'Show log file', exact: true })
+  if (!(await showLog.count())) throw new Error(`Finish did not expose Show log file: ${await exportPanel.innerText()} (saved log: ${await readFile(exportErrorLog, 'utf8').catch(() => 'missing')})`)
+  await exportPanel.locator('.assistant-finish').screenshot({ path: join(evidenceDirectory, 'assistant-finish-log.png') })
+  await showLog.click()
+  const logCalls = await app.evaluate(({ ipcMain }) => ipcMain.__assistantFinishOpenCalls)
+  if (!logCalls.some((call) => call.path === exportErrorLog && call.kind === 'file')) throw new Error('Show log file did not call the system-open stub.')
+  await exportPanel.getByRole('button', { name: 'Export more', exact: true }).click()
+  await exportPanel.locator('.io-toolbar select').first().selectOption('import')
+  await app.evaluate(({ dialog }, filePath) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filePath] }) }, importSource)
+  await exportPanel.locator('.io-page > button').first().click()
+  await exportPanel.locator('.io-footer .button-primary').click()
+  for (let step = 0; step < 5; step += 1) {
+    const next = exportPanel.getByRole('button', { name: /Next|Avançar/ })
+    if (!(await next.count())) break
+    await next.click()
+  }
+  await exportPanel.locator('.io-page input[type="radio"]').nth(1).check()
+  await exportPanel.locator('.io-footer .button-primary').click()
+  await exportPanel.locator('.io-footer .button-primary').click()
+  const importRun = exportPanel.locator('.io-footer .button-primary')
+  if (await importRun.count()) await importRun.click()
+  await exportPanel.locator('.assistant-finish').waitFor({ timeout: 20_000 })
+  await exportPanel.locator('.assistant-finish').screenshot({ path: join(evidenceDirectory, 'assistant-finish-import.png') })
+  if (!(await exportPanel.getByRole('button', { name: 'Import more', exact: true }).count())) throw new Error('Import Finish must provide Import more.')
+  await exportPanel.getByRole('button', { name: 'Import more', exact: true }).waitFor()
   const exportClose = page.locator('.panel-dialog-backdrop:has(.io-wizard) .panel-dialog-close')
   if (await exportClose.count()) await exportClose.last().click()
 
@@ -481,6 +566,22 @@ END`)
   if (!restoreCommand.includes('mysql --host=') || !restoreCommand.includes('--password ') || restoreCommand.includes('integration-only')) throw new Error('Restore command should use the mysql client and prompt for credentials without embedding a password.')
   await restoreWizard.getByRole('button', { name: 'Next' }).click()
   if (await restoreWizard.getByRole('button', { name: 'Start' }).isEnabled()) throw new Error('Restore must require destination confirmation before execution.')
+  const backupDirectory = join(dataRoot, 'finish-backups')
+  await mkdir(backupDirectory, { recursive: true })
+  await app.evaluate(({ dialog }, directory) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [directory] }) }, backupDirectory)
+  await restoreWizard.getByRole('button', { name: 'Create backup', exact: true }).click()
+  await restoreWizard.getByRole('button', { name: /Choose folder/ }).click()
+  for (let step = 0; step < 3; step += 1) await restoreWizard.locator('.backup-wizard-footer .button-primary').click()
+  await restoreWizard.getByRole('button', { name: 'Start', exact: true }).click()
+  await restoreWizard.locator('.assistant-finish').waitFor()
+  await restoreWizard.locator('.assistant-finish').screenshot({ path: join(evidenceDirectory, 'assistant-finish-backup.png') })
+  if (!(await restoreWizard.locator('.assistant-finish-output code').count())) throw new Error(`Backup did not produce an output file: ${await restoreWizard.innerText()}`)
+  const backupPath = await restoreWizard.locator('.assistant-finish-output code').innerText()
+  for (const [label, kind] of [['Open result file', 'file'], ['Open result folder', 'folder']]) {
+    await restoreWizard.getByRole('button', { name: label, exact: true }).click()
+    const calls = await app.evaluate(({ ipcMain }) => ipcMain.__assistantFinishOpenCalls)
+    if (!calls.some((call) => call.path === backupPath && call.kind === kind)) throw new Error(`Backup ${label} did not call the system-open stub.`)
+  }
   await page.locator('.document-tab.selected .tab-close').click()
 
   // Link wizard UI proof uses a temporary .git-shaped fixture and in-page API stubs;

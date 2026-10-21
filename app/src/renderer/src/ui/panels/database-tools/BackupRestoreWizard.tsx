@@ -34,7 +34,7 @@ export default function BackupRestoreWizard({ records, connectionId, database, o
       const connected = await window.tuxsql.connect(record)
       try {
         if (mode === 'backup') {
-          const result = await window.tuxsql.runBackup(connected.id, database, options, id)
+          const result = await window.tuxsql.runBackup(connected.id, database, { ...options, password: options.password || undefined }, id)
           void window.tuxsql.recordRecentTask({ kind: 'backup', title: `${database} backup`, detail: database }).catch(() => undefined)
           setReport(result)
         } else {

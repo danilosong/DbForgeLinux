@@ -1,106 +1,226 @@
-# UX 07 — Schema Compare e Data Compare
+# UX 07 — Schema Compare e Synchronization
 
-> Fidelidade REA: rótulos conferidos contra REA ui-text (estados Only in Source/Target, Different, Identical, avisos de risco). Os nomes do diálogo de confirmação em 3 blocos e as opções de script são decisões de UX; ver `fidelidade-parts/B.md`.
+**Fidelidade REA & Observação VM:** especificação baseada no inventário REA M9, ui-text e **observação direta da VM de referência `dbforge-ref`** (dbForge Studio for MySQL v2026.2.82, capturas em `/tmp/vm_schema_*.png`, `/tmp/vm_sync_*.png` e `re/original-observation/06-schema-compare/`).
 
-Reusa `01-shell.md`, `03` (CodeEditor, TreeView, DataGrid) e `06` (WizardDialog, ProgressList). Entrada: menu Tools > New Schema Comparison / New Data Comparison; Explorer > database > Compare With…. Abre documento em aba ("Schema Comparison 1").
+---
 
-## 1. Documento Schema Compare
+## 1. Fluxo de Entrada e Assistente "New Schema Comparison"
+
+A funcionalidade é acionada via menu principal (`Comparison > New Schema Comparison...`), atalho da barra de ferramentas ou menu de contexto de database no Explorer (`Compare With...`).
+O fluxo abre um assistente modal de configuração estruturado em 2 etapas:
 
 ```
-+ Aba: [Schema Compare 1] ----------------------------------------------+
-| Toolbar: [Compare F5] [Stop] | [Generate Script] [Synchronize] |     |
-|  [Options] [Filters] [Refresh] [Swap ⇄] | [Save .dbcmp] [Open]       |
-+---------------------------------------------------------------------+
-| Origem (Source)         ⇄        Destino (Target)                   |
-| [conexão ▾][database ▾]       [conexão ▾][database ▾]               |
-+---------------------------------------------------------------------+
-| Árvore de diferenças (topo)  [Filtro: All|Different|Only Source|...]|
-|  ☐ Objeto          | Tipo | Estado        | Ação    |               |
-+---------------------------------------------------------------------+
-| Painel de detalhe (base): [DDL lado a lado] [Propriedades] [Sync SQL]|
-+---------------------------------------------------------------------+
++- New Schema Comparison ------------------------------------------ [x] -+
+|  Source and Target                                                [icon] |
+|  Select Source and Target connections and specify the names...           |
+|--------------------------------------------------------------------------|
+| [Source and Target] |  SOURCE                     TARGET                 |
+| [Options]           |  Type: [Database     ▾]     Type: [Database     ▾] |
+|                     |  Connection:                Connection:            |
+|                     |   [mysql-teste       ▾]      [mysql-teste       ▾] |
+|                     |  Server Version: 8.4.11     Server Version: 8.4.11 |
+|                     |  Database:                  Database:              |
+|                     |   [sample          + ▾]      [sample_b        + ▾] |
+|                     |                                                    |
+|                     |               [Copy ▶]  [⇄]  [◀ Copy]              |
+|--------------------------------------------------------------------------|
+| [💾 Save ▾]                           [< Back]  [Next >] [Compare] [Cancel]|
++--------------------------------------------------------------------------+
 ```
-Origem/Destino: combos de conexão e database (com status, cor de ambiente), também "Snapshot/arquivo `.sql`" (P2, desabilitado v1). Botão Swap troca os lados (com confirmação se já comparado). **Aviso visual forte**: o destino é o que será alterado — cabeçalho do destino com rótulo "TARGET (será modificado)" e faixa vermelha se conexão Prod.
 
-## 2. Comparar (estados)
+### 1.1 Etapa 1: Source and Target
+- **Colunas Paralelas (Source e Target):**
+  - `Type:` combo box (`Database`, `Project`, `Scripts Folder`, `Snapshot`, `Source Control`).
+  - `Connection:` combo box com `<Manage...>` para abrir Connection Manager.
+  - `Server Version:` exibição dinâmica da versão do servidor (ex.: `8.4.11` ou `not available`).
+  - `Database:` combo box com `<Refresh...>`, botão `+` para criar novo schema e seletor rápido.
+- **Botões de Interação entre Painéis:**
+  - `[ Copy ▶ ]`: copia conexão e database da Origem para o Destino.
+  - `[ ⇄ ]`: inverte os lados de Origem e Destino.
+  - `[ ◀ Copy ]`: copia conexão e database do Destino para a Origem.
+- **Validação Observada na VM:**
+  Se o usuário tentar avançar para `Options` ou acionar `Compare` com o Destino inválido ou vazio, o sistema exibe um alerta modal de bloqueio:
+  > *"Comparison target is invalid"* `[ OK ]`
 
-| Estado | Aparência |
-|---|---|
-| Inicial | EmptyState "Selecione origem e destino e clique Compare" |
-| Loading | Painel de progresso por fase: "Lendo origem… (12/80 objetos)", "Lendo destino…", "Calculando diferenças…"; [Stop]; árvore vazia com skeleton |
-| Sucesso com diferenças | Árvore preenchida; resumo na barra: "34 diferenças: 10 novos, 12 alterados, 12 removidos" |
-| Sucesso sem diferenças | Banner verde "Os esquemas são idênticos" |
-| Erro | InlineErrorPanel (qual lado falhou + mensagem + [Tentar de novo] [Editar conexão]); erros parciais por objeto (ex.: sem privilégio) listados em aviso âmbar expansível |
-| Resultado obsoleto | Banner âmbar quando edita origem/destino/opções: "Resultados desatualizados [Compare]" |
+### 1.2 Etapa 2: Options
+- **Busca:** Campo de texto com placeholder `Search` e ícone vermelho `✖` para limpar o filtro.
+- **Link CLI:** `Save settings to a command line arguments file...` para exportação de script de automação.
+- **Grupos de Opções (Árvore/Accordion):**
+  - `▾ Common`:
+    - `☐ Disable dependency analysis`
+    - `☐ Ignore AUTO_INCREMENT clause`
+    - `☑ Ignore AUTO_INCREMENT table option` *(ativo por padrão)*
+    - `☑ Ignore average row length` *(ativo por padrão)*
+    - `☐ Ignore collations`
+    - `☐ Ignore column data types`
+    - `☐ Ignore column default values`
+    - `☑ Ignore DEFINER clause` *(ativo por padrão)*
+    - `☐ Ignore ENDS clause`
+    - `☐ Ignore permissions`
+    - `☑ Ignore SQL SECURITY clause` *(ativo por padrão)*
+    - `☐ Ignore STARTS clause`
+    - `☐ Ignore table engine`
+  - `▾ Auto Mapping`
+- **Painel de Descrição Contextual:** Exibe o nome e a explicação detalhada do item atualmente em foco.
+- **Botões de Perfil (Presets):**
+  - Esquerda: `[ Save As My Defaults ]`
+  - Direita: `[ Devart Defaults ]`, `[ My Defaults ]`
 
-## 3. Árvore de diferenças
+---
 
-Agrupada por tipo: Tables, Views, Procedures, Functions, Triggers, Events (e sub-itens de tabela: Columns, Indexes, FKs, Constraints, Options). Colunas:
-| Coluna | Conteúdo |
-|---|---|
-| ☐ | checkbox (tri-state no grupo); controla o que entra no script |
-| Objeto | nome + ícone |
-| Estado | ícone+texto: **Only in Source** (verde +, será criado), **Only in Target** (vermelho −, será removido), **Different** (âmbar ≠), **Equal** (cinza =, oculto por padrão) |
-| Ação | texto: Create / Drop / Alter / (none) — derivado da direção e opções |
-Filtro por estado (chips com contadores), busca por nome, expandir/recolher tudo, "Marcar todos / só diferentes / nenhum". Padrão: todos marcados exceto drops quando a opção "Don't drop" está ativa (padrão **ativa**: objetos só no destino vêm desmarcados). Dependências: marcar objeto que depende de outro sugere marcar a dependência (banner "A tabela x também será necessária. [Incluir]"); desmarcar objeto exigido mostra aviso.
-Menu de contexto: Check/Uncheck, Check with dependencies, Copy name, Open in Table Editor (target), Ignore this object (adiciona a filtro), Show only this type.
-Teclado: setas, Espaço alterna checkbox, Enter abre detalhe, Ctrl+A marcar todos, Ctrl+F busca.
+## 2. Execução e Card de Progresso In-Flight
 
-## 4. Painel de detalhe (aba por seleção)
-- **Diff DDL:** dois painéis Monaco read-only lado a lado (Source | Target) com destaque de linhas diferentes (verde/vermelho 15%, caractere a caractere), scroll sincronizado, navegação [↑ prev diff][↓ next diff] (F7/Shift+F7), alternância inline.
-- **Propriedades:** para tabelas, grade comparando itens (Coluna: nome, tipo, null, default) com marca por diferença.
-- **Script do objeto:** SQL de sincronização só deste objeto.
+Ao clicar no botão `[ Compare ]`, o assistente inicia a análise e apresenta um card centralizado com as 5 etapas sequenciais e indicadores dinâmicos:
 
-## 5. Opções (diálogo Options, também botão na toolbar)
-Grupos: **Comparação** (ignorar: comentários, collation, charset, AUTO_INCREMENT, DEFINER, partições, whitespace/case em nomes), **Objetos** (quais tipos comparar), **Script** (Don't drop objects [padrão on], Include IF EXISTS, Disable FK checks, Include USE, Wrap in transaction (aviso DDL), Add comments, Order por dependência [fixo]), **Mapeamento** (renomes: "tabelas com nomes diferentes" tabela de pares de-para, manual). Perfis salvos (`.dbcmp`: configuração, sem segredos).
-Filtros (diálogo): incluir/excluir por padrão de nome (glob/regex) por tipo.
+```
++-- Schema Comparison -----------------------------+
+|                                                  |
+|   ✓ Opening connections                          |
+|   ↻ Describing source objects                    |
+|   ↻ Describing target objects                    |
+|     Functions Options: fn_discount               |
+|   ○ Mapping objects                              |
+|   ○ Comparing schemas                            |
+|                                                  |
++--------------------------------------------------+
+```
+- Ícones de status:
+  - `✓` Verde: etapa concluída com sucesso.
+  - `↻` Azul animado: etapa em execução ativa, acompanhada do nome do objeto sendo inspecionado.
+  - `○` Cinza: etapa pendente na fila.
 
-## 6. Gerar e executar script (sync)
+---
 
-1. **Generate Script** (Ctrl+Shift+G): gera SQL para destino = origem com objetos marcados. Abre em nova aba SQL "Sync Script" (conexão = destino, ainda não executado) **ou** painel "Sync SQL". Cabeçalho do script com comentário de data, origem, destino, versão do servidor. Ordem por dependência; DROP agrupados no fim.
-2. **Synchronize** (Ctrl+Shift+Y) abre diálogo de confirmação em 3 blocos:
-   - **Resumo:** contagem por ação (Create 10 · Alter 12 · Drop 0) e destino em destaque (conexão, database, ambiente).
-   - **Riscos** (lista com ícones): perda de dados (DROP TABLE/COLUMN, redução de tipo, NOT NULL em coluna com NULLs — quando detectável), bloqueios longos (ALTER em tabelas > 1M linhas estimadas), mudanças de FK. Itens críticos em vermelho exigem checkbox "Entendo que dados podem ser perdidos".
-   - **Opções:** [✓] Fazer backup do esquema do destino em arquivo `.sql` antes (padrão on; caminho editável), [ ] Executar em uma transação (aviso: DDL com commit implícito), "Em caso de erro: Parar / Continuar".
-   Botões: [Synchronize] (primário, habilitado só após marcar riscos críticos), [Show Script], [Cancel]. Conexão Prod: digitar o nome do database de destino.
-3. **Execução:** ProgressList (um item por statement: ⏳/✓/✕, tempo), [Cancel] (para após o statement corrente). 
-4. **Resultado:** verde "Sincronização concluída (22 statements em 3,4 s)"; âmbar parcial (quais falharam, onde parou, estado atual do destino, [Copy remaining script] [Open in editor]); vermelho falha total/erro SQL com mensagem e statement. Em qualquer caso: [Re-compare] (padrão destaque no sucesso, para provar paridade), [Close], [Open backup file]. Output registra tudo.
+## 3. Documento de Comparação (.scomp)
 
-Nunca executa sem a confirmação acima; "Synchronize" desabilitado quando destino é read-only (banner explicativo).
+Ao concluir a análise, o documento MDI abre na aba `<source> vs. <target>.scomp*`.
 
-## 7. Data Compare
+### 3.1 Estrutura do Layout
 
-Mesmo layout de documento, com diferenças:
-- Seleção: origem/destino (conexão+database) → passo de **mapeamento de tabelas**: grade (Tabela origem | Tabela destino | Chave de comparação | Colunas) com auto-map por nome; tabelas sem PK/unique ficam desabilitadas com aviso (ou escolha manual de colunas-chave).
-- Comparar: progresso por tabela com contagem de linhas; resultado em lista de tabelas com contadores: Only in Source, Only in Target, Different, Equal.
-- Seleção de tabela abre grade de dados lado a lado: linhas com chave, colunas origem|destino, células diferentes destacadas (âmbar), linhas só-origem (verde), só-destino (vermelho). Checkbox por linha (inserir/atualizar/excluir), filtros por estado, paginação virtual; limite configurável (padrão 1M linhas por tabela, aviso ao exceder).
-- Opções: colunas ignoradas, case/whitespace, tratar NULL=vazio, compare por hash para tabelas grandes, "Don't delete rows" (padrão on).
-- **Generate Data Script / Synchronize:** mesmas regras de confirmação (§6) com resumo "INSERT 120 · UPDATE 45 · DELETE 0", backup opcional dos registros afetados (arquivo `.sql` de undo), execução em transação única (padrão on para DML) com rollback total em erro.
+```
++ Aba: [ sample vs. sample_b.scomp* ] ------------------------------------+
+| Toolbar: [Edit Comparison...] [↻ Refresh F5] [✕ Stop] [Group by: Status ▾] [🝖] |
++------------------------+------------------------------------------------+
+| [Nothing excluded   ▾] | [🔍 Search          ]  (DB) ➔ (DB)  6 of 16 sel|
+| ☑ All object types  [▼]|------------------------------------------------|
+|   ☑ Events             | Type | Source Object | ☑ | Operation | Target |
+|   ☑ Functions          |------------------------------------------------|
+|   ☑ Packages           | ▾ ●○ Only in Source (2 of 2 objects selected)  |
+|   ☑ Procedures         | Table  no_pk_table    [✓]   ➔* Create  (none)  |
+|   ☑ Sequences          | View   v_totals       [✓]   ➔* Create  (none)  |
+|   ☑ Tables             | ▾ ●● Different (3 of 3 objects selected)       |
+|   ☑ Triggers           | Table  customers      [✓]   ➔ Update   cust... |
+|   ☑ Views              | ▾ ○● Only in Target (1 of 1 objects selected)  |
+|                        | Table  (none)         [✓]   ✕ Drop     only_b  |
++------------------------+------------------------------------------------+
+| Diff Toolbar: [abc] [123] [a-b] [01] [wrap] ➔ [●○ Object does not exist] |
+| SOURCE DDL:                            | TARGET DDL:                    |
+|  CREATE TABLE `no_pk_table` (          |  ////////////////////////////  |
+|    `a` INT DEFAULT NULL                |  // Object does not exist ///  |
+|  ) ENGINE=InnoDB;                      |  ////////////////////////////  |
++-------------------------------------------------------------------------+
+```
 
-## 8. Atalhos
+### 3.2 Menus e Atalhos Associados
+- Menu dedicado `Comparison` no menu principal da aplicação:
+  - `New Schema Comparison...`
+  - `New Data Comparison...`
+  - `Edit Comparison...` (reabre o assistente de configuração de origem/destino)
+  - `Objects Filter` (`Ctrl+L`)
+  - `Refresh` (`F5`)
+  - `Stop Execution`
+  - `Change Synchronization Direction`
+  - `View Schema Update Script` (abre painel com script do objeto selecionado)
+  - `Generate Comparison Report...` (exportação CSV/HTML)
+  - `Synchronize...` (`F8`)
 
-| Ação | Atalho |
-|---|---|
-| Compare / Stop | F5 / Shift+F5 |
-| Generate script | Ctrl+Shift+G |
-| Synchronize | Ctrl+Shift+Y |
-| Próxima / anterior diferença | F7 / Shift+F7 |
-| Marcar todos | Ctrl+A |
-| Alternar checkbox | Espaço |
-| Swap | Ctrl+Shift+W |
-| Options | Ctrl+, no documento (ou botão) |
+### 3.3 Painel Esquerdo de Filtro de Objetos
+- Dropdown de controle de exclusão (`Nothing excluded` / `N items excluded`).
+- Árvore hierárquica com checkboxes por categoria:
+  `Events`, `Functions`, `Packages`, `Procedures`, `Sequences`, `Tables`, `Triggers`, `Views`.
 
-## 9. Temas e acessibilidade
-Tokens de 01; cores de diff apenas com opacidade 15% + marcadores texto (+, −, ≠, =) para não depender de cor; árvore com role tree e checkbox acessíveis; progresso anunciado.
+### 3.4 Grade de Objetos e Agrupamento
+- **Colunas:** `Type`, `Source Object`, `☑` (seleção para sincronização), `Operation`, `Target Object`.
+- **Agrupamentos por Status:**
+  - `Only in Source`: Operação `➔* Create`.
+  - `Different`: Operação `➔ Update`.
+  - `Only in Target`: Operação `✕ Drop`.
+- **Seleção Padrão:** No original, todos os objetos vêm selecionados por padrão, incluindo operações de `Drop`.
 
-## 10. Componentes
-ConnectionDbPicker, DiffTree (checkbox tri-state, filtros por chip), SideBySideDiff (Monaco diff), PropertyDiffGrid, OptionsDialog (grupos), SyncConfirmDialog (resumo/riscos/opções), RiskList, ProgressList, ReportView, EmptyState, Banner.
+### 3.5 Monaco Diff Editor Lado a Lado
+- Comparação visual DDL entre Origem e Destino com rolagem sincronizada.
+- Quando um objeto existe apenas em um dos lados, o lado oposto exibe preenchimento hachurado diagonal acompanhado da etiqueta centralizada `Object does not exist`.
 
-## 11. Critérios de aceite
-- Compara dois databases, lista diferenças por tipo/estado, mostra DDL lado a lado, e gera script ordenado por dependências apenas com objetos marcados.
-- Synchronize só executa após confirmação com resumo e riscos; backup padrão; falha parcial é reportada com o estado exato.
-- Data Compare exige chave, mostra diferenças por linha e sincroniza em transação.
-- Estados loading/erro/sucesso/obsoleto cobertos; claro/escuro; teclado completo.
+---
+
+## 4. Assistente de Sincronização (Schema Synchronization Wizard — F8)
+
+Acionado pela tecla de atalho `F8` ou pelo botão `Synchronize...`. É um assistente de 4 etapas:
+
+### 4.1 Etapa 1: Output
+- **Opções de Destino do Script:**
+  - `(•) Open the synchronization script in the internal editor` *(padrão)*
+  - `( ) Save the script to a file`:
+    - Campo de caminho com botão `[...]`.
+    - `☐ Open in the internal editor`
+    - `☑ Append timestamp to the file name`
+  - `( ) Execute the script directly against the target database`:
+    - `☑ Refresh comparison results after successful synchronization`
+
+### 4.2 Etapa 2: Options
+- **Grupos:**
+  - `▾ Common`:
+    - `☐ Check for object existence`
+    - `☑ Include USE <database_name>`
+    - `☐ Use DROP and CREATE instead of ALTER for tables`
+    - `☐ Use DROP and CREATE instead of ALTER for views, procedures, and functions`
+  - `▾ Script Comments`:
+    - `☐ Exclude comments`
+- Painel de descrição da opção focada e botões de preset (`Save As My Defaults`, `Devart Defaults`, `My Defaults`).
+
+### 4.3 Etapa 3: Additional Scripts
+- **Seções Pré e Pós Sincronização:**
+  - `☐ Scripts to execute before:`
+    - `(•) Use embedded script:` (editor de texto SQL multilinha)
+    - `( ) Use external script:` (caminho do arquivo `.sql` + `☐ Include USE`)
+  - `☐ Scripts to execute after:`
+    - `(•) Use embedded script:` (editor de texto SQL multilinha)
+    - `( ) Use external script:` (caminho do arquivo `.sql` + `☐ Include USE`)
+
+### 4.4 Etapa 4: Summary
+- **Abas do Painel:**
+  - `Action Plan (N)`: Lista sequencial em 10 passos estritos ordenados por dependência topológica:
+    1. `▶ Start Transaction`
+    2. `田 Drop tables`
+    3. `目 Create columns`
+    4. `田 Alter tables`
+    5. `目 Drop columns`
+    6. `目 Alter columns`
+    7. `Drop indexes`
+    8. `Create views`
+    9. `Create tables`
+    10. `✔ Commit Transaction`
+  - `Warnings (M)`: Lista de avisos críticos de sincronização acompanhada do aviso:
+    > *"Please view carefully the following warnings. They can affect the synchronization."*
+- **Contador no cabeçalho:** `N of M objects included in synchronization`.
+- **Botões do Rodapé:** `[ 💾 Save ▾ ]`, `[ < Back ]`, `[ Next > ]`, `[ Synchronize ]`, `[ Close ]`.
+
+---
+
+## 5. Execução Direta e Divergência Virtuosa de Segurança (TuxSQL)
+
+> [!IMPORTANT]
+> **Divergência Virtuosa de Segurança TuxSQL vs Original:**
+> - No dbForge original, a execução direta (`Execute the script directly against the target database`) executa comandos destrutivos como `DROP TABLE` sem qualquer confirmação ou aviso extra ao clicar em `Synchronize`.
+> - No **TuxSQL para Linux**, a execução direta com ações destrutivas (`DROP TABLE`, `DROP COLUMN`) impõe uma **confirmação forte obrigatória** com preview do DDL e checkbox explícito `riskAccepted` ("Entendo que dados serão excluídos definitivamente"). O modo padrão do assistente sempre prioriza a abertura do script gerado no editor interno para revisão humana antes da aplicação.
+
+### Comportamento Pós-Execução
+- Quando a sincronização é executada com sucesso:
+  1. A comparação de esquemas é recarregada automaticamente (`runCompare()`).
+  2. O status de objetos sincronizados transita para `Identical` com cor acinzentada.
+  3. O painel `Error List` / `Output` é aberto automaticamente caso o servidor MySQL reporte avisos de depreciação ou notas de execução.
+
+---
 
 ## Textos de interface (referência)
 Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).
