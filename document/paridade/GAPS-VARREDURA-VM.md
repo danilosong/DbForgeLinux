@@ -7,7 +7,7 @@ Prioridade: **A** = uso diário do editor; **B** = útil; **C** = acabamento.
 
 | # | Área | O que o original tem | Prioridade | Esforço |
 |---|---|---|---|---|
-| 1 | Editor › Refatoração | Rename (F2) de objeto/alias, *Qualify object names*, *Expand wildcards* (`*` → colunas), adicionar/remover crases em identificadores, *Select Current Statement* | A | M |
+| 1 | Editor › Refatoração | Rename (F2) de objeto/alias, *Qualify object names*, *Expand wildcards* (`*` → colunas), adicionar/remover crases em identificadores, *Select Current Statement*. Comportamento observado: *Expand wildcards* troca `select * from t a` por uma coluna por linha, todas qualificadas pelo **alias** (inclusive colunas geradas); *Add Backticks* envolve só identificadores (palavras-chave intactas) | A | M |
 | 2 | Editor › Edição | Maiúsculas/minúsculas (Ctrl+Shift+U / Ctrl+U), comentar bloco/seleção, mover linhas (Alt+↑/↓), juntar/remover linha, indentar, busca incremental (Ctrl+I), mostrar espaços, quebra de linha, números de linha | A | P |
 | 3 | Editor › Marcadores e dobras | Bookmarks (alternar/anterior/próximo/limpar, `Ctrl+B,x`) e *Outlining* (dobrar/expandir, `Ctrl+M,x`) | B | M |
 | 4 | Editor › Completar | *List Members*, *Parameter Info*, *Quick Info*, *Complete Word*, *Insert Snippet* (`Ctrl+K,X`), *Refresh Suggestions*, *Disable Code Completion*, *Go To Definition* (F12), *Jump Between Syntax Pairs* | A | M |
@@ -19,6 +19,7 @@ Prioridade: **A** = uso diário do editor; **B** = útil; **C** = acabamento.
 | 10 | View › Other Windows | *Diagram Overview* (miniatura do diagrama), *Data Source*, *Group and Sort*, *Scripts Errors*, *Query History* (`Ctrl+Alt+H`) | B | M |
 | 11 | Janelas acopláveis | *Properties* com categorias/A-Z/descrição, *Data Viewer* com botões de formato, *Schema View* com navegação ◀ ▶, *Code Snippets* com prévia | B | M |
 | 12 | Edit › Find and Replace | *Find in Files* e *Replace in Files* com atalhos `Ctrl+Shift+F` / `Ctrl+Shift+H` | B | P |
-| 13 | Diferença intencional | IA: o original exige conta na nuvem (*Sign In*); o clone usa chave própria. Telemetria: o original vem ligada; o clone não tem | — | — |
+| 13 | Criação como documento | *New Database*, *New Table*, *New Procedure/Function/View/Trigger/Event* abrem um documento próprio (General/SQL) com nome padrão, opções do objeto (conta *Definer*, *SQL Access*, *Deterministic*), grade de parâmetros e **DDL ao vivo**; *Apply Changes* / *Script Changes* | A | M |
+| 14 | Diferença intencional | IA: o original exige conta na nuvem (*Sign In*); o clone usa chave própria. Telemetria: o original vem ligada; o clone não tem | — | — |
 
 Como medir: cada item vira linhas em `FIDELIDADE-MEDIDA.md` (rodada 3) com evidência (teste ou captura do clone).
