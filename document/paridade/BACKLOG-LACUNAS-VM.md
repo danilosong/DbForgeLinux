@@ -129,3 +129,7 @@ Já coberto pelo clone (F-IMEX, rodadas 8-11): tela Finish com os botões, forma
 Achado do original a manter no clone: ao abrir o editor de objeto, avisa 'Object ... was modified outside of the editor. Reload?' — verificar se o clone detecta alteração externa antes do Apply (I2).
 Fora de escopo/intencional: Google Sheets (OAuth), MS Access, ODBC, DBF (formatos Windows legados).
 Desconhecido: import com linhas reais, formatos não exportados (Excel/JSON/XML), modos Update/Delete, log, script gerado.
+
+## Report Wizard (F-RPT) — implementado (rodada 12, commit c6aee61); lacunas honestas declaradas pela Forja
+Implementado: assistente opcional de 8 passos (SELECT-only), colunas transferíveis, ordem de agrupamento, layout/orientação/ajuste de página, 5 estilos, título padrão 'TuxSQL Report', fluxo Blank, zonas do Pivot Filter/Column/Row/Data, persistência do Master-Detail (JSON próprio, consulta validada como somente leitura).
+Pendente (prio B): (W1) layout Columnar/Tabular/Justified, orientação e os 5 estilos hoje só são PERSISTIDOS no modelo; aplicar composições visuais distintas no designer e na prévia; (W2) o assistente só oferece a conexão ativa; (W3) abrir um Master-Detail salvo não troca a conexão ativa.
