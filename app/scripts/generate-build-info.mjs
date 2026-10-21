@@ -22,7 +22,7 @@ const info = {
   branch,
   ...(process.env.TUXSQL_RELEASE_BUILD === '1' || !repositoryAvailable ? {} : { repoPath }),
   dirty,
-  ...(process.env.TUXSQL_RELEASE_BUILD === '1' || !process.env.npm_execpath ? {} : { toolchain: { nodePath: process.execPath, pnpmExecPath: process.env.npm_execpath } }),
+  ...(process.env.TUXSQL_RELEASE_BUILD === '1' || !/pnpm/i.test(process.env.npm_execpath ?? '') ? {} : { toolchain: { nodePath: process.execPath, pnpmExecPath: process.env.npm_execpath } }),
   builtAt: new Date().toISOString()
 }
 await mkdir(outputRoot, { recursive: true })

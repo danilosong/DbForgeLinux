@@ -27,6 +27,19 @@ describe('resolvePnpm', () => {
     expect(command.prefix).toEqual([pnpmJs])
   })
 
+  it('ignores a recorded npm executable and falls back to the pnpm on PATH', async () => {
+    const node = join(home, 'bin', 'node')
+    const npmJs = join(home, 'lib', 'npm-cli.js')
+    const pnpm = join(home, 'pathbin', 'pnpm')
+    await fakeBinary(node)
+    await fakeBinary(pnpm)
+    await mkdir(join(home, 'lib'), { recursive: true })
+    await writeFile(npmJs, '')
+    const command = await resolvePnpm({ commit: 'abcdef1', branch: 'master', builtAt: 'now', toolchain: { nodePath: node, pnpmExecPath: npmJs } }, { PATH: join(home, 'pathbin') }, home)
+    expect(command.file).toBe(pnpm)
+    expect(command.prefix).toEqual([])
+  })
+
   it('runs a standalone pnpm executable directly instead of through node', async () => {
     const node = join(home, 'bin', 'node')
     const pnpm = join(home, 'lib', 'pnpm')

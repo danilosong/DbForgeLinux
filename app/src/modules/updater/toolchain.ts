@@ -1,7 +1,7 @@
 import { constants } from 'node:fs'
 import { access, open, readdir } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { delimiter, dirname, isAbsolute, join } from 'node:path'
+import { basename, delimiter, dirname, isAbsolute, join } from 'node:path'
 import type { BuildInfo } from './types.js'
 
 export interface PnpmCommand { file: string; prefix: string[]; path: string }
@@ -41,7 +41,7 @@ export async function resolvePnpm(build: BuildInfo | undefined, env: NodeJS.Proc
   const basePath = env.PATH ?? ''
   const recorded = build?.toolchain
   if (recorded?.nodePath && recorded.pnpmExecPath && isAbsolute(recorded.nodePath) && isAbsolute(recorded.pnpmExecPath)
-    && await isExecutable(recorded.nodePath) && await exists(recorded.pnpmExecPath)) {
+    && /pnpm/i.test(basename(recorded.pnpmExecPath)) && await isExecutable(recorded.nodePath) && await exists(recorded.pnpmExecPath)) {
     if (await isNativeBinary(recorded.pnpmExecPath)) return { file: recorded.pnpmExecPath, prefix: [], path: `${dirname(recorded.nodePath)}${delimiter}${basePath}` }
     return { file: recorded.nodePath, prefix: [recorded.pnpmExecPath], path: `${dirname(recorded.nodePath)}${delimiter}${basePath}` }
   }
