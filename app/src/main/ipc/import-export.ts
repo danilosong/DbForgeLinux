@@ -9,6 +9,7 @@ import { exportData, importData, generateImportSql, previewExport, previewImport
 import { once } from 'node:events'
 import type { ImportExportOptions, ImportExportTemplate } from '../../shared/contracts/import-export.js'
 import { encodeZipArchive } from '../../modules/archive/index.js'
+import { buildCreateTableSql, type InferredColumn } from '../../modules/data-export-import/inference.js'
 
 interface ActiveJob { controller: AbortController; senderId: number }
 interface SelectedSource { file: string; senderId: number }
@@ -36,6 +37,29 @@ function assertOptions(options?: ImportExportOptions): void {
   if (options?.zipLevel !== undefined && (!Number.isInteger(options.zipLevel) || options.zipLevel < 0 || options.zipLevel > 9)) throw new Error('Nível ZIP inválido.')
   if (options?.zipPassword !== undefined && (typeof options.zipPassword !== 'string' || options.zipPassword.length > 256)) throw new Error('Senha ZIP inválida.')
   if (options?.zipComment !== undefined && (typeof options.zipComment !== 'string' || options.zipComment.length > 500)) throw new Error('Comentário ZIP inválido.')
+  if (options?.skipLines !== undefined && (!Number.isInteger(options.skipLines) || options.skipLines < 0 || options.skipLines > 100_000)) throw new Error('Número de linhas ignoradas inválido.')
+  if (options?.headerPosition !== undefined && (!Number.isInteger(options.headerPosition) || options.headerPosition < 1 || options.headerPosition > 100_000)) throw new Error('Posição do cabeçalho inválida.')
+  if (options?.createTable) {
+    const schema = options.createTable
+    if (typeof schema.database !== 'string' || typeof schema.name !== 'string' || !Array.isArray(schema.columns) || schema.columns.length > 1000) throw new Error('Definição de tabela inválida.')
+    buildCreateTableSql(schema.database, schema.name, schema.columns as InferredColumn[])
+  }
+}
+
+async function detectDelimiter(file: string, quote = '"'): Promise<string> {
+  const chunks: Buffer[] = []
+  for await (const chunk of createReadStream(file, { start: 0, end: 32_767 })) { chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)); if (Buffer.concat(chunks).length >= 32_768) break }
+  const sample = Buffer.concat(chunks).toString('utf8').replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean).slice(0, 20)
+  const candidates = [',', '\t', ';', '|']
+  const score = (delimiter: string): number => {
+    const counts = sample.map((line) => { let quoted = false; let count = 0; for (let index = 0; index < line.length; index++) { const char = line[index]; if (char === quote) { if (quoted && line[index + 1] === quote) index++; else quoted = !quoted } else if (!quoted && char === delimiter) count++ } return count })
+    const nonzero = counts.filter((count) => count > 0)
+    if (!nonzero.length) return 0
+    const average = nonzero.reduce((sum, count) => sum + count, 0) / nonzero.length
+    const consistency = nonzero.length / Math.max(1, counts.length)
+    return average * consistency
+  }
+  return candidates.sort((left, right) => score(right) - score(left))[0] ?? ','
 }
 
 async function askOnImportRowError(event: IpcMainInvokeEvent, row: number, message: string): Promise<'continue' | 'abort'> {
@@ -95,7 +119,8 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
       const temporaryOutput = options?.compress ? join(app.getPath('temp'), `dbforge-export-${randomUUID()}.${extensions[format]}`) : filePath
       const temporaryHtml = format === 'pdf' ? join(app.getPath('temp'), `dbforge-export-${randomUUID()}.html`) : undefined
       const exportFormat = format === 'pdf' ? 'html' : format
-      const report = await exportData({ driver, connectionId, query: statement, format: exportFormat, options, signal: controller.signal, onProgress: (value) => progress(event, jobId, value), destination: createWriteStream(temporaryHtml ?? temporaryOutput, { mode: 0o600 }) })
+      const exportOptions = options && { ...options, createTable: undefined }
+      const report = await exportData({ driver, connectionId, query: statement, format: exportFormat, options: exportOptions, signal: controller.signal, onProgress: (value) => progress(event, jobId, value), destination: createWriteStream(temporaryHtml ?? temporaryOutput, { mode: 0o600 }) })
       if (format === 'pdf' && temporaryHtml) {
         const printer = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } })
         try { await printer.loadURL(pathToFileURL(temporaryHtml).toString()); const pdf = await printer.webContents.printToPDF({ printBackground: true, pageSize: 'A4' }); await writeFile(temporaryOutput, pdf, { mode: 0o600 }) }
@@ -133,8 +158,10 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
     if (!details.size) throw new Error('O arquivo selecionado está vazio.')
     if (details.size > 100 * 1024 * 1024) throw new Error('O arquivo de importação excede o limite de 100 MB.')
     selectedSources.set(jobId, { file, senderId: event.sender.id })
-    const preview = await previewImport({ driver, connectionId: '', table: '', format, source: createReadStream(file), options: { ...options, previewRows: 20 }, onProgress: (value) => progress(event, jobId, value) }, 20)
-    return { name: file.split(/[\\/]/).pop() ?? file, size: details.size, modified: details.mtimeMs, preview }
+    const detectedDelimiter = options?.autoDelimiter && (format === 'csv' || format === 'text') ? await detectDelimiter(file, options.quote) : undefined
+    const effectiveOptions = { ...options, ...(detectedDelimiter ? { delimiter: detectedDelimiter } : {}), previewRows: 20 }
+    const preview = await previewImport({ driver, connectionId: '', table: '', format, source: createReadStream(file), options: effectiveOptions, onProgress: (value) => progress(event, jobId, value) }, 20)
+    return { name: file.split(/[\\/]/).pop() ?? file, size: details.size, modified: details.mtimeMs, preview, ...(detectedDelimiter ? { detectedDelimiter } : {}) }
   })
 
   ipcMain.handle('import-export:preview-export', async (event, connectionId: string, query: string, jobId: string): Promise<ImportPreview> => {
@@ -174,6 +201,7 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
     const destination = createWriteStream(dialogResult.filePath, { mode: 0o600 })
     let rows = 0
     try {
+      if (options?.createTable) destination.write(buildCreateTableSql(options.createTable.database, options.createTable.name, options.createTable.columns as InferredColumn[]))
       for await (const line of generateImportSql({ driver, connectionId: '', table, format, source: createReadStream(selected.file), signal: controller.signal, options: { ...options, mode, keyColumns, onRowErrorPrompt: options?.onRowError === 'prompt' ? (row, message) => askOnImportRowError(event, row, message) : undefined }, onProgress: (value) => { rows = value.rows; progress(event, jobId, value) } })) {
         if (!destination.write(line)) await once(destination, 'drain')
       }

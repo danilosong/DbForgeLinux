@@ -75,7 +75,8 @@ try {
     await page.screenshot({ path: join(shellEvidence, `document-tab-menu-${theme.toLowerCase()}.png`) })
     await page.locator('.document-tabs').click({ position: { x: 700, y: 5 } })
   }
-  await page.locator('.document-tab').filter({ hasText: 'New Database' }).locator('.tab-close').click()
+  await page.locator('.document-tab').filter({ hasText: 'New Database' }).click({ button: 'right' })
+  await page.locator('.tab-context-menu').getByRole('menuitem', { name: 'Close', exact: true }).click()
   await page.keyboard.press('Control+n')
   const editor = page.locator('.monaco-editor').last()
   for (const theme of ['Light', 'Dark']) {
@@ -116,6 +117,14 @@ try {
   for (const theme of ['Light', 'Dark']) {
     await chooseTheme(theme)
     await capture(join(tableEvidence, `table-data-${theme.toLowerCase()}.png`))
+  }
+  await page.locator('.object-group-heading').filter({ hasText: 'Procedures' }).click({ button: 'right' })
+  await page.locator('.explorer-context-menu').getByRole('menuitem', { name: 'New Procedure' }).click()
+  await page.locator('.object-editor').waitFor()
+  await page.getByRole('button', { name: 'Add Parameter' }).click()
+  for (const theme of ['Light', 'Dark']) {
+    await chooseTheme(theme)
+    await capture(join(shellEvidence, `new-procedure-editor-${theme.toLowerCase()}.png`))
   }
   console.log(`Editor and Table Designer screenshots saved under ${evidenceRoot}`)
 } finally {

@@ -49,6 +49,8 @@ export interface ImportJob {
     quote?: string
     encoding?: 'utf8' | 'utf16le' | 'latin1'
     header?: boolean
+    skipLines?: number
+    headerPosition?: number
     columns?: string[]
     columnMapping?: Record<string, string>
     mode?: ImportMode
@@ -59,6 +61,7 @@ export interface ImportJob {
     transactional?: boolean
     previewRows?: number
     rowElement?: string
+    createTable?: { database: string; name: string; columns: Array<{ name: string; type: string; primaryKey: boolean }> }
   }
 }
 

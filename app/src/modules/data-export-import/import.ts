@@ -62,10 +62,14 @@ async function* parseCsv(source: AsyncIterable<Buffer | string>, delimiter: stri
 async function* csvObjects(job: ImportJob): AsyncIterable<Row> {
   const parsed = parseCsv(job.source, job.options?.delimiter ?? ',', job.options?.quote ?? '"', job.options?.encoding ?? 'utf8')
   let columns = job.options?.columns
-  let first = true
+  const skipLines = Math.max(0, Math.min(100_000, Math.floor(job.options?.skipLines ?? 0)))
+  const headerPosition = Math.max(1, Math.min(100_000, Math.floor(job.options?.headerPosition ?? 1)))
+  let line = 0
   for await (const values of parsed) {
-    if (first && (job.options?.header ?? true)) { columns = values; first = false; continue }
-    first = false
+    if (line++ < skipLines) continue
+    const relativeLine = line - skipLines
+    if ((job.options?.header ?? true) && relativeLine < headerPosition) continue
+    if ((job.options?.header ?? true) && relativeLine === headerPosition) { columns = values; continue }
     const names = columns ?? values.map((_, index) => `column${index + 1}`)
     yield Object.fromEntries(names.map((name, index) => [name, values[index] ?? '']))
   }

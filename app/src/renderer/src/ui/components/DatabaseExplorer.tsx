@@ -108,9 +108,9 @@ export function DatabaseExplorer(props: Props): React.JSX.Element {
     <header className="dock-heading"><strong title={titleConnection ? `${t('explorer.title')} - ${titleConnection.name}` : t('explorer.title')}>{t('explorer.title')}{titleConnection && <span className="explorer-title-connection"> - {titleConnection.name}</span>}</strong><div><Button className="icon-button" title={t('conn.new')} onClick={onNew}>＋</Button><Button className="icon-button" title={t('conn.manager.title')} onClick={onManage}>⚙</Button></div></header>
     <input className="explorer-filter" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder={t('explorer.filter')} aria-label={t('explorer.filter')} />
     <label className="system-database-toggle"><input type="checkbox" checked={showSystemDatabases} onChange={(event) => setShowSystemDatabases(event.target.checked)} />{t('explorer.showSystemDatabases')}</label>
-    <div className="explorer-tree" role="tree" aria-label="Database Explorer">
-      {visible.length === 0 ? <div className="empty-state compact"><strong>{filter ? t('explorer.empty.search', [filter]) : t('explorer.empty.title')}</strong><p>{t('explorer.empty.hint')}</p><Button variant="primary" onClick={onNew}>{t('conn.new')}</Button></div> : [...groups.entries()].map(([category, items]) => <div className="explorer-group" key={category}>
-        <div className="group-label">▾ {category}</div>
+    <div className="explorer-tree">
+      {visible.length === 0 ? <div className="empty-state compact"><strong>{filter ? t('explorer.empty.search', [filter]) : t('explorer.empty.title')}</strong><p>{t('explorer.empty.hint')}</p><Button variant="primary" onClick={onNew}>{t('conn.new')}</Button></div> : <div role="tree" aria-label="Database Explorer">{[...groups.entries()].map(([category, items]) => <div className="explorer-group" role="group" aria-label={category} key={category}>
+        <div className="group-label" role="presentation">▾ {category}</div>
         {items.map((record) => {
           const connection = active.find((item) => item.recordId === record.id)
           const isConnecting = connecting.includes(record.id)
@@ -145,7 +145,7 @@ export function DatabaseExplorer(props: Props): React.JSX.Element {
             </div>}
           </div>
         })}
-      </div>)}
+      </div>)}</div>}
     </div>
     {context && <div ref={contextMenuRef} className="object-context explorer-context-menu" style={{ left: context.x, top: context.y }} role="menu" aria-label={t('explorer.contextMenu')} onPointerDown={(event) => event.stopPropagation()} onKeyDown={(event) => { if (event.key === 'Escape') setContext(undefined) }}>{renderMenu(context.value.target !== 'server' && context.value.target !== 'database' && !context.value.object ? explorerFolderContextMenu(context.value.target) : explorerContextMenu(context.value.target), [], (action) => { if (action === 'filter') { const key = `${context.value.connection.recordId}:${context.value.database}:${context.value.target}`; const value = window.prompt(t('explorer.menu.filterPrompt'), folderFilters[key] ?? ''); if (value !== null) setFolderFilters((current) => ({ ...current, [key]: value })); return true } return false })}</div>}
   </aside>

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { exportData, generateImportSql, importData, previewExport, previewImport } from '../../src/modules/data-export-import/index.js'
 import type { DbDriver, DbTransaction, SqlValue } from '../../src/main/db/DbDriver.js'
 import type { Row } from '../../src/modules/data-export-import/index.js'
+import { buildCreateTableSql, inferImportColumns, inferSqlType } from '../../src/modules/data-export-import/inference.js'
 
 function fakeDriver(rows: Row[] = []) {
   const statements: Array<{ sql: string; values: readonly SqlValue[] }> = []
@@ -25,6 +26,25 @@ async function outputOf(work: (output: PassThrough) => Promise<unknown>): Promis
 }
 
 describe('data export/import', () => {
+  it('infers bounded SQL types and creates new-table DDL with utf8mb4', () => {
+    expect(inferSqlType(['1', '2147483648'])).toBe('BIGINT')
+    expect(inferSqlType(['1.25', '100.5'])).toMatch(/^DECIMAL\(/)
+    expect(inferSqlType(['2026-10-21 10:00:00'])).toBe('DATETIME')
+    expect(inferSqlType(['{"ok":true}'])).toBe('JSON')
+    expect(inferSqlType(['x'.repeat(1100)])).toBe('TEXT')
+    const columns = inferImportColumns(['id', 'name'], [{ id: 1, name: 'Ada' }])
+    columns[0]!.primaryKey = true
+    expect(buildCreateTableSql('test-db', 'imported', columns)).toContain('DEFAULT CHARACTER SET utf8mb4')
+    expect(buildCreateTableSql('test-db', 'imported', columns)).toContain('PRIMARY KEY (`id`)')
+    expect(() => buildCreateTableSql('test-db', 'imported', [{ name: 'bad', type: 'INT; DROP TABLE x', primaryKey: false }])).toThrow()
+  })
+
+  it('applies skipped lines and a configurable CSV header position', async () => {
+    const { driver } = fakeDriver()
+    const preview = await previewImport({ driver, connectionId: 'id', source: (async function* () { yield Buffer.from('preamble\nnotes\nfirst,second\n1,Ada\n2,Lin\n') })(), format: 'csv', table: 'items', options: { skipLines: 1, headerPosition: 2 } }, 10)
+    expect(preview).toEqual({ columns: ['first', 'second'], rows: [{ first: '1', second: 'Ada' }, { first: '2', second: 'Lin' }] })
+  })
+
   it('exporta CSV em streaming com header, aspas e unicode', async () => {
     const { driver } = fakeDriver([{ id: 1, name: 'a,"b" — 日本語' }, { id: 2, name: null }])
     const content = await outputOf((destination) => exportData({ driver, connectionId: 'id', query: 'SELECT', destination, format: 'csv' }))

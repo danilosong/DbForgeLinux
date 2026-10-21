@@ -13,8 +13,9 @@ describe('database tools', () => {
     expect(searchObjectText(objects, definitions, 'customer', { names: false, definitions: true, wholeWord: true })).toHaveLength(0)
   })
   it('rejects nested quantified groups that can backtrack exponentially', () => {
-    expect(() => assertSafeSearchRegex('(a+)+$')).toThrow(/backtracking/i)
-    expect(() => searchObjectText(objects, new Map(), '([a-z]+)*$', { names: true, definitions: false, regex: true })).toThrow(/backtracking/i)
+    expect(() => assertSafeSearchRegex('(a+)+$')).toThrow(/backtracking|repetition/i)
+    expect(() => searchObjectText(objects, new Map(), '([a-z]+)*$', { names: true, definitions: false, regex: true })).toThrow(/backtracking|repetition/i)
+    expect(() => assertSafeSearchRegex('a*a*')).toThrow(/repetition/i)
     expect(() => assertSafeSearchRegex('^CALL.*')).not.toThrow()
   })
   it('checks each object and reports invalid definitions separately from scan errors', async () => {

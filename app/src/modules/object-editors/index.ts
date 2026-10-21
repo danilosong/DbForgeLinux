@@ -24,6 +24,7 @@ export function buildRoutineTemplate(target: ObjectEditorTarget, options: Routin
     const parameterName = parameter.name.trim()
     const type = parameter.type.trim().toUpperCase()
     if (!/^[A-Za-z_$][\w$]*$/.test(parameterName)) throw new Error('Routine parameter name is invalid.')
+    if (target.kind === 'function' && parameter.mode !== 'IN') throw new Error('Function parameters must use IN mode.')
     if (!/^(?:TINYINT|SMALLINT|MEDIUMINT|INT|INTEGER|BIGINT|DECIMAL|NUMERIC|FLOAT|DOUBLE|REAL|BIT|BOOL|BOOLEAN|CHAR|VARCHAR|BINARY|VARBINARY|TINYTEXT|TEXT|MEDIUMTEXT|LONGTEXT|DATE|DATETIME|TIMESTAMP|TIME|YEAR|JSON)(?:\(\d{1,5}(?:,\s*\d{1,5})?\))?(?:\s+UNSIGNED)?$/.test(type)) throw new Error(`Invalid routine parameter type: ${parameter.type}`)
     return `${parameter.mode} ${quoteIdentifier(parameterName)} ${type}`
   }).join(', ')

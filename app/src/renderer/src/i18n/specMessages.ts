@@ -630,6 +630,17 @@ Object.assign(ptBrMessages, {
 })
 Object.assign(ptBrCatalog, Object.fromEntries(Object.entries(ptBrMessages).filter(([key]) => key.startsWith('backup.wizard.'))))
 Object.assign(enMessages, {
+  'imex.newTable': 'New table', 'imex.existingTable': 'Existing table', 'imex.database': 'Database', 'imex.autoDelimiter': 'Detect delimiter automatically', 'imex.skipLines': 'Skip lines', 'imex.headerPosition': 'Header row position',
+  'imex.fillMapping': 'Fill Mapping', 'imex.clearMapping': 'Clear Mapping', 'imex.newColumn': 'New Column', 'imex.deleteColumn': 'Delete Column', 'imex.sourceColumn': 'Source column', 'imex.destinationColumn': 'New column name', 'imex.inferredType': 'Inferred type', 'imex.primaryKey': 'Primary key',
+  'imex.newTableAppendOnly': 'A new table is created from this mapping; only Append is available.', 'imex.outputEditor': 'Open generated script in the SQL editor (recommended)', 'imex.outputFile': 'Save generated script to a file', 'imex.outputDirect': 'Create the table and import now', 'imex.createTableConfirm': 'Create the new table {0} and import rows directly?', 'imex.importMore': 'Import more', 'imex.inferredFromPreview': 'Inferred from the first {0} preview rows. Review column names and types in Mapping.'
+})
+Object.assign(ptBrMessages, {
+  'imex.newTable': 'Nova tabela', 'imex.existingTable': 'Tabela existente', 'imex.database': 'Banco de dados', 'imex.autoDelimiter': 'Detectar delimitador automaticamente', 'imex.skipLines': 'Ignorar linhas', 'imex.headerPosition': 'Posição da linha de cabeçalho',
+  'imex.fillMapping': 'Preencher mapeamento', 'imex.clearMapping': 'Limpar mapeamento', 'imex.newColumn': 'Nova coluna', 'imex.deleteColumn': 'Excluir coluna', 'imex.sourceColumn': 'Coluna de origem', 'imex.destinationColumn': 'Nome da nova coluna', 'imex.inferredType': 'Tipo inferido', 'imex.primaryKey': 'Chave primária',
+  'imex.newTableAppendOnly': 'A tabela será criada com este mapeamento; somente Append está disponível.', 'imex.outputEditor': 'Abrir script gerado no editor SQL (recomendado)', 'imex.outputFile': 'Salvar script gerado em arquivo', 'imex.outputDirect': 'Criar tabela e importar agora', 'imex.createTableConfirm': 'Criar a nova tabela {0} e importar linhas diretamente?', 'imex.importMore': 'Importar mais', 'imex.inferredFromPreview': 'Inferido pelas primeiras {0} linhas da prévia. Revise nomes e tipos das colunas em Mapeamento.'
+})
+Object.assign(ptBrCatalog, Object.fromEntries(Object.entries(ptBrMessages).filter(([key]) => key.startsWith('imex.'))))
+Object.assign(enMessages, {
   'qb.dragJoin.differentTables': 'Choose columns from two different tables.',
   'qb.dragJoin.created': 'Join created: {0} = {1}. SQL updated.',
   'qb.dragJoin.objectUnavailable': 'Could not add {0}; it is not in the selected database schema.',

@@ -7,9 +7,9 @@ export type ObjectValidator = (object: DatabaseObject) => Promise<void>
 
 /** Conservative guard for JS regex patterns: reject backtracking constructs before evaluation. */
 export function assertSafeSearchRegex(pattern: string): void {
-  if (pattern.length > 256 || /\\[1-9]|\\k[<{]|\(\?[=!<]|\(\?>|\{\d{5,}(?:,\d*)?\}/.test(pattern)) throw new Error('Search mask uses unsupported or unsafe regular expression syntax.')
+  if (pattern.length > 256 || /\\[1-9]|\\k[<{]|\(\?|\{\d{5,}(?:,\d*)?\}/.test(pattern)) throw new Error('Search mask uses unsupported or unsafe regular expression syntax.')
   const groups: Array<{ quantified: boolean; alternation: boolean }> = []
-  let escaped = false; let inClass = false
+  let escaped = false; let inClass = false; let quantifierCount = 0
   for (let index = 0; index < pattern.length; index++) {
     const char = pattern[index]!
     if (escaped) { escaped = false; continue }
@@ -24,7 +24,11 @@ export function assertSafeSearchRegex(pattern: string): void {
       const next = pattern[index + 1] ?? ''
       if (/[*+?{]/.test(next) && (group.quantified || group.alternation)) throw new Error('Search mask may cause excessive backtracking.')
       if (groups.length && (group.quantified || group.alternation)) groups.at(-1)!.quantified = true
-    } else if (/[*+?{]/.test(char) && groups.length) groups.at(-1)!.quantified = true
+    } else if (/[*+?{]/.test(char)) {
+      quantifierCount++
+      if (quantifierCount > 1) throw new Error('Search mask has too many repetition operators.')
+      if (groups.length) groups.at(-1)!.quantified = true
+    }
   }
 }
 

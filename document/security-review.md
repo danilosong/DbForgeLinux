@@ -160,7 +160,7 @@ Revisão dos módulos updater, archive, grid, snippets/toolbox, SQL Formatter, E
 - **LOCATION:** `app/src/renderer/src/ui/panels/database-tools/Panel.tsx` (exportação de Find Object e Find Invalid Objects); mesmo risco nos CSV de `app/src/modules/grid-viewer/index.ts` e `app/src/modules/data-report-pivot/export.ts`.
 - **EXPECTED:** escapar campos formulares antes de gravar CSV, preservando os dados sem execução ao abrir em planilha.
 - **ACTUAL:** Foi criado `safeCsvCell` e a neutralização de prefixos `=`, `+`, `-`, `@` após whitespace/controlos foi aplicada aos CSV do Find Object/Find Invalid, grid viewer, relatório/pivot e exportação CSV em streaming.
-- **EVIDENCE:** `app/test/modules/grid-viewer.test.ts`, `app/test/modules/data-report-pivot.test.ts` e `app/test/modules/data-export-import.test.ts` cobrem fórmulas e prefixos com tabulação; 67 testes focados passaram.
+- **EVIDENCE:** `app/test/modules/grid-viewer.test.ts`, `app/test/modules/data-report-pivot.test.ts` e `app/test/modules/data-export-import.test.ts` cobrem fórmulas e prefixos com tabulação; 69 testes focados passaram.
 - **SEVERITY:** MEDIUM — corrigido.
 
 ### MEDIUM — Descompressão ZIP confia no tamanho declarado da entrada
@@ -195,7 +195,7 @@ Revisão dos módulos updater, archive, grid, snippets/toolbox, SQL Formatter, E
 - **FINDING:** a busca aceita uma expressão regular de até 256 caracteres e a executa de forma síncrona em cada nome/linha de definição. Uma expressão com backtracking catastrófico combinada com texto longo pode bloquear o processo principal.
 - **LOCATION:** `app/src/modules/database-tools/index.ts:8`; chamada em `app/src/main/ipc/database-tools.ts`.
 - **EXPECTED:** limitar custo de regex ou usar mecanismo com timeout/garantia de tempo linear para conteúdo de banco não confiável.
-- **ACTUAL:** A validação agora recusa backreferences/lookarounds, grupos quantificados com quantificadores/alternância interna e quantificadores enormes; a busca limita objetos, caracteres por linha e caracteres totais examinados.
+- **ACTUAL:** A validação agora recusa backreferences/lookarounds, grupos quantificados com quantificadores/alternância interna e quantificadores enormes e mais de um operador de repetição por padrão; a busca limita objetos, caracteres por linha e caracteres totais examinados.
 - **EVIDENCE:** `app/test/modules/database-tools.test.ts` cobre `(a+)+$`, `([a-z]+)*$` e padrão simples permitido; o teste de regex passou.
 - **SEVERITY:** MEDIUM — corrigido.
 

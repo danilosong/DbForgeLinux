@@ -62,6 +62,12 @@ try {
     await page.locator('.io-footer button.button-primary').click()
     await page.screenshot({ path: join(evidenceDirectory, `import-export-zip-${theme.toLowerCase()}.png`) })
     await page.evaluate(() => [...document.querySelectorAll('.panel-dialog-close')].at(-1)?.click())
+    await tableNode.click({ button: 'right' })
+    await page.locator('.explorer-context-menu').getByRole('menuitem', { name: /Import Data/ }).click()
+    await page.locator('.io-wizard').waitFor()
+    await page.locator('.io-toolbar select').first().selectOption('import')
+    await page.screenshot({ path: join(evidenceDirectory, `import-new-table-source-${theme.toLowerCase()}.png`) })
+    await page.evaluate(() => [...document.querySelectorAll('.panel-dialog-close')].at(-1)?.click())
   }
   console.log(`Import/export screenshots saved in ${evidenceDirectory}`)
 } finally {

@@ -44,6 +44,11 @@ describe('IPC runtime guard', () => {
     expect(() => validateIpcArguments('grid-editing:apply', ['connection', {}, [], 'yes'])).toThrow(/boolean/)
     expect(() => validateIpcArguments('import-export:import', ['c', 'db.table', 'csv', 'append', [], {}, 'job'])).not.toThrow()
     expect(() => validateIpcArguments('import-export:script', ['db.table', 'text', 'repopulate', [], {}, 'job'])).not.toThrow()
+    const newTableOptions = { skipLines: 2, headerPosition: 1, autoDelimiter: true, createTable: { database: 'test_db', name: 'imported', columns: [{ name: 'id', type: 'BIGINT', primaryKey: true }] } }
+    expect(() => validateIpcArguments('import-export:import', ['c', 'test_db.imported', 'csv', 'append', [], newTableOptions, 'job'])).not.toThrow()
+    expect(() => validateIpcArguments('import-export:script', ['test_db.imported', 'csv', 'append', [], { ...newTableOptions, createTable: { ...newTableOptions.createTable, columns: [{ name: 'id', type: 'INT; DROP TABLE x', primaryKey: true }] } }, 'job'])).toThrow(/invalid/)
+    expect(() => validateIpcArguments('import-export:select-source', ['job', 'csv', { skipLines: -1 }])).toThrow(/skipLines/)
+    expect(() => validateIpcArguments('import-export:import', ['c', 'test_db.imported', 'csv', 'append', [], { ...newTableOptions, createTable: { ...newTableOptions.createTable, extra: true } }, 'job'])).toThrow(/not allowed/)
   })
 
   it('allows explicit NULL routine parameters while rejecting other debugger argument types', () => {

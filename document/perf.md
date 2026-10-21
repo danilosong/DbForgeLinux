@@ -14,3 +14,15 @@ O SQL Editor mantém resultados SELECT sem `LIMIT` ou com limite acima de 1.000 
 Scripts com pelo menos 100 statements sem SELECT são enviados em uma chamada IPC quando `multipleStatements` está habilitado na conexão. O parser continua medindo 5 ms para 10 mil statements; o benchmark não inclui tempo de execução SQL do servidor.
 
 Reexecute `pnpm perf:benchmark` após alterações no grid, parser ou exportadores para atualizar esta tabela. Os números variam conforme o armazenamento temporário e a máquina.
+
+## Metadados em escala
+
+Em 2026-10-21 a suíte completa voltou a medir os fluxos sintéticos de spool e exportação: 1 milhão de linhas foi gravado no spool em 2.239 ms (RSS +19 MiB), cinco páginas aleatórias foram lidas em 6 ms, e o CSV de 1 milhão de linhas (25 MiB) foi exportado em 1.521 ms (RSS +85 MiB). Esses cenários não medem carregamento de catálogo de schema.
+
+| Meta | Evidência nesta rodada | Estado |
+| --- | --- | --- |
+| Explorer abre com ~3.000 tabelas em menos de 1 s | Fixture de 3.000 tabelas/200 views/300 rotinas/50 databases não foi criada nesta rodada. | SEM MEDIÇÃO |
+| Autocomplete com cache quente responde em menos de 100 ms | O benchmark atual não mede sugestões contra catálogo grande. | SEM MEDIÇÃO |
+| Nenhum bloqueio perceptível da UI acima de 200 ms | Não foi coletada trace de renderização com catálogo em escala. | SEM MEDIÇÃO |
+
+O pipeline de resultados continua paginado pelo spool; isso não comprova o comportamento do Explorer, Find Object, Schema Compare ou Documenter com milhares de objetos. As metas acima ficam pendentes de uma fixture de metadados descartável e de trace de UI. Não foram usados nem alterados `sample` ou `sample_b`.

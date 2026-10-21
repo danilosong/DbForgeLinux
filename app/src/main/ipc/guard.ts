@@ -218,15 +218,27 @@ function assertDomainPayload(channel: string, args: readonly unknown[]): void {
         })
       }
     }
-  } else if (channel === 'import-export:import' && args[5] !== undefined) {
-    const options = assertRecord(args[5], 'import options', [], ['delimiter', 'quote', 'encoding', 'header', 'columns', 'columnMapping', 'mode', 'keyColumns', 'batchSize', 'onRowError', 'transactional', 'previewRows', 'rowElement', 'nullValue', 'nullString'])
+  } else if ((channel === 'import-export:import' || channel === 'import-export:script' || channel === 'import-export:select-source') && args[channel === 'import-export:import' ? 5 : channel === 'import-export:script' ? 4 : 2] !== undefined) {
+    const optionsIndex = channel === 'import-export:import' ? 5 : channel === 'import-export:script' ? 4 : 2
+    const options = assertRecord(args[optionsIndex], 'import options', [], ['delimiter', 'quote', 'encoding', 'header', 'skipLines', 'headerPosition', 'autoDelimiter', 'columns', 'columnMapping', 'createTable', 'mode', 'keyColumns', 'batchSize', 'onRowError', 'transactional', 'previewRows', 'rowElement', 'nullValue', 'nullString'])
     if (options.delimiter !== undefined && (typeof options.delimiter !== 'string' || options.delimiter.length > 8)) fail('import delimiter is invalid')
     if (options.encoding !== undefined && !['utf8', 'utf16le', 'latin1'].includes(String(options.encoding))) fail('import encoding is invalid')
     if (options.header !== undefined && typeof options.header !== 'boolean') fail('import header must be boolean')
+    if (options.skipLines !== undefined && (!Number.isSafeInteger(options.skipLines) || Number(options.skipLines) < 0 || Number(options.skipLines) > 100_000)) fail('import skipLines is invalid')
+    if (options.headerPosition !== undefined && (!Number.isSafeInteger(options.headerPosition) || Number(options.headerPosition) < 1 || Number(options.headerPosition) > 100_000)) fail('import headerPosition is invalid')
+    if (options.autoDelimiter !== undefined && typeof options.autoDelimiter !== 'boolean') fail('import autoDelimiter must be boolean')
     if (options.columns !== undefined) assertStringArray(options.columns, 'import columns', 1000)
     if (options.keyColumns !== undefined) assertStringArray(options.keyColumns, 'import keyColumns', 256)
     if (options.columnMapping !== undefined) assertRecord(options.columnMapping, 'import columnMapping', [], Object.keys((options.columnMapping ?? {}) as object))
     if (options.columnMapping && Object.values(options.columnMapping as Record<string, unknown>).some((value) => typeof value !== 'string' || value.length > 256)) fail('import columnMapping values must be text')
+    if (options.createTable !== undefined) {
+      const schema = assertRecord(options.createTable, 'import createTable', ['database', 'name', 'columns'], ['database', 'name', 'columns'])
+      if (typeof schema.database !== 'string' || !schema.database || schema.database.length > 256 || typeof schema.name !== 'string' || !schema.name || schema.name.length > 256 || !Array.isArray(schema.columns) || !schema.columns.length || schema.columns.length > 1000) fail('import createTable identity or columns are invalid')
+      ;(schema.columns as unknown[]).forEach((item, index) => {
+        const column = assertRecord(item, `import createTable.columns[${index}]`, ['name', 'type', 'primaryKey'], ['name', 'type', 'primaryKey'])
+        if (typeof column.name !== 'string' || !column.name || column.name.length > 64 || typeof column.type !== 'string' || !/^(?:INT|BIGINT|DECIMAL\((?:[1-9]\d?|[1-5]\d|65),(?:0|[1-9]\d?|30)\)|DATETIME|TEXT|JSON|VARCHAR\((?:[1-9]\d{0,3}|10000)\))$/i.test(column.type) || typeof column.primaryKey !== 'boolean') fail(`import createTable.columns[${index}] is invalid`)
+      })
+    }
     if (options.batchSize !== undefined && (!Number.isSafeInteger(options.batchSize) || Number(options.batchSize) < 1 || Number(options.batchSize) > 100_000)) fail('import batchSize is invalid')
   } else if (channel === 'database-tools:backup:run') {
     const options = assertRecord(args[2], 'backup options', ['includeStructure', 'includeData', 'objectKinds', 'singleTransaction', 'includeRoutines', 'includeTriggers', 'includeEvents', 'extendedInserts', 'charset', 'includeDefiner', 'includeDrop', 'dropIfExists', 'includeUse', 'noAutoValueOnZero', 'lockTables', 'flushLogs', 'errorPolicy', 'directory', 'fileName', 'appendTimestamp', 'autoDeleteDays', 'autoDeleteCount', 'zip', 'compressionLevel', 'comment'], ['includeStructure', 'includeData', 'objectKinds', 'singleTransaction', 'includeRoutines', 'includeTriggers', 'includeEvents', 'extendedInserts', 'charset', 'includeDefiner', 'includeDrop', 'dropIfExists', 'includeUse', 'noAutoValueOnZero', 'lockTables', 'flushLogs', 'errorPolicy', 'directory', 'fileName', 'appendTimestamp', 'autoDeleteDays', 'autoDeleteCount', 'zip', 'compressionLevel', 'comment', 'password'])
