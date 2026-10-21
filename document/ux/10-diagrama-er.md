@@ -57,20 +57,38 @@ Auditoria de origem de evidência: **(b) Sessão anterior / (c) Inferência/REA*
   - Marcadores de cardinalidade nas pontas (notação pé-de-galinha / crow's foot).
   - **Rótulo Textual da FK:** o nome da constraint (`fk_orders_customer`) é renderizado diretamente sobre a linha da relação.
 
-## 3. Relações Virtuais (Virtual Relations) [C]
-- Relacionamentos lógicos entre tabelas mantidos exclusivamente no nível da aplicação/projeto TuxSQL (sem alterar tabelas ou criar constraints físicas no servidor MySQL).
-- Exibidas visualmente no diagrama com linha tracejada e indicação de relação virtual.
-- Painel **Virtual Relation Manager** (`View > Other Windows > Virtual Relation Manager`):
-  - Grade: `Name` | `Child table.col` | `Parent table.col` | `Comment` | `Status`.
-  - Permite criar, editar, excluir e documentar relações virtuais.
-  - Relações virtuais são reconhecidas e utilizadas pelo Query Builder (09) para desenhar JOINs automáticos e pelo Documenter (13).
+### 2.2 Diagram Overview (Mini-Mapa Flutuante) [C: confirmado na VM]
+- **Evidência VM:** Confirmado via `re/original-observation/06-diagrama-er/07-overview-magnifier-1750.png`.
+- **Natureza:** O *Diagram Overview* no dbForge Studio for MySQL **não é um painel docado separado**, mas sim uma **sobreposição flutuante (floating overlay / popup ancorado)** no canto inferior direito da área de visualização do canvas do diagrama.
+- **Acionamento:**
+  - Botão com ícone de lupa / mapa fixo no canto inferior direito do canvas (`07-overview-magnifier-1750.png`).
+  - Ao clicar, abre o mini-mapa flutuante de dimensões compactas (~220x160 px) com borda sutil e sombra projetada (`shadow.lg`).
+  - Clicar novamente no botão de lupa ou fora do popup fecha/recolhe o mini-mapa.
+- **Conteúdo e Interatividade:**
+  - **Miniatura Vetorial:** Renderiza a miniatura completa de todos os nós de tabelas e linhas de relacionamento contidos no documento, independente do nível de zoom atual do canvas principal.
+  - **Retângulo de Viewport:** Um retângulo semitransparente em azul claro (`accent.primary` com 25% de opacidade e borda sólida) delimita com precisão a área atualmente visível na tela.
+  - **Pan e Navegação Arrastável:**
+    - O usuário pode arrastar o retângulo de viewport com o mouse diretamente dentro do mini-mapa para deslocar o canvas principal em tempo real com taxa de atualização suave (60 FPS).
+    - Clicar em qualquer ponto da miniatura centraliza instantaneamente a visualização do canvas principal naquela coordenada do diagrama.
+
+### 2.3 Layout Automático e Zoom [C: confirmado na VM]
+- **Evidência VM:** Confirmado via `06-after-layout-diagram-1750.png`.
+- **Layout Diagram:** Comando disponível na toolbar, no menu contextual do canvas e no menu superior Layout.
+  - Reorganiza os cartões de tabela no canvas distribuindo-os em grafo hierárquico horizontal (tabelas pai à esquerda, filhas à direita), minimizando cruzamentos de linhas de chaves estrangeiras.
+  - Aplica escala e auto-fit automático, ajustando o zoom do canvas para enquadrar perfeitamente todo o diagrama (ex.: zoom redefinido automaticamente para `62.34%` para caber na janela).
+- **Controle de Zoom:** Combo na toolbar com níveis predefinidos (10%, 25%, 33%, 50%, 66%, 75%, 100%, 125%, 150%, 200%, 300%, 400%) e botões de `Zoom In`, `Zoom Out` e `Fit to Window` (`Ctrl+0`).
+
+## 3. Relações Virtuais e Exportação [C: confirmado na VM]
+- **Relações Virtuais (Virtual Relations):**
+  - Relações lógicas gerenciadas no TuxSQL para bancos sem foreign keys físicas declaradas no schema, desenhadas com estilo tracejado e integradas ao Query Builder e Documenter.
+- **Export to Image (`10-export-to-image-1751.png`, `11-export-types-1751.png`):**
+  - Diálogo de exportação suportando imagens vetoriais (SVG) e rasterizadas (PNG, JPEG, BMP).
+- **Opções do Diagrama (`12-diagram-options-1751.png` a `15-options-print-1751.png`):**
+  - Quatro abas configuráveis: General (Auto Scale on Drop, Preserve Routing, Show Grid, Snap to Grid, Shadows), Notation (Notação IE pé-de-galinha, gavetas de Constraints/Indexes/Triggers, Field Details Level), Page (tamanho do papel, margens e orientação) e Print.
 
 ## 4. O que o TuxSQL ainda NÃO faz (Diferenças Objetivas em relação ao Original)
-1. **Seções Recolhíveis Internas de Constraints/Indexes/Triggers no Cartão (Pendente):** No original, cada cartão de tabela possui gavetas colapsáveis para Constraints, Índices e Triggers. No TuxSQL o cartão exibe apenas a lista de colunas com ícones de chave.
-2. **Rótulo Textual Fixo sobre a Linha da Relação (Pendente):** No original, o nome da chave estrangeira (`fk_orders_customer`) é desenhado como etiqueta de texto sobre o traço da linha. No TuxSQL o nome da relação é acessível via tooltip ao passar o cursor sobre a linha.
-3. **Elementos Adicionais no Canvas (Containers, Notas e Comentários) (Pendente):** O original possui paleta com containers retangulares coloridos para agrupar tabelas por módulo, além de post-its de notas adesivas e imagens. O TuxSQL suporta apenas nós de tabelas e views.
-4. **Painel Docado "Diagram Overview" (`Ctrl+W, V`) (Pendente):** O original possui uma janela dock dedicada com minimapa e retângulo de arraste rápido. O TuxSQL executa navegação via pan e zoom direto no canvas.
-5. **Assistente de Conversão de Relação Virtual em FK Física (Pendente):** No original há opção de converter uma relação virtual em constraint física real no banco via diálogo com verificação de dados órfãos. No TuxSQL as relações virtuais permanecem estritamente no armazenamento local do usuário.
+1. **Elementos Adicionais no Canvas (Containers, Notas e Comentários) (Pendente):** O original possui paleta com containers retangulares coloridos para agrupar tabelas por módulo, além de post-its de notas adesivas e carimbos de stamp (`04-ctx-new-submenu-1750.png`). O TuxSQL suporta apenas nós de tabelas e views.
+2. **Impressão Física Direta com Driver Windows (Divergência Linux):** O original suporta drivers gráficos de impressão Win32/GDI. O TuxSQL exporta para formatos padrão abertos (SVG e PDF).
 
 ## 5. Estados de Interface
 | Estado | Comportamento |

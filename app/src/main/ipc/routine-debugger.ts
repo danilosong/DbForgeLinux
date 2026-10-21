@@ -5,8 +5,10 @@ import type { IpcDeps } from './registry.js'
 import { ipcMain } from './registry.js'
 import { DEBUG_SCHEMA, engineDdl, instrumentProcedure, instrumentTrigger, quoteDebugIdentifier, type DebugBreakpoint, type DebugRoutineTarget, type DebugSessionStatus, type DebugSnapshot, type DebugStepKind, type DebugWatch } from '../../modules/routine-debugger/index.js'
 import type { DedicatedMysqlSession } from '../db/MysqlDriver.js'
+import { evaluateWatchExpression } from '../../modules/routine-debugger/expression.js'
+import { buildDebugCallPlan } from '../../modules/routine-debugger/outputParameters.js'
 
-interface LiveSession { id: string; ownerId: number; sender: WebContents; target: DebugRoutineTarget; controller: DedicatedMysqlSession; executor: DedicatedMysqlSession; originalSql: string; instrumentedSql: string; statementLines: number[]; task?: Promise<void>; snapshot: DebugSnapshot; watches: string[]; stopRequested: boolean }
+interface LiveSession { id: string; ownerId: number; sender: WebContents; target: DebugRoutineTarget; controller: DedicatedMysqlSession; executor: DedicatedMysqlSession; originalSql: string; instrumentedSql: string; statementLines: number[]; task?: Promise<void>; snapshot: DebugSnapshot; watches: string[]; stopRequested: boolean; showAfterExecute: boolean }
 const sessions = new Map<string, LiveSession>()
 const table = (name: string): string => `${quoteDebugIdentifier(DEBUG_SCHEMA)}.${quoteDebugIdentifier(name)}`
 
@@ -45,7 +47,7 @@ export function registerRoutineDebuggerIpc({ driver }: IpcDeps): void {
     } finally { await connection.close() }
   })
   ipcMain.handle('routine-debugger:compile', async (_event, target: DebugRoutineTarget) => compilePreview(driver, target))
-  ipcMain.handle('routine-debugger:start', async (event, target: DebugRoutineTarget, args: Array<string | null>, breakpoints: DebugBreakpoint[], autocommit: boolean, confirmedAutocommit: boolean, triggerSql?: string) => {
+  ipcMain.handle('routine-debugger:start', async (event, target: DebugRoutineTarget, args: Array<string | null>, breakpoints: DebugBreakpoint[], autocommit: boolean, confirmedAutocommit: boolean, triggerSql?: string, parameters?: Array<{ name: string; type: string; direction: 'IN' | 'OUT' | 'INOUT'; value: string | null }>, showAfterExecute = true) => {
     validateTarget(target)
     if (!Array.isArray(args) || args.length > 64 || args.some((arg) => arg !== null && (typeof arg !== 'string' || arg.length > 100_000))) throw new Error('Routine argument list is invalid.')
     if (autocommit !== true && autocommit !== false) throw new Error('Choose an autocommit mode.')
@@ -87,9 +89,9 @@ export function registerRoutineDebuggerIpc({ driver }: IpcDeps): void {
       await controller.close(); await executor?.close(); throw error
     }
     const snapshot: DebugSnapshot = { sessionId: id, status: 'running', routine: `${target.database}.${target.name}`, variables: {}, breakpoints: sanitizeBreakpoints(breakpoints, preview.statementLines), watches: [], callStack: [{ routine: `${target.database}.${target.name}`, line: 0, depth: 0 }], output: [target.kind === 'trigger' ? 'Trigger debugging started.' : 'Debugging started.'] }
-    const live: LiveSession = { id, ownerId: event.sender.id, sender: event.sender, target, controller, executor, originalSql: preview.originalSql, instrumentedSql: preview.instrumentedSql, statementLines: preview.statementLines, snapshot, watches: [], stopRequested: false }
+    const live: LiveSession = { id, ownerId: event.sender.id, sender: event.sender, target, controller, executor, originalSql: preview.originalSql, instrumentedSql: preview.instrumentedSql, statementLines: preview.statementLines, snapshot, watches: [], stopRequested: false, showAfterExecute }
     sessions.set(id, live)
-    live.task = runTarget(live, args, autocommit, triggerSql)
+    live.task = runTarget(live, args, autocommit, triggerSql, parameters)
     return { sessionId: id }
   })
   ipcMain.handle('routine-debugger:command', async (event, id: string, command: DebugStepKind | 'stop', line?: number) => {
@@ -100,13 +102,18 @@ export function registerRoutineDebuggerIpc({ driver }: IpcDeps): void {
       live.executor.cancel()
       return
     }
-    if (!['continue', 'into', 'over', 'out', 'run-to-cursor'].includes(command)) throw new Error('Unsupported debugger command.')
+    if (!['continue', 'into', 'over', 'out', 'run-to-cursor', 'break-all'].includes(command)) throw new Error('Unsupported debugger command.')
     if (command === 'run-to-cursor' && (!Number.isInteger(line) || line! < 1)) throw new Error('Select a valid source line for Run To Cursor.')
     const state = live.snapshot.status
+    if (command === 'break-all' && state === 'running') {
+      await mutateWithLock(live.controller, id, `UPDATE ${table('debug_sessions')} SET step_kind='break-all' WHERE debug_id=?`, [id])
+      return
+    }
+    if (command === 'break-all' && state === 'paused') return
     if (state !== 'paused') throw new Error('The routine must be paused to execute a debug command.')
     if (live.target.kind === 'trigger') {
-      const code: Record<Exclude<DebugStepKind, 'run-to-cursor'>, string> = { continue: 'c', into: 'i', over: 'o', out: 'u' }
-      const signalName = command === 'run-to-cursor' ? `dfl-cmd-${id}-r${line}` : `dfl-cmd-${id}-${code[command]}`
+      const code: Record<Exclude<DebugStepKind, 'run-to-cursor' | 'break-all'>, string> = { continue: 'c', into: 'i', over: 'o', out: 'u' }
+      const signalName = command === 'run-to-cursor' ? `dfl-cmd-${id}-r${line}` : `dfl-cmd-${id}-${code[command as keyof typeof code]}`
       const acquired = await live.controller.query('SELECT GET_LOCK(?,0) AS got_lock', [signalName])
       if (Number(acquired[0]?.got_lock) !== 1) throw new Error('Could not signal the paused trigger debugger.')
       try {
@@ -131,7 +138,7 @@ export function registerRoutineDebuggerIpc({ driver }: IpcDeps): void {
   })
   ipcMain.handle('routine-debugger:watches', async (event, id: string, value: string[]) => {
     const live = owned(event, id)
-    if (!Array.isArray(value) || value.length > 100 || value.some((name) => typeof name !== 'string' || !/^[A-Za-z_$][\w$]{0,126}$/.test(name))) throw new Error('Watches must be local variable names no longer than 127 characters.')
+    if (!Array.isArray(value) || value.length > 100 || value.some((name) => typeof name !== 'string' || name.length > 127 || !/^[\w$()+*/%<>=!&|,\s.-]+$/.test(name) || !/[A-Za-z_$0-9)]/.test(name))) throw new Error('Watch expressions may contain variable names, numeric literals, comparisons, arithmetic operators, and supported scalar functions only.')
     live.watches = [...new Set(value)]
     await mutateWithLock(live.controller, id, `DELETE FROM ${table('watches')} WHERE debug_id=?`, [id])
     for (const name of live.watches) await live.controller.execute(`INSERT INTO ${table('watches')}(debug_id,watch_name) VALUES (?,?)`, [id, name])
@@ -193,15 +200,15 @@ function owned(event: IpcMainInvokeEvent, id: string): LiveSession {
   return live
 }
 function evaluateWatches(variables: Record<string, unknown>, watches: string[]): DebugWatch[] {
-  return watches.map((name) => Object.hasOwn(variables, name) ? { name, value: variables[name], type: variables[name] === null ? 'NULL' : typeof variables[name] } : { name, error: 'This local variable is not in scope at the current statement.' })
+  return watches.map((expression) => evaluateWatchExpression(expression, variables))
 }
 function emit(live: LiveSession): void {
   if (!live.sender.isDestroyed()) live.sender.send('routine-debugger:event', live.snapshot)
 }
 function errorText(error: unknown): string { return error instanceof Error ? error.message : 'unknown error' }
 
-async function runTarget(live: LiveSession, args: Array<string | null>, autocommit: boolean, triggerSql?: string): Promise<void> {
-  const poller = setInterval(() => { void pollSnapshot(live).catch((error: unknown) => { live.snapshot.output.push(`Debugger status could not be refreshed: ${errorText(error)}`); emit(live) }) }, 120)
+async function runTarget(live: LiveSession, args: Array<string | null>, autocommit: boolean, triggerSql?: string, parameters?: Array<{ name: string; type: string; direction: 'IN' | 'OUT' | 'INOUT'; value: string | null }>): Promise<void> {
+  const poller = setInterval(() => { void pollSnapshot(live).catch((error: unknown) => { live.snapshot.output.push(`Debugger status could not be refreshed: ${errorText(error)}`); emit(live) }) }, 100)
   try {
     const callArgs = args.map((value) => value === null ? 'NULL' : `'${value.replaceAll('\\', '\\\\').replaceAll("'", "''")}'`).join(',')
     if (live.target.kind === 'trigger') {
@@ -209,7 +216,17 @@ async function runTarget(live: LiveSession, args: Array<string | null>, autocomm
       await live.executor.execute('SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED')
       await live.executor.execute(triggerSql!)
     }
-    else await live.executor.execute(`CALL ${quoteDebugIdentifier(live.target.database)}.${quoteDebugIdentifier(live.target.name)}(${callArgs})`)
+    else {
+      const plan = parameters?.length ? buildDebugCallPlan(live.target.database, live.target.name, parameters) : null
+      if (plan) for (const statement of plan.setup) await live.executor.execute(statement.sql, statement.values)
+      const call = plan?.sql ?? `CALL ${quoteDebugIdentifier(live.target.database)}.${quoteDebugIdentifier(live.target.name)}(${callArgs})`
+      const resultsets = await live.executor.queryResultsets(call, plan?.values)
+      live.snapshot.resultsets = resultsets.filter((set) => set.length > 0).filter((set) => set.every((row) => !('fieldCount' in row))).map((set) => set)
+      if (plan?.outputParameters.length) {
+        const outputRows = await live.executor.query(`SELECT ${plan.outputSelect}`)
+        live.snapshot.outputParameters = plan.outputParameters.map((item) => ({ name: item.name, value: outputRows[0]?.[item.name] ?? null, type: item.type }))
+      }
+    }
     live.snapshot.status = 'finished'
     live.snapshot.output.push('Debugging finished.')
   } catch (error) {

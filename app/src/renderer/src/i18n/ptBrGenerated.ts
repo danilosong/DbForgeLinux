@@ -326,6 +326,7 @@ export const generatedPtBrMessages: Record<string, string> = {
   "debug.menu": "Depurar (menu)",
   "debug.start": "Iniciar depuração",
   "debug.continue": "Continuar",
+  "debugger.breakAll": "Interromper tudo",
   "debug.stop": "Parar",
   "debug.stepInto": "Entrar",
   "debug.stepOver": "Passar por cima",

@@ -1,7 +1,31 @@
 import { describe, expect, it } from 'vitest'
-import { DEBUG_SCHEMA, engineDdl, instrumentProcedure, instrumentTrigger, parseDebugRoutineParameters, quoteDebugIdentifier } from '../../src/modules/routine-debugger/index.js'
+import { buildDebugCallPlan, DEBUG_SCHEMA, engineDdl, evaluateWatchExpression, instrumentProcedure, instrumentTrigger, parseDebugRoutineParameters, quoteDebugIdentifier } from '../../src/modules/routine-debugger/index.js'
 
 describe('routine debugger instrumenter', () => {
+  it('pauses at the next checkpoint when Break All is requested', () => {
+    expect(engineDdl().join('\n')).toContain("v_mode IN ('into','over','break-all')")
+  })
+  it('evaluates arithmetic watch expressions with operator precedence and rejects code', () => {
+    expect(evaluateWatchExpression('a + b * 2', { a: 3, b: 4 })).toMatchObject({ value: 11, type: 'number' })
+    expect(evaluateWatchExpression('(a + b) * 2', { a: 3, b: 4 }).value).toBe(14)
+    expect(evaluateWatchExpression('a.secret()', { a: 3 }).error).toBeTruthy()
+    expect(evaluateWatchExpression('missing + 1', {}).error).toContain('not in scope')
+    expect(evaluateWatchExpression('a >= 5 AND ROUND(b / 3, 1) = 2.7', { a: 5, b: 8.1 }).value).toBe(true)
+    expect(evaluateWatchExpression('LOWER(label) = 1', { label: 'READY' }).value).toBe(false)
+    expect(evaluateWatchExpression('SLEEP(1)', {}).error).toContain('not allowed')
+  })
+  it('builds safe CALL arguments for OUT and INOUT parameters and keeps values bound', () => {
+    const plan = buildDebugCallPlan('sample-db', 'routine', [
+      { name: 'input', type: 'VARCHAR(30)', direction: 'IN', value: "O'Reilly" },
+      { name: 'output', type: 'INT UNSIGNED', direction: 'OUT', value: null },
+      { name: 'both', type: 'DECIMAL(10,2)', direction: 'INOUT', value: '1.25' }
+    ])
+    expect(plan.sql).toBe('CALL `sample-db`.`routine`(?,@tuxsql_debug_out_1,@tuxsql_debug_out_2)')
+    expect(plan.values).toEqual(["O'Reilly"])
+    expect(plan.setup).toEqual([{ sql: 'SET @tuxsql_debug_out_1=NULL', values: [] }, { sql: 'SET @tuxsql_debug_out_2=?', values: ['1.25'] }])
+    expect(plan.outputParameters.map(({ name, type }) => [name, type])).toEqual([['output', 'INT UNSIGNED'], ['both', 'DECIMAL(10,2)']])
+    expect(plan.sql).not.toContain("O'Reilly")
+  })
   it('places checkpoints before executable statements and captures declared locals', () => {
     const source = `CREATE PROCEDURE calc(IN input_value INT)
 BEGIN
@@ -66,5 +90,9 @@ describe('debug engine schema helpers', () => {
         { name: 'p_label', type: 'VARCHAR(64)', direction: 'OUT', value: '', nullValue: false },
         { name: 'p_ready', type: 'BOOLEAN', direction: 'INOUT', value: '', nullValue: false }
       ])
+  })
+
+  it('preserves unsigned integer modifiers in Edit Parameters metadata', () => {
+    expect(parseDebugRoutineParameters('CREATE PROCEDURE `p`(IN p_id INT UNSIGNED) BEGIN SELECT p_id; END')[0]?.type).toBe('INT UNSIGNED')
   })
 })

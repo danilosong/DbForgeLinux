@@ -20,6 +20,7 @@ interface ManagedConnection {
 
 export interface DedicatedMysqlSession {
   query(sql: string, values?: readonly SqlValue[]): Promise<Array<Record<string, unknown>>>
+  queryResultsets(sql: string, values?: readonly SqlValue[]): Promise<Array<Array<Record<string, unknown>>>>
   execute(sql: string, values?: readonly SqlValue[]): Promise<void>
   close(): Promise<void>
   cancel(): void
@@ -158,6 +159,13 @@ export class MysqlDriver implements DbDriver {
         if (closed) throw new Error('Dedicated MySQL session is closed.')
         const [rows] = await connection.query({ sql, values: [...values], rowsAsArray: false })
         return Array.isArray(rows) ? rows as Array<Record<string, unknown>> : []
+      },
+      queryResultsets: async (sql, values = []) => {
+        if (closed) throw new Error('Dedicated MySQL session is closed.')
+        const [rows] = await connection.query({ sql, values: [...values], rowsAsArray: false })
+        if (!Array.isArray(rows)) return []
+        if (rows.length > 0 && Array.isArray(rows[0])) return rows.filter(Array.isArray).map((set) => set as Array<Record<string, unknown>>)
+        return [rows as Array<Record<string, unknown>>]
       },
       execute: async (sql, values = []) => {
         if (closed) throw new Error('Dedicated MySQL session is closed.')

@@ -1,6 +1,6 @@
 export const REPORT_BANDS = ['Report Header', 'Page Header', 'Group Header', 'Detail', 'Group Footer', 'Page Footer', 'Report Footer'] as const
 export type ReportBand = typeof REPORT_BANDS[number]
-export interface ReportDesign { version: 1; title: string; pageSize: 'A4' | 'Letter'; bands: Record<ReportBand, string[]>; dataSourceQuery?: string; groupField?: string; sortField?: string; sortDirection?: 'ASC' | 'DESC' }
+export interface ReportDesign { version: 1; title: string; pageSize: 'A4' | 'Letter'; bands: Record<ReportBand, string[]>; dataSourceQuery?: string; groupField?: string; groupFields?: string[]; sortField?: string; sortDirection?: 'ASC' | 'DESC'; layout?: 'columnar' | 'tabular' | 'justified'; orientation?: 'portrait' | 'landscape'; fitPage?: boolean; style?: 'Aurora' | 'Slate' | 'Cedar' | 'Ocean' | 'Ember' }
 
 export function createReportDesign(title: string, fields: string[]): ReportDesign {
   return { version: 1, title: title.trim().slice(0, 120) || 'Data Report', pageSize: 'A4', bands: Object.fromEntries(REPORT_BANDS.map((band) => [band, band === 'Detail' ? [...fields] : []])) as Record<ReportBand, string[]> }
@@ -19,9 +19,14 @@ export function parseReportDesign(json: string): ReportDesign {
   if (typeof design.title !== 'string' || !['A4', 'Letter'].includes(design.pageSize) || !design.bands || !REPORT_BANDS.every((band) => Array.isArray(design.bands[band]) && design.bands[band].every((field) => typeof field === 'string' && field.length <= 256))) throw new Error('Invalid report design.')
   if (design.dataSourceQuery !== undefined && (typeof design.dataSourceQuery !== 'string' || design.dataSourceQuery.length > 100_000)) throw new Error('Invalid report data source query.')
   if (design.groupField !== undefined && (typeof design.groupField !== 'string' || design.groupField.length > 256)) throw new Error('Invalid report group field.')
+  if (design.groupFields !== undefined && (!Array.isArray(design.groupFields) || design.groupFields.length > 256 || design.groupFields.some((field) => typeof field !== 'string' || field.length > 256))) throw new Error('Invalid report group fields.')
   if (design.sortField !== undefined && (typeof design.sortField !== 'string' || design.sortField.length > 256)) throw new Error('Invalid report sort field.')
   if (design.sortDirection !== undefined && !['ASC', 'DESC'].includes(design.sortDirection)) throw new Error('Invalid report sort direction.')
-  return { version: 1, title: design.title.slice(0, 120), pageSize: design.pageSize, bands: Object.fromEntries(REPORT_BANDS.map((band) => [band, [...design.bands[band]]])) as Record<ReportBand, string[]>, dataSourceQuery: design.dataSourceQuery?.slice(0, 100_000), groupField: design.groupField?.slice(0, 256), sortField: design.sortField?.slice(0, 256), sortDirection: design.sortDirection }
+  if (design.layout !== undefined && !['columnar', 'tabular', 'justified'].includes(design.layout)) throw new Error('Invalid report layout.')
+  if (design.orientation !== undefined && !['portrait', 'landscape'].includes(design.orientation)) throw new Error('Invalid report orientation.')
+  if (design.fitPage !== undefined && typeof design.fitPage !== 'boolean') throw new Error('Invalid fit-page setting.')
+  if (design.style !== undefined && !['Aurora', 'Slate', 'Cedar', 'Ocean', 'Ember'].includes(design.style)) throw new Error('Invalid report style.')
+  return { version: 1, title: design.title.slice(0, 120), pageSize: design.pageSize, bands: Object.fromEntries(REPORT_BANDS.map((band) => [band, [...design.bands[band]]])) as Record<ReportBand, string[]>, dataSourceQuery: design.dataSourceQuery?.slice(0, 100_000), groupField: design.groupField?.slice(0, 256), groupFields: design.groupFields?.map((field) => field.slice(0, 256)), sortField: design.sortField?.slice(0, 256), sortDirection: design.sortDirection, layout: design.layout, orientation: design.orientation, fitPage: design.fitPage, style: design.style }
 }
 
 export function reportPages<T>(rows: T[], pageSize = 20): T[][] {

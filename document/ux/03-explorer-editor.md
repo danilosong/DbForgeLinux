@@ -120,6 +120,62 @@ Estados no documento:
 - **Sucesso:** aba Messages mostra `OK · 120 rows · 0.042 s` (verde); status bar atualizada.
 - **Erro:** aba Messages foca automaticamente: ícone vermelho, `Error 1064 (42000): ...`, linha/coluna; clique salta ao local no editor; Error List recebe entrada.
 
+### 2.5 Parameter Info (Dica Contextual de Parâmetros) [C: confirmado na VM]
+- **Evidência VM:** Confirmado via opções `Code Completion > General` em `re/original-observation/10-tools-options/13-te-code-completion-1803.png` (`[x] Auto Parameter Info`, trigger após 200 ms) e item de menu SQL em `re/original-observation/01-editor-sql/07-menu-sql-1735.png` (`Edit Parameters... Ctrl+Shift+P`).
+- **Gatilho e Comportamento:**
+  - Acionado automaticamente ao digitar `(` após o identificador de uma função escalar, agregação (`SUBSTRING(`, `CONCAT(`, `DATE_ADD(`) ou rotina armazenada (`CALL sp_name(`), ou explicitamente via atalho **`Ctrl+K, P`** (e comando no menu Code Completion).
+  - Exibe um popover/tooltip flutuante imediatamente acima do cursor (ou abaixo caso próximo à margem superior).
+  - **Formato da Assinatura:** `nome_funcao(tipo_1 arg_1, tipo_2 arg_2, ...)`.
+  - **Realce do Argumento Ativo:** O parâmetro correspondente à posição atual do cursor (baseado na contagem de vírgulas separadoras fora de strings literais e parênteses aninhados) é destacado em **negrito** e com cor de destaque (`accent.primary`).
+  - **Sobrecargas:** Em funções com assinaturas múltiplas, exibe indicador de paginação `▲ 1 of N ▼`, navegável por setas `↑` e `↓`.
+  - **Encerramento:** Fecha automaticamente ao digitar o parêntese de fechamento `)` correspondente, ao teclar `Esc` ou ao mover o cursor para fora do escopo da chamada.
+
+### 2.6 Snippets Manager (Gerenciador Visual de Snippets) [C: confirmado na VM]
+- **Evidência VM:** Confirmado via diálogo completo em `re/original-observation/10-tools-options/26-snippets-manager-1804.png` e seletor rápido no editor em `re/original-observation/01-editor-sql/20-insert-snippet-picker-1737.png`.
+- **Entrada:** Menu `Tools > Snippets Manager...` ou clique direito no editor > `Insert Snippet...` (`Ctrl+K, X`).
+- **Janela Snippets Manager:**
+  - Modal redimensionável 720x540 (mín. 640x480).
+  - **Toolbar Superior:**
+    - Botões de ação: `[New Snippet]`, `[New Folder]`, `[Delete]`, `[Save]` (habilitado ao editar), `[Cancel]`, `[Refresh]`.
+    - Ordenação: botões para ordenar A-Z / Z-A e toggle `Sort by Shortcut`.
+  - **Painel Esquerdo (Árvore de Snippets):**
+    - Estrutura hierárquica com pastas e snippets.
+    - Catálogo observado na referência: `Alter Database`, `Alter Event`, `Alter Function`, `Alter Procedure`, `Alter Table Add Column`, `Alter Table Add Foreign Key`, `Alter Table Add Index`, `Alter Table Drop Column`, `Alter View`, `Begin`, `Case`, `Create Database`, `Create Event`, `Create Event with Interval`, `Create Function`, `Create Merge Table`, `Create Procedure with...`, `Create SSL User`, `Create Table with Options`, `Create Trigger`, `Create User`, `Create User with Privileges`, `Create View`, `Declare`, etc.
+  - **Painel Direito (Detalhe e Editor de Snippet):**
+    - `Title`: Nome exibido na listagem (ex.: `Alter Database`).
+    - `Shortcut`: Prefixo textual ativador (ex.: `AlterDatabase`, `cr_tbl`). Ao digitar o atalho no editor SQL e pressionar `Tab`, o snippet é expandido.
+    - `Description`: Texto descritivo (ex.: `"Alter database snippet with DEFAULT CHARACTER SET."`).
+    - `Text`: Editor monoespaçado de template com variáveis delimitadas por cifrões `$param$` (ex.: `ALTER DATABASE $database_name$\nDEFAULT CHARACTER SET $charset_name$;\n$caret$`).
+    - `Literals`: Grade de parâmetros substituíveis com duas seções:
+      - **Predefined:** `$CARET$` (posição de repouso final do cursor), `$DATE$`, `$TIME$`, `$USER$`, `$DB$`, `$SERVER$`.
+      - **User:** Literais criados pelo usuário (`database_name`, `charset_name`, `collate_name`) com botões `[Add...]`, `[Edit...]`, `[Remove]`.
+    - `Location`: Caminho de persistência no disco (no TuxSQL Linux: `$XDG_DATA_HOME/tuxsql/snippets/<id>.snippet.json`).
+- **No Editor SQL:**
+  - `Ctrl+K, X`: abre popup flutuante de busca instantânea de snippets com filtro incremental.
+  - Ao expandir um snippet com literais de usuário, o editor entra em modo de preenchimento (Tab/Shift+Tab avança entre os campos substituíveis, e a alteração de um literal replica em todas as ocorrências no template).
+
+### 2.7 SQL Formatter Wizard (Assistente de Formatação em Lote) [C: confirmado na VM]
+- **Evidência VM:** Confirmado via assistente em `re/original-observation/10-tools-options/27-sql-formatter-1805.png` e submenu Format em `re/original-observation/01-editor-sql/09-ctx-format-submenu-1735.png`.
+- **Entrada:** Menu `Tools > SQL Formatter...`.
+- **Assistente SQL Formatter Wizard:**
+  - Diálogo modal passo-a-passo para formatação de scripts em disco sem necessidade de abri-los individualmente no editor.
+  - **Passo 1: Formatting Mode:**
+    - Cabeçalho: *"Formatting mode - Select appropriate formatting mode"*.
+    - Opções via radio button:
+      - `(•) Files`: *"This option should be chosen if you would like to format a single or multiple files specifying a path for each file separately."*
+      - `( ) Directories`: *"Choose this option to be able to format files found inside a single or multiple folders matching a provided search condition."*
+    - Botões inferiores de navegação: `[Save Command Line...]`, `[< Back]` (desabilitado na etapa 1), `[Next >]`, `[Format]`, `[Cancel]`.
+  - **Passo 2: Seleção de Arquivos / Diretórios:**
+    - Modo Files: Grade de arquivos a formatar com botões `[Add Files...]`, `[Remove]`, `[Clear]`.
+    - Modo Directories: Campo de seleção de diretório, máscara de arquivos (padrão `*.sql`), checkbox `[x] Include subdirectories`.
+  - **Passo 3: Perfil e Opções de Saída:**
+    - Perfil de formatação: Seletor entre os 9 perfis confirmados na referência: `Default`, `Collapsed`, `Commas before`, `Compact`, `Extended`, `Indented`, `MSDN SQL`, `Right aligned`, `Stack compact`.
+    - Destino: `(•) Overwrite existing files` (com checkbox `[x] Create backup copies (*.bak)`) ou `( ) Save formatted files to a specified folder`.
+  - **Passo 4: Execução e Relatório:**
+    - Barra de progresso exibindo `Formatting file N of Total...`.
+    - Grade final: Caminho do arquivo, Status (Sucesso / Ignorado com erro sintático), Tempo decorrido.
+    - Botão `[Save Command Line...]` permite exportar o comando CLI equivalente para pipelines de automação no Linux (`tuxsql format --profile=... --files=...`).
+
 ## 3. Painel de resultados
 
 Abas inferiores (nível 2): **Result 1 … Result N** (um por SELECT/SHOW/EXPLAIN com colunas), **Messages**, **Execution Plan/Explain** (P1), **History** (P2). Aba fixa com 📌 impede ser substituída na reexecução; sem fixar, reexecução substitui o conjunto. Rótulo da aba: `Result 1 (120)`. Menu de contexto da aba: Pin, Close, Close Others, Export… (P1).

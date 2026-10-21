@@ -1,7 +1,7 @@
 # Paridade — F-OPT (Options)
 
 Fontes consultadas: inventário REA M1/M19; `document/ux/19-configuracoes.md`; `document/ux/FIDELIDADE.md` Parte D; notas de sessão anterior na VM `dbforge-ref` (`re/original-observation/NOTES.md` #14).
-Auditoria de origem de evidência: **(b) Sessão anterior / (c) Inferência/REA**. Nenhuma captura foi feita na sessão corrente; status classificado como **INFERIDA** pendente de nova observação da Lupa.
+Auditoria de origem de evidência: referência em **(b) sessão anterior / (c) REA**; a página Environment e o histórico do Profiler também foram capturados no clone em claro e escuro nesta rodada.
 
 | Comportamento esperado | Estado | Evidência da referência | Prova no clone |
 |---|---|---|---|
@@ -13,7 +13,7 @@ Auditoria de origem de evidência: **(b) Sessão anterior / (c) Inferência/REA*
 | Atalhos normalizados detectam conflito no mesmo contexto (Keyboard options). | INFERIDA | Nota de sessão anterior (`re/original-observation/NOTES.md` #14) e REA. Aguarda confirmação pela Lupa. | `app/test/modules/options.test.ts` — conflito case/space insensitive e validação. |
 | Validação e migração de limites para Data Comparison (cacheFolder, keyStrategy) e Query Builder (gridSize, showGrid, snapToGrid). | INFERIDA | Nota de sessão anterior (`re/original-observation/NOTES.md` #14) e schema. Aguarda confirmação pela Lupa. | `app/test/modules/options.test.ts` — ranges e defaults migrados. |
 | Validação de páginas Data Editor (pageSize, showDataTypes) e Database Explorer (firstRows, selectionMode). | INFERIDA | Nota de sessão anterior e catálogo REA. Aguarda confirmação pela Lupa. | `app/test/modules/options.test.ts`. |
-| Rótulos e valores default de todas as páginas Options correspondem à referência ou possuem equivalentes documentados. | INFERIDA | Nota de sessão anterior (`re/original-observation/NOTES.md` #14); REA ui-text. Aguarda confirmação pela Lupa. | `app/test/modules/options.test.ts`; `app/test/modules/keymap.test.ts`. |
+| Padrões verificados para startup, Editor SQL, Explorer, Query Builder, Data Editor e Query Profiler correspondem à referência. | PARCIAL | Defaults anotados em `document/paridade/FIDELIDADE-MEDIDA.md` §3.13 (origem: `document/paridade/BACKLOG-LACUNAS-VM.md` §Tools e Options). | `app/test/modules/options.test.ts` verifica os valores e limites; `document/evidence/ui/04-editor-options/options-startup-{light,dark}.png` e `options-profiler-{light,dark}.png` mostram as páginas. O timeout de 30 s do grupo Debugging ainda não está configurável e impede afirmar equivalência global. |
 
 ## O que o TuxSQL ainda não faz (ou diverge conscientemente):
 1. **Motor de skins Devart WinForms**: Original usa biblioteca de skins C# Windows ("Visual Studio Light", "Visual Studio Dark", "Office", etc.) com hooks nativos Win32. O TuxSQL adota tokens de temas CSS modernos (Claro, Escuro, Auto/Sistema) com contraste WCAG AA.

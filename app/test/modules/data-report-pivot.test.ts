@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildPivot, buildPivotChart, buildPivotConfigFromRoles, exportPivot, validateReportQuery, type PivotConfig } from '../../src/modules/data-report-pivot/index.js'
 import { createReportDesign, exportDesignedReport, parseReportDesign, placeReportField, reportPages } from '../../src/modules/data-report-pivot/report-design.js'
+import { parseMasterDetailDocument, serializeMasterDetailDocument, validateWizardResult } from '../../src/modules/data-report-pivot/wizard.js'
 
 describe('Data Report Pivot', () => {
   const rows = [
@@ -92,5 +93,22 @@ describe('Data Report Pivot', () => {
     expect(() => validateReportQuery("SELECT * FROM items INTO/* hidden */DUMPFILE '/tmp/export.bin'")).toThrow(/read-only SELECT/)
     expect(() => validateReportQuery('SELECT * FROM items FOR UPDATE')).toThrow(/read-only SELECT/)
     expect(() => validateReportQuery('SELECT \'INTO OUTFILE\' AS message')).not.toThrow()
+  })
+
+  it('validates the eight-step report setup and keeps its preferences in the designer model', () => {
+    const wizard = validateWizardResult({ reportType: 'standard', connectionId: 'conn-1', database: 'sales', query: 'SELECT id, total FROM orders', columns: ['id', 'total', 'id'], grouping: ['total', 'missing'], layout: 'tabular', orientation: 'landscape', fitPage: true, style: 'Ocean', title: '   ' })
+    expect(wizard).toMatchObject({ columns: ['id', 'total'], grouping: ['total'], title: 'TuxSQL Report', layout: 'tabular', orientation: 'landscape', style: 'Ocean' })
+    expect(() => validateWizardResult({ ...wizard, query: 'SELECT 1; DELETE FROM orders' })).toThrow(/one SELECT/)
+    expect(() => validateWizardResult({ ...wizard, query: "SELECT * FROM orders FOR UPDATE" })).toThrow(/read-only SELECT/)
+    expect(validateWizardResult({ ...wizard, reportType: 'blank', connectionId: '', database: '', query: '', columns: [], grouping: [] })).toMatchObject({ reportType: 'blank', title: 'TuxSQL Report', query: '' })
+    const design = parseReportDesign(JSON.stringify({ ...createReportDesign(wizard.title, wizard.columns), dataSourceQuery: wizard.query, groupField: wizard.grouping[0], groupFields: wizard.grouping, layout: wizard.layout, orientation: wizard.orientation, fitPage: wizard.fitPage, style: wizard.style }))
+    expect(design).toMatchObject({ layout: 'tabular', orientation: 'landscape', fitPage: true, style: 'Ocean', groupField: 'total', groupFields: ['total'] })
+  })
+
+  it('round-trips bounded Master-Detail documents and rejects malformed settings', () => {
+    const document = { version: 1 as const, connectionId: 'conn-1', database: 'sales', table: 'orders', fetchLimit: 250, where: 'status = 1', orderBy: 'id', selectedColumns: ['id', 'total'] }
+    expect(parseMasterDetailDocument(serializeMasterDetailDocument(document))).toEqual(document)
+    expect(() => parseMasterDetailDocument(JSON.stringify({ ...document, fetchLimit: 50_001 }))).toThrow(/Invalid Master-Detail/)
+    expect(() => parseMasterDetailDocument('{')).toThrow(/Invalid Master-Detail/)
   })
 })

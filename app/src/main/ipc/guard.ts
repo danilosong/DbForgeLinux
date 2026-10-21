@@ -65,10 +65,10 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'profiler:profile': [id, sql], 'profiler:explain': [id, sql], 'profiler:history': [id], 'profiler:clear-history': [id, trueOnly], 'profiler:status': [id],
   'query-builder:schema': [id, ident], 'query-builder:build': [object], 'query-builder:parse': [sql, opt(ident)], 'query-builder:execute': [id, object, opt(bool), opt(id)], 'query-builder:cancel': [id],
   'routine-debugger:engine:inspect': [id], 'routine-debugger:engine:deploy': [id, trueOnly], 'routine-debugger:engine:remove': [id, trueOnly], 'routine-debugger:compile': [object],
-  'routine-debugger:start': [object, s('array-null-text', { maxItems: 64 }), objects, bool, bool, opt(text)], 'routine-debugger:command': [id, enumOf('into', 'over', 'out', 'continue', 'stop'), opt(integer)],
+  'routine-debugger:start': [object, s('array-null-text', { maxItems: 64 }), objects, bool, bool, opt(text), opt(objects), opt(bool)], 'routine-debugger:command': [id, enumOf('into', 'over', 'out', 'continue', 'stop', 'run-to-cursor', 'break-all'), opt(integer)],
   'routine-debugger:breakpoints': [id, objects], 'routine-debugger:watches': [id, strings], 'routine-debugger:snapshot': [id],
   'schema-compare:inspect': [id, ident], 'schema-compare:compare': [id, ident, id, ident, opt(bool)], 'schema-compare:load-offline': [enumOf('Scripts Folder', 'Snapshot')], 'schema-compare:compare-models': [object, object, opt(bool)], 'schema-compare:save-snapshot': [id, ident], 'schema-compare:synchronize': [id, ident, sql, trueOnly],
-  'security:accounts': [id], 'security:details': [id, object], 'security:preview': [id, objects], 'security:apply': [id, objects, trueOnly],
+  'security:accounts': [id], 'security:privileges': [id], 'security:details': [id, object], 'security:preview': [id, objects], 'security:apply': [id, objects, trueOnly],
   'service-control:list': [], 'service-control:action': [ident, enumOf('start', 'stop', 'restart')],
   'sessions:list': [id, opt(object)], 'sessions:details': [id, integer], 'sessions:kill': [id, intArray, enumOf('connection', 'query'), trueOnly],
   'sessions:variables': [id, opt(scope)], 'sessions:status': [id, opt(scope)], 'sessions:set-variable': [id, object, object],
@@ -167,7 +167,15 @@ function assertStringArray(value: unknown, label: string, maximum = 1000): asser
   if (!Array.isArray(value) || value.length > maximum || value.some((item) => typeof item !== 'string' || item.length > 256)) fail(`${label} must be a bounded string array`)
 }
 function assertDomainPayload(channel: string, args: readonly unknown[]): void {
-  if (channel === 'ssh:keyboard-interactive:respond') {
+  if (channel === 'data-generator:generate') {
+    const input = assertRecord(args[0], 'input', ['connectionId', 'database', 'tables', 'rowsPerTable', 'generators', 'confirmed'], ['connectionId', 'database', 'tables', 'rowsPerTable', 'generators', 'seed', 'confirmed', 'truncateTables', 'truncateConfirmation'])
+    if (typeof input.connectionId !== 'string' || !input.connectionId || typeof input.database !== 'string' || !input.database || input.database.length > 64 || input.confirmed !== true) fail('data generation confirmation is invalid')
+    assertStringArray(input.tables, 'input.tables', 1000)
+    if (input.truncateTables !== undefined) assertStringArray(input.truncateTables, 'input.truncateTables', 1000)
+    if (input.truncateConfirmation !== undefined && (typeof input.truncateConfirmation !== 'string' || input.truncateConfirmation.length > 4096)) fail('truncate confirmation is invalid')
+    if (typeof input.rowsPerTable !== 'number' && (!input.rowsPerTable || typeof input.rowsPerTable !== 'object' || Array.isArray(input.rowsPerTable))) fail('row counts are invalid')
+    if (!input.generators || typeof input.generators !== 'object' || Array.isArray(input.generators)) fail('generator settings are invalid')
+  } else if (channel === 'ssh:keyboard-interactive:respond') {
     const response = assertRecord(args[0], 'response', ['requestId', 'answers'], ['requestId', 'answers'])
     if (typeof response.requestId !== 'string' || response.requestId.length > 64) fail('keyboard-interactive request id is invalid')
     if (response.answers !== null) assertStringArray(response.answers, 'answers', 16)

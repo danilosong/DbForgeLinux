@@ -19,12 +19,12 @@
 **Progresso do projeto** · atualizado em 2026-10-21
 
 ```text
-Cobertura de funcionalidades de referência  ███████████████████░  95,3%
+Cobertura de funcionalidades de referência  ██████████████████░░  92,7%
 Módulos implementados e testados            ████████████████████   100%  (20 de 20)
 Specs de UX verificadas contra evidência    ████████████████████   100%  (20 de 20)
 ```
 
-<sub>Implementação independente, não é cópia nem produto afiliado a terceiros (ver LEGAL.md). A cobertura é medida por um agente de UX com checagem por amostra de 12 itens e cobre apenas os fluxos observados no produto de referência; o docking direcional em quatro direções passou a ter prova visual (claro/escuro e posição persistida), e a verificação do arquiteto segue conservadora porque falta medir de novo os módulos em andamento (rodada 10).</sub>
+<sub>Implementação independente, não é cópia nem produto afiliado a terceiros (ver LEGAL.md). A cobertura é medida contra evidência real: 195 capturas do produto de referência feitas em VM, com checagem por amostra. A nova medição, mais rigorosa, trouxe o número de 95,3% para 92,7%, porque a observação revelou diferenças antes ignoradas; o trabalho atual fecha essas lacunas (docking, Report, Data Generator, ER, Debugger).</sub>
 <!-- PROGRESS:END -->
 
 ---

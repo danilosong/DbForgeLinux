@@ -1,5 +1,5 @@
 import type { DbTransaction, SqlValue } from '../../main/db/DbDriver.js'
-import type { TableModel } from '../schema/model.js'
+import type { DatabaseModel, TableModel } from '../schema/model.js'
 import { generateValue, inferKind, isUniqueColumn, passesSimpleCheck, relevantChecks, seededRandom, type GenerationContext } from './generators.js'
 import type { DataGenerationJob, DataGenerationPreviewJob, DataGenerationReport, GeneratorSpec } from './types.js'
 
@@ -182,6 +182,15 @@ export async function previewData(job: DataGenerationPreviewJob): Promise<Record
   return rows
 }
 
+export function relatedGenerationTables(schema: Pick<DatabaseModel, 'tables'>, tableName: string): { parents: string[]; children: string[] } {
+  const table = schema.tables.find((item) => item.name === tableName)
+  if (!table) return { parents: [], children: [] }
+  return {
+    parents: [...new Set(table.foreignKeys.map((key) => key.referencedTable).filter((name) => schema.tables.some((item) => item.name === name)))].sort(),
+    children: schema.tables.filter((item) => item.foreignKeys.some((key) => key.referencedTable === tableName)).map((item) => item.name).sort()
+  }
+}
+
 export async function generateData(job: DataGenerationJob): Promise<DataGenerationReport> {
   const selected = new Set(job.tables ?? job.schema.tables.map((table) => table.name))
   const tables = orderTables(job.schema.tables.filter((table) => selected.has(table.name)), job.database)
@@ -192,7 +201,11 @@ export async function generateData(job: DataGenerationJob): Promise<DataGenerati
   const batchSize = Math.max(1, job.batchSize ?? 250)
   const locale = job.locale ?? 'en-US'
   const seed = job.seed ?? 1
+  const truncateNames = new Set(job.truncateTables ?? [])
+  if ([...truncateNames].some((name) => !selected.has(name))) throw new Error('Only selected tables can be cleared before generation.')
+  const truncateOrder = [...tables].reverse().filter((table) => truncateNames.has(table.name))
   await job.driver.withTransaction(job.connectionId, async (transaction) => {
+    for (const table of truncateOrder) await transaction.execute(`DELETE FROM ${tableName(job.database, table.name)}`)
     for (const [tableIndex, table] of tables.entries()) {
       const total = counts[tableIndex]
       const stats = report.tables[table.name] = { generated: 0, inserted: 0 }

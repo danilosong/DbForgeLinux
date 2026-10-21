@@ -30,20 +30,29 @@ export default function Panel(): React.JSX.Element {
   const [tab, setTab] = useState<ProfilerTab>('Profile')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [historyLimit, setHistoryLimit] = useState(10)
   useEffect(() => setConnectionId(activeConnection?.id ?? ''), [activeConnection?.id])
+  useEffect(() => {
+    let active = true
+    void window.tuxsql.loadSettings().then(({ settings }) => { if (active) setHistoryLimit(settings.profiler.historyLimit) }).catch(() => undefined)
+    const settingsChanged = (event: Event): void => setHistoryLimit((event as CustomEvent<{ profiler?: { historyLimit?: number } }>).detail?.profiler?.historyLimit ?? 10)
+    window.addEventListener('tuxsql:settings-changed', settingsChanged)
+    return () => { active = false; window.removeEventListener('tuxsql:settings-changed', settingsChanged) }
+  }, [])
+  useEffect(() => setHistory((items) => items.slice(0, historyLimit)), [historyLimit])
   useEffect(() => {
     const receiveProfile = (event: Event): void => {
       const value = (event as CustomEvent<ProfileResult>).detail
       if (!value || typeof value.query !== 'string') return
       setResult(value)
       setQuery(value.query)
-      setHistory((items) => [value, ...items.filter((item) => runKey(item) !== runKey(value))].slice(0, 100))
+      setHistory((items) => [value, ...items.filter((item) => runKey(item) !== runKey(value))].slice(0, historyLimit))
       setSelectedRunKey(runKey(value))
       setTab('Profile')
     }
     window.addEventListener('tuxsql:profiler-profile', receiveProfile)
     return () => window.removeEventListener('tuxsql:profiler-profile', receiveProfile)
-  }, [])
+  }, [historyLimit])
 
   async function run(): Promise<void> {
     setError('')
@@ -54,7 +63,7 @@ export default function Panel(): React.JSX.Element {
       const value = await window.tuxsql.profile(connectionId, query)
       setResult(value)
       const items = await window.tuxsql.history(connectionId)
-      setHistory(items.some((item) => runKey(item) === runKey(value)) ? items : [value, ...items].slice(0, 100))
+      setHistory(items.some((item) => runKey(item) === runKey(value)) ? items.slice(0, historyLimit) : [value, ...items].slice(0, historyLimit))
       setSelectedRunKey(runKey(value))
       setTab('Profile')
     } catch (reason) { setError(reason instanceof Error ? reason.message : t('panel.profiler.failed')) }

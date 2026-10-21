@@ -18,6 +18,7 @@ export function mergeSettings(value: unknown): AppSettings {
     environment: { ...defaultSettings.environment, ...safeObject(data.environment) },
     appearance: { ...defaultSettings.appearance, ...safeObject(data.appearance) },
     queryBuilder: { ...defaultSettings.queryBuilder, ...safeObject(data.queryBuilder) },
+    profiler: { ...defaultSettings.profiler, ...safeObject(data.profiler) },
     dataComparison: { ...defaultSettings.dataComparison, ...safeObject(data.dataComparison) },
     language: { ...defaultSettings.language, ...safeObject(data.language) },
     editor: { ...defaultSettings.editor, ...safeObject(data.editor) },
@@ -54,6 +55,7 @@ export function validateSettings(settings: AppSettings): void {
   bounded(settings.environment.recentFiles, 0, 100, 'Recent files')
   bounded(settings.environment.windowItems, 0, 100, 'Window menu items')
   bounded(settings.environment.autoSaveIntervalSeconds, 5, 3600, 'Autosave interval')
+  if (!['last-workspace', 'start-page', 'empty'].includes(settings.environment.startup)) throw new Error('Invalid startup mode.')
   bounded(settings.appearance.uiZoom, 80, 200, 'UI zoom')
   bounded(settings.editor.tabSize, 1, 16, 'Tab size')
   bounded(settings.editor.fontSize, 8, 32, 'Font size')
@@ -81,6 +83,7 @@ export function validateSettings(settings: AppSettings): void {
   bounded(settings.explorer.firstRows, 1, 1000000, 'Explorer row limit')
   if (!['select-data', 'object-editor', 'data-editor'].includes(settings.explorer.openTableAs) || !['execute', 'object-editor'].includes(settings.explorer.openRoutineAs) || !['all', 'first'].includes(settings.explorer.selectionMode)) throw new Error('Invalid Database Explorer settings.')
   bounded(settings.queryBuilder.gridSize, 2, 64, 'Query Builder grid size')
+  bounded(settings.profiler.historyLimit, 1, 1000, 'Profiler history limit')
   bounded(settings.connections.connectionTimeoutSeconds, 1, 600, 'Connection timeout')
   bounded(settings.connections.commandTimeoutSeconds, 0, 86400, 'Connection command timeout')
   if (!['auto', 'dev', 'release'].includes(settings.updater.channel)) throw new Error('Invalid update channel.')

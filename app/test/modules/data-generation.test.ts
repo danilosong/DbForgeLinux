@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dataDomainProfiles, generateData, generatorForDomainProfile, previewData, type DataGenerationJob } from '../../src/modules/data-generation/index.js'
+import { dataDomainProfiles, generateData, generatorForDomainProfile, previewData, relatedGenerationTables, type DataGenerationJob } from '../../src/modules/data-generation/index.js'
 import type { DbDriver, DbTransaction, SqlValue } from '../../src/main/db/DbDriver.js'
 import type { DatabaseModel, TableModel } from '../../src/modules/schema/model.js'
 import { generateValue, inferKind, sampleRegex, seededRandom } from '../../src/modules/data-generation/generators.js'
@@ -148,5 +148,16 @@ describe('data generation', () => {
     const { driver, inserts } = mockDriver()
     await expect(generateData({ driver, connectionId: 'c', database: 'test', schema: { ...schema, tables: [a, b] }, rowsPerTable: 1 })).rejects.toThrow(/cyclic foreign-key dependency/i)
     expect(inserts).toEqual([])
+  })
+
+  it('clears selected tables in reverse dependency order inside the transaction', async () => {
+    const { driver, inserts } = mockDriver()
+    await generateData({ driver, connectionId: 'c', database: 'test', schema, tables: ['children', 'parents'], truncateTables: ['parents', 'children'], rowsPerTable: { parents: 1, children: 1 }, generators: { 'children.age': { kind: 'number', min: 0, max: 120 } } })
+    expect(inserts.slice(0, 2).map((item) => item.sql)).toEqual(['DELETE FROM `test`.`children`', 'DELETE FROM `test`.`parents`'])
+  })
+
+  it('reports related parent and child tables from foreign keys', () => {
+    expect(relatedGenerationTables(schema, 'parents')).toEqual({ parents: [], children: ['children'] })
+    expect(relatedGenerationTables(schema, 'children')).toEqual({ parents: ['parents'], children: [] })
   })
 })

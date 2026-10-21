@@ -31,10 +31,10 @@ export function engineDdl(database = DEBUG_SCHEMA): string[] {
         IF v_trigger THEN
           SELECT status,step_kind,run_to_line,command_version INTO v_status,v_mode,v_run_to,v_version FROM ${schema}.debug_sessions WHERE debug_id=p_debug_id;
           IF v_status IS NULL OR v_status='stopped' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Trigger debugging stopped'; END IF;
-          SET v_mode=COALESCE(@tuxsql_linux_debug_step_kind,v_mode);
+          SET v_mode=IF(v_mode='break-all','break-all',COALESCE(@tuxsql_linux_debug_step_kind,v_mode));
           SET v_run_to=COALESCE(@tuxsql_linux_debug_run_to,v_run_to);
           SELECT COUNT(*) INTO v_breakpoint FROM ${schema}.breakpoints WHERE debug_id=p_debug_id AND line_number=p_line AND enabled=TRUE;
-          SET v_pause=(v_mode IN ('into','over') OR (v_mode='run-to-cursor' AND p_line>=COALESCE(v_run_to,2147483647)) OR (v_mode IN ('continue','out') AND v_breakpoint>0));
+          SET v_pause=(v_mode IN ('into','over','break-all') OR (v_mode='run-to-cursor' AND p_line>=COALESCE(v_run_to,2147483647)) OR (v_mode IN ('continue','out') AND v_breakpoint>0));
           IF v_pause THEN
             SET v_lock=GET_LOCK(CONCAT('dfl-pause-',p_debug_id,'-',p_line),0);
             IF v_lock IS NULL OR v_lock=0 THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Could not pause trigger debugger'; END IF;
@@ -56,7 +56,7 @@ export function engineDdl(database = DEBUG_SCHEMA): string[] {
         SELECT status,step_kind,run_to_line INTO v_status,v_mode,v_run_to FROM ${schema}.debug_sessions WHERE debug_id=p_debug_id;
         IF v_status IS NULL OR v_status='stopped' THEN DO RELEASE_LOCK(CONCAT('dfl-debug-',p_debug_id)); SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='Routine debugging stopped'; END IF;
         SELECT COUNT(*) INTO v_breakpoint FROM ${schema}.breakpoints WHERE debug_id=p_debug_id AND line_number=p_line AND enabled=TRUE;
-        SET v_pause=(v_mode IN ('into','over') OR (v_mode='run-to-cursor' AND p_line>=COALESCE(v_run_to,2147483647)) OR (v_mode IN ('continue','out') AND v_breakpoint>0));
+        SET v_pause=(v_mode IN ('into','over','break-all') OR (v_mode='run-to-cursor' AND p_line>=COALESCE(v_run_to,2147483647)) OR (v_mode IN ('continue','out') AND v_breakpoint>0));
         IF v_pause THEN
           UPDATE ${schema}.debug_sessions SET status='paused' WHERE debug_id=p_debug_id;
           DO RELEASE_LOCK(CONCAT('dfl-debug-',p_debug_id));

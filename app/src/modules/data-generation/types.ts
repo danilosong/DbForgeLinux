@@ -23,6 +23,7 @@ export interface DataGenerationJob {
   database: string
   schema: DatabaseModel
   tables?: string[]
+  truncateTables?: string[]
   rowsPerTable: number | Record<string, number>
   generators?: Record<string, GeneratorSpec>
   locale?: Locale

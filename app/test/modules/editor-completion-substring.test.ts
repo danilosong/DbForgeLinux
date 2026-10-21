@@ -10,6 +10,7 @@ const metadata: EditorMetadata = {
 describe('SQL completion substring matching', () => {
   it('expands predefined and user-defined snippet literals', () => {
     expect(expandSnippetLiterals('SELECT $DATE$, $USER$, $DB$, $x$, $CARET$', 'my_db')).toMatch(/SELECT \d{4}-\d{2}-\d{2}, CURRENT_USER\(\), my_db, \$\{1:x\}, \$0/)
+    expect(expandSnippetLiterals('SELECT $TIME$, $SERVER$')).toMatch(/SELECT \d{2}:\d{2}:\d{2}, @@hostname/)
   })
   it('matches object names from the middle of a token and carries schema details', () => {
     const suggestions = buildSqlSuggestions('SELECT * FROM tom', 18, metadata)

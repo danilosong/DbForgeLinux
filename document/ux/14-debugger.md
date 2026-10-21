@@ -41,36 +41,77 @@ Menu Debug (ou Explorer > conexão > Debug): **Deploy Debug Engine**, **Remove D
 - Atalhos observados: `Ctrl+Alt+F7` / `Ctrl+Alt+F9`; compilação normal (sem debug) `Ctrl+F7` / `Ctrl+F9`.
 - Autocommit: "To start debugging, the autocommit mode will be enabled. Would you like to continue?" — aviso exibido caso a sessão esteja em modo manual.
 
-## 5. Perspectiva de Depuração [I]
-A rotina abre como documento no editor (ex.: `sample.sp_customer_orders`).
+## 5. Perspectiva de Depuração [C: confirmado na VM]
+A rotina abre como documento no editor (ex.: `sample.sp_customer_orders`). Confirmado via `re/original-observation/03-debugger/07-debug-session-1742.png`.
 - **Gutter do Editor:**
-  - Círculo vermelho para Breakpoints normais.
-  - Seta vermelha apontando para a linha atual de execução pausada.
-  - Linha ativa de execução realçada com fundo amarelo translúcido (`syntax.debugCurrentLine`).
+  - Círculo vermelho para Breakpoints normais (`17-breakpoint-f9-line4-1744.png`).
+  - Seta amarela apontando para a linha atual de execução pausada com realce amarelo na linha ativa (`07-debug-session-1742.png`, `09-after-step-over-1743.png`, `11-second-step-over-1743.png`).
+  - Gutter de linhas não-executáveis (como `END` ou declarações de bloco) rejeita breakpoints (`16-breakpoint-gutter-1744.png`).
 - **Painéis Docados de Apoio:**
-  - **Watches:** Grade com `Name` | `Value` | `Type`, contendo linha vazia ao final para adicionar nova variável observada.
-  - **Breakpoints:** Toolbar (`Disable All`, `Delete All`) + grade `Name` | `Line` | `Condition`.
-  - **Call Stack:** Grade com `Name` | `Line`; exibe a profundidade da chamada (ex.: `sp_customer_orders` linha 4).
-  - Abas inferiores docáveis: `Output` | `Error List` | `Watches` | `Breakpoints` | `Call Stack`.
+  - **Watches:** Grade com `Name` | `Value` | `Type`, contendo linha vazia ao final para adicionar nova variável ou expressão observada (`12-watch-added-1743.png`). [C: colunas confirmadas na VM; edição de variável em execução é INFERIDA].
+  - **Breakpoints:** Toolbar (`Disable All`, `Delete All`) + grade `Check` | `Name` | `Line` | `Character` (`17-breakpoint-f9-line4-1744.png`). [C: colunas básicas confirmadas na VM; condições e hit count são INFERIDAS].
+  - **Call Stack:** Grade com `Name` | `Line`; exibe o quadro atual com seta indicadora de execução (`10-call-stack-tab-1743.png`).
+  - Abas inferiores docáveis: `Output` | `Error List` | `Watches` | `Breakpoints` | `Call Stack` (`07-debug-session-1742.png`).
 
-## 6. Comandos e Atalhos de Depuração [C: observado na VM]
+### 5.1 Watch Expressions (Expressões de Inspeção) [C: confirmado na VM]
+- **Evidência VM:** Confirmado via `re/original-observation/03-debugger/12-watch-added-1743.png` (colunas Name, Value, Type; p_count = 4, INT).
+- **Comportamento Confirmado:**
+  - A última linha da grade Watches é um campo editável com placeholder *"Add watch..."*.
+  - O desenvolvedor pode digitar qualquer nome de variável (ex.: `p_count`, `total`) ou expressão (ex.: `p_customer + 1`, `p_count > 0`).
+  - Ao pressionar `Enter`, a expressão é avaliada no escopo da execução pausada.
+  - Coluna `Value`: exibe o valor calculado (ex.: `4`). A cada avanço de passo (`F10`/`F11`), os valores são recalculados automaticamente e os que mudaram recebem destaque visual temporário.
+  - Coluna `Type`: exibe o tipo de dado do resultado (`INT`, `VARCHAR`, `DECIMAL`, `BOOLEAN`).
+  - Botão de exclusão `[x]` por linha ou tecla `Delete` remove a expressão do monitoramento.
+- **Comportamento Inferido [I: proposta do clone, não comprovada na VM]:**
+  - Edição direta de valores de variáveis no grid de Watches durante a pausa (Lupa catalogou em `NOTAS.md` como DESCONHECIDA na referência; no TuxSQL, Watches são inicialmente de leitura das variáveis e expressões computadas).
+
+### 5.2 Breakpoints Condicionais e Hit Count [I: inferido / proposta do clone]
+- **Evidência VM:** O PNG `re/original-observation/03-debugger/17-breakpoint-f9-line4-1744.png` confirma **apenas** o painel Breakpoints básico com colunas `Check | Name | Line | Character` e o ponto vermelho no gutter na linha 4 (`sample.sp_customer_orders, 4, 3`). As funcionalidades de **Condição** e **Hit Count** NÃO possuem tela capturada na VM (`re/original-observation/03-debugger/NOTAS.md` classifica explicitamente como `DESCONHECIDO` na referência) e constituem proposta do clone para paridade estendida. Atalhos de teclado gerais confirmados em `re/original-observation/10-tools-options/04-env-keyboard-1802.png`.
+- **Comportamento Proposto:**
+  - Pressionar `F9` ou clicar no gutter insere/remove breakpoint incondicional.
+  - Clique com botão direito no marcador ou na lista de breakpoints abre menu com **Breakpoint Properties...** (ou atalho de contexto).
+  - **Diálogo Breakpoint Properties:**
+    - **Condition:**
+      - Checkbox `[x] Condition`.
+      - Campo de texto para expressão condicional SQL (ex.: `p_count > 10`, `status = 'ACTIVE'`).
+      - Modo: `(•) Is true` (pausa quando a condição avaliar para verdadeiro) ou `( ) Has changed` (pausa quando o valor da expressão mudar).
+    - **Hit Count:**
+      - Modo: `(•) Always break` (padrão) | `( ) Break when hit count is equal to N` | `( ) Break when hit count is a multiple of N` | `( ) Break when hit count is greater than or equal to N`.
+      - Contador `Current hit count: N` com botão `[Reset Hit Count]`.
+  - **Indicador Visual:** Marcador de breakpoint condicional no gutter exibe glifo distintivo com `+` ou `=` no interior do círculo vermelho.
+  - Na execução instrumentada, a rotina avalia a condição do breakpoint; se for falsa ou o hit count não for satisfeito, a execução prossegue sem interrupção.
+
+### 5.3 Diálogo View Output Parameters [C: confirmado na VM]
+- **Evidência VM:** Confirmado via `re/original-observation/03-debugger/06-edit-parameters-filled-1742.png` (`[x] Show after execute`), `re/original-observation/03-debugger/18-after-continue-1744.png` (modal "View Output Parameters" ao término do `Continue Ctrl+F5`) e `re/original-observation/03-debugger/19-after-output-params-1744.png` (foco na aba Data com o resultset retornado).
+- **Comportamento:**
+  - No diálogo inicial "Edit Parameters", o checkbox `[x] Show after execute` vem marcado por padrão (`06-edit-parameters-filled-1742.png`).
+  - Ao término da execução da rotina (via `Continue Ctrl+F5` ou último passo no `END`), abre automaticamente o diálogo modal **"View Output Parameters"** (`18-after-continue-1744.png`).
+  - **Grade de Parâmetros:**
+    - `Name`: Nome do parâmetro (ex.: `p_customer`, `p_count`).
+    - `Type`: Tipo do dado (ex.: `BIGINT`, `INT`).
+    - `Direction`: Direção (`Input`, `Output`, `Input/Output`) com ícones direcionais.
+    - `Null value`: Checkbox indicando se o resultado é nulo.
+    - `Value`: Campo de valor formatado. Parâmetros de entrada aparecem desabilitados com o valor fornecido; parâmetros de saída exibem os valores computados pela rotina (ex.: `p_count = 4`).
+  - **Ação:** Botão `[Close]` (acionável via `Enter` ou `Esc`).
+  - **Pós-Encerramento:** Ao fechar o diálogo, o ambiente foca na aba **`Data`** do editor (`19-after-output-params-1744.png`), exibindo os resultsets produzidos pelas consultas da rotina (ex.: `Record 1 of 4` com as colunas retornadas).
+
+## 6. Comandos e Atalhos de Depuração [C: confirmado na VM]
+Confirmado via menu Debug em `re/original-observation/03-debugger/08-debug-menu-1742.png`:
 - **Step Into:** `F11` (entra na instrução ou rotina chamada).
-- **Step Over:** `F10` (executa a linha atual sem entrar em sub-rotinas).
+- **Step Over:** `F10` (executa a linha atual sem entrar em sub-rotinas; move destaque para próxima linha executável).
 - **Step Out:** `Shift+F11` (executa até sair da rotina atual).
 - **Toggle Breakpoint:** `F9` (adiciona/remove breakpoint na linha do cursor).
 - **Delete All Breakpoints:** `Ctrl+Shift+F9` (com confirmação "Do you want to delete all breakpoints?").
-- **Continue / Run:** `Ctrl+F5` (ou `Alt+F9`).
+- **Continue / Run:** `Ctrl+F5` (ou `Alt+F9`; executa até o próximo breakpoint ou término).
 - **Break All:** `Ctrl+Alt+Pause` (interrompe execução imediata).
 - **Stop Debugging:** `Shift+F5` (encerra a sessão e restaura variáveis).
 - **Restart:** `Ctrl+Shift+F5` (reinicia do início com os mesmos parâmetros).
 - **Run To Cursor:** `Ctrl+F10` (ou `F4`).
 
 ## 7. O que o TuxSQL ainda NÃO faz (Diferenças Objetivas em relação ao Original)
-1. **Avaliação Dinâmica de Expressões Arbitrárias em Watches (Pendente):** No original, a linha vazia do painel Watches permite digitar expressões completas (ex.: `total * 1.1`, concatenações de strings). No TuxSQL o painel Watches reflete os valores das variáveis locais do snapshot atual.
-2. **Breakpoints Condicionais e Hit Count (Pendente):** O original suporta pausar apenas quando uma condição for verdadeira (`total > 500`) ou após N passagens (`Hit count = 10`). No TuxSQL os breakpoints pausam em qualquer passagem pela linha.
-3. **Edição de Variáveis em Tempo de Execução (Pendente):** No original, o desenvolvedor pode clicar duas vezes no valor de uma variável no painel Watches e alterar seu valor em memória para simular cenários. No TuxSQL as variáveis são somente leitura durante a inspeção.
-4. **Diálogo Interativo de Tratamento de Exceções (Pendente):** Quando ocorre um erro na execução depurada, o original oferece um diálogo modal com botões [Continue] e [Stop]. No TuxSQL exceções abortam a depuração e exibem a mensagem no painel Output.
-5. **Depuração de Event Schedulers e UDFs em C (Divergência Intencional):** TuxSQL foca exclusivamente em Stored Procedures e Triggers SQL.
+1. **Edição Direta de Valores de Variáveis no Grid Watches em Execução [I: inferida / desconhecida na VM]:** No original o comportamento não pôde ser comprovado nas capturas da VM (listado como DESCONHECIDO em `03-debugger/NOTAS.md`). No TuxSQL o painel Watches reflete os valores computados de forma somente leitura.
+2. **Diálogo Interativo de Tratamento de Exceções [I: inferida]:** Comportamento em exceções não foi capturado na VM (DESCONHECIDO). Proposta inferida do clone: quando ocorre uma exceção não tratada, abortar com mensagem nos painéis Output e Error List, em vez de modal bloqueante.
+3. **Depuração de Event Schedulers e UDFs em C (Divergência Intencional):** TuxSQL foca exclusivamente em Stored Procedures e Triggers SQL.
 
 ## 8. Estados de Interface
 | Estado | Comportamento |

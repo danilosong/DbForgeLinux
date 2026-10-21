@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { applySecurityPlan, buildSecurityPlan, getUserSecurityDetails, previewSecurityPlan, securitySql, type SecurityChange } from '../../src/modules/security/index.js'
+import { applySecurityPlan, buildSecurityPlan, getUserSecurityDetails, previewSecurityPlan, securitySql, supportedPrivileges, type SecurityChange } from '../../src/modules/security/index.js'
 import { cloneAccessChanges } from '../../src/modules/security/clone.js'
 import type { SqlClient } from '../../src/modules/sql.js'
 
@@ -8,6 +8,9 @@ function client(overrides: Partial<SqlClient> = {}): SqlClient {
 }
 
 describe('security manager backend', () => {
+  it('uses the privilege set reported by the connected MySQL server build', () => {
+    expect(supportedPrivileges([{ Privilege: 'SELECT' }, { Privilege: 'BACKUP_ADMIN' }, { Privilege: 'SELECT' }])).toEqual(['BACKUP_ADMIN', 'SELECT'])
+  })
   it('copies direct grants and default role assignments when cloning access', () => {
     const changes = cloneAccessChanges({
       account: { user: 'source', host: '%' }, grants: [], privileges: [

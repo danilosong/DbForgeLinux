@@ -43,13 +43,46 @@ Entradas principais:
   - `Authentication String` / `Password` / `Confirm Password`.
   - `Password Expire`: seletor de expiração (`Never`, `Interval DEFAULT`, `Expire Date`).
   - `Account Locked`: checkbox para bloqueio administrativo da conta.
-- **Global Privileges [C]:**
-  - Checkbox mestre: `☑ With Grant Option`.
-  - Tabela com lista completa de privilégios (`Name` | `Granted`):
-    - Privilégios relacionais: `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `CREATE`, `DROP`, `FILE`, `INDEX`, `ALTER`, etc.
-    - Privilégios administrativos: `SUPER`, `PROCESS`, `RELOAD`, `SHUTDOWN`, `SHOW DATABASES`, `CREATE USER`.
-    - Privilégios dinâmicos modernos do MySQL 8: `ALLOW_NONEXISTENT_DEFINER`, `APPLICATION_PASSWORD_ADMIN`, `AUDIT_ADMIN`, `BACKUP_ADMIN`, `BINLOG_ADMIN`, `CONNECTION_ADMIN`, `PERSIST_RO_VARIABLES_ADMIN`, etc.
-- **Object Privileges:** Árvore de banco de dados, tabelas e colunas, permitindo concessão seletiva de permissões em nível de objeto.
+- **Global Privileges [C: confirmado na VM]**:
+  - Evidência VM: Confirmado em `re/original-observation/07-seguranca-sessoes/03-user-global-privileges-1752.png`.
+  - Checkbox mestre no topo: `☑ With Grant Option`.
+  - Filtro rápido de privilégios e ordenação por coluna `Name` e `Granted`.
+  - Tabela com lista completa de privilégios (`Name` | `Granted` com checkbox individual):
+    - **Privilégios estáticos padrão:** `ALTER`, `ALTER ROUTINE`, `CREATE`, `CREATE ROLE`, `CREATE ROUTINE`, `CREATE TABLESPACE`, `CREATE TEMPORARY TABLES`, `CREATE USER`, `CREATE VIEW`, `DELETE`, `DROP`, `DROP ROLE`, `EVENT`, `EXECUTE`, `FILE`, `GRANT OPTION`, `INDEX`, `INSERT`, `LOCK TABLES`, `PROCESS`, `PROXY`, `REFERENCES`, `RELOAD`, `REPLICATION CLIENT`, `REPLICATION SLAVE`, `SELECT`, `SHOW DATABASES`, `SHOW VIEW`, `SHUTDOWN`, `SUPER`, `TRIGGER`, `UPDATE`.
+    - **Catálogo completo de Privilégios Dinâmicos do MySQL 8.0/8.4 (confirmados no estúdio original):**
+      - `ALLOW_NONEXISTENT_DEFINER` (criação de rotinas/views com definer inexistente)
+      - `APPLICATION_PASSWORD_ADMIN` (gestão de senhas duplas e políticas de credenciais)
+      - `AUDIT_ABORT_EXEMPT` / `AUDIT_ADMIN` (gestão e isenção de auditoria corporativa)
+      - `AUTHENTICATION_POLICY_ADMIN` (políticas avançadas de autenticação)
+      - `BACKUP_ADMIN` (bloqueios de tabelas em backups físicos/lógicos)
+      - `BINLOG_ADMIN` / `BINLOG_ENCRYPTION_ADMIN` (controle e criptografia de binary logs)
+      - `CLONE_ADMIN` (operações com plugin Clone)
+      - `CONNECTION_ADMIN` (gerenciamento de conexões e bypass de max_connections)
+      - `ENCRYPTION_KEY_ADMIN` (gestão de chaves de criptografia e keyring)
+      - `FLUSH_OPTIMIZER_COSTS` / `FLUSH_STATUS` / `FLUSH_TABLES` / `FLUSH_USER_RESOURCES`
+      - `GROUP_REPLICATION_ADMIN` / `GROUP_REPLICATION_STREAM`
+      - `INNODB_REDO_LOG_ARCHIVE` / `INNODB_REDO_LOG_ENABLE`
+      - `PASSWORDLESS_USER_ADMIN`
+      - `PERSIST_RO_VARIABLES_ADMIN` (alteração de variáveis de sistema read-only com SET PERSIST_ONLY)
+      - `REPLICATION_APPLIER` / `REPLICATION_SLAVE_ADMIN`
+      - `RESOURCE_GROUP_ADMIN` / `RESOURCE_GROUP_USER` (atribuição de threads e grupos de CPU)
+      - `ROLE_ADMIN` (administração e atribuição de roles)
+      - `SENSITIVE_VARIABLES_OBSERVER`
+      - `SERVICE_CONNECTION_ADMIN`
+      - `SESSION_VARIABLES_ADMIN` (alteração de variáveis de escopo global no nível de sessão)
+      - `SET_USER_ID`
+      - `SHOW_ROUTINE`
+      - `SYSTEM_USER` (proteção de contas de sistema contra modificação por administradores comuns)
+      - `SYSTEM_VARIABLES_ADMIN`
+      - `TABLE_ENCRYPTION_ADMIN`
+      - `TELEMETRY_LOG_ADMIN`
+      - `XA_RECOVER_ADMIN`
+  - Ao marcar/desmarcar privilégios dinâmicos, o TuxSQL gera os statements `GRANT <dynamic_priv> ON *.* TO 'user'@'host'` ou `REVOKE <dynamic_priv> ON *.* FROM 'user'@'host'`.
+- **Object Privileges [C: confirmado na VM]**:
+  - Evidência VM: Confirmado em `re/original-observation/07-seguranca-sessoes/04-user-object-privileges-1752.png`.
+  - Painel esquerdo: Árvore `Objects` com databases, tabelas e views, e checkbox `[x] Show All`.
+  - Painel direito: Lista `Available Privileges:` com checkboxes individuais e `(All Privileges)`.
+  - Grade inferior: `Privilege` | `Owner` | `Object` com botão de remoção por linha.
 - **Roles:** Concessão e revogação de papéis (roles) associados à conta.
 - **Limits:** Definição de limites de uso (`MAX_QUERIES_PER_HOUR`, `MAX_UPDATES_PER_HOUR`, `MAX_CONNECTIONS_PER_HOUR`, `MAX_USER_CONNECTIONS`).
 

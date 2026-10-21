@@ -32,7 +32,7 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 
 | # | Módulo | Item Verificável | Evidência no Clone | Evidência no Original | Confirmação |
 |:---:|---|---|---|---|:---:|
-| 1 | **04 SQL Editor** | Marcadores de navegação Bookmarks (Ctrl+B,x) e Outlining (Ctrl+M,x) | `app/test/modules/editor-navigation.test.ts`, `App.tsx:641` | `re/original-observation/04-sql-editor/editor-1.png` | **CONFIRMADO (1,0)** |
+| 1 | **04 SQL Editor** | Marcadores de navegação Bookmarks (Ctrl+B,x) e Outlining (Ctrl+M,x) | `app/test/modules/editor-navigation.test.ts`, `App.tsx:641` | `re/original-observation/10-tools-options/12-te-advanced-1803.png` | **CONFIRMADO (1,0)** |
 | 2 | **18 Pivot Table**| Gráficos dinâmicos acoplados interativamente à tabela dinâmica (Pivot Chart) | `document/evidence/ui/pivot-chart-dark.png`, `data-report-pivot.test.ts:32` | `re/original-observation/18-misc/report.png`, `pivot-chart.png` | **CONFIRMADO (1,0)** |
 | 3 | **03 Table Designer**| Card View vertical com navegação de registros | `document/evidence/ui/grid-card-view-dark.png` | `re/original-observation/03-table-designer/editor-customers.png` | **CONFIRMADO (1,0)** |
 | 4 | **15 Data Compare** | Custom Query no assistente de comparação de dados | `app/src/renderer/src/ui/panels/data-compare/Panel.tsx:170`, `data-compare.test.ts` | `re/original-observation/15-data-compare/wizard-mapping.png` | **CONFIRMADO (1,0)** |
@@ -40,8 +40,8 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 6 | **16/17 Tasks** | Tasks Explorer listando tarefas recentes com reabertura de assistente | `document/paridade/DIVERGENCIAS-ORIGINAL.md:70` | `re/original-observation/17-tasks/` | **CONFIRMADO (1,0)** |
 | 7 | **00 Shell** | Split de documento sincronizado (horizontal/vertical) e abas | `App.tsx:88`, `:1401`, `:1487`, `navigationMessages.ts:2` | `re/original-observation/00-shell/` | **CONFIRMADO (1,0)** |
 | 8 | **10 Query Builder**| Traçado de JOIN conector e subconsultas em abas | `document/evidence/ui/query-builder-joins-dark.png`, `query-builder.test.ts:24` | `re/original-observation/10-query-builder/qb-1.png` | **CONFIRMADO (1,0)** |
-| 9 | **08 Security** | Global Privileges com Granted e With Grant Option por privilégio | `document/evidence/ui/08-13-modules/security-manager-dark.png`, `ipc-guard.test.ts` | `re/original-observation/08-security/global-privileges.png` | **CONFIRMADO (1,0)** |
-| 10 | **07 Import/Export** | Finish com Open result file/folder, Show log file e Import/Export more comprovados por cliques na UI | `app/scripts/smoke-e2e.mjs`; `document/evidence/ui/assistant-finish-{import,export,log}.png`; `app/test/systemOpenPath.test.ts` | `re/original-observation/23-deep/import-summary.png` | **CONFIRMADO (1,0)** |
+| 9 | **08 Security** | Global Privileges com Granted e With Grant Option; privilégios da build MySQL conectada | `document/evidence/ui/08-13-modules/security-manager-dark.png`, `app/test/modules/security.test.ts` | `re/original-observation/08-security/global-privileges.png` | **CONFIRMADO (1,0)** |
+| 10 | **07 Import/Export** | Finish com Open result file/folder, Show log file e Import/Export more comprovados por cliques na UI | `app/scripts/smoke-e2e.mjs`; `document/evidence/ui/assistant-finish-{import,export,log}.png`; `app/test/systemOpenPath.test.ts` | `re/original-observation/23-deep/imp-resultado.png` | **CONFIRMADO (1,0)** |
 | 11 | **13 Debugger** | Depuração instrumentada de Triggers via checkpoints e advisory locks | `app/test/modules/routine-debugger.test.ts:41` | `re/original-observation/13-debugger/debug-1.png` | **CONFIRMADO (1,0)** |
 | 12 | **02 Explorer** | Filtro avançado com regex na árvore de conexões/objetos | `explorerFilter.ts`, `app/test/ui/explorerFilter.test.ts`, `smoke-e2e.mjs:149` | `re/original-observation/02-explorer/` | **CONFIRMADO (1,0)** |
 
@@ -141,8 +141,11 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 8 | Diálogo Go To Line com validação de intervalo (1 - N) | IGUAL | 1,0 | `app/test/modules/keymap-parity.test.ts` |
 | 9 | Comandos de refatoração avançada (Expand wildcards por alias, Add Backticks, Qualify names, Rename F2) | IGUAL | 1,0 | `04-sql-editor/editor-context-dark.png`, `app/src/modules/editor/refactoring.test.ts` |
 | 10 | Marcadores de navegação Bookmarks (Ctrl+B,x) e dobras de código Outlining (Ctrl+M,x) | IGUAL | 1,0 | `app/test/modules/editor-navigation.test.ts`, `App.tsx:641` (Ctrl+B,T/P/N/C e Ctrl+M,M/L/P/S) *(implementado em R6!)* |
+| 11 | Execução até o cursor e encaminhamento de Run To Cursor ao depurador | IGUAL | 1,0 | Já existente: `App.tsx:695-696`; atalhos em `app/test/modules/keymap-parity.test.ts` |
+| 12 | Jump Between Syntax Pairs (`Ctrl+F12`) | PARCIAL | 0,5 | Já existente como `editor.action.jumpToBracket`; cobertura de atalho em `app/test/modules/keymap-parity.test.ts`; não salta por blocos `BEGIN`/`END` |
+| 13 | Dicas de parâmetros interativas com argumento corrente destacado | PARCIAL | 0,5 | 13 assinaturas comuns implementadas; `app/test/modules/editor-signature-help.test.ts`; capturas `document/evidence/ui/04-editor-options/parameter-info-{light,dark}.png`; rotinas próprias/funções completas do servidor não cobertas |
 
-- **Subtotal Módulo 04:** 10,0 / 10,0 = **100,00%** *(R5: 95,00% | Dif: **+5,00%**)*
+- **Subtotal Módulo 04:** 12,0 / 13,0 = **92,31%** *(10 critérios anteriores mais as lacunas E1–E3 verificadas nesta rodada)*
 
 ---
 
@@ -201,14 +204,14 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 
 | # | Item Verificável | Avaliação | Nota | Evidência no Clone |
 |---|---|---|:---:|---|
-| 1 | Documento MDI aberto por Generate Data com ajuste de contagem por tabela | IGUAL | 1,0 | `08-13-modules/data-generator-dark.png` |
+| 1 | Documento MDI aberto por Generate Data com ajuste de contagem por tabela | IGUAL | 1,0 | `09-11-generator-er/data-generator-light.png`, `data-generator-dark.png` |
 | 2 | Catálogo semântico ampliado por locale e ordenação topológica de FKs (pais antes de filhas) | IGUAL | 1,0 | `app/test/modules/data-generation.test.ts` |
 | 3 | Pré-visualização dinâmica das primeiras 50 linhas geradas | IGUAL | 1,0 | `08-13-modules/data-generator-dark.png` |
-| 4 | Data Population Wizard com alerta explícito no Summary sobre truncamento de dados | IGUAL | 1,0 | `app/test/modules/data-generator-ipc.test.ts`, `NOTES.md:184` |
+| 4 | Limpeza transacional das tabelas selecionadas, com checkbox desligado por padrão e confirmação por frase digitada | PARCIAL | 0,5 | `09-11-generator-er/data-generator-light.png`, `app/test/modules/data-generation.test.ts`, `app/test/modules/data-generator-ipc.test.ts`; não reinicia AUTO_INCREMENT como TRUNCATE |
 | 5 | Opções de geração avançadas (desabilitar constraints, lote customizável) | PARCIAL | 0,5 | `app/test/modules/data-generator-ipc.test.ts` |
 | 6 | Catálogo de centenas de geradores temáticos específicos do original | PARCIAL | 0,5 | `app/test/modules/data-generation.test.ts` confirma mais de 100 perfis industriais, mapeamentos representativos e preview determinístico; não comprova datasets exclusivos por indústria. |
 
-- **Subtotal Módulo 09:** 5,0 / 6,0 = **83,33%**
+- **Subtotal Módulo 09:** 4,5 / 6,0 = **75,00%**
 
 ---
 
@@ -233,14 +236,15 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 
 | # | Item Verificável | Avaliação | Nota | Evidência no Clone |
 |---|---|---|:---:|---|
-| 1 | Documento MDI com cartões de entidades, distinção PK/FK e seções recolhíveis | IGUAL | 1,0 | `08-13-modules/er-diagram-dark.png` |
-| 2 | Relações ortogonais com exibição do nome da FK e cardinalidade nos extremos (1, N, 0..1) | IGUAL | 1,0 | `er-diagram-explorer-drop-dark.png` |
+| 1 | Documento MDI com cartões de entidades, distinção PK/FK e seções recolhíveis | IGUAL | 1,0 | `09-11-generator-er/er-diagram-overview-light.png`; `app/scripts/data-generator-er-screenshots.mjs` valida recolher e expandir seção |
+| 2 | Relações ortogonais com nome da FK sobre o traçado e cardinalidade nos extremos (1, N, 0..1) | IGUAL | 1,0 | `09-11-generator-er/er-diagram-overview-light.png`, `er-diagram-overview-dark.png` |
 | 3 | Arraste e soltura (drop) de tabelas diretamente do Explorer para o canvas do diagrama | IGUAL | 1,0 | `er-diagram-explorer-drop-dark.png` |
 | 4 | Algoritmo de posicionamento com prevenção de sobreposição de cartões | IGUAL | 1,0 | `app/test/modules/er-diagram.test.ts` |
-| 5 | Janela acoplável de visão geral (Diagram Overview) com minimapa interativo destacando viewport | IGUAL | 1,0 | `DIVERGENCIAS-ORIGINAL.md:73`, `app/test/modules/er-diagram.test.ts` *(implementado em R5!)* |
-| 6 | Relações lógicas salvas no modelo (Virtual Foreign Keys) desenhadas em linha tracejada | IGUAL | 1,0 | `app/src/modules/er-diagram/index.ts:46`, `app/src/main/ipc/er-diagram.ts:20` *(implementado em R5!)* |
+| 5 | Minimapa flutuante no canto inferior do canvas; arrastar viewport reposiciona o diagrama | IGUAL | 1,0 | `09-11-generator-er/er-diagram-overview-light.png`, `er-diagram-overview-dark.png`; `app/scripts/data-generator-er-screenshots.mjs` valida o arraste |
+| 6 | Relações Virtuais desenhadas em linha tracejada | AUSENTE | 0,0 | Sem evidência confirmada da referência autorizada nesta rodada; a implementação existente no clone não é usada como prova de paridade |
+| 7 | Exportação de imagem do diagrama para formatos adicionais | PARCIAL | 0,5 | Captura mostra SVG, PNG, JPG e BMP; `app/test/modules/er-diagram-bitmap.test.ts` valida o encoder BMP. GIF, TIFF e EMF não estão disponíveis |
 
-- **Subtotal Módulo 11:** 6,0 / 6,0 = **100,00%** *(R4: 66,67% | Dif: **+33,33%**)*
+- **Subtotal Módulo 11:** 5,5 / 7,0 = **78,57%**
 
 ---
 
@@ -282,8 +286,9 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 1 | Diálogo com árvore hierárquica, campo de busca e botão Restore Defaults por página | IGUAL | 1,0 | `options-dark.png` |
 | 2 | Categorias de Aparência, Inicialização, Query Builder e Data Comparison | IGUAL | 1,0 | `options-general-dark.png`, `options-query-builder-dark.png` |
 | 3 | Omissão voluntária de telemetria por respeito à privacidade do usuário | IGUAL | 1,0 | `document/paridade/DIVERGENCIAS-ORIGINAL.md` |
+| 4 | Defaults de startup, Editor, Explorer, Query Builder, Data Editor e Profiler alinhados aos valores verificados | PARCIAL | 0,5 | `app/test/modules/options.test.ts`; `document/evidence/ui/04-editor-options/options-startup-{light,dark}.png`, `options-profiler-{light,dark}.png`; o timeout de 30 s do Debugging permanece sem opção equivalente |
 
-- **Subtotal Módulo 14:** 3,0 / 3,0 = **100,00%**
+- **Subtotal Módulo 14:** 3,5 / 4,0 = **87,50%**
 
 ---
 
@@ -324,6 +329,8 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 2 | Pivot Table: hierarquia temporal de datas (Year/Quarter/Month/Day), soma automática e linha "Grand Total" | IGUAL | 1,0 | `pivot-date-grand-total-dark.png`, `app/test/modules/data-report-pivot.test.ts:23` |
 | 3 | Data Report: abertura direta do Report Designer WYSIWYG com 7 bandas, painéis Data Source / Group & Sort / Properties, prévia paginada e persistência JSON | IGUAL | 1,0 | `report-designer-wysiwyg-dark.png`, `app/test/modules/data-report-pivot.test.ts:40`, `:52` |
 | 4 | Gráficos dinâmicos acoplados à tabela dinâmica (Pivot Chart) reativos a campos/filtros, 5 tipos e exportação SVG | IGUAL | 1,0 | `pivot-chart-dark.png`, `pivot-chart-light.png`, `app/test/modules/data-report-pivot.test.ts:32`, `:40` *(implementado em R6!)* |
+
+**Evidência adicional verificada (21/10/2026; não recalcula a pontuação anterior):** o acesso opcional ao Data Report Wizard em 8 passos abre o Report Designer preenchido; testes validam o título padrão, opções, preferências de layout/agrupamento e rejeição de SQL de escrita. Capturas claras/escuras do passo de colunas: `document/evidence/ui/16-data-report-pivot/data-report-wizard-light.png` e `data-report-wizard-dark.png`. O documento Master-Detail `.mdet` tem serialização/abertura JSON validada por teste; o painel valida a consulta antes de executá-la.
 
 - **Subtotal Módulo 18:** 4,0 / 4,0 = **100,00%** *(R5: 87,50% | Dif: **+12,50%**)*
 
@@ -366,7 +373,7 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 
 ## 4. Tabela-Resumo e Evolução Histórica (Rodadas 1 a 6 — Reconciliada)
 
-$$\text{Fidelidade Global Ponderada (Rodada 6)} = \frac{\sum (\text{Nota Módulo} \times \text{Peso})}{\sum \text{Pesos}} = \frac{12489,23}{131} = \mathbf{95,34\%} \approx \mathbf{95,3\%}$$
+$$\text{Fidelidade Global Ponderada (Rodada 6 revisada)} = \frac{\sum (\text{Nota Módulo} \times \text{Peso})}{\sum \text{Pesos}} = \frac{12140,55}{131} = \mathbf{92,68\%}$$
 
 | Módulo | Nome do Componente | Peso | % R1 | % R2 | % R3 | % R4 | % R5 | % R6 (Reconciliado) | Variação (R6 - R5) | Entregas Verificadas em R6 |
 |:---:|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
@@ -374,28 +381,28 @@ $$\text{Fidelidade Global Ponderada (Rodada 6)} = \frac{\sum (\text{Nota Módulo
 | **01** | Database Connection Properties | 10 | 88,89% | 88,89% | 88,89% | 88,89% | 88,89% | **88,89%** | 0,00% | Estável |
 | **02** | Database Explorer & Menus | 10 | 68,75% | 87,50% | 78,57% | 92,86% | 92,86% | **100,00%** | **+7,14%** | Filtro regex e case sensitive |
 | **03** | Table Designer, Criação & Card View | 15 | 88,89% | 88,89% | 88,89% | 88,89% | 100,00% | **100,00%** | 0,00% | Paridade plena |
-| **04** | Editor SQL, Refatoração & Busca | 15 | 88,89% | 100,00% | 90,00% | 95,00% | 95,00% | **100,00%** | **+5,00%** | Bookmarks & Outlining |
+| **04** | Editor SQL, Refatoração & Busca | 15 | 88,89% | 100,00% | 90,00% | 95,00% | 95,00% | **92,31%** | **-2,69%** | Bookmarks & Outlining; E1–E3 medidos |
 | **06** | Schema Compare & Synchronization | 10 | 88,89% | 100,00% | 92,86% | 92,86% | 92,86% | **92,86%** | 0,00% | Estável |
 | **07** | Import & Export Wizard | 8 | 77,78% | 88,89% | 81,25% | 81,25% | 81,25% | **87,50%** | **+6,25%** | Smoke UI: abrir saída/log e Import/Export more |
 | **08** | Security, Sessions & Properties | 5 | 100,00% | 100,00% | 100,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
-| **09** | Data Generator | 4 | 68,75% | 93,75% | 83,33% | 83,33% | 83,33% | **83,33%** | 0,00% | Estável |
+| **09** | Data Generator | 4 | 68,75% | 93,75% | 83,33% | 83,33% | 83,33% | **75,00%** | **-8,33%** | Painel Parent/Child e limpeza com confirmação por frase; não reinicia AUTO_INCREMENT |
 | **10** | Query Builder | 4 | 62,50% | 68,75% | 70,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
-| **11** | Database Diagram (ER) | 4 | 75,00% | 87,50% | 66,67% | 66,67% | 100,00% | **100,00%** | 0,00% | Paridade plena |
+| **11** | Database Diagram (ER) | 4 | 75,00% | 87,50% | 66,67% | 66,67% | 100,00% | **78,57%** | **-21,43%** | Minimapa flutuante testado; exportação BMP parcial; relações virtuais sem evidência validada |
 | **12** | Query Profiler | 4 | 87,50% | 87,50% | 90,00% | 90,00% | 90,00% | **80,00%** | **-10,00%** | Canvas 2D capturado claro/escuro; descrições parciais dos contadores |
 | **13** | Stored Procedure Debugger | 5 | 81,25% | 81,25% | 80,00% | 90,00% | 90,00% | **90,00%** | 0,00% | Estável |
-| **14** | Options & Settings | 3 | 87,50% | 87,50% | 100,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
+| **14** | Options & Settings | 3 | 87,50% | 87,50% | 100,00% | 100,00% | 100,00% | **87,50%** | **-12,50%** | Timeout do Debugging não configurável |
 | **15** | Data Compare & Synchronization | 10 | 83,33% | 88,89% | 75,00% | 75,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
 | **16/17** | Documenter & Tasks Explorer | 3 | 62,50% | 68,75% | 62,50% | 62,50% | 87,50% | **75,00%** | **-12,50%** | Prévia da capa e paletas; PDF CLI headless e metadados de privilégios |
 | **18** | Master-Detail, Report & Pivot | 4 | 62,50% | 62,50% | 50,00% | 87,50% | 87,50% | **100,00%** | **+12,50%** | Pivot Chart acoplado & SVG |
 | **19** | Utilities & Backup/Restore | 5 | 94,44% | 94,44% | 92,86% | 94,44% | 100,00% | **100,00%** | 0,00% | Paridade plena |
 | **20** | Source Control & Project Explorer | 6 | — | 87,50% | 75,00% | 75,00% | 75,00% | **83,33%** | **+8,33%** | Editor de merge por bloco e grafo DAG |
-| **TOTAL** | — | **131** | **79,23%** | **90,32%** | **83,68%** | **87,84%** | **92,83%** | **95,34%** | **+2,51%** | — |
+| **TOTAL** | — | **131** | **79,23%** | **90,32%** | **83,68%** | **87,84%** | **92,83%** | **92,68%** | **-0,15%** | — |
 
-- **Média Simples (não ponderada):** **93,51%** (R1: 80,58% | R2: 86,17% | R3: 81,83% | R4: 87,00% | R5: 92,27% | R6: 93,51%)
-- **Média Global Ponderada:** **95,34%** $\approx$ **95,3%** (R1: 79,23% | R2: 90,32% | R3: 83,68% | R4: 87,84% | R5: 92,83% | R6: 95,34%)
+- **Média Simples (não ponderada):** **90,81%** (R1: 80,58% | R2: 86,17% | R3: 81,83% | R4: 87,00% | R5: 92,27% | R6 revisada: 90,81%)
+- **Média Global Ponderada:** **92,68%** (R1: 79,23% | R2: 90,32% | R3: 83,68% | R4: 87,84% | R5: 92,83% | R6 revisada: 92,68%)
 
 > [!NOTE]
-> Dez módulos atingiram **100,00%** de fidelidade comprovada por testes e capturas reais: **Database Explorer (02)**, **Table Designer & Grid (03)**, **Editor SQL & Refatoração (04)**, **Security Manager (08)**, **Query Builder (10)**, **Database Diagram ER (11)**, **Options & Settings (14)**, **Data Compare (15)**, **Master-Detail/Report/Pivot (18)** e **Utilities & Backup/Restore (19)**.
+> Sete módulos atingiram **100,00%** de fidelidade comprovada por testes e capturas reais: **Database Explorer (02)**, **Table Designer & Grid (03)**, **Security Manager (08)**, **Query Builder (10)**, **Data Compare (15)**, **Master-Detail/Report/Pivot (18)** e **Utilities & Backup/Restore (19)**.
 
 ---
 

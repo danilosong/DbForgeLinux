@@ -3,7 +3,7 @@
   "bars": [
     {
       "label": "Cobertura de funcionalidades de referência",
-      "value": 95.3,
+      "value": 92.7,
       "source": "document/paridade/FIDELIDADE-MEDIDA.md"
     },
     {
@@ -17,5 +17,5 @@
       "detail": "20 de 20"
     }
   ],
-  "note": "Implementação independente, não é cópia nem produto afiliado a terceiros (ver LEGAL.md). A cobertura é medida por um agente de UX com checagem por amostra de 12 itens e cobre apenas os fluxos observados no produto de referência; o docking direcional em quatro direções passou a ter prova visual (claro/escuro e posição persistida), e a verificação do arquiteto segue conservadora porque falta medir de novo os módulos em andamento (rodada 10)."
+  "note": "Implementação independente, não é cópia nem produto afiliado a terceiros (ver LEGAL.md). A cobertura é medida contra 195 capturas reais do produto de referência (VM); a medição mais rigorosa levou o número de 95,3% para 92,7%."
 }

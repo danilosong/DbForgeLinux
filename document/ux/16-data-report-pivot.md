@@ -27,36 +27,89 @@ Painel docado que mostra o conteúdo **da célula selecionada** no grid (Table D
   - Painel lateral direito: Lista de campos disponíveis com botão `[Add To ▾]`.
   - Agrupamento temporal inteligente para datas (por ano, trimestre, mês ou dia).
 
-## 3. Master-Detail Browser [I: sessão anterior]
+## 3. Master-Detail Browser [C: confirmado na VM]
+Confirmado via `re/original-observation/08-report-pivot-masterdetail/01-master-detail-1754.png` a `03-browse-data-1755.png`.
 - **Entrada e Documento:**
-  - Documento MDI `MasterDetail1.mdet`.
-  - Menu contextual de topo: **Layout**.
-  - Toolbar: `[Refresh]` (`F5`), `[Browse Data]`, `[Set Master]`, `[Select all columns]`, `[Unselect all columns]`, `[Sort Ascending]`, Zoom combo (`100% ▾`).
-  - Vistas inferiores do documento: `[Design]  [Data]`.
-- **Comportamento [C]:**
+  - Menu Database > **Master-Detail Browser** abre o documento MDI `MasterDetail1.mdet`.
+  - Vistas inferiores: abas `[Design]` e `[Data]`.
+  - Toolbar: `[Refresh]`, `[Browse Data]`, `[Set Master]`, `[Select all columns]`, `[Unselect all columns]`, `[Sort Ascending]`, Zoom combo (`100% ▾`), Seletor de Database.
+  - Rodapé: Indicadores *"There are no selected objects"*, *"Fetch Limit [0]"* e campo *"Where Condition"*.
+- **Comportamento e Mapeamento Automático:**
   - Canvas inicial com instrução: *"You can drag objects from Database Explorer here."*
-  - Ao arrastar duas ou mais tabelas vinculadas por Foreign Key, a relação Mestre-Detalhe é mapeada automaticamente.
-  - Na aba **Data**, a seleção de um registro na grade mestre filtra instantaneamente as grades filhas correspondentes.
+  - Ao soltar tabelas vinculadas por Foreign Key (ex.: `customers` e `orders` em `02-two-tables-1754.png`):
+    - O estúdio atribui automaticamente o cabeçalho roxo **`MASTER`** para o lado 1 da relação (`customers`) e o cabeçalho cinza **`DETAIL`** para o lado N (`orders`).
+    - Desenha uma seta de relacionamento conectando `customers.id` (PK) a `orders.customer_id` (FK).
+  - Ao clicar no botão **`[Browse Data]`** (`03-browse-data-1755.png`):
+    - Alterna para a aba `Data` exibindo em split horizontal: a grade mestre em cima e a grade de detalhe embaixo filtrada em tempo real pelo registro mestre selecionado (`customer_id = 1`).
 
-## 4. Data Report e Report Wizard [C: observado na VM]
-- **Assistente "Data Report Wizard":**
-  - Tela inicial: *"Welcome to the Data Report Wizard"*.
-  - Tipos de Relatório:
-    - `(•) Standard Report` (relatório colunar/tabular padrão).
-    - `( ) Label Report` (etiquetas postais / código de barras).
-    - `( ) Blank Report` (documento em branco para desenho livre).
-  - Botão `[Save Command Line...]` para automatizar a geração de relatórios via linha de comando.
-- **Report Designer (Superfície WYSIWYG):**
-  - Divisão de bandas de impressão: `Report Header`, `Page Header`, `Group Header`, `Detail`, `Group Footer`, `Page Footer`, `Report Footer`.
-  - Toolbox lateral de componentes: Label, Field, Table, Picture, Line, Shape, Chart, Page Info, Rich Text.
-  - Painel de Propriedades com controle de réguas, margens e fontes.
-  - Aba de **Preview** com paginação, zoom e exportação para PDF, HTML, XLSX e CSV.
+## 4. Data Report e o Assistente de 8 Passos (Data Report Wizard) [C: confirmado na VM]
+Confirmado via capturas completas `re/original-observation/08-report-pivot-masterdetail/04-report-designer-1755.png` a `18-report-preview-1757.png`.
+- **Entrada:** Menu Database > **Report Designer...** (ou Database > Tasks > New Data Report...).
+- **Assistente "Data Report Wizard" (8 Passos):**
+  - **Passo 1: Welcome & Report Type (`04-report-designer-1755.png`):**
+    - Título: *"Welcome to the Data Report Wizard"*.
+    - Instrução: *"This wizard helps you automatically create a report according to the selected wizard options. Choose a report type and click Next."*
+    - Tipos de Relatório:
+      - `(•) Standard Report` (relatório padrão com campos tabulares ou em colunas).
+      - `( ) Label Report` (etiquetas postais / código de barras).
+      - `( ) Blank Report` (documento em branco para desenho livre no designer).
+  - **Passo 2: Choose Data Connection (`05-wizard-step2-1755.png` a `07-wizard-connection-chosen-1755.png`):**
+    - Título: *"Choose a data connection"*.
+    - Descrição: *"The data connection specifies how to find and log into a specific server and database."*
+    - Dropdown `Connection` (com `<Manage...>` e conexões cadastradas, ex.: `mysql-teste`).
+    - Opção de fonte:
+      - `(•) Simple Table/View`: seleção direta de objeto do banco.
+      - `( ) Custom Query`: consulta SQL customizada digitada pelo usuário.
+    - O botão `Next >` só é habilitado após selecionar uma conexão válida.
+  - **Passo 3: Choose Table or View (`08-wizard-step3-1755.png` a `10-wizard-orders-selected-1756.png`):**
+    - Título: *"Choose the table or view"*.
+    - Descrição: *"The table or view you choose determines which columns will be available in your report."*
+    - Painel esquerdo: `Available item(s)` (árvore de schemas > Tables / Views).
+    - Painel direito: `Selected item`.
+    - Botões de transferência: `[ > ]` e `[ < ]`.
+  - **Passo 4: Choose Columns (`11-wizard-step4-1756.png` e `12-wizard-fields-added-1756.png`):**
+    - Título: *"Choose columns to display in your report"*.
+    - Descrição: *"Your report can display any of the columns available in the dataset."*
+    - Painel esquerdo: `Available fields` (ex.: `id`, `customer_id`, `status`, `total`, `ordered_at`, `notes`).
+    - Painel direito: `Fields to display in a report`.
+    - Botões de transferência: `[ > ]`, `[ >> ]` (adicionar todos), `[ < ]`, `[ << ]` (remover todos).
+  - **Passo 5: Grouping Levels (`13-wizard-step5-1756.png`):**
+    - Título: *"Do you want to add any grouping levels?"*.
+    - Descrição: *"You can have several groups, each with a single field value, or specify several fields in the same group."*
+    - Lista de campos disponíveis com botões de transferência e botões de prioridade de nível `[Priority Up]` e `[Priority Down]`.
+    - Miniatura de pré-visualização hierárquica do agrupamento.
+  - **Passo 6: Report Layout & Orientation (`14-wizard-step6-1756.png`):**
+    - Título: *"How would you like to lay out your report?"*.
+    - Descrição: *"The report's layout specifies the way in which the selected data fields are arranged on report's pages."*
+    - `Layout`: `(•) Columnar` | `( ) Tabular` | `( ) Justified`.
+    - `Orientation`: `(•) Portrait` (retrato) | `( ) Landscape` (paisagem).
+    - Checkbox: `[x] Adjust the field width so all fields fit on page`.
+    - Pré-visualização gráfica interativa da diagramação das colunas na página.
+  - **Passo 7: Report Style (`15-wizard-step7-1756.png`):**
+    - Título: *"What style would you like?"*.
+    - Descrição: *"The report's style specifies the appearance of your report."*
+    - Lista de estilos visuais predefinidos:
+      - `Bold` (padrão com cabeçalhos e títulos destacados em vermelho escuro/vinho).
+      - `Casual`
+      - `Compact`
+      - `Corporate`
+      - `Formal`
+    - Miniatura de amostra renderizando o cabeçalho, linhas de grade e tipografia do estilo escolhido.
+  - **Passo 8: Report Title & Finish (`16-wizard-step8-1756.png`):**
+    - Título: *"What title do you want for your report?"*.
+    - Campo de texto para o título do relatório (padrão no original *"dbForge Studio Report"*; no TuxSQL *"TuxSQL Report"*).
+    - Texto explicativo: *"That's all the information the wizard needs to create your report."*
+    - Botões inferiores: `[Save Command Line...]`, `[< Back]`, `[Finish]`, `[Cancel]`.
+- **Report Designer e Preview (`17-report-designer-doc-1757.png` e `18-report-preview-1757.png`):**
+  - Documento MDI `Report1.rdb` com abas **`[Designer]`** e **`[Preview]`**.
+  - **Bandas do Designer:** `TopMargin`, `ReportHeader` (contendo o título), `Detail` (campos de dados formatados com o estilo selecionado), `BottomMargin`.
+  - **Painéis de Apoio:** `Report Explorer` (árvore de bandas e estilos), `Properties`, `Data Source`, `Toolbox` (componentes Label, Field, Table, Shape, Chart, Page Info), `Group and Sort` (Add a Group, Add a Sort, Delete, Move Up, Move Down; colunas Field Name, Sort Order, Show Header, Show Footer).
+  - Barra de formatação de fonte (Família, Tamanho, Negrito, Itálico, Sublinhado, Alinhamento e Cores).
+  - Aba **Preview (`18-report-preview-1757.png`)**: renderiza as páginas finais paginadas com navegação, busca, zoom e botões de exportação (PDF, HTML, CSV).
 
 ## 5. O que o TuxSQL ainda NÃO faz (Diferenças Objetivas em relação ao Original)
-1. **Designer Gráfico WYSIWYG de Relatórios em Bandas (Pendente):** No original há um ambiente vetorial de diagramação de relatórios com réguas milimétricas, divisão em 7 bandas e toolbox de controles arrastáveis. O TuxSQL executa exportações tabulares analíticas diretas, sem o editor visual de layouts de impressão.
-2. **Documento MDI .mdet Master-Detail Interativo (Pendente):** No original há o documento dedicado `.mdet` para desenhar visualmente relações mestre-detalhe com atualização síncrona de grids filhas. No TuxSQL grids filhas operam de forma independente.
-3. **Canvas de Pivot Table com Áreas Dropáveis (Pendente):** No original as colunas e linhas da tabela dinâmica são arrastadas para caixas visuais no canvas ("Drop Fields Here"). No TuxSQL o cálculo de pivots é executado via rotinas analíticas em memória (`quickPivot`), sem a interface gráfica drag-and-drop.
-4. **Assistente Step-by-Step de Relatórios ("Data Report Wizard") (Pendente):** O original guia a criação de relatórios em etapas com escolha de templates. O TuxSQL foca nas ferramentas de exportação padrão do grid.
+1. **Designer WYSIWYG com Bandas Vetoriais em Tempo Real:** No TuxSQL as exportações de relatórios são geradas de forma declarativa e renderizadas em HTML/PDF sanitizado, sem o canvas de desenho vetorial com réguas físicas do Windows Forms.
+2. **Exportação em Formato Proprietário `.rdb` / Word DOCX:** TuxSQL utiliza formatos abertos interoperáveis (JSON, HTML, CSV e PDF).
 
 ## 6. Estados de Interface
 | Estado | Comportamento |

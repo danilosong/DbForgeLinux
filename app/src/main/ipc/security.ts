@@ -1,6 +1,6 @@
 import { ipcMain } from 'electron'
 import type { SqlClient } from '../../modules/sql.js'
-import { applySecurityPlan, buildSecurityPlan, getUserSecurityDetails, listAccounts, type AccountRef, type SecurityChange } from '../../modules/security/index.js'
+import { applySecurityPlan, buildSecurityPlan, getUserSecurityDetails, listAccounts, supportedPrivileges, type AccountRef, type SecurityChange } from '../../modules/security/index.js'
 import type { IpcDeps } from './registry.js'
 
 export function accountFromCurrentUser(value: unknown): AccountRef {
@@ -24,6 +24,10 @@ async function currentAccount(client: SqlClient): Promise<AccountRef> {
 
 export function registerSecurityIpc({ driver }: IpcDeps): void {
   ipcMain.handle('security:accounts', (_event, connectionId: string) => listAccounts(clientFor(driver, connectionId)))
+  ipcMain.handle('security:privileges', async (_event, connectionId: string) => {
+    const rows = await clientFor(driver, connectionId).query('SHOW PRIVILEGES')
+    return supportedPrivileges(rows)
+  })
   ipcMain.handle('security:details', (_event, connectionId: string, ref: AccountRef) => getUserSecurityDetails(clientFor(driver, connectionId), ref))
   ipcMain.handle('security:preview', async (_event, connectionId: string, changes: SecurityChange[]) => {
     const client = clientFor(driver, connectionId)

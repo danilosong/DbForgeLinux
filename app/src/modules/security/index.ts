@@ -40,6 +40,11 @@ export interface SecurityPlanOptions {
   allowCurrentAdminRevoke?: true
 }
 
+/** MySQL's SHOW PRIVILEGES reflects the privileges registered by this server build. */
+export function supportedPrivileges(rows: readonly SqlRow[]): string[] {
+  return [...new Set(rows.map((row) => String(row.Privilege ?? row.privilege ?? '')).filter(Boolean))].sort((a, b) => a.localeCompare(b))
+}
+
 const limitKeys = ['MAX_QUERIES_PER_HOUR', 'MAX_UPDATES_PER_HOUR', 'MAX_CONNECTIONS_PER_HOUR', 'MAX_USER_CONNECTIONS'] as const
 const account = (ref: AccountRef): string => accountName(ref.user, ref.host)
 

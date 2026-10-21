@@ -8,6 +8,17 @@ async function temp(): Promise<string> { const folder = await mkdtemp(join(tmpdi
 afterEach(async () => { await Promise.all(folders.splice(0).map((folder) => rm(folder, { recursive: true, force: true }))) })
 
 describe('Options settings', () => {
+  it('matches confirmed editor, startup, Explorer, and Profiler defaults while keeping data read-only', () => {
+    expect(defaultSettings.environment.startup).toBe('last-workspace')
+    expect(defaultSettings.editor).toMatchObject({ lineNumbers: false, tabSize: 2, insertSpaces: true, completionDelayMs: 200, completionConfirmCharacters: '', qualifyColumnWithAlias: true, formatOnType: true, rightMargin: 80 })
+    expect(defaultSettings.grid).toMatchObject({ readOnlyByDefault: true, pageSize: 1000 })
+    expect(defaultSettings.explorer.openTableAs).toBe('object-editor')
+    expect(defaultSettings.queryBuilder.gridSize).toBe(8)
+    expect(defaultSettings.profiler.historyLimit).toBe(10)
+    expect(mergeSettings({ profiler: { historyLimit: 12 } }).profiler.historyLimit).toBe(12)
+    expect(() => mergeSettings({ profiler: { historyLimit: 0 } })).toThrow('Profiler history limit')
+  })
+
   it('fills defaults while migrating older settings and persists a versioned JSON file', async () => {
     const folder = await temp(); const store = new SettingsStore(join(folder, 'settings.json'))
     expect((await store.load()).settings).toEqual(defaultSettings)
