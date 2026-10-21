@@ -12,3 +12,12 @@ Regra: só implementar depois que a Fase A de observação terminar. Cada item: 
 | E5 | Snippets Manager gráfico (literais e variáveis customizadas) | B | Codex + UX |
 | E6 | SQL Formatter Wizard em lote (arquivos/diretórios) | C | Codex |
 | E7 | Edição visual das regras de formatação (hoje 9 perfis embutidos) | C | Codex + UX |
+
+## Grid de resultados e edição (F-GRID) — observado
+Atenção: G2 e G3 conflitam com o que a matriz já registra como implementado (Pivot e Master-Detail, módulo 18). Verificar no clone antes de abrir task; pode ser só o acoplamento ao grid.
+| # | Lacuna | Prio | Dono |
+|---|---|---|---|
+| G1 | Visualizador espacial (GIS) na aba Spatial do Cell Viewer | C | Codex |
+| G2 | Pivot Table interativa acoplada ao grid (verificar vs. módulo 18) | B | Codex |
+| G3 | Master-Detail síncrono acoplado ao grid por FK (verificar vs. módulo 18) | B | Codex |
+| G4 | Construtor visual em árvore de filtros compostos (AND/OR/BETWEEN) | B | Codex + UX |
