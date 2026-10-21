@@ -58,6 +58,9 @@ END`)
     timeout: 90_000,
     env: {
       ...process.env,
+      LANGUAGE: 'en',
+      LANG: 'en_US.UTF-8',
+      LC_ALL: 'en_US.UTF-8',
       XDG_CONFIG_HOME: join(dataRoot, 'config'),
       XDG_CACHE_HOME: join(dataRoot, 'cache'),
       XDG_DATA_HOME: join(dataRoot, 'data'),
@@ -131,6 +134,12 @@ END`)
   await page.locator('.workbench.panel-hidden').waitFor()
   await mkdir(evidenceDirectory, { recursive: true })
   await page.screenshot({ path: join(evidenceDirectory, 'reconcile-ui-light.png') })
+  // Menu bar: opening a second menu must close the first, and Escape closes the open one.
+  await page.locator('.menu-row summary').filter({ hasText: /^File$/ }).click()
+  await page.locator('.menu-row summary').filter({ hasText: /^Edit$/ }).click()
+  if ((await page.locator('.menu-row > details[open]').count()) !== 1) throw new Error('Opening a second menu must close the first one')
+  await page.keyboard.press('Escape')
+  if ((await page.locator('.menu-row > details[open]').count()) !== 0) throw new Error('Escape must close the open menu')
   await page.locator('summary').filter({ hasText: 'View' }).click()
   await page.getByRole('button', { name: 'Theme: Dark', exact: true }).click()
   await page.locator('.workbench').waitFor()

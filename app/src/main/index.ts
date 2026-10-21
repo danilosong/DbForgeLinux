@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, Menu } from 'electron'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { MysqlDriver } from './db/MysqlDriver.js'
@@ -33,7 +33,7 @@ async function resolveConnectionConfig(record: ConnectionRecord): Promise<Driver
 }
 function resolveSecret(ref:string|undefined):Promise<string|null>{return ref?vault.get(ref):Promise.resolve(null)}
 function createWindow():void {
- const window=new BrowserWindow({width:1440,height:900,minWidth:1024,minHeight:640,webPreferences:{preload:join(__dirname,'../preload/index.js'),contextIsolation:true,nodeIntegration:false,sandbox:true}})
+ const window=new BrowserWindow({width:1440,height:900,minWidth:1024,minHeight:640,autoHideMenuBar:true,webPreferences:{preload:join(__dirname,'../preload/index.js'),contextIsolation:true,nodeIntegration:false,sandbox:true}})
  mainWindow=window
  const rendererUrl=process.env.ELECTRON_RENDERER_URL
  window.webContents.setWindowOpenHandler(()=>({action:'deny'}))
@@ -43,5 +43,5 @@ function createWindow():void {
  window.on('closed',()=>{if(mainWindow===window)mainWindow=undefined})
  if(rendererUrl)void window.loadURL(rendererUrl);else void window.loadFile(join(__dirname,'../renderer/index.html'))
 }
-if(hasSingleInstance)app.whenReady().then(()=>{vault=new PasswordVault(join(app.getPath('userData'),'vault'));connectionsStore=new ConnectionsStore(join(app.getPath('userData'),'connections.json'));registerIpcRegistry({driver,vault,connectionsStore,resolveConnectionConfig,userDataDir:app.getPath('userData')});for(const arg of process.argv)if(arg.toLowerCase().endsWith('.sql'))queueSqlPath(arg);createWindow();app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()})})
+if(hasSingleInstance)app.whenReady().then(()=>{vault=new PasswordVault(join(app.getPath('userData'),'vault'));connectionsStore=new ConnectionsStore(join(app.getPath('userData'),'connections.json'));registerIpcRegistry({driver,vault,connectionsStore,resolveConnectionConfig,userDataDir:app.getPath('userData')});for(const arg of process.argv)if(arg.toLowerCase().endsWith('.sql'))queueSqlPath(arg);Menu.setApplicationMenu(null);createWindow();app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()})})
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()})

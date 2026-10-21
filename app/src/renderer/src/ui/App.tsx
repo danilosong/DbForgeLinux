@@ -53,6 +53,7 @@ export default function App(): React.JSX.Element {
   const [themeMode, setThemeMode] = useState<ThemeMode>(() => (localStorage.getItem('dbforge.theme') as ThemeMode | null) ?? 'auto')
   const [appSettings, setAppSettings] = useState<AppSettings>(structuredClone(defaultSettings))
   const appSettingsRef = useRef(appSettings)
+  const menuRowRef = useRef<HTMLElement>(null)
   appSettingsRef.current = appSettings
   const [userSnippets, setUserSnippets] = useState<UserSnippet[]>([])
   const userSnippetsRef = useRef(userSnippets)
@@ -1023,10 +1024,39 @@ export default function App(): React.JSX.Element {
 
   useEffect(() => () => completionProviderRef.current?.dispose(), [])
 
+  // Menu bar behaviour: one open menu at a time, closes on outside click / Escape / choosing an item,
+  // and moves between menus on hover while one is open (the <details> elements do none of this on their own).
+  useEffect(() => {
+    const nav = menuRowRef.current
+    if (!nav) return
+    const menus = (): HTMLDetailsElement[] => Array.from(nav.querySelectorAll<HTMLDetailsElement>(':scope > details'))
+    const closeAll = (except?: HTMLDetailsElement): void => { for (const menu of menus()) if (menu !== except && menu.open) menu.open = false }
+    const onToggle = (event: Event): void => { if (event.target instanceof HTMLDetailsElement && event.target.open) closeAll(event.target) }
+    const onPointerDown = (event: PointerEvent): void => { if (!(event.target instanceof Node) || !nav.contains(event.target)) closeAll() }
+    const onKeyDown = (event: KeyboardEvent): void => { if (event.key === 'Escape') closeAll() }
+    const onClick = (event: MouseEvent): void => { if (event.target instanceof Element && event.target.closest('.menu-popup button')) closeAll() }
+    const onHover = (event: MouseEvent): void => {
+      const menu = event.target instanceof Element ? event.target.closest('summary')?.parentElement : null
+      if (menu instanceof HTMLDetailsElement && !menu.open && menus().some((entry) => entry.open)) menu.open = true
+    }
+    nav.addEventListener('toggle', onToggle, true)
+    nav.addEventListener('click', onClick)
+    nav.addEventListener('mouseover', onHover)
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      nav.removeEventListener('toggle', onToggle, true)
+      nav.removeEventListener('click', onClick)
+      nav.removeEventListener('mouseover', onHover)
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [])
+
   return <main className="app-shell" aria-label="dbForgeLinux">
     <header className="app-menubar">
       <strong className="brand">dbForgeLinux</strong>
-      <nav className="menu-row" aria-label="Menu principal">
+      <nav className="menu-row" aria-label="Menu principal" ref={menuRowRef}>
         <details><summary>{t('menu.file')}</summary><div className="menu-popup"><MenuAction label={t('menu.newSql')} shortcut={shortcutFor('New SQL Document')} onClick={newSql} /><MenuAction label={t('menu.openFile')} shortcut={shortcutFor('Open SQL File')} onClick={() => void openSqlFile()} /><MenuAction label={t('menu.close')} shortcut={shortcutFor('Close Tab')} onClick={() => closeTab(selectedDocument)} disabled={!activeSql} /><MenuAction label={t('menu.openProject')} shortcut="Ctrl+Shift+O" onClick={() => { setProjectExplorerVisible(true); window.dispatchEvent(new CustomEvent('dbforge:source-control:open-project')) }} /><MenuAction label={t('sc.project.close')} onClick={() => window.dispatchEvent(new CustomEvent('dbforge:source-control:close-project'))} /><MenuAction label={t('sc.project.recent')} onClick={() => { setProjectExplorerVisible(true); window.dispatchEvent(new CustomEvent('dbforge:source-control:recent-projects')) }} /><MenuAction label={t('menu.save')} shortcut={shortcutFor('Save SQL')} onClick={() => void saveCurrentSql()} disabled={!activeSql} /><MenuAction label={t('menu.saveAs')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.saveAll')} shortcut={shortcutFor('Save All')} onClick={() => void saveAllSql()} /><MenuAction label={t('menu.print')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.recentFiles')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.exit')} shortcut={shortcutFor('Exit')} onClick={() => window.close()} /></div></details>
         <details><summary>{t('menu.edit')}</summary><div className="menu-popup"><MenuAction label={t('menu.undo')} shortcut="Ctrl+Z" disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.redo')} shortcut="Ctrl+Y" disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.cut')} shortcut="Ctrl+X" disabled={!activeSql} title={!activeSql ? t('menu.notAvailable') : undefined} /><MenuAction label={t('menu.copy')} shortcut="Ctrl+C" disabled={!activeSql} title={!activeSql ? t('menu.notAvailable') : undefined} /><MenuAction label={t('menu.paste')} shortcut="Ctrl+V" disabled={!activeSql} title={!activeSql ? t('menu.notAvailable') : undefined} /><MenuAction label={t('menu.duplicate')} shortcut="Ctrl+D" disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.delete')} shortcut="Delete" disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.selectAll')} shortcut="Ctrl+A" disabled={!activeSql} title={!activeSql ? t('menu.notAvailable') : undefined} /><MenuAction label={t('menu.goTo')} shortcut={shortcutFor('Go To Line')} onClick={() => editorRef.current?.trigger('keyboard', 'editor.action.gotoLine', null)} disabled={!activeSql} /><MenuAction label={t('menu.findReplace')} shortcut="Ctrl+H" onClick={() => openFind(true)} disabled={!activeSql} /><MenuAction label={t('nav.findInFiles')} shortcut="Ctrl+Shift+F" onClick={() => openFind(false, true)} /><MenuAction label={t('menu.advanced')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.bookmarks')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.outlining')} onClick={() => openRegisteredPanel('document-outline')} disabled={!activeSql} /><MenuAction label={t('menu.codeCompletion')} shortcut="Ctrl+Space" onClick={() => editorRef.current?.trigger('keyboard', 'editor.action.triggerSuggest', null)} disabled={!activeSql} /></div></details>
         <details><summary>{t('menu.view')}</summary><div className="menu-popup"><MenuAction label={t('menu.startPage')} shortcut="Ctrl+W, S" onClick={() => setSelectedDocument('start')} /><MenuAction label={t('menu.databaseExplorer')} shortcut={shortcutFor('Show Database Explorer')} onClick={() => setExplorerVisible((value) => !value)} /><MenuAction label={t('menu.projectExplorer')} shortcut="Ctrl+W, J" onClick={() => setProjectExplorerVisible((value) => !value)} /><MenuAction label={t('nav.objectViewer')} onClick={() => openRegisteredPanel('object-viewer')} /><MenuAction label={t('menu.aiAssistant')} shortcut="Ctrl+\\, C" onClick={() => setOpenPanel('ai-assistant')} /><MenuAction label={t('nav.schemaView')} shortcut="Ctrl+W, C" onClick={() => openRegisteredPanel('schema-view')} /><MenuAction label={t('menu.dataViewer')} shortcut="Ctrl+W, R" onClick={() => openRegisteredPanel('object-viewer')} /><MenuAction label={t('nav.documentOutline')} shortcut="Ctrl+W, U" onClick={() => openRegisteredPanel('document-outline')} disabled={!activeSql} /><MenuAction label={t('menu.snippets')} shortcut="Ctrl+W, T" onClick={() => openRegisteredPanel('snippets-manager')} /><MenuAction label={t('nav.output')} shortcut="Ctrl+W, O" onClick={() => { setPanelVisible(true); setPanelTab('Output') }} /><MenuAction label={t('nav.errorList')} shortcut="Ctrl+W, E" onClick={() => { setPanelVisible(true); setPanelTab('Error List') }} /><MenuAction label={t('nav.propertiesF4')} shortcut="Ctrl+W, P" onClick={() => selectedExplorerObject && showObjectProperties(selectedExplorerObject.connection, selectedExplorerObject.database, selectedExplorerObject.object)} disabled={!selectedExplorerObject} /><MenuAction label={t('menu.queryBuilder')} onClick={() => openRegisteredPanel('query-builder')} /><MenuAction label={t('menu.profiler')} onClick={() => openRegisteredPanel('profiler')} /><MenuAction label={t('menu.pivot')} onClick={() => openRegisteredPanel('data-report-pivot')} /><div className="menu-divider" /><MenuAction label={t('menu.themeAuto')} checked={themeMode === 'auto'} onClick={() => setThemeMode('auto')} /><MenuAction label={t('menu.themeLight')} checked={themeMode === 'light'} onClick={() => setThemeMode('light')} /><MenuAction label={t('menu.themeDark')} checked={themeMode === 'dark'} onClick={() => setThemeMode('dark')} /></div></details>
