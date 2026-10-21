@@ -21,7 +21,7 @@ export interface RoutineDebugApi {
   deployDebugEngine(connectionId: string, confirmed: boolean): Promise<void>
   removeDebugEngine(connectionId: string, confirmed: boolean): Promise<void>
   compileRoutineForDebug(target: DebugRoutineTarget): Promise<{ originalSql: string; instrumentedSql: string; statementLines: number[] }>
-  startRoutineDebug(target: DebugRoutineTarget, args: string[], breakpoints: DebugBreakpoint[], autocommit: boolean, confirmedAutocommit: boolean): Promise<{ sessionId: string }>
+  startRoutineDebug(target: DebugRoutineTarget, args: Array<string | null>, breakpoints: DebugBreakpoint[], autocommit: boolean, confirmedAutocommit: boolean): Promise<{ sessionId: string }>
   commandRoutineDebug(sessionId: string, command: DebugStepKind | 'stop', line?: number): Promise<void>
   setRoutineDebugBreakpoints(sessionId: string, breakpoints: DebugBreakpoint[]): Promise<void>
   setRoutineDebugWatches(sessionId: string, watches: string[]): Promise<void>

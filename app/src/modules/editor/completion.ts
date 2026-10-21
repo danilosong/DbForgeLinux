@@ -10,6 +10,16 @@ const reservedAliases = new Set('WHERE JOIN LEFT RIGHT INNER OUTER ON GROUP ORDE
 const cleanIdentifier = (value: string): string => value.replaceAll('`', '')
 const quoteSuggestion = (value: string): string => /^[A-Za-z_$][\w$]*$/.test(value) ? value : `\`${value.replaceAll('`', '``')}\``
 
+export function expandSnippetLiterals(source: string, database = ''): string {
+  const literals: Record<string, string> = { CARET: '$0', DATE: new Date().toISOString().slice(0, 10), TIME: new Date().toTimeString().slice(0, 8), USER: 'CURRENT_USER()', DB: database ? database.replaceAll('`', '``') : 'DATABASE()', SERVER: '@@hostname' }
+  let index = 1
+  return source.replace(/\$([A-Za-z_][\w]*)\$/g, (_whole, name: string) => {
+    if (name.toLowerCase() === 'caret') return '$0'
+    const value = literals[name.toUpperCase()]
+    return value === undefined ? `\${${index++}:${name}}` : value
+  })
+}
+
 export function buildSqlSuggestions(sql: string, offset: number, metadata: EditorMetadata, userSnippets: SqlSnippet[] = []): SqlSuggestion[] {
   const before = sql.slice(0, Math.max(0, Math.min(sql.length, offset)))
   const qualifier = /([\w$`]+)\.([\w$`]*)$/.exec(before)
@@ -45,7 +55,7 @@ export function buildSqlSuggestions(sql: string, offset: number, metadata: Edito
     ...metadata.objects.map((item) => make(item.name, 'table', `${item.kind} · ${metadata.database}`)),
     ...metadata.routines.map((item) => make(item.name, 'routine', item.kind)),
     ...keywords.map((keyword) => make(keyword, 'keyword', 'SQL keyword', keyword)),
-    ...[...sqlSnippets, ...userSnippets].map((snippet) => make(snippet.label, 'snippet', `${snippet.prefix} · ${snippet.description}`, snippet.body))
+    ...[...sqlSnippets, ...userSnippets].map((snippet) => make(snippet.label, 'snippet', `${snippet.prefix} · ${snippet.description}`, expandSnippetLiterals(snippet.body, metadata.database)))
   ]
   return results.filter((item) => !normalizedPrefix || item.label.toLowerCase().includes(normalizedPrefix) || (item.kind === 'snippet' && item.detail.toLowerCase().includes(normalizedPrefix)))
 }

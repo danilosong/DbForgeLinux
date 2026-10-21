@@ -24,9 +24,12 @@
     "screenshots:updater": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/updater-screenshots.mjs",
     "qa:risk:e2e": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/qa-risk-e2e.mjs",
     "screenshots:extras": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/extras-screenshots.mjs",
+    "screenshots:utilities": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/utilities-screenshots.mjs",
     "screenshots:import-export": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/import-export-screenshots.mjs",
+    "screenshots:data-compare-options": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/data-compare-options-screenshots.mjs",
     "screenshots:editor-designer": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/editor-designer-screenshots.mjs",
-    "screenshots:connection": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/connection-dialog-e2e.mjs"
+    "screenshots:connection": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/connection-dialog-e2e.mjs",
+    "screenshots:compare-modules": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/compare-modules-screenshots.mjs"
   },
   "dependencies": {
     "debug": "^4.4.3",

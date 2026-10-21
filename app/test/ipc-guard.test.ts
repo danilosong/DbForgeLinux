@@ -39,6 +39,11 @@ describe('IPC runtime guard', () => {
     expect(() => validateIpcArguments('import-export:script', ['db.table', 'text', 'repopulate', [], {}, 'job'])).not.toThrow()
   })
 
+  it('allows explicit NULL routine parameters while rejecting other debugger argument types', () => {
+    expect(() => validateIpcArguments('routine-debugger:start', [{ connectionId: 'c', database: 'd', name: 'p' }, ['value', null], [], true, true])).not.toThrow()
+    expect(() => validateIpcArguments('routine-debugger:start', [{ connectionId: 'c', database: 'd', name: 'p' }, ['value', 3], [], true, true])).toThrow(/must be a string/)
+  })
+
   it('rejects external origins, subframes and senders without an app window', () => {
     const mainFrame = { url: 'https://evil.example/' }
     const event = { sender: { id: 8, mainFrame }, senderFrame: mainFrame } as GuardEvent

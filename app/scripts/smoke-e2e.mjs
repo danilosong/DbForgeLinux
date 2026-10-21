@@ -33,6 +33,10 @@ try {
     }
   })
   const page = await app.firstWindow()
+  const later = page.getByRole('button', { name: /^(Later|Depois)$/ })
+  if (await later.count()) await later.click().catch(() => undefined)
+  const startupClose = page.locator('.panel-dialog-backdrop .panel-dialog-close')
+  if (await startupClose.count()) await startupClose.click().catch(() => undefined)
   await page.getByRole('button', { name: 'New Connection' }).last().click()
   await page.getByLabel('Connection name').fill('Smoke MySQL 33067')
   await page.getByLabel('Host').fill('127.0.0.1')
@@ -145,6 +149,11 @@ try {
       await summary.click()
     }
   }
+  await page.addLocatorHandler(page.locator('.panel-dialog-backdrop:has(.update-dialog)'), async () => {
+    const laterButton = page.getByRole('button', { name: /^(Later|Depois)$/ }).last()
+    if (await laterButton.count()) await laterButton.click()
+    else await page.locator('.panel-dialog-close').last().click()
+  })
   await captureMenus('Light')
   await captureMenus('Dark')
   await page.keyboard.press('Control+Shift+F')

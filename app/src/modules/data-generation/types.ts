@@ -1,7 +1,7 @@
 import type { DbDriver } from '../../main/db/DbDriver.js'
 import type { DatabaseModel, TableModel } from '../schema/model.js'
 
-export type GeneratorKind = 'auto' | 'name' | 'email' | 'address' | 'date' | 'number' | 'lorem' | 'list' | 'regex' | 'sequence' | 'unique' | 'foreignKey' | 'fromTable'
+export type GeneratorKind = 'auto' | 'name' | 'email' | 'address' | 'country' | 'status' | 'date' | 'number' | 'lorem' | 'list' | 'regex' | 'sequence' | 'unique' | 'foreignKey' | 'fromTable'
 export type Locale = 'pt-BR' | 'en-US'
 
 export interface GeneratorSpec {

@@ -103,7 +103,7 @@ jobs:
           cache: pnpm
           cache-dependency-path: app/pnpm-lock.yaml
       - name: Install Linux desktop runtime
-        run: sudo apt-get update && sudo apt-get install -y libsecret-1-0 xvfb
+        run: sudo apt-get update && sudo apt-get install -y libsecret-1-0 libasound2t64 libgbm1 xvfb
         working-directory: .
       - run: pnpm install --frozen-lockfile
       - run: pnpm dist:deb
@@ -117,15 +117,18 @@ jobs:
           package_path="$(realpath app/dist/*.deb)"
           export package_path
           env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a bash -euc '
+            container_auth="$(mktemp)"
+            trap '\''rm -f "$container_auth"'\'' EXIT
+            xauth -f "$XAUTHORITY" nlist "$DISPLAY" | sed "s/^..../ffff/" | xauth -f "$container_auth" nmerge -
             docker run --rm --network host \
               -e DISPLAY="$DISPLAY" \
-              -e XAUTHORITY="$XAUTHORITY" \
+              -e XAUTHORITY="$container_auth" \
               -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
-              -v "$XAUTHORITY:$XAUTHORITY:ro" \
+              -v "$container_auth:$container_auth:ro" \
               -v "$package_path:/tmp/dbforgelinux.deb:ro" \
               ubuntu:24.04 bash -euc "
                 apt-get update
-                apt-get install -y --no-install-recommends /tmp/dbforgelinux.deb
+                DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends /tmp/dbforgelinux.deb
                 dpkg -c /tmp/dbforgelinux.deb >/tmp/package-files.txt
                 executable=/opt/dbForgeLinux/dbforgelinux
                 test -x \"\$executable\"

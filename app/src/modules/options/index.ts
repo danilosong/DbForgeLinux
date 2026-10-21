@@ -1,5 +1,5 @@
 import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { dirname, isAbsolute, join } from 'node:path'
 import { defaultSettings, type AppSettings, type KeyBinding } from './types.js'
 import { findKeymapConflicts } from '../keymap/registry.js'
 
@@ -16,6 +16,8 @@ export function mergeSettings(value: unknown): AppSettings {
     schemaVersion: 1,
     environment: { ...defaultSettings.environment, ...safeObject(data.environment) },
     appearance: { ...defaultSettings.appearance, ...safeObject(data.appearance) },
+    queryBuilder: { ...defaultSettings.queryBuilder, ...safeObject(data.queryBuilder) },
+    dataComparison: { ...defaultSettings.dataComparison, ...safeObject(data.dataComparison) },
     language: { ...defaultSettings.language, ...safeObject(data.language) },
     editor: { ...defaultSettings.editor, ...safeObject(data.editor) },
     execution: { ...defaultSettings.execution, ...safeObject(data.execution) },
@@ -39,6 +41,7 @@ export function validateSettings(settings: AppSettings): void {
   if (settings.schemaVersion !== 1) throw new Error('Unsupported settings schema version.')
   const bounded = (value: number, min: number, max: number, name: string): void => { if (!Number.isFinite(value) || value < min || value > max) throw new Error(`${name} is out of range.`) }
   bounded(settings.environment.recentFiles, 0, 100, 'Recent files')
+  bounded(settings.environment.windowItems, 0, 100, 'Window menu items')
   bounded(settings.environment.autoSaveIntervalSeconds, 5, 3600, 'Autosave interval')
   bounded(settings.appearance.uiZoom, 80, 200, 'UI zoom')
   bounded(settings.editor.tabSize, 1, 16, 'Tab size')
@@ -49,6 +52,7 @@ export function validateSettings(settings: AppSettings): void {
   bounded(settings.execution.resultRowLimit, 0, 1000000, 'Result row limit')
   bounded(settings.grid.rowHeight, 18, 60, 'Grid row height')
   bounded(settings.grid.maxTextLength, 100, 1000000, 'Grid text length')
+  bounded(settings.queryBuilder.gridSize, 2, 64, 'Query Builder grid size')
   bounded(settings.connections.connectionTimeoutSeconds, 1, 600, 'Connection timeout')
   bounded(settings.connections.commandTimeoutSeconds, 0, 86400, 'Connection command timeout')
   if (!['auto', 'dev', 'release'].includes(settings.updater.channel)) throw new Error('Invalid update channel.')
@@ -56,6 +60,9 @@ export function validateSettings(settings: AppSettings): void {
   if (settings.updater.ignoredVersion.length > 40 || !/^[\w.+-]*$/.test(settings.updater.ignoredVersion)) throw new Error('Invalid ignored update version.')
   if (!/^#[0-9a-f]{6}$/i.test(settings.appearance.accent)) throw new Error('Accent color must be a six digit hex color.')
   if (!['auto', 'light', 'dark', 'high-contrast'].includes(settings.appearance.theme)) throw new Error('Invalid theme.')
+  if (!['system', 'custom'].includes(settings.dataComparison.cacheFolder) || !['none', 'primary', 'unique'].includes(settings.dataComparison.keyStrategy)) throw new Error('Invalid Data Comparison settings.')
+  if (settings.dataComparison.customCachePath.length > 4096) throw new Error('Data Comparison cache path is too long.')
+  if (settings.dataComparison.cacheFolder === 'custom' && settings.dataComparison.customCachePath && !isAbsolute(settings.dataComparison.customCachePath)) throw new Error('Custom Data Comparison cache path must be absolute.')
   if (!['system', 'en', 'pt-BR', 'es'].includes(settings.language.locale)) throw new Error('Invalid language.')
   for (const item of settings.shortcuts.bindings) {
     if (!item.command.trim() || !item.context.trim()) throw new Error('Shortcut command and context are required.')

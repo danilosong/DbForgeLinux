@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEBUG_SCHEMA, engineDdl, instrumentProcedure, quoteDebugIdentifier } from '../../src/modules/routine-debugger/index.js'
+import { DEBUG_SCHEMA, engineDdl, instrumentProcedure, parseDebugRoutineParameters, quoteDebugIdentifier } from '../../src/modules/routine-debugger/index.js'
 
 describe('routine debugger instrumenter', () => {
   it('places checkpoints before executable statements and captures declared locals', () => {
@@ -47,5 +47,14 @@ describe('debug engine schema helpers', () => {
     expect(engineDdl('dbforge_linux_debug_test').join('\n')).toContain('CREATE DATABASE IF NOT EXISTS `dbforge_linux_debug_test`')
     expect(engineDdl().join('\n')).not.toMatch(/watch_value\s+VARCHAR\s*\(\s*\d{5,}/i)
     expect(quoteDebugIdentifier('db`name')).toBe('`db``name`')
+  })
+
+  it('parses named procedure parameters and keeps commas inside types together', () => {
+    expect(parseDebugRoutineParameters("CREATE PROCEDURE `p`(IN p_count DECIMAL(10, 2), OUT `p_label` VARCHAR(64), INOUT p_ready BOOLEAN) BEGIN SELECT 1; END"))
+      .toEqual([
+        { name: 'p_count', type: 'DECIMAL(10, 2)', direction: 'IN', value: '', nullValue: false },
+        { name: 'p_label', type: 'VARCHAR(64)', direction: 'OUT', value: '', nullValue: false },
+        { name: 'p_ready', type: 'BOOLEAN', direction: 'INOUT', value: '', nullValue: false }
+      ])
   })
 })

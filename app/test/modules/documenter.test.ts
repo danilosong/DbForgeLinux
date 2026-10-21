@@ -33,6 +33,16 @@ describe('documenter', () => {
     expect(output.diagramSvg).toContain('marker-end')
   })
 
+  it('adds a customizable cover to HTML and Markdown and can omit it', () => {
+    const output = generateDocumentation(model, { title: 'Internal catalog', author: 'Data team', copyright: '2026 Example', logo: 'ACME', created: '2026-10-20', descriptions: { cover: 'Schema reference' } })
+    expect(output.html).toContain('class="cover"')
+    expect(output.html).toContain('Data team')
+    expect(output.html).toContain('Schema reference')
+    expect(output.markdown).toContain('author: Data team')
+    expect(output.markdown).toContain('logo: ACME')
+    expect(generateDocumentation(model, { coverPage: false }).html).not.toContain('class="cover"')
+  })
+
   it('writes HTML, Markdown, SVG and PDF bytes through the isolated printer interface', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'dbforge-doc-'))
     const printToPDF = vi.fn(async (html: string) => Buffer.from(`PDF:${html.length}`))
@@ -40,7 +50,7 @@ describe('documenter', () => {
       const output = await writeDocumentation(model, { outputDirectory: directory, includeDiagram: true, formats: ['html', 'markdown', 'pdf'], pdfPrinter: { printToPDF } })
       expect(output.html).toBeDefined(); expect(output.markdown).toBeDefined(); expect(output.pdf).toBeDefined(); expect(output.diagram).toBeDefined()
       expect((await readFile(output.html!, 'utf8')).startsWith('<!doctype html>')).toBe(true)
-      expect((await readFile(output.markdown!, 'utf8')).startsWith('# Database documentation')).toBe(true)
+      expect((await readFile(output.markdown!, 'utf8')).startsWith('---\ntitle: Database documentation:')).toBe(true)
       expect((await readFile(output.pdf!)).subarray(0, 4).toString()).toBe('PDF:')
       expect((await readFile(output.diagram!, 'utf8')).startsWith('<svg')).toBe(true)
       expect(printToPDF).toHaveBeenCalledOnce()

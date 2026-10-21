@@ -16,6 +16,8 @@ import DataReportPivotPanel from './data-report-pivot/Panel'
 import AiAssistantPanel from './ai-assistant/Panel'
 import OptionsPanel from './options/Panel'
 import DatabaseToolsPanel from './database-tools/Panel'
+import MasterDetailPanel from './master-detail/Panel'
+import CopyDatabasesPanel from './copy-databases/Panel'
 import ServiceControlPanel from './service-control/Panel'
 import CodeAnalysisPanel from './code-analysis/Panel'
 import RoutineDebuggerPanel from './routine-debugger/Panel'
@@ -48,12 +50,14 @@ export const panelRegistry:PanelRegistration[]=[
  {id:'profiler',titleKey:'panels.profiler',icon:'⌁',component:ProfilerPanel,presentation:'document'},
  {id:'data-generator',titleKey:'panels.data-generator',icon:'✣',component:DatageneratorPanel,presentation:'document'},
  {id:'data-compare',titleKey:'panels.data-compare',icon:'⇄',component:DatacomparePanel,presentation:'document'},
- {id:'documenter',titleKey:'panels.documenter',icon:'▤',component:DocumenterPanel},
+ {id:'documenter',titleKey:'panels.documenter',icon:'▤',component:DocumenterPanel,presentation:'document'},
  {id:'schema-compare',titleKey:'panels.schema-compare',icon:'⇆',component:SchemacomparePanel,presentation:'document'},
  {id:'er-diagram',titleKey:'panels.er-diagram',icon:'⌘',component:ERDiagramPanel,presentation:'document'},
  {id:'source-control',titleKey:'Source Control Manager',icon:'⑂',component:SourceControlPanel},
  {id:'options',titleKey:'Options...',icon:'⚙',component:OptionsPanel},
- {id:'database-tools',titleKey:'Find Object / Invalid Objects',icon:'⌕',component:DatabaseToolsPanel},
+ {id:'database-tools',titleKey:'Find Object / Invalid Objects',icon:'⌕',component:DatabaseToolsPanel,presentation:'document'},
+ {id:'master-detail',titleKey:'md.browser',icon:'⇄',component:MasterDetailPanel,presentation:'document'},
+ {id:'copy-databases',titleKey:'copy.title',icon:'▤',component:CopyDatabasesPanel,presentation:'document'},
  {id:'service-control',titleKey:'Service Control',icon:'⏻',component:ServiceControlPanel},
  {id:'code-analysis',titleKey:'Code Analysis',icon:'⌁',component:CodeAnalysisPanel},
  {id:'import-export',titleKey:'panels.import-export',icon:'⇧',component:ImportexportPanel},

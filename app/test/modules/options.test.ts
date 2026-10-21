@@ -33,4 +33,12 @@ describe('Options settings', () => {
     validateSettings(mergeSettings(defaultSettings))
     expect(() => mergeSettings({ appearance: { uiZoom: 240 } })).toThrow('UI zoom')
   })
+  it('migrates and validates Data Comparison and Query Builder pages', () => {
+    const migrated = mergeSettings({ dataComparison: { cacheFolder: 'custom', customCachePath: '/tmp/compare-cache', keyStrategy: 'primary' }, queryBuilder: { showGrid: false, gridSize: 16, snapToGrid: false, shadows: false } })
+    expect(migrated.dataComparison).toEqual({ cacheFolder: 'custom', customCachePath: '/tmp/compare-cache', keyStrategy: 'primary' })
+    expect(migrated.queryBuilder).toEqual({ showGrid: false, gridSize: 16, snapToGrid: false, shadows: false })
+    expect(() => mergeSettings({ queryBuilder: { gridSize: 100 } })).toThrow('Query Builder grid size')
+    expect(() => mergeSettings({ dataComparison: { keyStrategy: 'arbitrary' } })).toThrow('Data Comparison settings')
+    expect(() => mergeSettings({ dataComparison: { cacheFolder: 'custom', customCachePath: 'relative/cache' } })).toThrow('must be absolute')
+  })
 })

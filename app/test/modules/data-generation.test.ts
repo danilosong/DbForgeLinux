@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { generateData, previewData, type DataGenerationJob } from '../../src/modules/data-generation/index.js'
 import type { DbDriver, DbTransaction, SqlValue } from '../../src/main/db/DbDriver.js'
 import type { DatabaseModel, TableModel } from '../../src/modules/schema/model.js'
-import { sampleRegex, seededRandom } from '../../src/modules/data-generation/generators.js'
+import { generateValue, inferKind, sampleRegex, seededRandom } from '../../src/modules/data-generation/generators.js'
 
 const parent: TableModel = {
   kind: 'table', name: 'parents', columns: [
@@ -66,6 +66,16 @@ describe('data generation', () => {
     const pattern = sampleRegex('^[A-Z]{2}\\d{4}$', seededRandom(9))
     expect(pattern).toMatch(/^[A-Z]{2}\d{4}$/)
     expect(sampleRegex('^[A-Z]{2}\\d{4}$', seededRandom(9))).toBe(pattern)
+  })
+
+  it('infers country and enum status generators from semantic column metadata', () => {
+    const country = { name: 'country_code', type: 'char(2)', nullable: false }
+    const status = { name: 'status', type: "enum('active','inactive','pending')", nullable: false }
+    expect(inferKind(country)).toBe('country')
+    expect(inferKind(status)).toBe('status')
+    const context = { random: seededRandom(2), locale: 'en-US' as const, rowIndex: 0, table: parent, column: country }
+    expect(generateValue(context)).toMatch(/^[A-Z]{2}$/)
+    expect(['active', 'inactive', 'pending']).toContain(generateValue({ ...context, column: status }))
   })
 
   it('starts generated unique numeric values after existing values and supports explicit unique values', async () => {

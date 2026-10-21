@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyKeywordCaseAtOffset, buildSqlSuggestions } from '../../src/modules/editor/completion.js'
+import { applyKeywordCaseAtOffset, buildSqlSuggestions, expandSnippetLiterals } from '../../src/modules/editor/completion.js'
 import type { EditorMetadata } from '../../src/shared/contracts/editor.js'
 
 const metadata: EditorMetadata = {
@@ -8,6 +8,9 @@ const metadata: EditorMetadata = {
 }
 
 describe('SQL completion substring matching', () => {
+  it('expands predefined and user-defined snippet literals', () => {
+    expect(expandSnippetLiterals('SELECT $DATE$, $USER$, $DB$, $x$, $CARET$', 'my_db')).toMatch(/SELECT \d{4}-\d{2}-\d{2}, CURRENT_USER\(\), my_db, \$\{1:x\}, \$0/)
+  })
   it('matches object names from the middle of a token and carries schema details', () => {
     const suggestions = buildSqlSuggestions('SELECT * FROM tom', 18, metadata)
     expect(suggestions).toContainEqual(expect.objectContaining({ label: 'customers', schema: 'sales', kind: 'table' }))

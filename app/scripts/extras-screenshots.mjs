@@ -18,7 +18,8 @@ try {
   await page.locator('.workbench').waitFor()
   const chooseTheme = async (theme) => {
     await page.locator('summary').filter({ hasText: 'View' }).click()
-    await page.getByRole('button', { name: theme, exact: true }).click()
+    const themeLabel = theme === 'Light' ? /^(Theme: Light|Tema: Claro)$/ : /^(Theme: Dark|Tema: Escuro)$/
+    await page.getByRole('button', { name: themeLabel }).click()
     await page.locator('.workbench').waitFor()
   }
   const openPanel = async (title, selector, menu = 'Tools') => {
@@ -48,6 +49,8 @@ try {
   await capturePanel('Code Snippets', '.snippets-panel', 'code-snippets')
   await capturePanel('Toolbox', '.toolbox-panel', 'toolbox')
   await capturePanel('Find Object / Invalid Objects', '.database-tools-panel', 'database-tools')
+  await capturePanel('Database documentation', '.documenter-panel', 'documenter-cover', 'Database')
+  await capturePanel('Data Report / Pivot', '.report-pivot-panel', 'report-pivot-dnd', 'Database')
   await capturePanel('ER Diagram', '.er-panel', 'er-diagram')
   await openPanel('Code Snippets', '.snippets-panel')
   await page.getByRole('button', { name: 'New snippet' }).click()

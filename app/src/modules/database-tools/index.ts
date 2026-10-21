@@ -1,6 +1,6 @@
 import type { DatabaseObject } from '../../shared/contracts/sql.js'
 
-export interface ObjectSearchHit { object: DatabaseObject; field: 'name' | 'definition'; line: number; excerpt: string }
+export interface ObjectSearchHit { object: DatabaseObject; field: 'name' | 'definition' | 'data'; line: number; excerpt: string }
 export interface InvalidObject { object: DatabaseObject; reason: string; definition?: string }
 export type ObjectDefinitionReader = (object: DatabaseObject) => Promise<string>
 export type ObjectValidator = (object: DatabaseObject) => Promise<void>

@@ -2,7 +2,7 @@ import { BrowserWindow, ipcMain, type IpcMain } from 'electron'
 import { isAbsolute, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-type Kind = 'id' | 'text' | 'identifier' | 'sql' | 'path' | 'relative-path' | 'boolean' | 'true' | 'number' | 'integer' | 'object' | 'nullable-object' | 'array-text' | 'array-int' | 'array-object' | 'string-number' | 'enum'
+type Kind = 'id' | 'text' | 'identifier' | 'sql' | 'path' | 'relative-path' | 'boolean' | 'true' | 'number' | 'integer' | 'object' | 'nullable-object' | 'array-text' | 'array-null-text' | 'array-int' | 'array-object' | 'string-number' | 'enum'
 interface Spec { kind: Kind; optional?: boolean; values?: readonly string[]; maxItems?: number }
 const s = (kind: Kind, options: Omit<Spec, 'kind'> = {}): Spec => ({ kind, ...options })
 const opt = (spec: Spec): Spec => ({ ...spec, optional: true })
@@ -29,12 +29,14 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'ai-assistant:settings:load': [], 'ai-assistant:settings:save': [object, opt(s('text'))], 'ai-assistant:settings:test': [object, opt(s('text'))],
   'ai-assistant:complete': [object], 'ai-assistant:cancel': [id], 'code-analysis:run': [sql],
   'connections:list': [], 'connections:save': [object], 'connections:delete': [id], 'vault:save': [ident, s('text')], 'vault:delete': [ident], 'vault:status': [],
-  'data-compare:compare': [id, ident, ident, id, ident, ident, strings, opt(strings), opt(bool)],
-  'data-compare:synchronize': [id, ident, ident, id, ident, ident, strings, strings, bool, trueOnly, opt(objects)],
+  'data-compare:compare': [id, ident, ident, id, ident, ident, strings, opt(strings), opt(bool), opt(object)],
+  'data-compare:synchronize': [id, ident, ident, id, ident, ident, strings, strings, bool, trueOnly, opt(objects), opt(object)],
   'data-generator:inspect': [id, ident], 'data-generator:preview': [id, ident, ident, object, opt(s('string-number'))], 'data-generator:generate': [object],
   'report-pivot:load': [id, sql], 'report-pivot:build': [id, object], 'report-pivot:export': [object, enumOf('csv', 'xlsx')],
   'database-tools:search': [id, ident, text, object], 'database-tools:invalid': [id, ident], 'database-tools:backup': [id, ident, bool], 'database-tools:select-backup': [],
-  'database-tools:restore': [id, ident, text, sql, opt(bool)], 'database-tools:copy': [id, ident, id, ident, text, bool],
+  'database-tools:format-select': [bool], 'database-tools:format-run': [s('array-text', { maxItems: 1000 }), bool, bool, object], 'database-tools:format-preview': [s('array-text', { maxItems: 1000 }), bool, object], 'database-tools:large-select': [], 'database-tools:large-run': [id, text, path, enumOf('utf8', 'utf16le', 'latin1', 'windows1252'), id], 'database-tools:large-cancel': [id], 'database-tools:large-error-action': [id, enumOf('stop', 'continue', 'ignore-all')],
+  'database-tools:maintenance': [id, ident, enumOf('ANALYZE', 'OPTIMIZE', 'CHECK', 'REPAIR', 'CHECKSUM'), strings],
+  'database-tools:restore': [id, ident, text, sql, opt(bool)], 'database-tools:copy': [id, ident, id, ident, text, bool, opt(bool)],
   'database-tools:schedule:list': [], 'database-tools:schedule:save': [object], 'database-tools:schedule:delete': [id],
   'db:test': [object], 'db:connect': [object], 'db:disconnect': [id], 'db:databases': [id], 'db:execute': [id, sql, opt(id), opt(ident)],
   'grid-editing:describe': [id, sql, opt(ident)], 'grid-editing:preview': [object, objects], 'grid-editing:apply': [id, object, objects, bool],
@@ -42,7 +44,7 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'db:result-read': [id, integer, integer], 'db:result-dispose': [id], 'db:cancel': [id, id], 'db:transaction-begin': [id], 'db:transaction-commit': [id], 'db:transaction-rollback': [id],
   'db:tables': [id, ident], 'db:objects': [id, ident], 'db:show-create': [id, ident, object], 'db:set-database': [id, ident],
   'file:open-sql': [], 'file:open-sql-path': [path], 'file:save-sql': [opt(path), sql],
-  'documenter:preview': [id, ident, opt(text)], 'documenter:generate': [object], 'editor:metadata': [id, ident, opt(bool)], 'editor:invalidate-metadata': [id, opt(ident)],
+  'documenter:preview': [id, ident, opt(text)], 'documenter:generate': [object], 'documenter:open': [path], 'editor:metadata': [id, ident, opt(bool)], 'editor:invalidate-metadata': [id, opt(ident)],
   'er-diagram:load': [id, ident, id], 'er-diagram:save-relations': [id, ident, objects], 'er-diagram:save-file': [object], 'er-diagram:open-file': [],
   'schema-update:list': [], 'schema-update:queue': [object], 'schema-update:queue-table': [id, ident, s('nullable-object'), object], 'schema-update:remove': [strings], 'schema-update:execute': [strings, trueOnly],
   'snippets:list': [], 'snippets:save': [object], 'snippets:delete': [id], 'snippets:import': [enumOf('en', 'pt-BR')], 'snippets:export': [enumOf('en', 'pt-BR')],
@@ -58,7 +60,7 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'profiler:profile': [id, sql], 'profiler:explain': [id, sql], 'profiler:history': [id], 'profiler:clear-history': [id, trueOnly], 'profiler:status': [id],
   'query-builder:schema': [id, ident], 'query-builder:build': [object], 'query-builder:parse': [sql, opt(ident)], 'query-builder:execute': [id, object, opt(bool), opt(id)], 'query-builder:cancel': [id],
   'routine-debugger:engine:inspect': [id], 'routine-debugger:engine:deploy': [id, trueOnly], 'routine-debugger:engine:remove': [id, trueOnly], 'routine-debugger:compile': [object],
-  'routine-debugger:start': [object, strings, objects, bool, bool], 'routine-debugger:command': [id, enumOf('into', 'over', 'out', 'continue', 'stop'), opt(integer)],
+  'routine-debugger:start': [object, s('array-null-text', { maxItems: 64 }), objects, bool, bool], 'routine-debugger:command': [id, enumOf('into', 'over', 'out', 'continue', 'stop'), opt(integer)],
   'routine-debugger:breakpoints': [id, objects], 'routine-debugger:watches': [id, strings], 'routine-debugger:snapshot': [id],
   'schema-compare:compare': [id, ident, id, ident, opt(bool)], 'schema-compare:synchronize': [id, ident, sql, trueOnly],
   'security:accounts': [id], 'security:details': [id, object], 'security:preview': [id, objects], 'security:apply': [id, objects, trueOnly],
@@ -134,10 +136,10 @@ function assertSpec(value: unknown, spec: Spec, label: string): void {
       if (!value || typeof value !== 'object' || Array.isArray(value)) fail(`${label} must be an object`)
       break
     case 'nullable-object': if (value !== null) assertSpec(value, { ...spec, kind: 'object' }, label); break
-    case 'array-text': case 'array-int': case 'array-object': {
+    case 'array-text': case 'array-null-text': case 'array-int': case 'array-object': {
       if (!Array.isArray(value) || value.length > (spec.maxItems ?? 1_000)) fail(`${label} must be a bounded array`)
-      const item = spec.kind === 'array-text' ? text : spec.kind === 'array-int' ? integer : object
-      for (let index = 0; index < value.length; index++) assertSpec(value[index], item, `${label}[${index}]`)
+      const item = spec.kind === 'array-text' || spec.kind === 'array-null-text' ? text : spec.kind === 'array-int' ? integer : object
+      for (let index = 0; index < value.length; index++) if (!(spec.kind === 'array-null-text' && value[index] === null)) assertSpec(value[index], item, `${label}[${index}]`)
       break
     }
     case 'string-number': if (!(typeof value === 'string' && value.length <= 128) && !(typeof value === 'number' && Number.isFinite(value))) fail(`${label} must be string or finite number`); break

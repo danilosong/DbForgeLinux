@@ -6,5 +6,14 @@ export const databaseToolsApi: DatabaseToolsApi = {
   backupDatabase: (connectionId, database, includeData) => ipcRenderer.invoke('database-tools:backup', connectionId, database, includeData),
   selectBackupToRestore: () => ipcRenderer.invoke('database-tools:select-backup'),
   restoreDatabaseBackup: (connectionId, database, confirmation, script, continueOnError) => ipcRenderer.invoke('database-tools:restore', connectionId, database, confirmation, script, continueOnError),
-  copyDatabase: (sourceConnectionId, sourceDatabase, targetConnectionId, targetDatabase, confirmation, includeData) => ipcRenderer.invoke('database-tools:copy', sourceConnectionId, sourceDatabase, targetConnectionId, targetDatabase, confirmation, includeData)
+  copyDatabase: (sourceConnectionId, sourceDatabase, targetConnectionId, targetDatabase, confirmation, includeData, dropIfExists) => ipcRenderer.invoke('database-tools:copy', sourceConnectionId, sourceDatabase, targetConnectionId, targetDatabase, confirmation, includeData, dropIfExists),
+  selectSqlBatchPaths: (directories) => ipcRenderer.invoke('database-tools:format-select', directories),
+  formatSqlFiles: (paths, backup, recursive, formatOptions) => ipcRenderer.invoke('database-tools:format-run', paths, backup, recursive, formatOptions),
+  previewSqlFiles: (paths, recursive, formatOptions) => ipcRenderer.invoke('database-tools:format-preview', paths, recursive, formatOptions),
+  selectLargeScript: () => ipcRenderer.invoke('database-tools:large-select'),
+  executeLargeScript: (connectionId, database, path, encoding, requestId) => ipcRenderer.invoke('database-tools:large-run', connectionId, database, path, encoding, requestId),
+  cancelLargeScript: (requestId) => ipcRenderer.invoke('database-tools:large-cancel', requestId),
+  respondLargeScriptError: (requestId, action) => ipcRenderer.invoke('database-tools:large-error-action', requestId, action),
+  onLargeScriptProgress: (listener) => { const progress = (_event: Electron.IpcRendererEvent, value: Parameters<typeof listener>[0]) => listener(value); const failure = (_event: Electron.IpcRendererEvent, value: Parameters<typeof listener>[0]) => listener(value); ipcRenderer.on('database-tools:large-progress', progress); ipcRenderer.on('database-tools:large-error', failure); return () => { ipcRenderer.removeListener('database-tools:large-progress', progress); ipcRenderer.removeListener('database-tools:large-error', failure) } },
+  maintainTables: (connectionId, database, operation, tables) => ipcRenderer.invoke('database-tools:maintenance', connectionId, database, operation, tables)
 }

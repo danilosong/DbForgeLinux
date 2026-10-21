@@ -62,4 +62,22 @@ describe('data compare', () => {
     expect(sourceQueries[0]).toContain('CONVERT(`id` USING utf8mb4) COLLATE utf8mb4_bin')
     expect(targetQueries[0]).toContain('CONVERT(`id` USING utf8mb4) COLLATE utf8mb4_bin')
   })
+
+  it('arredonda valores numéricos só para comparação e não emite updates equivalentes', async () => {
+    const differences: DataCompareDifference[] = []
+    const report = await compareData({ source: endpoint([{ id: 1, amount: 1.2341 }]), target: endpoint([{ id: 1, amount: 1.2344 }]), keyColumns: ['id'], options: { roundFloats: 3 }, onDifference: (row) => differences.push(row) })
+    expect(report).toMatchObject({ compared: 1, same: 1, different: 0, statements: 0 })
+    expect(differences[0]?.source?.amount).toBe(1.2341)
+  })
+
+  it('ignora colunas LOB por metadados sem removê-las dos valores originais', async () => {
+    const source = endpoint([{ id: 1, body: 'one' }]); const target = endpoint([{ id: 1, body: 'two' }])
+    source.driver.streamRows = async function* () { yield { id: 1 } }; target.driver.streamRows = async function* () { yield { id: 1 } }
+    const metadata = async () => [{ columnName: 'body', dataType: 'longtext', extra: '' }]
+    source.driver.queryRows = metadata as DbDriver['queryRows']; target.driver.queryRows = metadata as DbDriver['queryRows']
+    const differences: DataCompareDifference[] = []
+    const report = await compareData({ source, target, keyColumns: ['id'], options: { ignoreLob: true }, onDifference: (row) => differences.push(row) })
+    expect(report).toMatchObject({ same: 1, different: 0 })
+    expect(differences[0]?.source?.body).toBeUndefined()
+  })
 })

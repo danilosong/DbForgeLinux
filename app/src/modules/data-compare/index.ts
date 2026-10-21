@@ -2,7 +2,7 @@ import { once } from 'node:events'
 import type { SqlValue } from '../../main/db/DbDriver.js'
 import type { DataCompareDifference, DataCompareEndpoint, DataCompareJob, DataCompareReport, SyncStatement } from './types.js'
 
-export type { DataCompareDifference, DataCompareEndpoint, DataCompareJob, DataCompareReport, SyncStatement } from './types.js'
+export type { DataCompareDifference, DataCompareEndpoint, DataCompareJob, DataCompareOptions, DataCompareReport, SyncStatement } from './types.js'
 
 function quoteId(value: string): string {
   if (!value || value.includes('\0')) throw new Error('Identificador inválido.')
@@ -24,10 +24,10 @@ function compareValues(left: unknown, right: unknown): number {
   const a = String(left); const b = String(right)
   return a < b ? -1 : a > b ? 1 : 0
 }
-function equalValues(left: unknown, right: unknown): boolean {
+function equalValues(left: unknown, right: unknown, roundFloats = 0): boolean {
   if (Buffer.isBuffer(left) && Buffer.isBuffer(right)) return left.equals(right)
   if (left instanceof Date && right instanceof Date) return left.getTime() === right.getTime()
-  if (typeof left === 'number' && typeof right === 'number') return left === right
+  if (typeof left === 'number' && typeof right === 'number') return roundFloats > 0 ? Number(left.toFixed(roundFloats)) === Number(right.toFixed(roundFloats)) : left === right
   if (typeof left === 'bigint' && typeof right === 'bigint') return left === right
   return left === right
 }
@@ -35,7 +35,7 @@ function compareKeys(left: Record<string, unknown>, right: Record<string, unknow
   for (const key of keys) { const compared = compareValues(left[key], right[key]); if (compared) return compared }
   return 0
 }
-function sameRow(left: Record<string, unknown>, right: Record<string, unknown>, columns: string[]): boolean { return columns.every((column) => equalValues(left[column], right[column])) }
+function sameRow(left: Record<string, unknown>, right: Record<string, unknown>, columns: string[], roundFloats = 0): boolean { return columns.every((column) => equalValues(left[column], right[column], roundFloats)) }
 function keyObject(row: Record<string, unknown>, keys: string[]): Record<string, unknown> { return Object.fromEntries(keys.map((key) => [key, row[key]])) }
 
 async function next(iterator: AsyncIterator<Record<string, unknown>>): Promise<Record<string, unknown> | undefined> {
@@ -69,8 +69,10 @@ export async function compareData(job: DataCompareJob): Promise<DataCompareRepor
   if (!job.keyColumns.length) throw new Error('Data Compare exige pelo menos uma coluna-chave.')
   if (job.keyColumns.some((key) => key.includes('\0'))) throw new Error('Coluna-chave inválida.')
   if (job.script && !job.onStatement) throw new Error('Para gerar um script parametrizado, informe onStatement para receber os valores bind.')
-  const columns = [...new Set([...(job.columns ?? []), ...job.keyColumns])]
-  const projection = job.columns?.length ? columns.map(quoteId).join(', ') : '*'
+  const excluded = job.options?.ignoreLob || job.options?.ignoreComputedColumns || job.options?.includeColumns || job.options?.excludeColumns ? await findExcludedColumns(job.source, job.options) : new Set<string>()
+  const requestedColumns = job.columns?.length ? job.columns : undefined
+  const columns = [...new Set([...(requestedColumns ?? []), ...job.keyColumns])].filter((column) => !excluded.has(column) || job.keyColumns.includes(column))
+  const projection = requestedColumns || excluded.size ? columns.map(quoteId).join(', ') : '*'
   const sourceTextKeys = await findTextKeyColumns(job.source, job.keyColumns)
   const targetTextKeys = await findTextKeyColumns(job.target, job.keyColumns)
   const sourceOrder = job.keyColumns.map((key) => sourceTextKeys.has(key) ? `CONVERT(${quoteId(key)} USING utf8mb4) COLLATE utf8mb4_bin` : quoteId(key)).join(', ')
@@ -120,9 +122,9 @@ export async function compareData(job: DataCompareJob): Promise<DataCompareRepor
         } else {
           report.compared++
           const comparedColumns = job.columns?.length ? columns : [...new Set([...Object.keys(source), ...Object.keys(target)])]
-          if (sameRow(source, target, comparedColumns)) { report.same++; await emit({ kind: 'same', key: keyObject(source, job.keyColumns), source, target }) }
+          if (sameRow(source, target, comparedColumns, job.options?.roundFloats ?? 0)) { report.same++; await emit({ kind: 'same', key: keyObject(source, job.keyColumns), source, target }) }
           else {
-            const changedColumns = comparedColumns.filter((column) => !equalValues(source![column], target![column]))
+            const changedColumns = comparedColumns.filter((column) => !equalValues(source![column], target![column], job.options?.roundFloats ?? 0))
             report.different++
             await emit({ kind: 'different', key: keyObject(source, job.keyColumns), source, target, changedColumns }, makeUpdate(job, source, job.keyColumns, comparedColumns))
           }
@@ -144,6 +146,28 @@ export async function compareData(job: DataCompareJob): Promise<DataCompareRepor
 }
 
 const textTypes = new Set(['char', 'varchar', 'tinytext', 'text', 'mediumtext', 'longtext', 'enum', 'set'])
+const lobTypes = new Set(['tinytext', 'text', 'mediumtext', 'longtext', 'tinyblob', 'blob', 'mediumblob', 'longblob', 'json', 'geometry', 'point', 'linestring', 'polygon', 'multipoint', 'multilinestring', 'multipolygon', 'geometrycollection'])
+
+async function findExcludedColumns(endpoint: DataCompareEndpoint, options: NonNullable<DataCompareJob['options']>): Promise<Set<string>> {
+  try {
+    const rows = await endpoint.driver.queryRows(endpoint.connectionId,
+      'SELECT COLUMN_NAME AS columnName, DATA_TYPE AS dataType, EXTRA AS extra FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?',
+      [endpoint.database, endpoint.table])
+    return new Set(rows.filter((row) => {
+      const name = String(row.columnName)
+      const includeMiss = Boolean(options.includeColumns && options.includeColumns !== '*' && !maskMatches(name, options.includeColumns))
+      const excludeHit = Boolean(options.excludeColumns && maskMatches(name, options.excludeColumns))
+      const lob = Boolean(options.ignoreLob && lobTypes.has(String(row.dataType ?? '').toLowerCase()))
+      const generated = Boolean(options.ignoreComputedColumns && /(?:generated|virtual|stored)/i.test(String(row.extra ?? '')))
+      return includeMiss || excludeHit || lob || generated
+    }).map((row) => String(row.columnName)))
+  } catch { return new Set() }
+}
+
+function maskMatches(value: string, mask: string): boolean {
+  const pattern = mask.split(',').map((part) => part.trim()).filter(Boolean).map((part) => part.split('*').map((segment) => segment.replace(/[.+?^${}()|[\]\\]/g, '\\$&')).join('.*')).join('|')
+  return pattern ? new RegExp(`^(?:${pattern})$`, 'i').test(value) : false
+}
 
 async function findTextKeyColumns(endpoint: DataCompareEndpoint, keys: string[]): Promise<Set<string>> {
   try {

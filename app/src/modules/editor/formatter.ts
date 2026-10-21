@@ -3,8 +3,10 @@ const clauseTokens = new Set(['SELECT', 'FROM', 'WHERE', 'GROUP BY', 'ORDER BY',
 const joinTokens = new Set(['JOIN', 'LEFT JOIN', 'RIGHT JOIN', 'INNER JOIN', 'OUTER JOIN', 'CROSS JOIN'])
 
 interface Token { value: string; kind: 'word' | 'space' | 'literal' | 'comment' | 'symbol' }
+export interface SqlFormatOptions { keywordCase?: 'upper' | 'lower'; indentSize?: 2 | 4 }
 
-export function formatSql(source: string): string {
+export function formatSql(source: string, options: SqlFormatOptions = {}): string {
+  const indentSize = options.indentSize ?? 2
   const tokens = tokenize(source.trim())
   const output: string[] = []
   let depth = 0
@@ -13,7 +15,7 @@ export function formatSql(source: string): string {
   let continuationLine = false
   const currentLine = (): string => output.join('').split('\n').at(-1) ?? ''
   const append = (value: string): void => {
-    if (lineStart && value !== '\n') { output.push('  '.repeat(Math.max(0, depth + (continuationLine ? 1 : 0)))); lineStart = false; continuationLine = false }
+    if (lineStart && value !== '\n') { output.push(' '.repeat(indentSize * Math.max(0, depth + (continuationLine ? 1 : 0)))); lineStart = false; continuationLine = false }
     if (pendingSpace && currentLine() && !currentLine().endsWith(' ') && value !== '\n') output.push(' ')
     output.push(value); pendingSpace = false
     if (value.endsWith('\n')) lineStart = true
@@ -36,7 +38,7 @@ export function formatSql(source: string): string {
       if (clauseTokens.has(keyword) || joinTokens.has(keyword) || (keyword === 'ON' && depth === 0)) newline()
       else if ((keyword === 'AND' || keyword === 'OR') && depth === 0) newline(true)
       if (paired) { append(keyword); index += 2; continue }
-      append(keywordSet.has(keyword) ? keyword : token.value)
+      append(keywordSet.has(keyword) ? options.keywordCase === 'lower' ? keyword.toLowerCase() : keyword : token.value)
       continue
     }
     if (token.value === '(') { append('('); depth += 1; pendingSpace = false; continue }

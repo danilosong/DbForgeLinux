@@ -35,6 +35,10 @@ const lorem: Record<Locale, string[]> = {
   'pt-BR': ['texto de exemplo', 'dados para teste', 'uma frase simples', 'conteúdo gerado'],
   'en-US': ['sample text', 'test data', 'a simple sentence', 'generated content']
 }
+const countryCodes: Record<Locale, string[]> = {
+  'pt-BR': ['BR', 'AR', 'CA', 'DE', 'ES', 'FR', 'GB', 'IT', 'JP', 'US'],
+  'en-US': ['AU', 'BR', 'CA', 'DE', 'ES', 'FR', 'GB', 'IN', 'JP', 'US']
+}
 
 function pick<T>(values: readonly T[], random: Random): T { return values[Math.floor(random() * values.length)] }
 
@@ -98,6 +102,8 @@ export function inferKind(column: ColumnModel, spec?: GeneratorSpec): GeneratorS
   if (spec?.kind && spec.kind !== 'auto') return spec.kind
   const label = `${column.name} ${column.comment ?? ''}`.toLowerCase()
   if (/email|e-mail|correo/.test(label)) return 'email'
+  if (/country|country_code|pais|país/.test(label)) return 'country'
+  if (/status|state|active|enabled|state_code/.test(label) || /^enum\s*\(/i.test(column.type)) return 'status'
   if (/name|nome|first|last/.test(label)) return 'name'
   if (/address|endereco|street|logradouro/.test(label)) return 'address'
   if (/date|data|time|created|updated/.test(label)) return 'date'
@@ -131,6 +137,11 @@ export function generateValue(ctx: GenerationContext): unknown {
   }
   if (kind === 'name') return `${pick(firstNames[locale], random)} ${pick(lastNames[locale], random)}`
   if (kind === 'email') return `${pick(firstNames[locale], random).toLowerCase()}.${pick(lastNames[locale], random).toLowerCase()}${ctx.rowIndex}@example.test`
+  if (kind === 'country') return pick(countryCodes[locale], random)
+  if (kind === 'status') {
+    const values = /^enum\s*\((.*)\)$/i.exec(column.type)?.[1]?.match(/'((?:''|\\.|[^'])*)'/g)?.map((value) => value.slice(1, -1).replaceAll("''", "'"))
+    return values?.length ? pick(values, random) : pick(['active', 'inactive', 'pending', 'archived'], random)
+  }
   if (kind === 'address') return `${pick(streets[locale], random)}, ${1 + Math.floor(random() * 9999)}`
   if (kind === 'date') {
     const day = Math.floor(random() * 365 * 12)

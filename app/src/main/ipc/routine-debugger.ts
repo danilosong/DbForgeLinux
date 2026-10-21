@@ -36,9 +36,9 @@ export function registerRoutineDebuggerIpc({ driver }: IpcDeps): void {
     } finally { await connection.close() }
   })
   ipcMain.handle('routine-debugger:compile', async (_event, target: DebugRoutineTarget) => compilePreview(driver, target))
-  ipcMain.handle('routine-debugger:start', async (event, target: DebugRoutineTarget, args: string[], breakpoints: DebugBreakpoint[], autocommit: boolean, confirmedAutocommit: boolean) => {
+  ipcMain.handle('routine-debugger:start', async (event, target: DebugRoutineTarget, args: Array<string | null>, breakpoints: DebugBreakpoint[], autocommit: boolean, confirmedAutocommit: boolean) => {
     validateTarget(target)
-    if (!Array.isArray(args) || args.length > 64 || args.some((arg) => typeof arg !== 'string' || arg.length > 100_000)) throw new Error('Routine argument list is invalid.')
+    if (!Array.isArray(args) || args.length > 64 || args.some((arg) => arg !== null && (typeof arg !== 'string' || arg.length > 100_000))) throw new Error('Routine argument list is invalid.')
     if (autocommit !== true && autocommit !== false) throw new Error('Choose an autocommit mode.')
     if (!confirmedAutocommit) throw new Error('Confirm the autocommit behavior before starting routine debugging.')
     const engine = await inspectEngine(driver, target.connectionId)
@@ -166,10 +166,10 @@ function emit(live: LiveSession): void {
 }
 function errorText(error: unknown): string { return error instanceof Error ? error.message : 'unknown error' }
 
-async function runTarget(live: LiveSession, args: string[], autocommit: boolean): Promise<void> {
+async function runTarget(live: LiveSession, args: Array<string | null>, autocommit: boolean): Promise<void> {
   const poller = setInterval(() => { void pollSnapshot(live).catch((error: unknown) => { live.snapshot.output.push(`Debugger status could not be refreshed: ${errorText(error)}`); emit(live) }) }, 120)
   try {
-    const callArgs = args.map((value) => `'${value.replaceAll('\\', '\\\\').replaceAll("'", "''")}'`).join(',')
+    const callArgs = args.map((value) => value === null ? 'NULL' : `'${value.replaceAll('\\', '\\\\').replaceAll("'", "''")}'`).join(',')
     await live.executor.execute(`CALL ${quoteDebugIdentifier(live.target.database)}.${quoteDebugIdentifier(live.target.name)}(${callArgs})`)
     live.snapshot.status = 'finished'
     live.snapshot.output.push('Debugging finished.')

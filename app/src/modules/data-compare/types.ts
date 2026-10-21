@@ -3,14 +3,16 @@ import type { DbDriver, SqlValue } from '../../main/db/DbDriver.js'
 
 export interface DataCompareEndpoint { driver: DbDriver; connectionId: string; database: string; table: string }
 export type DataDifferenceKind = 'same' | 'different' | 'source-only' | 'target-only'
-export interface DataCompareDifference { kind: DataDifferenceKind; key: Record<string, unknown>; source?: Record<string, unknown>; target?: Record<string, unknown>; changedColumns?: string[] }
+export interface DataCompareDifference { kind: DataDifferenceKind; key: Record<string, unknown>; source?: Record<string, unknown>; target?: Record<string, unknown>; changedColumns?: string[]; objectName?: string }
 export interface SyncStatement { sql: string; values: readonly SqlValue[]; kind: 'INSERT' | 'UPDATE' | 'DELETE' }
+export interface DataCompareOptions { ignoreLob?: boolean; ignoreComputedColumns?: boolean; roundFloats?: number; includeColumns?: string; excludeColumns?: string }
 
 export interface DataCompareJob {
   source: DataCompareEndpoint
   target: DataCompareEndpoint
   keyColumns: string[]
   columns?: string[]
+  options?: DataCompareOptions
   allowDeletes?: boolean
   signal?: AbortSignal
   script?: Writable
