@@ -200,8 +200,7 @@ export class UpdateService {
     if (!build?.repoPath) return this.update({ phase: 'error', message: 'Development repository metadata is missing.' })
     const repo = resolve(build.repoPath)
     const appRoot = join(repo, 'app')
-    const dirty = await this.command('git', ['status', '--porcelain'], repo).catch((error) => { throw new Error(textError(error)) })
-    if (dirty.trim()) return this.update({ phase: 'blocked', message: 'The repository has uncommitted changes. Commit or save them before updating.' }, 'Update refused: repository is dirty; no source changes were made.')
+    const dirty = (await this.command('git', ['status', '--porcelain'], repo).catch((error) => { throw new Error(textError(error)) })).trim()
     const branch = await this.command('git', ['branch', '--show-current'], repo)
     if (branch !== build.branch) return this.update({ phase: 'blocked', message: `Current branch (${branch || 'detached'}) differs from the build branch (${build.branch}). No source changes were made.` })
     const current = this.state.newVersion
@@ -215,6 +214,8 @@ export class UpdateService {
       const localHead = await run('git', ['rev-parse', 'HEAD'], repo)
       const target = remoteTarget && remoteTarget !== localHead ? remoteTarget : localHead
       if (target !== localHead) {
+        // Only a fast-forward needs a clean tree; a plain rebuild of the local checkout never touches the sources.
+        if (dirty) return this.update({ phase: 'blocked', message: 'The repository has uncommitted changes and the remote is ahead. Commit or save them before updating.' }, 'Update refused: repository is dirty and a fast-forward is required; no source changes were made.')
         await run('git', ['pull', '--ff-only', 'origin', branch], repo)
         log.push(`Fast-forwarded origin/${branch}.`)
       }
