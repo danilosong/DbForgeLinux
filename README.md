@@ -19,7 +19,7 @@
 **Progresso do projeto** · atualizado em 2026-10-21
 
 ```text
-Fidelidade ao original (medida)           █████████████████░░░  83,7%
+Fidelidade ao original (medida)           █████████████████░░░  87,3%
 Módulos implementados e testados          ████████████████████   100%  (20 de 20)
 Specs de UX verificadas contra evidência  ████████████████████   100%  (20 de 20)
 ```

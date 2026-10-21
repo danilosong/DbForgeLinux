@@ -1,7 +1,7 @@
 {
   "updated": "2026-10-21",
   "bars": [
-    { "label": "Fidelidade ao original (medida)", "value": 83.7, "source": "document/paridade/FIDELIDADE-MEDIDA.md" },
+    { "label": "Fidelidade ao original (medida)", "value": 87.3, "source": "document/paridade/FIDELIDADE-MEDIDA.md" },
     { "label": "Módulos implementados e testados", "value": 100, "detail": "20 de 20" },
     { "label": "Specs de UX verificadas contra evidência", "value": 100, "detail": "20 de 20" }
   ],
