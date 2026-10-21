@@ -37,7 +37,7 @@ describe('Data Report Pivot', () => {
     expect(() => parseReportDesign('{"version":2}')).toThrow('Unsupported report design')
     expect(reportPages(Array.from({ length: 45 }, (_, index) => index), 20)).toHaveLength(3)
     expect(exportDesignedReport(updated, ['region', 'sales'], [['<20>', 20]], 'html')).toContain('&lt;20&gt;')
-    expect(exportDesignedReport(updated, ['region', 'sales'], [['North', 20]], 'csv')).toBe('"region"\r\n"North"')
+    expect(exportDesignedReport(updated, ['region', 'sales'], [['North', 20]], 'csv')).toBe('region\r\nNorth')
   })
 
   it('exports escaped CSV, HTML, and a valid single-page PDF', () => {
@@ -48,6 +48,12 @@ describe('Data Report Pivot', () => {
     const pdf = exportPivot(pivot, 'pdf') as Buffer
     expect(pdf.subarray(0, 8).toString('latin1')).toBe('%PDF-1.4')
     expect(pdf.toString('latin1')).toContain('%%EOF')
+  })
+  it('neutralizes formula-like data in report and pivot CSV exports', () => {
+    const pivot = buildPivot([{ name: ' =1+1', value: 1 }], { rows: [{ field: 'name' }], columns: [], values: [{ field: 'value', aggregation: 'sum' }] })
+    expect(exportPivot(pivot, 'csv')).toContain("' =1+1")
+    const design = createReportDesign('Formula test', ['name'])
+    expect(exportDesignedReport(design, ['name'], [['@SUM(A1)']], 'csv')).toContain("'@SUM(A1)")
   })
 
   it('rejects report SELECT forms that write server-side files or lock rows, including comments between keywords', () => {

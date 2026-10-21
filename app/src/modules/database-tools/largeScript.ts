@@ -14,6 +14,7 @@ export async function executeLargeScript(options: {
   const stream = createReadStream(options.path, { highWaterMark: 64 * 1024 })
   const decoder = new TextDecoder(options.encoding === 'windows1252' ? 'windows-1252' : options.encoding === 'latin1' ? 'iso-8859-1' : options.encoding, { fatal: false })
   let statement = ''; let quote = ''; let escaped = false; let lineComment = false; let blockComment = false
+  let delimiter = ';'
   let count = 0; let skipped = 0; let bytesRead = 0; let ignoreAll = false; let stopped = false
   const errors: ScriptError[] = []
   const progress = (): void => options.onProgress({ statements: count, errors: errors.length, skipped, bytesRead })
@@ -35,15 +36,20 @@ export async function executeLargeScript(options: {
   try {
     let pending = ''
     const consumeLine = async (line: string): Promise<void> => {
+      if (!statement.trim() && !quote && !lineComment && !blockComment) {
+        const directive = /^\s*DELIMITER\s+(\S+)\s*$/i.exec(line.trim())
+        if (directive) { delimiter = directive[1]!; if (delimiter.length > 16 || /[\s'"`\\]/.test(delimiter)) throw new Error('Invalid DELIMITER directive in script.'); return }
+      }
       for (let i = 0; i < line.length; i++) {
         const char = line[i]!; const next = line[i + 1] ?? ''
         if (lineComment) { statement += char; if (char === '\n') lineComment = false; continue }
         if (blockComment) { statement += char; if (char === '*' && next === '/') { statement += next; i++; blockComment = false }; continue }
         if (quote) { statement += char; if (escaped) escaped = false; else if (char === '\\') escaped = true; else if (char === quote) { if (next === quote) { statement += next; i++ } else quote = '' }; continue }
+        if (delimiter !== ';' && line.startsWith(delimiter, i)) { await run(statement); statement = ''; i += delimiter.length - 1; if (stopped) break; continue }
         if (char === '-' && next === '-' || char === '#') { statement += char; if (char === '-') { statement += next; i++ }; lineComment = true; continue }
         if (char === '/' && next === '*') { statement += '/*'; i++; blockComment = true; continue }
         if (char === "'" || char === '"' || char === '`') { quote = char; statement += char; continue }
-        if (char === ';') { await run(statement); statement = ''; if (stopped) break; continue }
+        if (delimiter === ';' && char === ';') { await run(statement); statement = ''; if (stopped) break; continue }
         statement += char
       }
     }

@@ -23,7 +23,8 @@ export function sqlLiteral(value: unknown): string {
 }
 
 export function csvField(value: unknown, delimiter: string, quote: string, forceQuotes = false): string {
-  const text = value === null || value === undefined ? '' : Buffer.isBuffer(value) ? value.toString('base64') : value instanceof Date ? value.toISOString() : String(value)
+  const raw = value === null || value === undefined ? '' : Buffer.isBuffer(value) ? value.toString('base64') : value instanceof Date ? value.toISOString() : String(value)
+  const text = neutralizeCsvFormulaText(raw)
   if (!forceQuotes && !text.includes(delimiter) && !text.includes(quote) && !/[\r\n]/.test(text)) return text
   return `${quote}${text.split(quote).join(quote + quote)}${quote}`
 }
@@ -41,3 +42,4 @@ export function htmlEscape(value: unknown): string {
 export function sqlPlaceholders(count: number): string {
   return Array.from({ length: count }, () => '?').join(', ')
 }
+import { neutralizeCsvFormulaText } from '../csv/safeCsv.js'

@@ -31,6 +31,12 @@ describe('data export/import', () => {
     expect(content.toString()).toBe('id,name\r\n1,"a,""b"" — 日本語"\r\n2,\r\n')
   })
 
+  it('neutralizes spreadsheet formulas in streamed CSV exports', async () => {
+    const { driver } = fakeDriver([{ value: '=1+1' }, { value: '\t@SUM(A1:A2)' }, { value: '-cmd' }])
+    const content = await outputOf((destination) => exportData({ driver, connectionId: 'id', query: 'SELECT', destination, format: 'csv' }))
+    expect(content.toString()).toBe("value\r\n'=1+1\r\n'\t@SUM(A1:A2)\r\n'-cmd\r\n")
+  })
+
   it('exports tab-separated text and applies forced quotes', async () => {
     const { driver } = fakeDriver([{ id: 5, label: 'plain' }])
     const content = await outputOf((destination) => exportData({ driver, connectionId: 'id', query: 'SELECT', destination, format: 'text', options: { header: true, forceQuotes: true } }))

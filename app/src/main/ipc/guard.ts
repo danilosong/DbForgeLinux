@@ -44,7 +44,7 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'grid-data:master-detail': [id, object, object],
   'db:result-read': [id, integer, integer], 'db:result-dispose': [id], 'db:cancel': [id, id], 'db:transaction-begin': [id], 'db:transaction-commit': [id], 'db:transaction-rollback': [id],
   'db:tables': [id, ident], 'db:objects': [id, ident], 'db:show-create': [id, ident, object], 'db:set-database': [id, ident],
-  'file:open-sql': [], 'file:open-sql-path': [path], 'file:save-sql': [opt(path), sql],
+  'file:open-sql': [], 'file:open-sql-path': [path], 'file:reveal-path': [path], 'file:save-sql': [opt(path), sql],
   'documenter:tree': [id, ident], 'documenter:preview': [id, ident, opt(text)], 'documenter:generate': [object], 'documenter:open': [path], 'editor:metadata': [id, ident, opt(bool)], 'editor:invalidate-metadata': [id, opt(ident)],
   'er-diagram:load': [id, ident, id], 'er-diagram:save-relations': [id, ident, objects], 'er-diagram:save-file': [object], 'er-diagram:open-file': [],
   'schema-update:list': [], 'schema-update:queue': [object], 'schema-update:queue-table': [id, ident, s('nullable-object'), object], 'schema-update:remove': [strings], 'schema-update:execute': [strings, trueOnly],
@@ -151,6 +151,86 @@ function assertSpec(value: unknown, spec: Spec, label: string): void {
   }
 }
 
+function assertRecord(value: unknown, label: string, required: readonly string[], allowed: readonly string[]): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) fail(`${label} must be a plain record`)
+  const record = value as Record<string, unknown>
+  for (const key of required) if (!Object.hasOwn(record, key)) fail(`${label}.${key} is required`)
+  for (const key of Object.keys(record)) if (!allowed.includes(key)) fail(`${label}.${key} is not allowed`)
+  return record
+}
+function assertStringArray(value: unknown, label: string, maximum = 1000): asserts value is string[] {
+  if (!Array.isArray(value) || value.length > maximum || value.some((item) => typeof item !== 'string' || item.length > 256)) fail(`${label} must be a bounded string array`)
+}
+function assertDomainPayload(channel: string, args: readonly unknown[]): void {
+  if (channel === 'grid-editing:apply') {
+    const descriptor = assertRecord(args[1], 'descriptor', ['database', 'table', 'keyColumns', 'columns'], ['database', 'table', 'keyColumns', 'columns', 'reason'])
+    for (const key of ['database', 'table']) if (typeof descriptor[key] !== 'string' || !descriptor[key]) fail(`descriptor.${key} must be non-empty text`)
+    assertStringArray(descriptor.keyColumns, 'descriptor.keyColumns', 256)
+    if (!Array.isArray(descriptor.columns) || descriptor.columns.length > 512) fail('descriptor.columns must be bounded')
+    const columnNames = new Set<string>()
+    descriptor.columns.forEach((item, index) => {
+      const column = assertRecord(item, `descriptor.columns[${index}]`, ['name', 'dataType', 'columnType', 'nullable', 'defaultValue', 'extra'], ['name', 'dataType', 'columnType', 'nullable', 'defaultValue', 'extra'])
+      if (['name', 'dataType', 'columnType', 'extra'].some((key) => typeof column[key] !== 'string') || typeof column.nullable !== 'boolean') fail(`descriptor.columns[${index}] has invalid fields`)
+      columnNames.add(String(column.name))
+    })
+    const changes = args[2]
+    if (!Array.isArray(changes) || changes.length > 10_000) fail('changes must be bounded')
+    changes.forEach((item, index) => {
+      const change = assertRecord(item, `changes[${index}]`, ['kind'], ['kind', 'original', 'values'])
+      if (!['insert', 'update', 'delete'].includes(String(change.kind))) fail(`changes[${index}].kind is invalid`)
+      if (change.kind !== 'insert') assertRecord(change.original, `changes[${index}].original`, [], [...columnNames])
+      if (change.kind !== 'delete') assertRecord(change.values, `changes[${index}].values`, [], [...columnNames])
+      if (change.kind === 'update' && (!change.original || !change.values)) fail(`changes[${index}] needs original and values`)
+      if (change.kind === 'insert' && !change.values) fail(`changes[${index}] needs values`)
+      if (change.kind === 'delete' && !change.original) fail(`changes[${index}] needs original`)
+    })
+  } else if (channel === 'report-pivot:build') {
+    const config = assertRecord(args[1], 'config', ['rows', 'columns', 'values'], ['rows', 'columns', 'values', 'filters', 'rowTotals', 'columnTotals', 'grandTotal', 'subtotals'])
+    for (const key of ['rows', 'columns']) {
+      if (!Array.isArray(config[key]) || (config[key] as unknown[]).length > 128) fail(`config.${key} must be bounded`)
+      ;(config[key] as unknown[]).forEach((item, index) => {
+        const field = assertRecord(item, `${key}[${index}]`, ['field'], ['field', 'label', 'grouping', 'interval'])
+        if (typeof field.field !== 'string' || field.field.length > 256) fail(`${key}[${index}].field is invalid`)
+      })
+    }
+    if (!Array.isArray(config.values) || !config.values.length || config.values.length > 64) fail('config.values must contain bounded fields')
+    ;(config.values as unknown[]).forEach((item, index) => {
+      const field = assertRecord(item, `values[${index}]`, ['field', 'aggregation'], ['field', 'label', 'aggregation'])
+      if (typeof field.field !== 'string' || !['sum', 'count', 'average', 'min', 'max', 'stddev', 'distinct-count'].includes(String(field.aggregation))) fail(`values[${index}] is invalid`)
+    })
+    for (const key of ['rowTotals', 'columnTotals', 'grandTotal', 'subtotals']) if (config[key] !== undefined && typeof config[key] !== 'boolean') fail(`config.${key} must be boolean`)
+  } else if (channel === 'schema-compare:compare-models') {
+    for (const [index, model] of [args[0], args[1]].entries()) {
+      const schema = assertRecord(model, `model[${index}]`, ['kind', 'name', 'tables', 'views', 'procedures', 'functions', 'triggers', 'events'], ['kind', 'name', 'charset', 'collation', 'tables', 'views', 'procedures', 'functions', 'triggers', 'events'])
+      if (schema.kind !== 'database' || typeof schema.name !== 'string' || schema.name.length > 256) fail(`model[${index}] identity is invalid`)
+      for (const key of ['tables', 'views', 'procedures', 'functions', 'triggers', 'events']) {
+        if (!Array.isArray(schema[key]) || (schema[key] as unknown[]).length > 10_000) fail(`model[${index}].${key} must be bounded`)
+        ;(schema[key] as unknown[]).forEach((item, objectIndex) => {
+          const kind = key === 'tables' ? 'table' : key === 'views' ? 'view' : key === 'procedures' ? 'procedure' : key === 'functions' ? 'function' : key === 'triggers' ? 'trigger' : 'event'
+          const allowed = kind === 'table' ? ['kind', 'name', 'createSql', 'columns', 'indexes', 'foreignKeys', 'checks', 'partitions', 'partitioning', 'engine', 'charset', 'collation', 'comment', 'options']
+            : kind === 'view' ? ['kind', 'name', 'createSql', 'definition', 'algorithm', 'definer', 'security', 'checkOption', 'columns']
+              : kind === 'procedure' || kind === 'function' ? ['kind', 'name', 'createSql', 'definition', 'definer', 'security', 'sqlDataAccess', 'deterministic', 'comment', 'parameters', 'returnType']
+                : kind === 'trigger' ? ['kind', 'name', 'createSql', 'table', 'timing', 'event', 'definition', 'definer']
+                  : ['kind', 'name', 'createSql', 'definition', 'status', 'schedule', 'definer']
+          const object = assertRecord(item, `${key}[${objectIndex}]`, ['kind', 'name'], allowed)
+          if (typeof object.kind !== 'string' || typeof object.name !== 'string' || object.name.length > 256) fail(`${key}[${objectIndex}] identity is invalid`)
+          if (object.kind !== kind) fail(`${key}[${objectIndex}].kind does not match its collection`)
+        })
+      }
+    }
+  } else if (channel === 'import-export:import' && args[5] !== undefined) {
+    const options = assertRecord(args[5], 'import options', [], ['delimiter', 'quote', 'encoding', 'header', 'columns', 'columnMapping', 'mode', 'keyColumns', 'batchSize', 'onRowError', 'transactional', 'previewRows', 'rowElement', 'nullValue', 'nullString'])
+    if (options.delimiter !== undefined && (typeof options.delimiter !== 'string' || options.delimiter.length > 8)) fail('import delimiter is invalid')
+    if (options.encoding !== undefined && !['utf8', 'utf16le', 'latin1'].includes(String(options.encoding))) fail('import encoding is invalid')
+    if (options.header !== undefined && typeof options.header !== 'boolean') fail('import header must be boolean')
+    if (options.columns !== undefined) assertStringArray(options.columns, 'import columns', 1000)
+    if (options.keyColumns !== undefined) assertStringArray(options.keyColumns, 'import keyColumns', 256)
+    if (options.columnMapping !== undefined) assertRecord(options.columnMapping, 'import columnMapping', [], Object.keys((options.columnMapping ?? {}) as object))
+    if (options.columnMapping && Object.values(options.columnMapping as Record<string, unknown>).some((value) => typeof value !== 'string' || value.length > 256)) fail('import columnMapping values must be text')
+    if (options.batchSize !== undefined && (!Number.isSafeInteger(options.batchSize) || Number(options.batchSize) < 1 || Number(options.batchSize) > 100_000)) fail('import batchSize is invalid')
+  }
+}
+
 export function validateIpcArguments(channel: string, args: readonly unknown[]): void {
   const schema = IPC_CHANNEL_SCHEMAS[channel]
   if (!schema) fail(`channel ${channel} has no runtime schema`)
@@ -165,6 +245,7 @@ export function validateIpcArguments(channel: string, args: readonly unknown[]):
     if (typeof arg === 'string') { budget.nodes++; budget.bytes += arg.length * 2 }
     else assertStructured(arg, budget)
   })
+  assertDomainPayload(channel, args)
   if (budget.bytes > 24 * 1024 * 1024) fail(`${channel} payload exceeds 24 MB`)
 }
 

@@ -49,4 +49,14 @@ describe('large script streaming', () => {
       expect(ran).toEqual(["SELECT 'café'"])
     } finally { await rm(dir, { recursive: true, force: true }) }
   })
+  it('uses custom DELIMITER for stored routines', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'dbforge-large-script-'))
+    try {
+      const path = join(dir, 'routine.sql')
+      await writeFile(path, 'DELIMITER $$\nCREATE PROCEDURE p() BEGIN SELECT 1; SELECT 2; END$$\nDELIMITER ;\nSELECT 3;')
+      const ran: string[] = []
+      await executeLargeScript({ path, encoding: 'utf8', databaseSelected: false, execute: async (sql) => { ran.push(sql) }, onProgress: () => undefined, onError: async () => 'stop' })
+      expect(ran).toEqual(['CREATE PROCEDURE p() BEGIN SELECT 1; SELECT 2; END', 'SELECT 3'])
+    } finally { await rm(dir, { recursive: true, force: true }) }
+  })
 })

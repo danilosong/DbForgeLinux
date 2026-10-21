@@ -1,4 +1,5 @@
 import type { EditableResult } from '../grid-editing/index.js'
+import { safeCsvCell } from '../csv/safeCsv.js'
 
 export type CopyAsFormat = 'csv' | 'tsv' | 'json' | 'insert' | 'markdown' | 'html'
 
@@ -6,7 +7,7 @@ export function formatGridCopy(rows: Array<Record<string, unknown>>, columns: st
   const selected = rows.map((row) => columns.map((column) => row[column]))
   if (format === 'json') return safeJson(rows.map((row) => Object.fromEntries(columns.map((column) => [column, row[column]]))))
   if (format === 'tsv') return (headers ? [columns, ...selected] : selected).map((row) => row.map((value) => display(value).replaceAll('\t', ' ').replaceAll('\n', ' ')).join('\t')).join('\r\n')
-  if (format === 'csv') return (headers ? [columns, ...selected] : selected).map((row) => row.map(csvCell).join(',')).join('\r\n')
+  if (format === 'csv') return (headers ? [columns, ...selected] : selected).map((row) => row.map(safeCsvCell).join(',')).join('\r\n')
   if (format === 'insert') {
     if (!descriptor?.table || !descriptor.database) throw new Error('INSERT copy needs a table result.')
     const table = `\`${descriptor.database.replaceAll('`', '``')}\`.\`${descriptor.table.replaceAll('`', '``')}\``
@@ -44,7 +45,6 @@ export function display(value: unknown): string {
 }
 function safeJson(value: unknown): string { return JSON.stringify(value, (_key, item: unknown) => typeof item === 'bigint' ? String(item) : item instanceof Uint8Array ? `0x${toHex(item)}` : item, 2) }
 function quote(value: string): string { return `\`${value.replaceAll('`', '``')}\`` }
-function csvCell(value: unknown): string { const text = value === null ? '' : typeof value === 'object' && !(value instanceof Uint8Array) ? JSON.stringify(value) : value instanceof Uint8Array ? `0x${toHex(value)}` : String(value); return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text }
 function sqlValue(value: unknown): string { if (value === null || value === undefined) return 'NULL'; if (typeof value === 'number' || typeof value === 'bigint') return String(value); if (typeof value === 'boolean') return value ? '1' : '0'; if (value instanceof Uint8Array) return `X'${toHex(value)}'`; if (value instanceof Date) value = value.toISOString().replace('T', ' ').replace('Z', ''); return `'${String(value).replaceAll('\\', '\\\\').replaceAll("'", "''")}'` }
 function markdownCell(value: unknown): string { return String(value).replaceAll('|', '\\|').replaceAll('\n', '<br>') }
 function htmlCell(value: unknown): string { return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;') }

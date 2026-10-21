@@ -13,6 +13,9 @@ describe('grid viewer helpers', () => {
     expect(formatGridCopy(rows.slice(0, 1), ['group'], 'html')).toContain('<td>A</td>')
     expect(formatGridCopy([{ amount: 9007199254740993n, blob: new Uint8Array([0, 255]) }], ['amount', 'blob'], 'json')).toContain('0x00ff')
   })
+  it('neutralizes spreadsheet formulas, including after whitespace prefixes', () => {
+    expect(formatGridCopy([{ value: '=1+1' }, { value: '\t@SUM(A1:A2)' }, { value: '-cmd' }, { value: '+1' }], ['value'], 'csv', undefined, false)).toBe("'=1+1\r\n'\t@SUM(A1:A2)\r\n'-cmd\r\n'+1")
+  })
 
   it('calculates row/null/distinct/min/max statistics and quick aggregates', () => {
     expect(columnStatistics(rows, 'amount')).toEqual({ count: 3, nulls: 1, distinct: 2, min: '4', max: '6' })

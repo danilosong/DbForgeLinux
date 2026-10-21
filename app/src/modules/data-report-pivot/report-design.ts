@@ -31,9 +31,10 @@ export function exportDesignedReport(design: ReportDesign, headers: string[], ro
   const selected = design.bands.Detail.length ? headers.map((header, index) => ({ header, index })).filter(({ header }) => design.bands.Detail.includes(header)) : headers.map((header, index) => ({ header, index }))
   const outputHeaders = selected.map(({ header }) => header)
   const outputRows = rows.map((row) => selected.map(({ index }) => row[index] ?? null))
-  if (format === 'csv') return [outputHeaders, ...outputRows].map((row) => row.map((value) => `"${String(value ?? '').replaceAll('"', '""')}"`).join(',')).join('\r\n')
+  if (format === 'csv') return [outputHeaders, ...outputRows].map((row) => row.map(safeCsvCell).join(',')).join('\r\n')
   const escape = (value: unknown): string => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')
   const bands = REPORT_BANDS.map((band) => design.bands[band].length ? `<section data-band="${escape(band)}"><h2>${escape(band)}</h2><p>${design.bands[band].map(escape).join(' · ')}</p></section>` : '').join('')
   const table = `<table><thead><tr>${outputHeaders.map((header) => `<th>${escape(header)}</th>`).join('')}</tr></thead><tbody>${outputRows.map((row) => `<tr>${row.map((value) => `<td>${escape(value)}</td>`).join('')}</tr>`).join('')}</tbody></table>`
   return `<!doctype html><meta charset="utf-8"><title>${escape(design.title)}</title><h1>${escape(design.title)}</h1>${bands}${table}`
 }
+import { safeCsvCell } from '../csv/safeCsv.js'

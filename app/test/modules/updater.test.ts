@@ -81,6 +81,16 @@ describe('development updater', () => {
     expect(await readFile(join(root, 'app', 'out', 'main', 'index.js'), 'utf8')).toBe('new build')
   })
 
+  it('refuses a buildInfo repository path outside the checkout owning buildInfo', async () => {
+    const { root, infoPath } = await fixture()
+    const other = await mkdtemp(join(tmpdir(), 'dbforge-updater-other-')); tempDirs.push(other)
+    const info = JSON.parse(await readFile(infoPath, 'utf8')) as Record<string, unknown>
+    await writeFile(infoPath, JSON.stringify({ ...info, repoPath: other }))
+    const checked = await service(root, infoPath).check()
+    expect(checked.phase).toBe('blocked')
+    expect(checked.message).toMatch(/does not match this installation/i)
+  })
+
   it('preserves the installed build if a temporary build fails', async () => {
     const { root, infoPath } = await fixture()
     const updater = service(root, infoPath, { buildFails: true })

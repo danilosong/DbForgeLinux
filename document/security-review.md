@@ -150,86 +150,86 @@ Revisão dos módulos updater, archive, grid, snippets/toolbox, SQL Formatter, E
 - **FINDING:** `buildInfo.repoPath` é aceito se for uma string absoluta. No canal dev, esse valor define o `cwd` de `git fetch/pull`, `pnpm install` e `pnpm build`; o updater não confirma que o caminho corresponde à raiz do checkout que gerou o app.
 - **LOCATION:** `app/src/modules/updater/UpdateService.ts:31,128,199`.
 - **EXPECTED:** limitar o caminho à raiz de repositório esperada para a instalação de desenvolvimento e validar a raiz real antes de qualquer comando que altere checkout ou execute scripts de build.
-- **ACTUAL:** `execFile` usa argumentos separados, timeout e cancelamento, e o build vai para `out.next` com validação/rollback; contudo, a validação de `repoPath` só exige caminho absoluto. A confirmação de build não contém referência independente à raiz original.
-- **EVIDENCE:** `validBuildInfo` verifica `isAbsolute(info.repoPath)`; `applyDev` resolve o valor e executa `git pull`/`pnpm install` sob o diretório derivado dele.
-- **SEVERITY:** MEDIUM — pendente; restrito ao canal dev e a buildInfo adulterado ou checkout local inesperado.
+- **ACTUAL:** O updater deriva a raiz permitida do caminho de `buildInfo.json`, compara caminhos reais por `realpath` e bloqueia o canal dev antes de executar comandos quando `repoPath` difere.
+- **EVIDENCE:** `app/test/modules/updater.test.ts` cobre `repoPath` externo e confirma bloqueio; `pnpm exec vitest run test/modules/updater.test.ts` passou.
+- **SEVERITY:** MEDIUM — corrigido.
 
 ### MEDIUM — CSV exportado pelo Find Object pode executar fórmulas
 
 - **FINDING:** valores iniciados por `=`, `+`, `-` ou `@` são apenas colocados entre aspas CSV. Planilhas comuns ainda podem interpretá-los como fórmula ao abrir o arquivo.
 - **LOCATION:** `app/src/renderer/src/ui/panels/database-tools/Panel.tsx` (exportação de Find Object e Find Invalid Objects); mesmo risco nos CSV de `app/src/modules/grid-viewer/index.ts` e `app/src/modules/data-report-pivot/export.ts`.
 - **EXPECTED:** escapar campos formulares antes de gravar CSV, preservando os dados sem execução ao abrir em planilha.
-- **ACTUAL:** aspas CSV são duplicadas corretamente, mas não há neutralização de prefixos formulares. Dados pesquisados e nomes/definições podem vir do servidor.
-- **EVIDENCE:** os formatadores envolvem texto entre aspas e duplicam `"`; não adicionam prefixo seguro para os quatro caracteres nem tratam tabulação/CR como iniciadores.
-- **SEVERITY:** MEDIUM — pendente.
+- **ACTUAL:** Foi criado `safeCsvCell` e a neutralização de prefixos `=`, `+`, `-`, `@` após whitespace/controlos foi aplicada aos CSV do Find Object/Find Invalid, grid viewer, relatório/pivot e exportação CSV em streaming.
+- **EVIDENCE:** `app/test/modules/grid-viewer.test.ts`, `app/test/modules/data-report-pivot.test.ts` e `app/test/modules/data-export-import.test.ts` cobrem fórmulas e prefixos com tabulação; 67 testes focados passaram.
+- **SEVERITY:** MEDIUM — corrigido.
 
 ### MEDIUM — Descompressão ZIP confia no tamanho declarado da entrada
 
 - **FINDING:** a abertura de backup limita o arquivo comprimido a 50 MiB e verifica `uncompressedSize` antes de descomprimir, mas `entry.getData(new TextWriter())` acumula a saída sem um limite aplicado aos bytes realmente emitidos. Um ZIP malicioso pode declarar tamanho menor que o conteúdo descomprimido e consumir memória acima do limite.
 - **LOCATION:** `app/src/modules/archive/index.ts:13`; seleção e leitura em `app/src/main/ipc/database-tools.ts`.
 - **EXPECTED:** interromper extração ao exceder limite real de bytes, além de validar o tamanho informado pelo ZIP.
-- **ACTUAL:** a validação atual rejeita metadado acima de 50 MiB, porém não limita a saída durante `getData`; a fonte pode ter até 50 MiB comprimidos.
-- **EVIDENCE:** `decodeZipEntry` verifica apenas `entry.uncompressedSize` e entrega um `TextWriter` sem contador/limite; o IPC lê o arquivo inteiro após validar apenas o tamanho comprimido.
-- **SEVERITY:** MEDIUM — pendente.
+- **ACTUAL:** A leitura agora usa um `Writer` limitado pelos bytes efetivamente emitidos, além do limite de tamanho declarado; o excesso interrompe a descompressão.
+- **EVIDENCE:** `app/test/modules/database-backup.test.ts` forja tamanho ZIP inconsistente e testa também o limite do writer com bytes reais; os testes de backup passaram.
+- **SEVERITY:** MEDIUM — corrigido.
 
 ### MEDIUM — Importação de snippets lê o arquivo inteiro antes do limite
 
 - **FINDING:** o limite de 5 MiB é verificado em `UserSnippetStore.import`, depois que o IPC já executou `readFile` sem `stat` ou limite de leitura.
 - **LOCATION:** `app/src/main/ipc/extra-tools.ts` (`snippets:import`) e `app/src/modules/editor/snippetStore.ts`.
 - **EXPECTED:** verificar o tamanho do arquivo escolhido antes de alocá-lo integralmente e manter validação JSON/schema após a leitura.
-- **ACTUAL:** o parser valida 5 MiB, 5.000 entradas e cada snippet; a camada IPC carrega primeiro qualquer tamanho em memória.
-- **EVIDENCE:** fluxo de importação chama `snippets.import(await readFile(path, 'utf8'))`; o limite de bytes está apenas dentro de `import(json)`.
-- **SEVERITY:** MEDIUM — pendente.
+- **ACTUAL:** O IPC abre o arquivo sem seguir symlink, verifica que é arquivo regular e aplica limite de 5 MiB antes e durante a leitura; validação JSON e contagem de snippets continuam depois.
+- **EVIDENCE:** `app/test/modules/bounded-file.test.ts` cobre arquivo acima do limite e caminho symlink; o handler `snippets:import` usa esse leitor antes do parser.
+- **SEVERITY:** MEDIUM — corrigido.
 
 ### MEDIUM — SQL Formatter pode seguir symlink no diretório selecionado
 
 - **FINDING:** a coleta usa `stat`, que segue symlink, no caminho raiz aprovado pelo diálogo. Se o usuário selecionar um diretório symlink, a recursão pode ler e substituir arquivos SQL na pasta de destino real.
 - **LOCATION:** `app/src/modules/editor/batchFormatter.ts:10`; aprovação de caminhos em `app/src/main/ipc/database-tools.ts`.
 - **EXPECTED:** canonicalizar/revalidar raízes aprovadas e rejeitar symlink em componentes antes da leitura e da substituição atômica.
-- **ACTUAL:** symlinks encontrados dentro da recursão não são seguidos por `Dirent`, mas um symlink passado como raiz é seguido por `stat`; `resolve()` usado pela aprovação preserva o caminho lexical.
-- **EVIDENCE:** a função `collect` chama `stat(path)` antes de decidir se o caminho é arquivo ou diretório e, para diretórios, chama `readdir(path)`.
-- **SEVERITY:** MEDIUM — pendente.
+- **ACTUAL:** A coleta usa `lstat`, recusa raiz symlink e cada arquivo é reaberto com leitor bounded/no-follow antes de preview ou gravação; a substituição ainda usa rename atômico.
+- **EVIDENCE:** `app/test/modules/batch-formatter.test.ts` confirma que raiz symlink é rejeitada e o arquivo-alvo permanece intacto.
+- **SEVERITY:** MEDIUM — corrigido.
 
 ### MEDIUM — Padrões regex de Find Object não têm limite de execução
 
 - **FINDING:** a busca aceita uma expressão regular de até 256 caracteres e a executa de forma síncrona em cada nome/linha de definição. Uma expressão com backtracking catastrófico combinada com texto longo pode bloquear o processo principal.
 - **LOCATION:** `app/src/modules/database-tools/index.ts:8`; chamada em `app/src/main/ipc/database-tools.ts`.
 - **EXPECTED:** limitar custo de regex ou usar mecanismo com timeout/garantia de tempo linear para conteúdo de banco não confiável.
-- **ACTUAL:** o tamanho da máscara é limitado, mas `RegExp.exec` não tem timeout; linhas de definição não têm limite próprio antes da busca.
-- **EVIDENCE:** a opção `regex` cria `new RegExp(needle, ... 'g')` e percorre todas as linhas de cada definição, na thread principal.
-- **SEVERITY:** MEDIUM — pendente.
+- **ACTUAL:** A validação agora recusa backreferences/lookarounds, grupos quantificados com quantificadores/alternância interna e quantificadores enormes; a busca limita objetos, caracteres por linha e caracteres totais examinados.
+- **EVIDENCE:** `app/test/modules/database-tools.test.ts` cobre `(a+)+$`, `([a-z]+)*$` e padrão simples permitido; o teste de regex passou.
+- **SEVERITY:** MEDIUM — corrigido.
 
 ### MEDIUM — Limite de snapshot é aplicado após leitura integral
 
 - **FINDING:** snapshots têm limite de 32 MiB no parser, mas o IPC primeiro usa `readFile` sem conferir o tamanho. A leitura de Scripts Folder também carrega cada SQL completo antes de somar e comparar o limite total de 64 MiB.
 - **LOCATION:** `app/src/main/ipc/schema-compare.ts` (`load-offline`) e `app/src/modules/schema/offline.ts` (`parseSchemaSnapshot`, `readScriptsFolder`).
 - **EXPECTED:** validar tamanho de arquivo/pasta antes da alocação integral e impor limite de bytes durante a leitura.
-- **ACTUAL:** os limites interrompem o parse depois que cada string já está na memória; diretório selecionado é percorrido com `readdir` sem validar `realpath`/`lstat` da raiz, então uma raiz symlink pode fazer a leitura percorrer outro diretório.
-- **EVIDENCE:** `readFile(selection.filePaths[0], 'utf8')` precede `parseSchemaSnapshot`; `readScriptsFolder` faz `readFile(entry)` antes de atualizar `totalBytes`; `collectSqlFiles` inicia em `readdir(directory)` sem rejeitar symlink na raiz.
-- **SEVERITY:** MEDIUM — pendente.
+- **ACTUAL:** O IPC lê snapshots por descritor regular no-follow com teto de 32 MiB; Scripts Folder rejeita raiz/entradas symlink, soma `lstat.size` antes de carregar SQL e lê cada arquivo com limite durante a leitura.
+- **EVIDENCE:** `app/test/modules/schema-offline.test.ts` verifica raiz symlink e pasta acima de 64 MiB; `app/test/modules/bounded-file.test.ts` verifica limite/no-follow. O snapshot usa o mesmo leitor limitado.
+- **SEVERITY:** MEDIUM — corrigido.
 
 ### MEDIUM — Execute Large Script não interpreta DELIMITER
 
 - **FINDING:** o executor divide no `;` sem processar diretivas `DELIMITER`. Scripts com procedures/functions podem ser enviados em fragmentos; comandos do corpo que deveriam estar dentro do objeto podem acabar enviados separadamente.
 - **LOCATION:** `app/src/modules/database-tools/largeScript.ts:30`.
 - **EXPECTED:** respeitar as diretivas MySQL de delimiter ou rejeitar o arquivo antes de executar qualquer fragmento quando encontrar uma diretiva não suportada.
-- **ACTUAL:** o parser reconhece aspas e comentários, mas não `DELIMITER`; os backups do próprio app usam essa diretiva para rotinas e têm parser separado no restore.
-- **EVIDENCE:** `consumeLine` só separa em `;`; os testes atuais cobrem aspas, comentários, encoding, cancelamento e decisões de erro, mas não diretivas `DELIMITER`.
-- **SEVERITY:** MEDIUM — pendente.
+- **ACTUAL:** O executor reconhece diretivas `DELIMITER`, valida delimitador, preserva ponto-e-vírgula interno de procedure e só envia o objeto quando encontra o delimiter ativo.
+- **EVIDENCE:** `app/test/database-tools/largeScript.test.ts` executa procedure com dois `SELECT` internos como um statement e depois executa a consulta seguinte.
+- **SEVERITY:** MEDIUM — corrigido.
 
 ### MEDIUM — Schemas IPC validam forma básica, não o contrato interno de vários objetos
 
 - **FINDING:** o guard cobre todos os canais `ipcMain.handle` e valida tipos básicos, profundidade e tamanho, mas vários canais recebem payloads inteiros como `object`/`array-object` sem schema recursivo específico (por exemplo, grid-editing, report-pivot, schema-compare e import/export). A integridade dos campos fica dependente de verificações ad hoc dos handlers.
 - **LOCATION:** `app/src/main/ipc/guard.ts`.
 - **EXPECTED:** esquema completo por canal, com campos obrigatórios/permitidos, tipos, limites e rejeição de propriedades desconhecidas para estruturas críticas.
-- **ACTUAL:** existe esquema para cada handler e o teste compara o inventário de handlers com o mapa; porém `object` só exige objeto plano/clonável e limites globais. A cobertura central não equivale a validação completa do contrato de cada payload.
-- **EVIDENCE:** `assertSpec` para `object` verifica apenas que o valor é um objeto não-array; `assertStructured` limita bytes/nós/profundidade, sem validar campos do domínio. `app/test/ipc-guard.test.ts` confirma cobertura de canais e também aceita exemplos `{}` em `grid-editing:apply`.
-- **SEVERITY:** MEDIUM — pendente; defesa adicional contra renderer comprometido.
+- **ACTUAL:** O guard agora rejeita campos desconhecidos e valida campos/requisitos/limites para mudanças de grid, configurações de pivot, modelos de schema compare e opções de importação. A validação do handler continua como defesa adicional.
+- **EVIDENCE:** `app/test/ipc-guard.test.ts` cobre descriptor incompleto, campo extra e agregação inválida; inventário de canais e testes do guard passaram.
+- **SEVERITY:** MEDIUM — corrigido.
 
 
 ### Superfícies conferidas sem achado adicional confirmado
 
-Resumo da Rodada 2: BLOCKER 0; HIGH 2 corrigidos; MEDIUM 9 pendentes; LOW 0 novos.
+Resumo da Rodada 2: BLOCKER 0; HIGH 2 corrigidos; MEDIUM 9 corrigidos; LOW 0 novos.
 
 - **Updater de release:** usa `electron-updater` com provider GitHub definido no builder; fallback de metadata usa HTTPS, `redirect: 'error'`, timeout e envia token somente ao endpoint fixo da API GitHub. Erros são sanitizados. `verifySha512` compara o SHA-512 no helper; a instalação real delega a verificação do artefato ao `electron-updater`.
 - **Archive e retenção:** novo ZIP usa WinZip AES-256 da biblioteca `@zip.js/zip.js`; senha não é incluída no log, o teste exercita leitura por 7-Zip e retenção confere propriedade, caminho real, arquivo regular e symlink antes de remover.

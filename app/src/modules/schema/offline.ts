@@ -1,6 +1,7 @@
-import { readFile, readdir } from 'node:fs/promises'
+import { lstat, readdir } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import type { DatabaseModel, TableModel } from './model.js'
+import { readBoundedRegularFile } from '../security/boundedFile.js'
 
 export const SCHEMA_SNAPSHOT_VERSION = 1
 export interface SchemaSnapshot { format: 'dbforge-schema-snapshot'; version: 1; createdAt: string; schema: DatabaseModel }
@@ -27,11 +28,11 @@ export async function readScriptsFolder(directory: string, schemaName = 'scripts
   const entries = await collectSqlFiles(directory)
   if (entries.length > 2000) throw new Error('Scripts folder contains more than 2,000 SQL files.')
   let totalBytes = 0
+  for (const entry of entries) { const info = await lstat(entry); if (!info.isFile() || info.isSymbolicLink()) throw new Error('Scripts folder contains a non-regular file.'); totalBytes += info.size }
+  if (totalBytes > 64 * 1024 * 1024) throw new Error('Scripts folder exceeds the 64 MiB limit.')
   const statements: string[] = []
   for (const entry of entries) {
-    const content = await readFile(entry, 'utf8')
-    totalBytes += Buffer.byteLength(content)
-    if (totalBytes > 64 * 1024 * 1024) throw new Error('Scripts folder exceeds the 64 MiB limit.')
+    const content = (await readBoundedRegularFile(entry, 64 * 1024 * 1024)).toString('utf8')
     statements.push(...splitSqlStatements(content))
   }
   return parseStaticDdl(statements.join('\n'), schemaName)
@@ -39,10 +40,13 @@ export async function readScriptsFolder(directory: string, schemaName = 'scripts
 
 async function collectSqlFiles(directory: string, depth = 0): Promise<string[]> {
   if (depth > 16) throw new Error('Scripts folder nesting exceeds the 16-level limit.')
+  const rootInfo = await lstat(directory)
+  if (rootInfo.isSymbolicLink() || !rootInfo.isDirectory()) throw new Error('Scripts folder must be a real directory, not a symbolic link.')
   const entries = await readdir(directory, { withFileTypes: true })
   const paths: string[] = []
   for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
     const filePath = join(directory, entry.name)
+    if (entry.isSymbolicLink()) throw new Error('Scripts folder cannot contain symbolic links.')
     if (entry.isDirectory()) paths.push(...await collectSqlFiles(filePath, depth + 1))
     else if (entry.isFile() && extname(entry.name).toLowerCase() === '.sql') paths.push(filePath)
     if (paths.length > 2000) throw new Error('Scripts folder contains more than 2,000 SQL files.')

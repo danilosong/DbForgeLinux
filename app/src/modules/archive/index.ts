@@ -1,4 +1,4 @@
-import { TextWriter, Uint8ArrayReader, Uint8ArrayWriter, ZipReader, ZipWriter } from '@zip.js/zip.js'
+import { Writer, Uint8ArrayReader, Uint8ArrayWriter, ZipReader, ZipWriter } from '@zip.js/zip.js'
 
 export interface ZipArchiveOptions { compressionLevel: number; comment?: string; password?: string }
 
@@ -16,6 +16,21 @@ export async function decodeZipEntry(contents: Buffer, expectedName: string, pas
     const entries = await reader.getEntries()
     const entry = entries[0]
     if (entries.length !== 1 || entry?.filename !== expectedName || entry.directory || (entry.uncompressedSize ?? 0) > maxBytes) throw new Error('ZIP entry is invalid or too large.')
-    return await entry.getData(new TextWriter(), { password })
+    const writer = new BoundedWriter(maxBytes)
+    await entry.getData(writer, { password })
+    return Buffer.from(await writer.getData()).toString('utf8')
   } finally { await reader.close() }
+}
+
+export class BoundedWriter extends Writer<Uint8Array> {
+  chunks: Uint8Array[] = []
+  private writtenBytes = 0
+  constructor(private readonly maximum: number) { super() }
+  async init(): Promise<void> { await super.init?.() }
+  async writeUint8Array(chunk: Uint8Array): Promise<void> {
+    this.writtenBytes += chunk.byteLength
+    if (this.writtenBytes > this.maximum) throw new Error('ZIP entry exceeds the decompressed size limit.')
+    this.chunks.push(chunk.slice())
+  }
+  async getData(): Promise<Uint8Array> { return Buffer.concat(this.chunks, this.writtenBytes) }
 }

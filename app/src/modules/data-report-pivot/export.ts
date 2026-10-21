@@ -1,7 +1,8 @@
 import type { PivotResult, ReportExportFormat } from './types.js'
+import { safeCsvCell } from '../csv/safeCsv.js'
 
 const text = (value: unknown): string => value === null || value === undefined ? '' : value instanceof Date ? value.toISOString() : String(value)
-const csvCell = (value: unknown): string => `"${text(value).replace(/"/g, '""')}"`
+const csvCell = (value: unknown): string => safeCsvCell(text(value))
 const escapeHtml = (value: unknown): string => text(value).replace(/[&<>"']/g, (char) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!)
 function matrix(pivot: PivotResult): unknown[][] {
   const headers = [...pivot.rowFields, ...pivot.columns.map((column) => column.label), ...(pivot.rowFields.length && Object.keys(pivot.rowTotals).length ? ['Row Total'] : [])]

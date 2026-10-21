@@ -1,13 +1,15 @@
-import { copyFile, mkdir, readFile, readdir, rename, stat, writeFile } from 'node:fs/promises'
+import { copyFile, lstat, mkdir, readdir, rename, writeFile } from 'node:fs/promises'
 import { constants } from 'node:fs'
 import { basename, dirname, extname, join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { formatSql, type SqlFormatOptions } from './formatter.js'
+import { readBoundedRegularFile } from '../security/boundedFile.js'
 
 export interface BatchFormatOptions { paths: string[]; backup: boolean; recursive?: boolean; formatOptions?: SqlFormatOptions }
 export interface BatchFormatResult { path: string; changed: boolean; backupPath?: string }
 const collect = async (path: string, recursive: boolean, output: string[] = []): Promise<string[]> => {
-  const info = await stat(path)
+  const info = await lstat(path)
+  if (info.isSymbolicLink()) throw new Error('SQL formatter does not follow symbolic links.')
   if (info.isFile()) { if (extname(path).toLowerCase() === '.sql') output.push(resolve(path)); return output }
   if (!info.isDirectory()) return output
   for (const item of await readdir(path, { withFileTypes: true })) {
@@ -25,14 +27,16 @@ export async function formatSqlFiles(options: BatchFormatOptions): Promise<Batch
   const files = [...new Set((await Promise.all(options.paths.map((path) => collect(path, Boolean(options.recursive)))).then((groups) => groups.flat())))]
   const results: BatchFormatResult[] = []
   for (const path of files) {
-    const source = await readFile(path, 'utf8')
+    const info = await lstat(path)
+    if (!info.isFile() || info.isSymbolicLink()) throw new Error('Selected SQL file is no longer a regular file.')
+    const source = (await readBoundedRegularFile(path, 64 * 1024 * 1024)).toString('utf8')
     const formatted = formatSql(source, options.formatOptions)
     if (formatted === source) { results.push({ path, changed: false }); continue }
     const backupPath = options.backup ? `${path}.bak` : undefined
     if (backupPath) await copyFile(path, backupPath, constants.COPYFILE_EXCL)
     await mkdir(dirname(path), { recursive: true })
     const temporary = join(dirname(path), `.${basename(path)}.${randomUUID()}.tmp`)
-    try { await writeFile(temporary, formatted, { encoding: 'utf8', mode: (await stat(path)).mode }); await rename(temporary, path) }
+    try { await writeFile(temporary, formatted, { encoding: 'utf8', mode: info.mode }); await rename(temporary, path) }
     catch (error) { const { unlink } = await import('node:fs/promises'); await unlink(temporary).catch(() => undefined); throw error }
     results.push({ path, changed: true, ...(backupPath ? { backupPath } : {}) })
   }
@@ -46,9 +50,9 @@ export async function previewSqlFiles(options: Pick<BatchFormatOptions, 'paths' 
   let total = 0
   const previews: Array<{ path: string; formatted: string; changed: boolean }> = []
   for (const path of files.slice(0, 20)) {
-    const info = await stat(path); total += info.size
+    const info = await lstat(path); if (!info.isFile() || info.isSymbolicLink()) throw new Error('Selected SQL file is no longer a regular file.'); total += info.size
     if (total > 2 * 1024 * 1024) throw new Error('Preview is limited to 2 MB across the first 20 SQL files.')
-    const source = await readFile(path, 'utf8'); const formatted = formatSql(source, options.formatOptions)
+    const source = (await readBoundedRegularFile(path, 2 * 1024 * 1024)).toString('utf8'); const formatted = formatSql(source, options.formatOptions)
     previews.push({ path, formatted, changed: formatted !== source })
   }
   return previews

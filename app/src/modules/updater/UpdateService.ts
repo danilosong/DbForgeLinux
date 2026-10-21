@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { readFile, rename, rm, stat, writeFile } from 'node:fs/promises'
-import { basename, isAbsolute, join, resolve } from 'node:path'
+import { readFile, realpath, rename, rm, stat, writeFile } from 'node:fs/promises'
+import { basename, dirname, isAbsolute, join, resolve } from 'node:path'
 import { resolvePnpm } from './toolchain.js'
 import type { BuildInfo, ReleaseUpdate, UpdatePreferences, UpdateServiceOptions, UpdateStatus } from './types.js'
 
@@ -150,8 +150,19 @@ export class UpdateService {
     }
   }
 
+  private async validatedDevRepo(build: BuildInfo): Promise<string> {
+    if (!build.repoPath || !isAbsolute(build.repoPath)) throw new UpdateRequirementError('Development repository metadata is invalid. No commands were run.')
+    const expected = resolve(dirname(this.options.buildInfoPath), '../..')
+    let expectedReal: string; let providedReal: string
+    try { [expectedReal, providedReal] = await Promise.all([realpath(expected), realpath(build.repoPath)]) }
+    catch { throw new UpdateRequirementError('Development repository path is unavailable. No commands were run.') }
+    if (providedReal !== expectedReal) throw new UpdateRequirementError('Development repository path does not match this installation. No commands were run.')
+    return expectedReal
+  }
+
   private async checkDev(build: BuildInfo, preferences: UpdatePreferences, signal: AbortSignal): Promise<UpdateStatus> {
-    const repo = resolve(build.repoPath!)
+    let repo: string
+    try { repo = await this.validatedDevRepo(build) } catch (error) { if (error instanceof UpdateRequirementError) return this.update({ phase: 'blocked', message: error.message }, error.message); throw error }
     await this.requireGit(repo)
     const localHead = await this.command('git', ['rev-parse', 'HEAD'], repo, signal)
     let target = localHead
@@ -223,7 +234,7 @@ export class UpdateService {
   private async applyDev(): Promise<UpdateStatus> {
     const build = await this.readBuildInfo()
     if (!build?.repoPath) return this.update({ phase: 'error', message: 'Development repository metadata is missing.' })
-    const repo = resolve(build.repoPath)
+    const repo = await this.validatedDevRepo(build)
     const appRoot = join(repo, 'app')
     try { await this.requireGit(repo) } catch (error) {
       if (error instanceof UpdateRequirementError) return this.update({ phase: 'blocked', message: error.message }, error.message)

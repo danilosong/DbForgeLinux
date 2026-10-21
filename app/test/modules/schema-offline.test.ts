@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, mkdir, rm, symlink, truncate, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -36,5 +36,13 @@ describe('offline schema sources', () => {
     await writeFile(join(folder, 'ignored.txt'), 'CREATE TABLE ignored (id int);')
     await mkdir(join(folder, 'nested')); await writeFile(join(folder, 'nested', '03.sql'), 'CREATE TABLE nested_table (id int);')
     expect((await readScriptsFolder(folder)).tables.map((table) => table.name)).toEqual(['earlier', 'later', 'nested_table'])
+  })
+  it('rejects symlink roots and checks aggregate script size before reading', async () => {
+    const parent = await mkdtemp(join(tmpdir(), `dbforge-scripts-link-${process.pid}-`)); dirs.push(parent)
+    const actual = join(parent, 'actual'); const link = join(parent, 'link')
+    await mkdir(actual); await symlink(actual, link)
+    await expect(readScriptsFolder(link)).rejects.toThrow(/symbolic link/i)
+    const oversized = join(actual, 'large.sql'); await writeFile(oversized, ''); await truncate(oversized, 64 * 1024 * 1024 + 1)
+    await expect(readScriptsFolder(actual)).rejects.toThrow(/64 MiB/i)
   })
 })

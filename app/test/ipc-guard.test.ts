@@ -32,7 +32,11 @@ describe('IPC runtime guard', () => {
     expect(() => validateIpcArguments('source-control:write-script', ['/tmp/repo', '../escape.sql', 'SELECT 1'])).toThrow(/confined relative path/)
     expect(() => validateIpcArguments('sessions:kill', ['connection', [17], 'query', false])).toThrow(/confirmation/)
     expect(() => validateIpcArguments('db:execute', ['connection', 'x'.repeat(20 * 1024 * 1024 + 1)])).toThrow(/size limit/)
-    expect(() => validateIpcArguments('grid-editing:apply', ['connection', {}, [], false])).not.toThrow()
+    const descriptor = { database: 'shop', table: 'orders', keyColumns: ['id'], columns: [{ name: 'id', dataType: 'int', columnType: 'int', nullable: false, defaultValue: null, extra: '' }] }
+    expect(() => validateIpcArguments('grid-editing:apply', ['connection', descriptor, [{ kind: 'delete', original: { id: 1 } }], false])).not.toThrow()
+    expect(() => validateIpcArguments('grid-editing:apply', ['connection', {}, [], false])).toThrow(/database is required/)
+    expect(() => validateIpcArguments('grid-editing:apply', ['c', { database: 'd', table: 't', keyColumns: [], columns: [], runSql: true }, [], true])).toThrow(/not allowed/)
+    expect(() => validateIpcArguments('report-pivot:build', ['job', { rows: [], columns: [], values: [{ field: 'x', aggregation: 'explode' }] }])).toThrow(/invalid/)
     expect(() => validateIpcArguments('grid-data:master-detail', ['connection', { database: 'shop', table: 'orders' }, { id: 7 }])).not.toThrow()
     expect(() => validateIpcArguments('grid-editing:apply', ['connection', {}, [], 'yes'])).toThrow(/boolean/)
     expect(() => validateIpcArguments('import-export:import', ['c', 'db.table', 'csv', 'append', [], {}, 'job'])).not.toThrow()
@@ -72,7 +76,7 @@ describe('IPC runtime guard', () => {
       ['object-editor:mutate', [{ connectionId: 'c', database: 'd', kind: 'table', name: 't' }, 'drop']],
       ['database-tools:restore', ['c', 'd', 'd', 'CREATE TABLE t (id INT)']],
       ['db:execute', ['c', 'DROP TABLE t']],
-      ['grid-editing:apply', ['c', {}, [], true]],
+      ['grid-editing:apply', ['c', { database: 'd', table: 't', keyColumns: ['id'], columns: [{ name: 'id', dataType: 'int', columnType: 'int', nullable: false, defaultValue: null, extra: '' }] }, [{ kind: 'delete', original: { id: 1 } }], true]],
       ['schema-update:execute', [['queued-change'], true]],
     ] as const) {
       const operation = wrapIpcHandler(channel, () => 'ok', config, () => true)
