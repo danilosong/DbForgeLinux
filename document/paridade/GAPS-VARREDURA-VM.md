@@ -125,3 +125,22 @@ O bloco Finish comum agora é usado por Import/Export, Backup/Restore, Documente
 |---|---|---|
 | Data Generator: perfis de domínio | Implementado | Perfis People, Addresses, Companies, E-commerce, Finance, Date/Time e Text podem ser escolhidos por coluna ou substituídos por um gerador manual. Teste cobre mapeamentos semânticos e repetibilidade da prévia com seed fixa. |
 | Profiler: histórico em duas colunas | Implementado | Lista de execuções selecionáveis fica ao lado dos detalhes e plano. Duas execuções podem ser marcadas para comparar duração, eventos, counters de sessão e estrutura do plano; variações de custo/estimativa não são consideradas mudança estrutural. Teste cobre deltas e mudança de plano. |
+
+## Varredura final do Options do original (páginas já percorridas)
+
+Observações em palavras próprias, feitas com o trial do usuário. Estado: B = baixa, M = média prioridade; "Comparar" = checar se o clone já tem.
+
+| # | Página | Comportamento observado | Prioridade | Clone |
+|---|---|---|---|---|
+| O1 | Environment › General | Skin, animação de menus, abertura da última sessão ao iniciar, estatísticas anônimas (ligadas por padrão no original), verificação semanal de atualização, Start Page e splash opcionais, barra de status, tamanhos das listas de janelas e de arquivos recentes (10), descoberta de objetos não confirmados (experimental) | B | Parcial |
+| O2 | Environment › Keyboard | Esquema de teclado adicional (dbForge) com *Reset*, filtro de comandos com *Show Table*, lista de comandos por nome, atalhos do comando selecionado com *Remove*, escopo do novo atalho (Global ou por contexto), *Assign* e indicação de qual comando já usa o atalho | M | Existe; comparar escopos e o aviso de conflito |
+| O3 | Environment › Output | Hora nos eventos de saída, registro das consultas enviadas pelo programa em um *SQL Log*, registro de erros da aplicação e exclusão do log ao fechar | B | Comparar |
+| O4 | Environment › Categories | Categorias de ambiente por servidor e banco (padrão `*`/`*` sem ambiente), com Development (quadrado verde), Production (círculo vermelho), Sandbox (triângulo azul) e Test (losango laranja); forma e cor identificam a conexão | **M** | **Falta** |
+| O5 | Environment › Font and Colors | Escolha do escopo (editor de texto e outros), fonte e tamanho, lista de itens de exibição (linha atual, referências, identificador, palavra-chave, número, operador, dicas do otimizador, bloco, região…), cor de texto e fundo, negrito/itálico, amostra e *Reset Page Defaults* | M | Parcial |
+| O6 | Environment › Tabs and Windows | Título da janela no menu, posição, layout (topo) e orientação das abas, indicador de alterado, onde inserir novas abas, tooltips ricos, negrito na aba ativa, várias linhas de abas, largura máxima, fechar com botão do meio e quando mostrar o botão fechar | B | Parcial |
+| O7 | Environment › Projects / SMTP | Pasta dos projetos; servidor SMTP (remetente, servidor, porta 25, tempo limite 100 s, SSL e autenticação) usado para enviar resultados | B | Falta (SMTP) |
+| O8 | Documents › SQL documents / Object editors | Layout dividido ou combinado, mostrar a visão de dados em todo documento, ativar o editor de dados após a consulta, mostrar parâmetros de saída após rotina, parar o script no primeiro erro | M | Parcial |
+| O9 | Documents › Restore | Restauração de sessão a cada N minutos e quais tipos de arquivo reabrir (sql, mdet, dbd, rdb, dcomp, scomp, dgen, ddoc, txt, xml) | M | Parcial |
+| O10 | Documents › Query History | Guardar histórico, local, tamanho máximo do script (1024 KB) e remoção automática de consultas com mais de 60 dias | B | Comparar |
+| O11 | Documents › Execution Warnings | Tabela por categoria de ambiente (TRUNCATE/DELETE/UPDATE) com avisos ligados em Production, Sandbox e sem categoria; tamanho máximo do script analisado (5000 KB); etiquetas `-- nowarn` e `-- endnowarn` desligam o aviso num trecho | **M** | Parcial: o clone confirma operações perigosas, sem categorias nem etiquetas |
+| O12 | Documents › Notifications | Avisar quando a consulta passa de 10 s, avisar com transações abertas e duração do aviso (7 s) | M | Falta |
