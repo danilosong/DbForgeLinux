@@ -13,10 +13,16 @@ export function formatSql(source: string, options: SqlFormatOptions = {}): strin
   const parts: string[] = []
   let editable = ''
   let protectedBlock = false
+  const flushEditable = (): void => {
+    if (!editable) return
+    const leading = /^(?:\r?\n)+/.exec(editable)?.[0] ?? ''
+    const trailing = /(?:\r?\n)+$/.exec(editable)?.[0] ?? ''
+    parts.push(`${leading}${formatSqlCore(editable.trim(), options)}${trailing}`)
+    editable = ''
+  }
   for (const line of lines) {
     if (/^\s*--\s*noformat\b/i.test(line)) {
-      if (editable) parts.push(formatSqlCore(editable, options))
-      editable = ''
+      flushEditable()
       protectedBlock = true
       parts.push(line)
     } else if (/^\s*--\s*endnoformat\b/i.test(line)) {
@@ -25,12 +31,14 @@ export function formatSql(source: string, options: SqlFormatOptions = {}): strin
     } else if (protectedBlock) parts.push(line)
     else editable += line
   }
-  if (editable) parts.push(formatSqlCore(editable, options))
+  flushEditable()
   return parts.join('')
 }
 
 function formatSqlCore(source: string, options: SqlFormatOptions): string {
-  const profile = options.profile ?? defaultFormatProfile
+  const baseProfile = options.profile ?? defaultFormatProfile
+  const instruction = /^\s*(?:CREATE\s+(?:TABLE|TRIGGER|VIEW)|[A-Za-z]+)/i.exec(source)?.[0]?.trim().toUpperCase().replace(/\s+/g, ' ')
+  const profile = { ...baseProfile, ...(instruction ? baseProfile.instructionRules?.[instruction] : undefined) }
   const indentSize = options.indentSize ?? profile.indentSize
   const tokens = tokenize(source.trim())
   const output: string[] = []

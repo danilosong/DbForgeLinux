@@ -11,6 +11,8 @@ describe('grid viewer helpers', () => {
     expect(formatGridCopy(rows.slice(0, 1), ['id'], 'insert', { database: 'shop', table: 'items', keyColumns: [], columns: [] })).toBe('INSERT INTO `shop`.`items` (`id`) VALUES (1);')
     expect(formatGridCopy(rows.slice(0, 1), ['group'], 'markdown')).toContain('| A |')
     expect(formatGridCopy(rows.slice(0, 1), ['group'], 'html')).toContain('<td>A</td>')
+    expect(formatGridCopy([{ 'bad name': '<x>' }], ['bad name'], 'xml')).toContain('<bad_name>&lt;x&gt;</bad_name>')
+    expect(formatGridCopy(rows.slice(0, 1), ['group'], 'excel')).toContain('schemas-microsoft-com:office:excel')
     expect(formatGridCopy([{ amount: 9007199254740993n, blob: new Uint8Array([0, 255]) }], ['amount', 'blob'], 'json')).toContain('0x00ff')
   })
   it('neutralizes spreadsheet formulas, including after whitespace prefixes', () => {

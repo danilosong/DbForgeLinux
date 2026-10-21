@@ -1,5 +1,5 @@
 export const formatProfileNames = ['Collapsed', 'Commas before', 'Compact', 'Default', 'Extended', 'Indented', 'MSDN SQL', 'Right aligned', 'Stack compact'] as const
-export type FormatProfileName = typeof formatProfileNames[number] | 'Custom'
+export type FormatProfileName = typeof formatProfileNames[number] | 'Custom' | (string & {})
 export interface SqlFormatProfile {
   name: FormatProfileName
   keywordCase: 'upper' | 'lower'
@@ -9,6 +9,7 @@ export interface SqlFormatProfile {
   breakBeforeParentheses: boolean
   indentParameterLists: boolean
   stackParameterLists: boolean
+  instructionRules?: Record<string, Partial<Pick<SqlFormatProfile, 'breakBeforeParentheses' | 'indentParameterLists' | 'stackParameterLists'>>>
 }
 
 const base = (name: FormatProfileName, options: Partial<SqlFormatProfile> = {}): SqlFormatProfile => ({
@@ -30,6 +31,6 @@ export const builtInFormatProfiles: SqlFormatProfile[] = [
 
 export const defaultFormatProfile = builtInFormatProfiles.find((profile) => profile.name === 'Default')!
 
-export function findFormatProfile(profiles: SqlFormatProfile[], name: FormatProfileName): SqlFormatProfile {
+export function findFormatProfile(profiles: SqlFormatProfile[], name: string): SqlFormatProfile {
   return profiles.find((profile) => profile.name === name) ?? builtInFormatProfiles.find((profile) => profile.name === name) ?? defaultFormatProfile
 }

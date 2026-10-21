@@ -23,8 +23,6 @@ interface Props {
   onExpand(record: ConnectionRecord): void
   onLoadObjects(connection: ConnectionSummary, database: string): void
   onSelectDatabase(connection: ConnectionSummary, database: string): void
-  onSelectTop(connection: ConnectionSummary, database: string, object: DatabaseObject): void
-  onGenerateScript(connection: ConnectionSummary, database: string, object: DatabaseObject): void
   onDropObject(connection: ConnectionSummary, database: string, object: DatabaseObject): void
   onOpenObject(connection: ConnectionSummary, database: string, object: DatabaseObject): void
   onCreateObject(connection: ConnectionSummary, database: string, kind: DatabaseObjectKind): void
@@ -44,7 +42,7 @@ const kinds: Array<{ kind: DatabaseObjectKind; icon: string }> = [
 
 export function DatabaseExplorer(props: Props): React.JSX.Element {
   const { t } = useI18n()
-  const { records, active, databases, objects, loadingObjects, connecting, errors, onNew, onManage, onConnect, onDisconnect, onExpand, onLoadObjects, onSelectDatabase, onSelectTop, onGenerateScript, onCreateObject, onEdit, onSelectObject, onContextAction } = props
+  const { records, active, databases, objects, loadingObjects, connecting, errors, onNew, onManage, onConnect, onDisconnect, onExpand, onLoadObjects, onSelectDatabase, onCreateObject, onEdit, onSelectObject, onContextAction } = props
   const [filter, setFilter] = useState('')
   const [regexFilter, setRegexFilter] = useState(false)
   const [caseSensitiveFilter, setCaseSensitiveFilter] = useState(false)
@@ -124,7 +122,7 @@ export function DatabaseExplorer(props: Props): React.JSX.Element {
             <div className="node-line" onContextMenu={(event) => connection && showContextMenu(event, { connection, target: 'server' })} style={{ borderLeftColor: record.color ?? (record.environment === 'prod' ? '#c62828' : record.environment === 'test' ? '#ed6c02' : record.environment === 'dev' ? '#2e7d32' : 'transparent') }}>
               <button className="node-expander" onClick={() => toggleRecord(record)} aria-label={isExpanded ? 'Recolher conexão' : 'Expandir conexão'}>{isExpanded ? '▾' : '▸'}</button>
               <span className={`connection-dot ${status}`} title={status} aria-label={status}>{status === 'connecting' ? '◌' : status === 'error' ? '!' : '●'}</span>
-              <button className="node-name" onClick={() => { setSelectedConnectionId(record.id); if (connection) toggleRecord(record); else onConnect(record) }} onDoubleClick={() => connection ? undefined : onEdit(record)} title={errors[record.id] ?? `${record.user}@${record.host}:${record.port}`}>{record.name}</button>{record.environment !== 'none' && <span data-shape={record.environmentShape ?? ({ dev: 'square', test: 'diamond', prod: 'circle', custom: 'triangle' }[record.environment])} className={`environment-badge env-${record.environment}`} style={{ '--environment-color': record.color ?? (record.environment === 'prod' ? '#c62828' : record.environment === 'test' ? '#ed6c02' : '#2e7d32') } as React.CSSProperties}>{t(`conn.environment.${record.environment}`)}</span>}
+              <button className="node-name" onClick={() => { setSelectedConnectionId(record.id); if (connection) toggleRecord(record); else onConnect(record) }} onDoubleClick={() => connection ? undefined : onEdit(record)} title={errors[record.id] ?? `${record.user}@${record.host}:${record.port}`}>{record.name}</button>{record.environment !== 'none' && <span data-shape={record.environmentShape ?? ({ dev: 'square', test: 'diamond', prod: 'circle', sandbox: 'triangle', custom: 'triangle' }[record.environment])} className={`environment-badge env-${record.environment}`} style={{ '--environment-color': record.color ?? (record.environment === 'prod' ? '#c62828' : record.environment === 'test' ? '#ed6c02' : record.environment === 'sandbox' ? '#1565c0' : '#2e7d32') } as React.CSSProperties}>{t(`conn.environment.${record.environment}`)}</span>}
               <button className="node-menu" title={connection ? 'Disconnect' : 'Connect'} onClick={() => { setSelectedConnectionId(record.id); if (connection) onDisconnect(connection); else onConnect(record) }}>{connection ? '⏻' : '⋯'}</button>
             </div>
             {errors[record.id] && <div className="node-error" role="alert">{errors[record.id]}</div>}
@@ -140,7 +138,7 @@ export function DatabaseExplorer(props: Props): React.JSX.Element {
                     const groupKey = `${dbKey}:${kind}`
                     const matchingMembers = members.filter((object) => matchesExplorerFilter(object.name, folderFilters[groupKey] ?? '', regexFilter, caseSensitiveFilter))
                     return <div className="object-group" key={kind}><div className="object-group-heading" onContextMenu={(event) => showContextMenu(event, { connection, database, target: kind })}><button className="object-group-name" onClick={() => toggleKind(groupKey)}>{expandedKinds.includes(groupKey) ? '▾' : '▸'} {t(`explorer.kind.${kind}`)} ({members.length})</button><button className="object-create" title={t('explorer.menu.newObject')} onClick={() => onCreateObject(connection, database, kind)}>＋</button></div>
-                      {expandedKinds.includes(groupKey) && matchingMembers.map((object) => <button key={`${kind}:${object.name}`} className="object-name" draggable={kind === 'table' || kind === 'view'} onDragStart={(event) => { if (kind !== 'table' && kind !== 'view') return; event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData(databaseObjectDragType, JSON.stringify({ connectionId: connection.recordId, database, kind, name: object.name })); event.dataTransfer.setData('text/plain', `${database}.${object.name}`) }} onClick={() => onSelectObject(connection, database, object)} onDoubleClick={() => kind === 'table' || kind === 'view' ? onSelectTop(connection, database, object) : onGenerateScript(connection, database, object)} onContextMenu={(event) => { onSelectObject(connection, database, object); showContextMenu(event, { connection, database, object, target: kind }) }}>{icon} {object.name}</button>)}
+                      {expandedKinds.includes(groupKey) && matchingMembers.map((object) => <button key={`${kind}:${object.name}`} className="object-name" draggable={kind === 'table' || kind === 'view'} onDragStart={(event) => { if (kind !== 'table' && kind !== 'view') return; event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData(databaseObjectDragType, JSON.stringify({ connectionId: connection.recordId, database, kind, name: object.name })); event.dataTransfer.setData('text/plain', `${database}.${object.name}`) }} onClick={() => onSelectObject(connection, database, object)} onDoubleClick={() => onContextAction('defaultOpen', { connection, database, object, target: kind })} onContextMenu={(event) => { onSelectObject(connection, database, object); showContextMenu(event, { connection, database, object, target: kind }) }}>{icon} {object.name}</button>)}
                     </div>
                   })}</div>}
                 </div>

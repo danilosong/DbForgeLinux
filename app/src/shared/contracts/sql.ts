@@ -4,6 +4,8 @@ export interface QueryResult {
   /** Set for disk-backed results; rows are fetched by window from the main process. */
   resultStoreId?: string
   rowCount?: number
+  executionTimeMs?: number
+  fetchTimeMs?: number
   affectedRows: number
   insertId: number
   warningStatus: number

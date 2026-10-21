@@ -28,7 +28,7 @@ export type SecurityChange =
   | { kind: 'dropUser'; account: AccountRef }
   | { kind: 'grant'; privileges: string[]; scope: PrivilegeScope; grantee: AccountRef; grantOption?: boolean }
   | { kind: 'revoke'; privileges: string[]; scope: PrivilegeScope; grantee: AccountRef; grantOptionOnly?: boolean }
-  | { kind: 'grantRole'; role: AccountRef; grantee: AccountRef; default?: boolean }
+  | { kind: 'grantRole'; role: AccountRef; grantee: AccountRef; default?: boolean; adminOption?: boolean }
   | { kind: 'revokeRole'; role: AccountRef; grantee: AccountRef }
 
 export interface PlannedStatement { sql: string; previewSql: string; risk: 'normal' | 'privileged' | 'destructive' }
@@ -136,7 +136,8 @@ export function securitySql(change: SecurityChange, options: { confirm?: true } 
 }
 
 function securitySqls(change: SecurityChange, family: 'mysql' | 'mariadb', confirm?: true): string[] {
-  const sql = securitySql(change, { confirm })
+  let sql = securitySql(change, { confirm })
+  if (change.kind === 'grantRole' && change.adminOption) sql = sql.replace(/;$/, ' WITH ADMIN OPTION;')
   if (change.kind === 'grantRole' && change.default) return [sql, `SET DEFAULT ROLE ${account(change.role)} ${family === 'mariadb' ? 'FOR' : 'TO'} ${account(change.grantee)};`]
   return [sql]
 }

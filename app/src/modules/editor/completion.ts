@@ -11,6 +11,7 @@ export interface SqlCompletionOptions {
   aliasUppercase?: boolean
   aliasUseAs?: boolean
   aliasQualifier?: 'object' | 'schema-object' | 'none'
+  qualifyColumnWithAlias?: boolean
   identifierQuoting?: 'always' | 'reserved' | 'needed'
   aliasRules?: Array<{ condition: string; action: 'none' | 'short' | 'full' }>
 }
@@ -65,8 +66,10 @@ export function buildSqlSuggestions(sql: string, offset: number, metadata: Edito
     .filter((item) => item.name.toLowerCase().includes(cleanIdentifier(routineContext[2]).toLowerCase()))
     .map((item) => make(item.name, 'routine', item.kind))
 
+  const contextualColumns = findTableReferences(sql, metadata).flatMap(({ object, alias }) => object.columns.map((column) => make(column.name, 'column', `${column.type} · ${object.name} ${alias}`, options.qualifyColumnWithAlias === false ? quoteSuggestion(column.name, options.identifierQuoting) : `${quoteSuggestion(alias, options.identifierQuoting)}.${quoteSuggestion(column.name, options.identifierQuoting)}`, metadata.database)))
   const results: SqlSuggestion[] = [
     ...metadata.databases.map((database) => make(database, 'database', 'database')),
+    ...contextualColumns,
     ...metadata.objects.map((item) => make(item.name, 'table', `${item.kind} · ${metadata.database}`)),
     ...metadata.routines.map((item) => make(item.name, 'routine', item.kind)),
     ...keywords.map((keyword) => make(keyword, 'keyword', 'SQL keyword', keyword)),
@@ -81,10 +84,28 @@ export function resolveAliasRule(name: string, schema: string, rules: NonNullabl
   for (const rule of rules) {
     const mask = rule.condition.trim().replace(/<([^<>]+)>/g, '$1')
     if (!mask) continue
-    const matcher = new RegExp(`^${mask.replace(/[.+^${}()|[\\]\\\\]/g, '\\$&').replaceAll('*', '.*').replaceAll('?', '.')}$`, 'i')
+    const pattern = [...mask].map((char) => char === '*' ? '.*' : char === '?' ? '.' : /[.+^${}()|[\]\\]/.test(char) ? `\\${char}` : char).join('')
+    const matcher = new RegExp(`^${pattern}$`, 'i')
     if (matcher.test(name) || matcher.test(fullName)) return rule.action
   }
   return undefined
+}
+
+function findTableReferences(sql: string, metadata: EditorMetadata): Array<{ object: EditorMetadata['objects'][number]; alias: string }> {
+  const aliases = findAliases(sql, metadata)
+  const references: Array<{ object: EditorMetadata['objects'][number]; alias: string }> = []
+  for (const [alias, table] of aliases) {
+    const object = metadata.objects.find((item) => item.name.toLowerCase() === table.toLowerCase())
+    if (object) references.push({ object, alias })
+  }
+  const matcher = /\b(?:FROM|JOIN)\s+(`?[\w$]+`?)(?:\s+(?:AS\s+)?(`?[\w$]+`?))?/gi
+  for (const match of sql.matchAll(matcher)) {
+    const table = cleanIdentifier(match[1]!)
+    const possibleAlias = cleanIdentifier(match[2] ?? table)
+    const object = metadata.objects.find((item) => item.name.toLowerCase() === table.toLowerCase())
+    if (object && !reservedAliases.has(possibleAlias.toUpperCase()) && !references.some((item) => item.alias.toLowerCase() === possibleAlias.toLowerCase())) references.push({ object, alias: possibleAlias })
+  }
+  return references
 }
 
 function tableInsertion(name: string, schema: string, options: SqlCompletionOptions): string {

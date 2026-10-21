@@ -1,7 +1,7 @@
 export type DatabaseType = 'mysql' | 'mariadb'
 export type SslMode = 'disabled' | 'preferred' | 'required' | 'verify-ca' | 'verify-identity'
 export type SshAuthMethod = 'password' | 'private-key' | 'agent'
-export type ConnectionEnvironment = 'none' | 'dev' | 'test' | 'prod' | 'custom'
+export type ConnectionEnvironment = 'none' | 'dev' | 'test' | 'prod' | 'sandbox' | 'custom'
 export type EnvironmentShape = 'square' | 'circle' | 'triangle' | 'diamond'
 
 export interface SslConfig {

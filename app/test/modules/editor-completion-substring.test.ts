@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyKeywordCaseAtOffset, buildSqlSuggestions, expandSnippetLiterals } from '../../src/modules/editor/completion.js'
+import { applyKeywordCaseAtOffset, buildSqlSuggestions, expandSnippetLiterals, resolveAliasRule } from '../../src/modules/editor/completion.js'
 import type { EditorMetadata } from '../../src/shared/contracts/editor.js'
 
 const metadata: EditorMetadata = {
@@ -18,6 +18,14 @@ describe('SQL completion substring matching', () => {
   it('matches qualified columns by substring', () => {
     const suggestions = buildSqlSuggestions('SELECT c.name FROM customers c WHERE c.ame', 43, metadata)
     expect(suggestions).toContainEqual(expect.objectContaining({ label: 'display_name', kind: 'column', schema: 'sales' }))
+  })
+  it('applies alias condition masks, casing, schema qualification, and matching modes', () => {
+    expect(resolveAliasRule('tbl_Orders', 'Sales', [{ condition: '<Sales>.<tbl_*>', action: 'full' }])).toBe('full')
+    expect(resolveAliasRule('dual', 'Sales', [{ condition: '<dual>', action: 'none' }])).toBe('none')
+    const suggestion = buildSqlSuggestions('SELECT * FROM cust', 21, metadata, [], { autoAlias: true, aliasUppercase: true, aliasUseAs: true, aliasQualifier: 'schema-object', aliasRules: [{ condition: '<*>', action: 'short' }] })
+    expect(suggestion[0]?.insertText).toBe('sales.customers AS C')
+    expect(buildSqlSuggestions('SELECT c.', 9, metadata, [], { filter: 'prefix' })).toEqual([])
+    expect(buildSqlSuggestions('SELECT cus FROM customers c', 10, metadata).some((item) => item.kind === 'column' && item.insertText === 'c.customer_id')).toBe(true)
   })
 })
 

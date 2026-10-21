@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { buildSqlSuggestions } from '../../src/modules/editor/completion.js'
 import { formatSql } from '../../src/modules/editor/formatter.js'
+import { builtInFormatProfiles, formatProfileNames } from '../../src/modules/editor/formatProfiles.js'
 import { EditorMetadataCache } from '../../src/modules/editor/metadataCache.js'
 import { sqlSnippets } from '../../src/modules/editor/snippets.js'
 import type { EditorMetadata } from '../../src/shared/contracts/editor.js'
@@ -34,6 +35,16 @@ describe('SQL editor features', () => {
   it('formats clauses and preserves quoted strings and comments', () => {
     expect(formatSql("select id,name from customers where name='a  b' and id>2; -- keep  this"))
       .toBe("SELECT id,\n  name\nFROM customers\nWHERE name = 'a  b'\n  AND id > 2;\n-- keep  this")
+  })
+
+  it('keeps noformat regions unchanged and exposes the nine named formatting profiles', () => {
+    const sql = 'select id from users;\n-- noformat\n  select   x  from  y;\n-- endnoformat\nselect n from notes;'
+    const output = formatSql(sql)
+    expect(output).toContain('-- noformat\n  select   x  from  y;\n-- endnoformat')
+    expect(output).toContain('SELECT id\nFROM users;')
+    expect(output).toContain('SELECT n\nFROM notes;')
+    expect(builtInFormatProfiles.map((profile) => profile.name)).toEqual(formatProfileNames)
+    expect(formatSql('select a,b from t;', { profile: builtInFormatProfiles.find((profile) => profile.name === 'Extended') })).toContain('SELECT')
   })
 
   it('caches metadata, deduplicates loads, expires, and invalidates by connection/database', async () => {

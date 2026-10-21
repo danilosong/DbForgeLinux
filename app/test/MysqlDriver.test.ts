@@ -52,11 +52,15 @@ describe('MysqlDriver.executeSql', () => {
       { affectedRows: 2, insertId: 0, warningStatus: 1 }
     ], []])
 
-    await expect(driver.executeSql(connectionId, 'SELECT 1; INSERT ...; UPDATE ...;')).resolves.toEqual([
+    const result = await driver.executeSql(connectionId, 'SELECT 1; INSERT ...; UPDATE ...;')
+    expect(result).toMatchObject([
       { columns: ['id', 'label'], rows, affectedRows: 0, insertId: 0, warningStatus: 0 },
       { columns: [], rows: [], affectedRows: 1, insertId: 7, warningStatus: 0 },
       { columns: [], rows: [], affectedRows: 2, insertId: 0, warningStatus: 1 }
     ])
+    expect(result[0]?.executionTimeMs).toBeGreaterThanOrEqual(0)
+    expect(result[0]?.fetchTimeMs).toBe(0)
+    expect(result.slice(1).every((item) => item.executionTimeMs === 0)).toBe(true)
   })
 
   it('propaga erros de sintaxe do servidor', async () => {

@@ -1,7 +1,7 @@
 import type { EditableResult } from '../grid-editing/index.js'
 import { safeCsvCell } from '../csv/safeCsv.js'
 
-export type CopyAsFormat = 'csv' | 'tsv' | 'json' | 'insert' | 'markdown' | 'html'
+export type CopyAsFormat = 'csv' | 'tsv' | 'json' | 'insert' | 'markdown' | 'html' | 'xml' | 'excel'
 export type GridQuickOperator = 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte'
 
 export function matchesGridCondition(actual: unknown, operator: GridQuickOperator, expected: unknown): boolean {
@@ -25,7 +25,7 @@ export function generateGridScript(rows: Array<Record<string, unknown>>, columns
   const table = `${quote(descriptor.database)}.${quote(descriptor.table)}`
   if (kind === 'where-in') {
     if (!filterColumn || !columns.includes(filterColumn)) throw new Error('Choose a result column for the WHERE IN script.')
-    return `${table} WHERE ${quote(filterColumn)} IN (${[...new Set(rows.map((row) => row[filterColumn]))].map(sqlValue).join(', ')});`
+    return `SELECT * FROM ${table} WHERE ${quote(filterColumn)} IN (${[...new Set(rows.map((row) => row[filterColumn]))].map(sqlValue).join(', ')});`
   }
   if (kind === 'where-and' || kind === 'where-or') {
     const joiner = kind === 'where-and' ? ' AND ' : ' OR '
@@ -39,7 +39,9 @@ export function generateGridScript(rows: Array<Record<string, unknown>>, columns
   }
   const keyColumns = descriptor.keyColumns.filter((column) => columns.includes(column))
   if (!keyColumns.length) throw new Error('UPDATE generation needs a selected result key.')
-  return rows.map((row) => `UPDATE ${table} SET ${columns.filter((column) => !keyColumns.includes(column)).map((column) => `${quote(column)} = ${sqlValue(row[column])}`).join(', ')} WHERE ${keyColumns.map((column) => `${quote(column)} ${row[column] == null ? 'IS NULL' : `= ${sqlValue(row[column])}`}`).join(' AND ')};`).join('\n')
+  const updateColumns = columns.filter((column) => !keyColumns.includes(column))
+  if (!updateColumns.length) throw new Error('UPDATE generation needs at least one non-key column.')
+  return rows.map((row) => `UPDATE ${table} SET ${updateColumns.map((column) => `${quote(column)} = ${sqlValue(row[column])}`).join(', ')} WHERE ${keyColumns.map((column) => `${quote(column)} ${row[column] == null ? 'IS NULL' : `= ${sqlValue(row[column])}`}`).join(' AND ')};`).join('\n')
 }
 
 export function formatGridCopy(rows: Array<Record<string, unknown>>, columns: string[], format: CopyAsFormat, descriptor?: EditableResult, headers = true): string {
@@ -53,6 +55,8 @@ export function formatGridCopy(rows: Array<Record<string, unknown>>, columns: st
     return rows.map((row) => `INSERT INTO ${table} (${columns.map(quote).join(', ')}) VALUES (${columns.map((column) => sqlValue(row[column])).join(', ')});`).join('\n')
   }
   if (format === 'markdown') return [headers ? `| ${columns.map(markdownCell).join(' | ')} |` : '', headers ? `| ${columns.map(() => '---').join(' | ')} |` : '', ...selected.map((row) => `| ${row.map((value) => markdownCell(display(value))).join(' | ')} |`)].filter(Boolean).join('\n')
+  if (format === 'xml') return `<?xml version="1.0" encoding="UTF-8"?><rows>${rows.map((row) => `<row>${columns.map((column) => `<${xmlName(column)}>${xmlCell(display(row[column]))}</${xmlName(column)}>`).join('')}</row>`).join('')}</rows>`
+  if (format === 'excel') return `<!doctype html><html xmlns:x="urn:schemas-microsoft-com:office:excel"><meta charset="utf-8"><table><thead>${headers ? `<tr>${columns.map((column) => `<th>${htmlCell(column)}</th>`).join('')}</tr>` : ''}</thead><tbody>${rows.map((row) => `<tr>${columns.map((column) => `<td>${htmlCell(display(row[column]))}</td>`).join('')}</tr>`).join('')}</tbody></table></html>`
   return `<!doctype html><meta charset="utf-8"><table><thead>${headers ? `<tr>${columns.map((column) => `<th>${htmlCell(column)}</th>`).join('')}</tr>` : ''}</thead><tbody>${rows.map((row) => `<tr>${columns.map((column) => `<td>${htmlCell(display(row[column]))}</td>`).join('')}</tr>`).join('')}</tbody></table>`
 }
 
@@ -87,6 +91,8 @@ function quote(value: string): string { return `\`${value.replaceAll('`', '``')}
 function sqlValue(value: unknown): string { if (value === null || value === undefined) return 'NULL'; if (typeof value === 'number' || typeof value === 'bigint') return String(value); if (typeof value === 'boolean') return value ? '1' : '0'; if (value instanceof Uint8Array) return `X'${toHex(value)}'`; if (value instanceof Date) value = value.toISOString().replace('T', ' ').replace('Z', ''); return `'${String(value).replaceAll('\\', '\\\\').replaceAll("'", "''")}'` }
 function markdownCell(value: unknown): string { return String(value).replaceAll('|', '\\|').replaceAll('\n', '<br>') }
 function htmlCell(value: unknown): string { return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;') }
+function xmlCell(value: string): string { return htmlCell(value) }
+function xmlName(value: string): string { const name = value.replace(/[^\p{L}\p{N}_.-]/gu, '_'); return /^[\p{L}_]/u.test(name) ? name : `_${name}` }
 function compare(left: unknown, right: unknown): number { if (left === right) return 0; if (typeof left === 'number' && typeof right === 'number') return left - right; return String(left).localeCompare(String(right), undefined, { numeric: true }) }
 function distinctKey(value: unknown): string { if (value instanceof Uint8Array) return `binary:${toHex(value)}`; if (value instanceof Date) return `date:${value.toISOString()}`; if (typeof value === 'bigint') return `bigint:${value}`; return `${typeof value}:${JSON.stringify(value)}` }
 function toHex(value: Uint8Array): string { return Array.from(value, (byte) => byte.toString(16).padStart(2, '0')).join('') }

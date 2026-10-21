@@ -70,6 +70,12 @@ describe('security manager backend', () => {
     expect(buildSecurityPlan([change], { serverFamily: 'mariadb' }).statements[1].sql).toContain(' FOR ')
   })
 
+  it('supports admin option when granting a role', () => {
+    const change: SecurityChange = { kind: 'grantRole', role: { user: 'ops', host: '%' }, grantee: { user: 'app', host: '%' }, adminOption: true }
+    expect(buildSecurityPlan([change]).statements[0].sql).toBe("GRANT 'ops'@'%' TO 'app'@'%' WITH ADMIN OPTION;")
+    expect(buildSecurityPlan([{ ...change, adminOption: false }]).statements[0].sql).toBe("GRANT 'ops'@'%' TO 'app'@'%';")
+  })
+
   it('generates account limits with valid resource clauses and protects revoke previews', () => {
     const sql = securitySql({ kind: 'alterUser', account: { user: 'app', host: '%' }, changes: { limits: { MAX_QUERIES_PER_HOUR: 20 } } })
     expect(sql).toContain('WITH MAX_QUERIES_PER_HOUR 20')

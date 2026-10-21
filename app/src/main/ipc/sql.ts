@@ -37,9 +37,9 @@ export function registerSqlIpc({driver,resolveConnectionConfig,userDataDir}:IpcD
    const controller=new AbortController();streamedJobs.set(eid,{connectionId:id,senderId:event.sender.id,controller})
    const spool=await resultSpools.create();resultOwners.set(spool.id,event.sender.id)
    if(!spoolSenders.has(event.sender.id)){spoolSenders.add(event.sender.id);event.sender.once('destroyed',()=>{spoolSenders.delete(event.sender.id);for(const [rid,owner] of resultOwners)if(owner===event.sender.id){resultOwners.delete(rid);void resultSpools.dispose(rid)}})}
-   try{let columns:string[]=[];for await(const row of driver.streamRows(id,sql,[],controller.signal,undefined,eid)){if(!columns.length)columns=Object.keys(row);await spool.append(row)}
+   try{let columns:string[]=[];const startedAt=performance.now();let firstRowAt:number|undefined;for await(const row of driver.streamRows(id,sql,[],controller.signal,undefined,eid)){firstRowAt??=performance.now();if(!columns.length)columns=Object.keys(row);await spool.append(row)}const completedAt=performance.now();const executionTimeMs=(firstRowAt??completedAt)-startedAt;const fetchTimeMs=firstRowAt===undefined?0:completedAt-firstRowAt
     const editable = await describeGridResult(driver, id, sql, database)
-    return [{columns,rows:[],resultStoreId:spool.id,rowCount:spool.rowCount,affectedRows:0,insertId:0,warningStatus:0,editable}]
+    return [{columns,rows:[],resultStoreId:spool.id,rowCount:spool.rowCount,affectedRows:0,insertId:0,warningStatus:0,executionTimeMs,fetchTimeMs,editable}]
    }catch(error){await resultSpools.dispose(spool.id);resultOwners.delete(spool.id);throw error}
    finally{streamedJobs.delete(eid)}
   }

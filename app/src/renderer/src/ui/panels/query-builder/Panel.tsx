@@ -98,6 +98,18 @@ export default function QueryBuilderPanel(): React.JSX.Element {
     return () => window.removeEventListener('keydown', onKeyDown)
   })
   useEffect(() => {
+    const onMenuAction = (event: Event): void => {
+      const action = (event as CustomEvent<unknown>).detail
+      if (action === 'execute') void execute()
+      else if (action === 'diagram') setView('Diagram')
+      else if (action === 'text') setView('Text')
+      else if (action === 'data') setView('Data')
+      else if (action === 'reset-layout') { setZoom(1); setModel((current) => ({ ...current, tables: current.tables.map((table, index) => ({ ...table, x: 32 + (index % 3) * 250, y: 32 + Math.floor(index / 3) * 190 })) })) }
+    }
+    window.addEventListener('tuxsql:query-builder:action', onMenuAction)
+    return () => window.removeEventListener('tuxsql:query-builder:action', onMenuAction)
+  })
+  useEffect(() => {
     if ('error' in compiled) { setBuilt(null); return }
     setBuilt(compiled)
     if (view !== 'Text') setSqlText(compiled.sql)

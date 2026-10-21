@@ -191,6 +191,7 @@ export class MysqlDriver implements DbDriver {
   }
 
   async executeSql(connectionId: string, sql: string, executionId?: string): Promise<QueryResult[]> {
+    const startedAt = performance.now()
     const managed = this.requireConnection(connectionId)
     if (managed.config.advanced.readOnly && /\b(INSERT|UPDATE|DELETE|REPLACE|CREATE|ALTER|DROP|TRUNCATE|RENAME|GRANT|REVOKE)\b/i.test(sql)) {
       throw new Error('A sessão está marcada como somente leitura.')
@@ -211,7 +212,8 @@ export class MysqlDriver implements DbDriver {
       }
     } finally { this.executions.delete(activeExecutionId); if (ownsConnection) connection.release() }
     const results = Array.isArray(raw) && splitSqlStatements(sql).length > 1 ? raw : [raw]
-    return results.map((result) => {
+    const executionTimeMs = performance.now() - startedAt
+    return results.map((result, index) => {
       if (Array.isArray(result)) {
         const rows = result as Array<Record<string, unknown>>
         return {
@@ -219,7 +221,9 @@ export class MysqlDriver implements DbDriver {
           rows,
           affectedRows: 0,
           insertId: 0,
-          warningStatus: 0
+          warningStatus: 0,
+          executionTimeMs: index === 0 ? executionTimeMs : 0,
+          fetchTimeMs: 0
         }
       }
       const header = result as MysqlQueryResult
@@ -229,7 +233,9 @@ export class MysqlDriver implements DbDriver {
         rows: [],
         affectedRows: packet.affectedRows ?? 0,
         insertId: packet.insertId ?? 0,
-        warningStatus: packet.warningStatus ?? 0
+        warningStatus: packet.warningStatus ?? 0,
+        executionTimeMs: index === 0 ? executionTimeMs : 0,
+        fetchTimeMs: 0
       }
     })
   }

@@ -12,8 +12,12 @@ describe('Options settings', () => {
     const folder = await temp(); const store = new SettingsStore(join(folder, 'settings.json'))
     expect((await store.load()).settings).toEqual(defaultSettings)
     const saved = await store.save({ schemaVersion: 0, appearance: { theme: 'dark' }, editor: { fontSize: 16 } })
-    expect(saved.schemaVersion).toBe(1); expect(saved.appearance.theme).toBe('dark'); expect(saved.appearance.accent).toBe(defaultSettings.appearance.accent); expect(saved.editor.fontSize).toBe(16)
+    expect(saved.schemaVersion).toBe(2); expect(saved.appearance.theme).toBe('dark'); expect(saved.appearance.accent).toBe(defaultSettings.appearance.accent); expect(saved.editor.fontSize).toBe(16)
     expect(JSON.parse(await readFile(join(folder, 'settings.json'), 'utf8'))).toEqual(saved)
+    expect(saved.documents.restoreIntervalMinutes).toBe(5)
+    expect(saved.notifications.longQuerySeconds).toBe(10)
+    expect(saved.execution.warningCategories.prod.truncate).toBe(true)
+    expect(saved.execution.warningCategories.sandbox.delete).toBe(true)
   })
   it('moves invalid settings to a backup and loads defaults', async () => {
     const folder = await temp(); const file = join(folder, 'settings.json'); await writeFile(file, '{broken')
@@ -32,6 +36,8 @@ describe('Options settings', () => {
     expect(() => mergeSettings({ shortcuts: { bindings: [{ command: 'A', shortcut: 'Ctrl+F', context: 'Editor' }, { command: 'B', shortcut: 'ctrl + f', context: 'Editor' }] } })).toThrow('Shortcut conflict')
     validateSettings(mergeSettings(defaultSettings))
     expect(() => mergeSettings({ appearance: { uiZoom: 240 } })).toThrow('UI zoom')
+    expect(() => mergeSettings({ notifications: { durationSeconds: 0 } })).toThrow('Notification duration')
+    expect(() => mergeSettings({ smtp: { port: 70000 } })).toThrow('SMTP port')
   })
   it('migrates and validates Data Comparison and Query Builder pages', () => {
     const migrated = mergeSettings({ dataComparison: { cacheFolder: 'custom', customCachePath: '/tmp/compare-cache', keyStrategy: 'primary' }, queryBuilder: { showGrid: false, gridSize: 16, snapToGrid: false, shadows: false } })
@@ -49,5 +55,15 @@ describe('Options settings', () => {
     expect(migrated.explorer.firstRows).toBe(250)
     expect(() => mergeSettings({ grid: { pageSize: 0 } })).toThrow('Grid page size')
     expect(() => mergeSettings({ explorer: { selectionMode: 'unknown' } })).toThrow('Invalid Database Explorer settings')
+  })
+  it('migrates editor completion, alias, formatting profiles, and output preferences', () => {
+    const migrated = mergeSettings({
+      editor: { formatOnPaste: true, completionFilter: 'camelCase', activeFormatProfile: 'Compact', aliasRules: [{ condition: '<Sales>.<tbl_*>', action: 'none' }] },
+      output: { showTimestamps: false, sqlLogEnabled: true }
+    })
+    expect(migrated.editor).toMatchObject({ formatOnPaste: true, completionFilter: 'camelCase', activeFormatProfile: 'Compact', aliasRules: [{ condition: '<Sales>.<tbl_*>', action: 'none' }] })
+    expect(migrated.output).toEqual({ showTimestamps: false, sqlLogEnabled: true })
+    expect(() => mergeSettings({ editor: { rightMargin: 500 } })).toThrow(/right margin/i)
+    expect(() => mergeSettings({ editor: { aliasRules: [{ condition: '<*>', action: 'invalid' }] } })).toThrow(/alias rules/i)
   })
 })
