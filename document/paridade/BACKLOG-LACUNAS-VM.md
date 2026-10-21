@@ -39,3 +39,11 @@ Atenção: o print do README (build f885a5f) já mostra menus Query/Layout, bot�
 | Q2 | Auto-Layout em grafo para vários cartões (existe botão; verificar qualidade do algoritmo) | C | Codex |
 | Q3 | Menus Layout e Query na barra principal (aparentemente existem; verificar) | — | verificar |
 | Q4 | Minimapa de navegação no canto do canvas | C | Codex |
+
+## Data Generator (F-GEN) — observado
+Geradores scriptáveis em C#/Python: NÃO implementar como no original (execução de código arbitrário em app que toca bancos reais). Registrar como diferença intencional; alternativa segura = expressões declarativas/lookup, sem executar código do usuário.
+| # | Lacuna | Prio | Dono |
+|---|---|---|---|
+| N1 | Modos de distribuição de linhas: por proporção de volume, série temporal, lookup table (hoje: contagem fixa) | B | Codex |
+| N2 | Painel docado Schema Update Script sincronizado com a geração | C | Codex |
+| N3 | Gerador por expressão declarativa/lookup (alternativa segura aos scripts C#/Python) | C | Codex |
