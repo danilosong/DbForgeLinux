@@ -72,6 +72,10 @@ export function normalizeObjectDefinition(sql: string, target: ObjectEditorTarge
   return value
 }
 
+export function objectRestoreFailureMessage(name: string, backupPath: string): string {
+  return `Falha ao aplicar e restaurar ${name}. O DDL original foi preservado em ${backupPath}; revise a conexão e use esse arquivo para recuperar o objeto.`
+}
+
 export function buildTableDdlPreview(table: TableModel, original: TableModel | null, database: string): string {
   return original ? diffTables(original, table, database, true).join('\n\n') || '-- Sem alterações pendentes' : createTable(table, database)
 }

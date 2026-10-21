@@ -4,15 +4,16 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { once } from 'node:events'
+import { randomUUID } from 'node:crypto'
 import { _electron as electron } from 'playwright'
 import mysql from 'mysql2/promise'
-import { mysqlTestPrefix } from './mysql-test-prefix.mjs'
 
 const electronPath = process.env.DBFORGE_ELECTRON_PATH ?? join(process.cwd(), 'dist', 'linux-unpacked', 'dbforgelinux')
 if (!existsSync(electronPath)) throw new Error(`Packaged Electron executable not found at ${electronPath}. Run pnpm dist:deb first.`)
 const dataRoot = await mkdtemp(join(tmpdir(), 'dbforge-smoke-'))
 const admin = await mysql.createConnection({ host: '127.0.0.1', port: 33067, user: 'root', password: process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only' })
-const testPrefix = mysqlTestPrefix('smoke')
+// Keep this long-running E2E schema outside mysql:clean-test's broad dbforge_test_ sweep.
+const testPrefix = `qa_smoke_${process.pid}_${randomUUID().slice(0, 8)}`
 const database = testPrefix
 const targetDatabase = `${testPrefix}_target`
 const docTable = `${testPrefix}_document`
@@ -69,6 +70,7 @@ END`)
     }
   })
   const page = await app.firstWindow()
+  await page.waitForFunction(() => window.performance.getEntriesByName('dbforge:first-paint-settled', 'mark').length > 0, null, { timeout: 15_000 })
   page.on('dialog', (dialog) => dialog.accept())
   await page.addLocatorHandler(page.locator('.panel-dialog-backdrop:has(.update-dialog)'), async () => {
     const laterButton = page.getByRole('button', { name: /^(Later|Depois)$/ }).last()
@@ -161,8 +163,46 @@ END`)
   await page.locator('.database-tools-panel').waitFor()
   await page.locator('.document-tab.selected .tab-close').click()
   await databaseMenu.click()
+  await page.getByRole('button', { name: /Flush/ }).click()
+  await page.getByRole('tab', { name: /Flush Tables/ }).waitFor()
+  await page.getByText('FLUSH TABLES;', { exact: true }).waitFor()
+  await page.locator('.document-tab.selected .tab-close').click()
+  await databaseMenu.click()
   await page.getByRole('button', { name: 'Database Diagram' }).click()
   await page.locator('.er-panel').waitFor()
+  await page.locator('.document-tab.selected .tab-close').click()
+  await databaseMenu.click()
+  await page.getByRole('button', { name: 'Report Designer' }).click()
+  await page.locator('[data-testid="report-designer"]').waitFor()
+  for (const band of ['reportHeader', 'pageHeader', 'groupHeader', 'detail', 'groupFooter', 'pageFooter', 'reportFooter']) {
+    await page.locator(`[data-testid="report-band-${band}"]`).waitFor()
+  }
+  const reportDesigner = page.locator('[data-testid="report-designer"]')
+  await reportDesigner.getByRole('textbox', { name: 'Report data source query' }).fill("SELECT DATE('2025-01-03') AS ordered_at, 10 AS total UNION ALL SELECT DATE('2025-04-02'), 7")
+  await reportDesigner.getByRole('button', { name: 'Load data' }).click()
+  await page.locator('[data-testid="report-designer"][data-state="ready"]').waitFor()
+  await reportDesigner.locator('.rp-draggable-field').filter({ hasText: 'ordered_at' }).dragTo(reportDesigner.locator('[data-testid="report-band-reportHeader"]'))
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => { document.documentElement.dataset.theme = value }, theme)
+    await page.screenshot({ path: join(evidenceDirectory, `report-designer-wysiwyg-${theme}.png`) })
+  }
+  await page.getByRole('button', { name: 'Close designer' }).click()
+  await page.locator('.document-tab.selected .tab-close').click()
+  await databaseMenu.click()
+  await page.getByRole('button', { name: 'Pivot Table', exact: true }).click()
+  const reportPivot = page.locator('.report-pivot-panel:visible').last()
+  await reportPivot.locator('.rp-query-label button').click()
+  await reportPivot.locator('.rp-query-label textarea').fill("SELECT DATE('2025-01-03') AS ordered_at, 10 AS total")
+  await reportPivot.getByRole('button', { name: 'Load query fields' }).click()
+  await page.locator('[data-testid="report-query-state"][data-state="ready"]').waitFor()
+  await reportPivot.getByLabel('Zone for ordered_at').selectOption('rows')
+  await reportPivot.getByLabel('Zone for total').selectOption('values')
+  await reportPivot.getByRole('button', { name: 'Build Pivot Table' }).click()
+  await reportPivot.locator('[data-testid="pivot-grid"]').getByText('Grand Total', { exact: true }).first().waitFor()
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => { document.documentElement.dataset.theme = value }, theme)
+    await page.screenshot({ path: join(evidenceDirectory, `pivot-date-grand-total-${theme}.png`) })
+  }
   await page.locator('.document-tab.selected .tab-close').click()
   const tools = page.locator('.menu-row summary').filter({ hasText: 'Tools' })
   await tools.click()
@@ -252,6 +292,8 @@ END`)
   const comparison = page.locator('.menu-row summary').filter({ hasText: /^Comparison$/ })
   await comparison.click()
   await page.getByRole('button', { name: 'New Schema Comparison…' }).click()
+  await page.locator('.document-tab.selected [role=tab]').waitFor()
+  await page.locator('.document-tab.selected [role=tab]').click()
   const schemaPanel = page.locator('.compare-panel')
   await schemaPanel.waitFor()
   const schemaInputs = schemaPanel.locator('fieldset .compare-form input')
@@ -293,6 +335,18 @@ END`)
   await qb.locator('.qb-join-chip').getByText(/LEFT/).waitFor({ timeout: 15_000 })
   await qb.locator('.qb-join-lines path').waitFor()
   await qb.locator('.qb-view-tabs span').getByText(/LEFT JOIN/).waitFor()
+  await qb.getByRole('button', { name: 'Select All rows from left table' }).click()
+  await qb.getByRole('button', { name: 'Select All rows from right table' }).click()
+  await qb.getByRole('button', { name: 'Wrap to Subquery' }).click()
+  await qb.getByText('SELECT wrapped as a derived table.', { exact: false }).waitFor()
+  await qb.getByRole('combobox', { name: 'Insert target table' }).selectOption(childTable)
+  await qb.getByRole('button', { name: 'Wrap to Insert' }).click()
+  await qb.getByText('INSERT SELECT created.', { exact: false }).waitFor()
+  await qb.getByRole('button', { name: 'Create Subquery' }).click()
+  await qb.getByRole('tab', { name: 'Root Query' }).waitFor()
+  await qb.getByRole('tab', { name: 'Root Query' }).click()
+  await qb.getByRole('tab', { name: 'SubQuery' }).click()
+  await qb.getByRole('tab', { name: 'Root Query' }).click()
   await mkdir(evidenceDirectory, { recursive: true })
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => { document.documentElement.dataset.theme = value }, theme)
@@ -309,7 +363,10 @@ END`)
   await erDiagram.waitFor()
   await page.locator('.object-name').filter({ hasText: dragTable }).dragTo(erDiagram.locator('.er-canvas-wrap, .er-empty').first())
   try { await erDiagram.locator('.er-table').filter({ hasText: dragTable }).waitFor({ timeout: 30_000 }) }
-  catch { throw new Error(`ER Explorer drop did not add ${dragTable}: ${await erDiagram.innerText()}`) }
+  catch {
+    const [schemaRows] = await admin.query('SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?', [database])
+    throw new Error(`ER Explorer drop did not add ${dragTable} (test database exists: ${schemaRows.length > 0}): ${await erDiagram.innerText()}`)
+  }
   for (const theme of ['light', 'dark']) {
     await page.evaluate((value) => { document.documentElement.dataset.theme = value }, theme)
     await page.screenshot({ path: join(evidenceDirectory, `er-diagram-explorer-drop-${theme}.png`) })
@@ -335,12 +392,39 @@ END`)
   const exportClose = page.locator('.panel-dialog-backdrop:has(.io-wizard) .panel-dialog-close')
   if (await exportClose.count()) await exportClose.last().click()
 
+  // Restore is a short three-stage preview flow. The selected fixture is disposable and is never run.
+  const restoreFixture = join(dataRoot, 'restore-preview.sql')
+  await writeFile(restoreFixture, '-- preview only\nSELECT 1;\n', 'utf8')
+  await app.evaluate(({ dialog }, filePath) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filePath] }) }, restoreFixture)
+  await page.locator('.menu-row summary').filter({ hasText: /^Database$/ }).click()
+  await page.getByRole('button', { name: /Backup \/ Restore/ }).click()
+  const toolsPanel = page.locator('.database-tools-panel')
+  await toolsPanel.waitFor()
+  await toolsPanel.locator('.database-tools-tabs').getByRole('button', { name: 'Backup/Restore', exact: true }).click()
+  const restoreWizard = page.locator('.backup-wizard')
+  await restoreWizard.waitFor()
+  await restoreWizard.getByRole('button', { name: 'Restore backup', exact: true }).click()
+  if (await restoreWizard.locator('.backup-wizard-steps button').count() !== 3) throw new Error('Restore wizard should expose three steps.')
+  await restoreWizard.getByRole('button', { name: /Choose backup file/ }).click()
+  await restoreWizard.getByRole('button', { name: 'Next' }).click()
+  if (await restoreWizard.getByRole('button', { name: 'Start' }).isEnabled()) throw new Error('Restore must require destination confirmation before execution.')
+  await page.locator('.document-tab.selected .tab-close').click()
+
   // Security user list and debugger deployment / stepping run against this disposable schema.
   await page.locator('.menu-row summary').filter({ hasText: /^Database$/ }).click()
   await page.getByRole('button', { name: /Security Manager/ }).click()
   const security = page.locator('.security-panel')
   await security.waitFor()
-  await security.locator('.security-users button').first().waitFor({ timeout: 15_000 })
+  const firstSecurityUser = security.locator('.security-users button').first()
+  await firstSecurityUser.waitFor({ timeout: 15_000 })
+  await firstSecurityUser.click()
+  for (const tab of ['General', 'Roles', 'Users', 'Global Privileges', 'Object Privileges']) {
+    await security.getByRole('button', { name: tab, exact: true }).click()
+    if (tab === 'Global Privileges') {
+      await security.getByRole('columnheader', { name: 'Granted', exact: true }).waitFor()
+      await security.getByRole('columnheader', { name: 'With Grant Option', exact: true }).waitFor()
+    }
+  }
   await page.locator('.panel-dialog-backdrop:has(.security-panel) .panel-dialog-close').click()
 
   const debugMenu = page.locator('.menu-row summary').filter({ hasText: /^Debug$/ })
@@ -351,9 +435,12 @@ END`)
   const debugConnection = debuggerPanel.locator('.rd-target select').nth(0)
   await debugConnection.selectOption({ label: 'Smoke MySQL 33067' })
   await debuggerPanel.locator('.rd-target select').nth(1).selectOption(database)
-  await debuggerPanel.locator('.rd-target select').nth(2).selectOption(debugRoutine)
-  await debuggerPanel.getByRole('button', { name: /Deploy Debug Engine|Deploy debugger support/i }).click()
-  await debuggerPanel.getByText(/Engine installed|Engine v/).waitFor({ timeout: 30_000 })
+  await debuggerPanel.locator('.rd-target select').nth(3).selectOption(debugRoutine)
+  const deployButton = debuggerPanel.getByRole('button', { name: /Deploy Debug Engine|Deploy debugger support/i })
+  if (await deployButton.count()) {
+    await deployButton.click()
+    await debuggerPanel.getByText(/Engine installed|Engine v/).waitFor({ timeout: 30_000 })
+  } else await debuggerPanel.getByText(/Engine installed|Engine v/).waitFor({ timeout: 15_000 })
   const [sqlModeRows] = await admin.query("SHOW GLOBAL VARIABLES LIKE 'sql_mode'")
   if (!String(sqlModeRows[0]?.Value).includes('STRICT')) throw new Error(`Debugger smoke requires a strict MySQL session default, received: ${sqlModeRows[0]?.Value}`)
   await debuggerPanel.locator('.rd-target').getByRole('button', { name: /Start Debugging/ }).click()
@@ -369,7 +456,25 @@ END`)
   const stop = debuggerPanel.locator('.rd-toolbar').getByRole('button').nth(5)
   if (await stop.isEnabled()) await stop.click()
 
-  console.log('Smoke e2e passed: Query Builder column drag join/edit/SQL, Explorer-to-Query Builder and ER Diagram drops, plus existing comparison/editor/security/debugger coverage.')
+  // Skin choices and toolbar customization mutate only this smoke profile.
+  const toolsDetails = page.locator('.menu-row > details').filter({ has: page.locator(':scope > summary').filter({ hasText: /^Tools$/ }) })
+  const toolsMenu = toolsDetails.locator(':scope > summary')
+  if (!(await toolsDetails.evaluate((element) => element.open))) await toolsMenu.click()
+  const toolsPopup = toolsDetails.locator(':scope > .menu-popup')
+  await toolsPopup.waitFor({ state: 'visible' })
+  const blueSkinAction = toolsPopup.getByRole('button', { name: /^(Skin: Blue|Visual: Azul)$/ })
+  if (!(await blueSkinAction.count())) throw new Error(`Tools menu did not expose the blue skin action: ${await toolsPopup.innerText()}`)
+  await blueSkinAction.click()
+  if (await page.locator('html').getAttribute('data-skin') !== 'blue') throw new Error('Blue skin was not applied.')
+  if (!(await toolsDetails.evaluate((element) => element.open))) await toolsMenu.click()
+  await toolsPopup.getByRole('button', { name: /^(Customize…|Personalizar…)$/ }).click()
+  const customize = page.locator('.toolbar-customize')
+  await customize.waitFor()
+  await customize.getByRole('checkbox', { name: 'Results' }).uncheck()
+  await customize.getByRole('button', { name: 'Done' }).click()
+  if (await page.locator('.app-toolbar').getByRole('button', { name: 'Results' }).count()) throw new Error('Toolbar customization did not hide Results.')
+
+  console.log('Smoke e2e passed: comparison/editor/security/debugger, security privilege tabs, startup paint mark, skin selection, toolbar customization, and disposable-schema flows.')
 } finally {
   if (app) {
     const child = app.process()

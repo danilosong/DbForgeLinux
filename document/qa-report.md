@@ -76,3 +76,12 @@ Fixtures MySQL de integração e e2e usam nomes prefixados com PID + UUID (`dbfo
 - `pnpm test:integration` — limpeza prefixada + 65 arquivos de teste: 234 passaram, 1 skip.
 - `pnpm typecheck` e `pnpm lint` — passaram.
 - Corrigi a asserção do teste ZIP em `database-backup.test.ts`: o nome do entry é lido usando o comprimento do cabeçalho ZIP, sem limite de bytes incorreto.
+
+## Rodada 4 — ferramentas e startup
+
+- `pnpm typecheck`: passou.
+- `pnpm lint`: passou sem erros.
+- `pnpm test`: 270 passaram; 15 integração ficaram skip sem `MYSQL_INTEGRATION=1`.
+- `pnpm dist:deb`: empacotamento `.deb` terminou com sucesso.
+- `pnpm a11y:smoke`: 7 superfícies passaram com zero violações axe. O seletor da suíte foi ajustado para abrir somente o `summary` de primeiro nível.
+- `pnpm smoke:e2e`: passou. Cobriu Schema Compare sem sincronizar, Security Manager e grade Granted/With Grant Option, restore em três etapas sem executar, menu Database > Flush gerando SQL revisável, seleção Skin Blue e Customize/Reset Toolbar. Também cobriu debugger e Query Builder; o script usa database PID+UUID descartável e teardown em `finally`.

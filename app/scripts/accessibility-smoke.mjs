@@ -33,7 +33,7 @@ try {
   }
   async function openPanel(menu, action) {
     const menuDetails = page.locator('nav.menu-row details').filter({ has: page.locator('summary').filter({ hasText: menu }) }).first()
-    await menuDetails.locator('summary').click()
+    await menuDetails.locator(':scope > summary').click()
     await menuDetails.getByRole('button', { name: new RegExp(action) }).first().click()
     await page.locator('.tool-document .tool-panel').first().waitFor()
     await page.waitForTimeout(100)

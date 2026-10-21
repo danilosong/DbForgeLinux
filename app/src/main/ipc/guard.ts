@@ -62,7 +62,7 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'profiler:profile': [id, sql], 'profiler:explain': [id, sql], 'profiler:history': [id], 'profiler:clear-history': [id, trueOnly], 'profiler:status': [id],
   'query-builder:schema': [id, ident], 'query-builder:build': [object], 'query-builder:parse': [sql, opt(ident)], 'query-builder:execute': [id, object, opt(bool), opt(id)], 'query-builder:cancel': [id],
   'routine-debugger:engine:inspect': [id], 'routine-debugger:engine:deploy': [id, trueOnly], 'routine-debugger:engine:remove': [id, trueOnly], 'routine-debugger:compile': [object],
-  'routine-debugger:start': [object, s('array-null-text', { maxItems: 64 }), objects, bool, bool], 'routine-debugger:command': [id, enumOf('into', 'over', 'out', 'continue', 'stop'), opt(integer)],
+  'routine-debugger:start': [object, s('array-null-text', { maxItems: 64 }), objects, bool, bool, opt(text)], 'routine-debugger:command': [id, enumOf('into', 'over', 'out', 'continue', 'stop'), opt(integer)],
   'routine-debugger:breakpoints': [id, objects], 'routine-debugger:watches': [id, strings], 'routine-debugger:snapshot': [id],
   'schema-compare:inspect': [id, ident], 'schema-compare:compare': [id, ident, id, ident, opt(bool)], 'schema-compare:load-offline': [enumOf('Scripts Folder', 'Snapshot')], 'schema-compare:compare-models': [object, object, opt(bool)], 'schema-compare:save-snapshot': [id, ident], 'schema-compare:synchronize': [id, ident, sql, trueOnly],
   'security:accounts': [id], 'security:details': [id, object], 'security:preview': [id, objects], 'security:apply': [id, objects, trueOnly],
@@ -163,7 +163,28 @@ function assertStringArray(value: unknown, label: string, maximum = 1000): asser
   if (!Array.isArray(value) || value.length > maximum || value.some((item) => typeof item !== 'string' || item.length > 256)) fail(`${label} must be a bounded string array`)
 }
 function assertDomainPayload(channel: string, args: readonly unknown[]): void {
-  if (channel === 'grid-editing:apply') {
+  if (channel.startsWith('object-editor:')) {
+    const index = channel === 'object-editor:apply-table' ? -1 : 0
+    if (index >= 0) assertObjectEditorTarget(args[index], 'target')
+    else {
+      const table = assertRecord(args[3], 'target', ['kind', 'name', 'columns', 'indexes', 'foreignKeys', 'checks'], ['kind', 'name', 'columns', 'indexes', 'foreignKeys', 'checks', 'engine', 'charset', 'collation', 'comment', 'options', 'partitioning'])
+      if (table.kind !== 'table' || typeof table.name !== 'string' || table.name.length > 64) fail('table draft identity is invalid')
+    }
+  } else if (channel === 'security:details') {
+    const account = assertRecord(args[1], 'account', ['user', 'host'], ['user', 'host'])
+    if (typeof account.user !== 'string' || account.user.length > 128 || typeof account.host !== 'string' || account.host.length > 255) fail('account reference is invalid')
+  } else if (channel === 'security:preview' || channel === 'security:apply') {
+    if (!Array.isArray(args[1]) || args[1].length > 500) fail('security changes must be a bounded array')
+    ;(args[1] as unknown[]).forEach((item, index) => assertSecurityChange(item, `changes[${index}]`))
+  } else if (channel === 'routine-debugger:compile' || channel === 'routine-debugger:start') {
+    const target = assertRecord(args[0], 'target', ['connectionId', 'database', 'name'], ['connectionId', 'database', 'name', 'kind'])
+    if (typeof target.connectionId !== 'string' || !target.connectionId || typeof target.database !== 'string' || !target.database || typeof target.name !== 'string' || !target.name || target.name.length > 64 || target.database.length > 64 || (target.kind !== undefined && !['procedure', 'trigger'].includes(String(target.kind)))) fail('debug target is invalid')
+    const trigger = target.kind === 'trigger'
+    if (channel === 'routine-debugger:start' && trigger) {
+      const statement = args[5]
+      if (typeof statement !== 'string' || statement.length > 100_000 || !/^(?:\s*)(?:INSERT\s+INTO|REPLACE\s+INTO|UPDATE|DELETE\s+FROM)\b/i.test(statement) || /;/.test(statement.replace(/;\s*$/, '')) || /--|#|\/\*/.test(statement)) fail('trigger debugging needs one bounded DML statement without comments')
+    }
+  } else if (channel === 'grid-editing:apply') {
     const descriptor = assertRecord(args[1], 'descriptor', ['database', 'table', 'keyColumns', 'columns'], ['database', 'table', 'keyColumns', 'columns', 'reason'])
     for (const key of ['database', 'table']) if (typeof descriptor[key] !== 'string' || !descriptor[key]) fail(`descriptor.${key} must be non-empty text`)
     assertStringArray(descriptor.keyColumns, 'descriptor.keyColumns', 256)
@@ -250,6 +271,60 @@ function assertDomainPayload(channel: string, args: readonly unknown[]): void {
     if (options.password !== undefined && (typeof options.password !== 'string' || options.password.length < 8 || options.password.length > 1024)) fail('backup password is invalid')
     if (!options.includeStructure && !options.includeData) fail('backup must include structure or data')
   }
+}
+
+function assertObjectEditorTarget(value: unknown, label: string): void {
+  const target = assertRecord(value, label, ['connectionId', 'database', 'kind', 'name'], ['connectionId', 'database', 'kind', 'name'])
+  if (typeof target.connectionId !== 'string' || !target.connectionId || target.connectionId.length > 256 || typeof target.database !== 'string' || !target.database || target.database.length > 64 || typeof target.name !== 'string' || !target.name || target.name.length > 64 || !['database', 'table', 'view', 'procedure', 'function', 'trigger', 'event'].includes(String(target.kind))) fail(`${label} identity is invalid`)
+}
+
+function assertSecurityChange(value: unknown, label: string): void {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) fail(`${label} must be a record`)
+  const change = value as Record<string, unknown>
+  const kind = change.kind
+  const keys: Record<string, readonly string[]> = {
+    createUser: ['kind', 'account', 'password'], alterUser: ['kind', 'account', 'changes', 'password'], dropUser: ['kind', 'account'],
+    grant: ['kind', 'privileges', 'scope', 'grantee', 'grantOption'], revoke: ['kind', 'privileges', 'scope', 'grantee', 'grantOptionOnly'],
+    grantRole: ['kind', 'role', 'grantee', 'default'], revokeRole: ['kind', 'role', 'grantee']
+  }
+  const allowed = keys[String(kind)]
+  if (!allowed) fail(`${label}.kind is invalid`)
+  for (const key of Object.keys(change)) if (!allowed.includes(key)) fail(`${label}.${key} is not allowed`)
+  const accountRef = (input: unknown, path: string, userFields: boolean): void => {
+    const fields = userFields ? ['user', 'host', 'plugin', 'locked', 'passwordExpired', 'sslType', 'sslIssuer', 'sslSubject', 'comment', 'limits', 'isRole'] : ['user', 'host']
+    const record = assertRecord(input, path, ['user', 'host'], fields)
+    if (typeof record.user !== 'string' || !record.user || record.user.length > 128 || typeof record.host !== 'string' || !record.host || record.host.length > 255) fail(`${path} identity is invalid`)
+    for (const key of ['plugin', 'sslType', 'sslIssuer', 'sslSubject', 'comment']) if (record[key] !== undefined && (typeof record[key] !== 'string' || record[key].length > 1024)) fail(`${path}.${key} is invalid`)
+    for (const key of ['locked', 'passwordExpired', 'isRole']) if (record[key] !== undefined && typeof record[key] !== 'boolean') fail(`${path}.${key} must be boolean`)
+    if (record.limits !== undefined) {
+      const limits = assertRecord(record.limits, `${path}.limits`, [], ['MAX_QUERIES_PER_HOUR', 'MAX_UPDATES_PER_HOUR', 'MAX_CONNECTIONS_PER_HOUR', 'MAX_USER_CONNECTIONS'])
+      for (const [key, item] of Object.entries(limits)) if (!Number.isSafeInteger(item) || Number(item) < 0) fail(`${path}.limits.${key} is invalid`)
+    }
+  }
+  if ('account' in change) accountRef(change.account, `${label}.account`, kind === 'createUser')
+  if (kind === 'alterUser') {
+    accountRef(change.account, `${label}.account`, false)
+    const changes = assertRecord(change.changes, `${label}.changes`, [], ['plugin', 'locked', 'passwordExpired', 'sslType', 'sslIssuer', 'sslSubject', 'comment', 'limits', 'isRole'])
+    accountRef({ user: 'placeholder', host: 'placeholder', ...changes }, `${label}.changes`, true)
+  }
+  if (change.password !== undefined && (typeof change.password !== 'string' || change.password.length > 1024)) fail(`${label}.password is invalid`)
+  if (kind === 'grant' || kind === 'revoke') {
+    assertStringArray(change.privileges, `${label}.privileges`, 128)
+    if ((change.privileges as string[]).some((item) => item.length > 128 || !/^[A-Za-z][A-Za-z0-9_ ]*$/.test(item))) fail(`${label}.privileges contains invalid names`)
+    const scope = change.scope as Record<string, unknown>
+    if (!scope || typeof scope !== 'object' || Array.isArray(scope)) fail(`${label}.scope must be a record`)
+    const scopeKeys: Record<string, string[]> = { global: ['kind'], database: ['kind', 'database'], table: ['kind', 'database', 'table'], column: ['kind', 'database', 'table', 'columns'], routine: ['kind', 'database', 'routine', 'routineType'] }
+    const expected = scopeKeys[String(scope.kind)]
+    if (!expected) fail(`${label}.scope.kind is invalid`)
+    for (const key of Object.keys(scope)) if (!expected.includes(key)) fail(`${label}.scope.${key} is not allowed`)
+    for (const key of ['database', 'table', 'routine']) if (scope[key] !== undefined && (typeof scope[key] !== 'string' || !scope[key] || scope[key].length > 256)) fail(`${label}.scope.${key} is invalid`)
+    if (scope.kind === 'column') assertStringArray(scope.columns, `${label}.scope.columns`, 256)
+    if (scope.kind === 'routine' && !['PROCEDURE', 'FUNCTION'].includes(String(scope.routineType))) fail(`${label}.scope.routineType is invalid`)
+    accountRef(change.grantee, `${label}.grantee`, false)
+    for (const key of ['grantOption', 'grantOptionOnly']) if (change[key] !== undefined && typeof change[key] !== 'boolean') fail(`${label}.${key} must be boolean`)
+  }
+  if (kind === 'grantRole' || kind === 'revokeRole') { accountRef(change.role, `${label}.role`, false); accountRef(change.grantee, `${label}.grantee`, false) }
+  if (kind === 'grantRole' && change.default !== undefined && typeof change.default !== 'boolean') fail(`${label}.default must be boolean`)
 }
 
 export function validateIpcArguments(channel: string, args: readonly unknown[]): void {

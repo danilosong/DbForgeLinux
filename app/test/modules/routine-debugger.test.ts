@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEBUG_SCHEMA, engineDdl, instrumentProcedure, parseDebugRoutineParameters, quoteDebugIdentifier } from '../../src/modules/routine-debugger/index.js'
+import { DEBUG_SCHEMA, engineDdl, instrumentProcedure, instrumentTrigger, parseDebugRoutineParameters, quoteDebugIdentifier } from '../../src/modules/routine-debugger/index.js'
 
 describe('routine debugger instrumenter', () => {
   it('places checkpoints before executable statements and captures declared locals', () => {
@@ -36,6 +36,16 @@ END`
   it('rejects non-procedures and dynamic SQL with a useful limit', () => {
     expect(() => instrumentProcedure('CREATE FUNCTION f() RETURNS INT RETURN 1')).toThrow(/only stored procedures/i)
     expect(() => instrumentProcedure('CREATE PROCEDURE p() BEGIN PREPARE q FROM \'SELECT 1\'; END')).toThrow(/dynamic/i)
+  })
+
+  it('instruments a trigger and preserves trigger timing, event, and body', () => {
+    const source = `CREATE TRIGGER audit_insert AFTER INSERT ON audit_rows FOR EACH ROW\nBEGIN\n  INSERT INTO audit_log(id) VALUES (NEW.id);\nEND`
+    const result = instrumentTrigger(source, 'debug_test')
+    expect(result.statementLines).toEqual([3])
+    expect(result.sql).toContain('AFTER INSERT ON audit_rows FOR EACH ROW')
+    expect(result.sql).toContain('`debug_test`.checkpoint(@dbforge_linux_debug_id, 3, JSON_OBJECT())')
+    expect(result.sql).toContain('INSERT INTO audit_log(id) VALUES (NEW.id);')
+    expect(() => instrumentTrigger('CREATE PROCEDURE p() BEGIN SELECT 1; END')).toThrow(/only stored triggers/i)
   })
 })
 

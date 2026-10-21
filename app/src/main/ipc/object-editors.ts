@@ -1,6 +1,10 @@
 import { ipcMain } from 'electron'
+import { app } from 'electron'
+import { chmod, open, lstat, mkdir, unlink } from 'node:fs/promises'
+import { join } from 'node:path'
+import { randomUUID } from 'node:crypto'
 import { inspectDatabase, quoteIdentifier, dropObject, diffTables, createTable, type SchemaObject, type SchemaObjectKind, type TableModel } from '../../modules/schema/index.js'
-import { normalizeObjectDefinition, validateTableDraft } from '../../modules/object-editors/index.js'
+import { normalizeObjectDefinition, objectRestoreFailureMessage, validateTableDraft } from '../../modules/object-editors/index.js'
 import type { ObjectEditorTarget } from '../../shared/contracts/object-editors.js'
 import { editorMetadataCache } from './editor.js'
 import type { MysqlDriver } from '../db/MysqlDriver.js'
@@ -42,13 +46,16 @@ export function registerObjectEditorsIpc({ driver }: { driver: MysqlDriver }): v
     } else if (prior) {
       const originalSql = prior.createSql
       if (!originalSql) throw new Error(`Não foi possível guardar o DDL original de ${target.name}; alteração cancelada.`)
-      await driver.executeSql(target.connectionId, dropObject(prior, target.database))
+      const recoveryFile = await writeRecoveryDdl(originalSql)
+      try { await driver.executeSql(target.connectionId, dropObject(prior, target.database)) }
+      catch (error) { await unlink(recoveryFile).catch(() => undefined); throw error }
+      let keepRecoveryFile = false
       try { await driver.executeSql(target.connectionId, statement) }
-      catch (error) {
+      catch {
         try { await driver.executeSql(target.connectionId, originalSql) }
-        catch (restoreError) { throw new Error(`Falha ao aplicar e restaurar ${target.name}. Guarde o DDL original: ${originalSql}`, { cause: restoreError }) }
-        throw new Error(`Alteração falhou; o objeto original foi restaurado: ${error instanceof Error ? error.message : 'erro desconhecido'}`, { cause: error })
-      }
+        catch { keepRecoveryFile = true; throw new Error(objectRestoreFailureMessage(target.name, recoveryFile)) }
+        throw new Error('Alteração falhou; o objeto original foi restaurado.')
+      } finally { if (!keepRecoveryFile) await unlink(recoveryFile).catch(() => undefined) }
     } else await driver.executeSql(target.connectionId, statement)
     editorMetadataCache.invalidate(target.connectionId, target.database)
   })
@@ -64,6 +71,20 @@ export function registerObjectEditorsIpc({ driver }: { driver: MysqlDriver }): v
     else await driver.executeSql(target.connectionId, dropObject({ kind: target.kind, name: target.name }, target.database))
     editorMetadataCache.invalidate(target.connectionId, target.database)
   })
+}
+
+async function writeRecoveryDdl(sql: string): Promise<string> {
+  const directory = join(app.getPath('userData'), 'object-recovery')
+  await mkdir(directory, { recursive: true, mode: 0o700 })
+  const details = await lstat(directory)
+  if (!details.isDirectory() || details.isSymbolicLink()) throw new Error('O diretório privado de recuperação não é seguro; a alteração foi cancelada.')
+  await chmod(directory, 0o700)
+  const path = join(directory, `${randomUUID()}.sql`)
+  const file = await open(path, 'wx', 0o600)
+  try { await file.writeFile(sql, 'utf8'); await file.chmod(0o600) }
+  catch (error) { await unlink(path).catch(() => undefined); throw error }
+  finally { await file.close() }
+  return path
 }
 
 function validateTarget(target: ObjectEditorTarget): void {

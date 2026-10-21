@@ -194,10 +194,12 @@ export const enMessages: Record<string, string> = {
   "sec.priv.database": "Database Privileges",
   "sec.priv.object": "Object Privileges",
   "sec.priv.available": "Available Privileges:",
+  "sec.privilege": "Privilege",
+  "sec.priv.granted": "Granted",
+  "sec.priv.grantOption": "With Grant Option",
   "sec.priv.grantAll": "Grant All Privileges",
   "sec.priv.revokeAll": "Revoke All Privileges",
   "sec.priv.revokeSelected": "Revoke Selected Privilege",
-  "sec.priv.grantOption": "Grant Option",
   "sec.roles.members": "Role Members",
   "sec.roles.privileges": "Role Privileges",
   "sec.acct.locked": "Account Locked",
@@ -533,7 +535,7 @@ export const enMessages: Record<string, string> = {
 }
 
 Object.assign(enMessages, {
-  'debugger.title': 'Routine Debugger', 'debugger.description': 'Instrumented stepping for stored procedures',
+  'debugger.title': 'Routine Debugger', 'debugger.description': 'Instrumented stepping for stored procedures and triggers', 'debugger.objectType': 'Object type', 'debugger.procedure': 'Procedure', 'debugger.trigger': 'Trigger', 'debugger.triggerSql': 'DML statement to fire trigger',
   'common.cancel': 'Cancel', 'common.ok': 'OK', 'opt.saving': 'Saving settings…', 'opt.applied': 'Changes applied.', 'opt.resetPage': 'Restore Defaults', 'opt.resetPage.confirm': 'Restore defaults for this page?', 'opt.resetAll.confirm': 'Keyboard mappings will reset to their default values. Continue?', 'opt.imported': 'Settings imported.', 'opt.exported': 'Settings exported to {0}',
   'debug.bp.insert': 'Insert Breakpoint', 'debug.bp.delete': 'Delete Breakpoint', 'debug.bp.disableAll': 'Disable All Breakpoints',
   'debug.panel.watches': 'Watches', 'debug.panel.callStack': 'Call Stack', 'debug.watch.delete': 'Delete Watch',
@@ -576,7 +578,7 @@ export const ptBrMessages: Record<string, string> = {
   'debug.compileDependants': 'Compilar dependências para depuração', 'debug.compileReferences': 'Compilar referências para depuração', 'debug.engine.remove': 'Remover mecanismo de depuração', 'debug.engine.deployed': 'Mecanismo de depuração instalado com sucesso.', 'debug.engine.removing': 'Removendo mecanismo de depuração do servidor...', 'debug.engine.removed': 'Mecanismo de depuração removido.', 'debug.ignoreChanges': 'Ignorar alterações e continuar depurando', 'debug.source.ignoreChanges': 'Ignorar alterações e continuar depurando', 'opt.font.size': 'Tamanho da fonte', 'opt.font.scale': 'Escala da fonte'
 }
 
-Object.assign(ptBrMessages, { 'debug.ignoreChanges': 'Ignorar alterações e continuar depurando', 'debugger.title': 'Depurador de rotinas', 'debugger.description': 'Execução passo a passo instrumentada de procedimentos armazenados', 'common.cancel': 'Cancelar', 'common.ok': 'OK', 'opt.saving': 'Salvando configurações…', 'opt.applied': 'Alterações aplicadas.', 'opt.resetPage': 'Restaurar padrões', 'opt.resetPage.confirm': 'Restaurar os padrões desta página?', 'opt.resetAll.confirm': 'Os atalhos serão restaurados aos valores padrão. Continuar?', 'opt.imported': 'Configurações importadas.', 'opt.exported': 'Configurações exportadas para {0}' })
+Object.assign(ptBrMessages, { 'debug.ignoreChanges': 'Ignorar alterações e continuar depurando', 'debugger.title': 'Depurador de rotinas', 'debugger.description': 'Execução instrumentada passo a passo de procedures e triggers', 'debugger.objectType': 'Tipo de objeto', 'debugger.procedure': 'Procedure', 'debugger.trigger': 'Trigger', 'debugger.triggerSql': 'Instrução DML para disparar o trigger', 'common.cancel': 'Cancelar', 'common.ok': 'OK', 'opt.saving': 'Salvando configurações…', 'opt.applied': 'Alterações aplicadas.', 'opt.resetPage': 'Restaurar padrões', 'opt.resetPage.confirm': 'Restaurar os padrões desta página?', 'opt.resetAll.confirm': 'Os atalhos serão restaurados aos valores padrão. Continuar?', 'opt.imported': 'Configurações importadas.', 'opt.exported': 'Configurações exportadas para {0}' })
 Object.assign(ptBrMessages, { 'grid.limit.rows': 'Ações em resultados grandes são limitadas a {0} linhas.', 'grid.limit.text': 'O texto copiado excede o limite de 8 MB.', 'grid.copied': '{0} linhas copiadas.', 'grid.copy.error': 'Falha ao copiar.', 'grid.stats.error': 'Não foi possível calcular as estatísticas.', 'grid.pivot.error': 'Não foi possível criar a tabela dinâmica.', 'grid.detail.error': 'Não foi possível carregar as linhas de detalhe.', 'grid.detail.found': '{0} relação(ões) de detalhe encontrada(s).', 'grid.apply.confirm': 'Aplicar {0} alteração(ões) pendente(s)? O lote usa uma transação quando o autocommit está habilitado.' })
 Object.assign(ptBrMessages, { 'grid.sort.error': 'Não foi possível ordenar este resultado.', 'grid.sort.drag': 'Clique para ordenar; arraste para reordenar as colunas.', 'grid.freeze': 'Congelar até {0}', 'grid.unfreeze': 'Descongelar colunas', 'grid.filterColumn': 'Filtrar {0}', 'grid.filterColumn.prompt': 'Filtrar {0} por conteúdo:', 'grid.masterDetail.row': 'linha {0}' })
 
@@ -641,6 +643,17 @@ Object.assign(ptBrMessages, {
 })
 Object.assign(ptBrCatalog, Object.fromEntries(Object.entries(ptBrMessages).filter(([key]) => key.startsWith('imex.'))))
 Object.assign(enMessages, {
+  'pivot.grandTotalLabel': 'Grand Total',
+  'pivot.date.hierarchy': 'Date hierarchy', 'pivot.date.year': 'Year', 'pivot.date.quarter': 'Quarter', 'pivot.date.month': 'Month', 'pivot.date.day': 'Day',
+  'qb.subquery.create': 'Create Subquery',
+  'qb.subquery.wrap': 'Wrap to Subquery',
+  'qb.subquery.wrapInsert': 'Wrap to Insert',
+  'qb.queryTabs': 'Query documents',
+  'qb.rootQuery': 'Root Query',
+  'qb.subQuery': 'SubQuery',
+  'qb.selectAllLeft': 'Select All rows from left table',
+  'qb.selectAllRight': 'Select All rows from right table',
+  'qb.insertTarget': 'Insert target table',
   'qb.dragJoin.differentTables': 'Choose columns from two different tables.',
   'qb.dragJoin.created': 'Join created: {0} = {1}. SQL updated.',
   'qb.dragJoin.objectUnavailable': 'Could not add {0}; it is not in the selected database schema.',
@@ -653,6 +666,17 @@ Object.assign(enMessages, {
   'extras.erd.dropContextMismatch': 'The dropped object belongs to a different connection or database.'
 })
 Object.assign(ptBrMessages, {
+  'pivot.grandTotalLabel': 'Total geral',
+  'pivot.date.hierarchy': 'Hierarquia de datas', 'pivot.date.year': 'Ano', 'pivot.date.quarter': 'Trimestre', 'pivot.date.month': 'Mês', 'pivot.date.day': 'Dia',
+  'qb.subquery.create': 'Criar subconsulta',
+  'qb.subquery.wrap': 'Envolver como subconsulta',
+  'qb.subquery.wrapInsert': 'Envolver como INSERT',
+  'qb.queryTabs': 'Documentos da consulta',
+  'qb.rootQuery': 'Consulta raiz',
+  'qb.subQuery': 'Subconsulta',
+  'qb.selectAllLeft': 'Selecionar todas as linhas da tabela à esquerda',
+  'qb.selectAllRight': 'Selecionar todas as linhas da tabela à direita',
+  'qb.insertTarget': 'Tabela de destino do INSERT',
   'qb.dragJoin.differentTables': 'Escolha colunas de duas tabelas diferentes.',
   'qb.dragJoin.created': 'Junção criada: {0} = {1}. SQL atualizado.',
   'qb.dragJoin.objectUnavailable': 'Não foi possível adicionar {0}; ele não está no schema do database selecionado.',
@@ -664,7 +688,7 @@ Object.assign(ptBrMessages, {
   'extras.erd.dropFailed': 'Não foi possível adicionar o objeto ao diagrama.',
   'extras.erd.dropContextMismatch': 'O objeto solto pertence a outra conexão ou database.'
 })
-Object.assign(ptBrCatalog, Object.fromEntries(Object.entries(ptBrMessages).filter(([key]) => key.startsWith('qb.dragJoin.') || key.startsWith('extras.erd.drop'))))
+Object.assign(ptBrCatalog, Object.fromEntries(Object.entries(ptBrMessages).filter(([key]) => key.startsWith('qb.') || key.startsWith('pivot.') || key.startsWith('extras.erd.drop'))))
 const editorCommandEn = {
   'editor.context.editing': 'Editing', 'editor.context.refactoring': 'Refactoring', 'editor.context.format': 'Format', 'editor.context.settings': 'Settings',
   'editor.command.rename': 'Rename…', 'editor.command.format-document': 'Format Document', 'editor.command.format-selection': 'Format Selection', 'editor.command.format-current-statement': 'Format Current Statement',

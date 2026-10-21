@@ -32,7 +32,7 @@ Prioridade: **A** = uso diário do editor; **B** = útil; **C** = acabamento.
 | | 23 | Diferença intencional | IA: o original exige conta na nuvem (*Sign In*); o clone usa chave própria. Telemetria: o original vem ligada; o clone não tem | — | — |
 
 | 24 | Query Builder: menu Query e subquery | Ao soltar `customers` e `orders` a junção por FK nasce sozinha (losango no canvas). O menu *Query* oferece *Change Type*, *Parent Query*, *Create Subquery*, *Wrap to Subquery*, *Wrap to Insert*, *Group By*, ordenação, selecionar/limpar colunas, *Select All rows from [left/right table]*, *Show Tabbed Editor* e *Send Query to Report*. *Create Subquery* abre uma aba aninhada (*Root Query* / *SubQuery*) com canvas e grade próprios | M | Parcial |
-| 25 | Security Manager | Árvore de usuários agrupada por host mais *Roles*; abas *General* (autenticação, senha, expiração, limites por hora, bloqueio de conta), *Roles*, *Users*, *Global Privileges* (grade Name/Granted com marcação geral e *With Grant Option*) e *Object Privileges*; barra com *Save*, *Undo*, *Script Changes* e *Create User* com menu | M | Parcial |
+| 25 | Security Manager | Árvore de usuários agrupada por host mais *Roles*; abas *General* (autenticação, senha, expiração, limites por hora, bloqueio de conta), *Roles*, *Users*, *Global Privileges* (grade Name/Granted com marcação geral e *With Grant Option*) e *Object Privileges*; barra com *Save*, *Undo*, *Script Changes* e *Create User* com menu | M | Parcial; IPC endurecido |
 | 26 | Tools: skins e personalização | Cinco skins (Visual Studio Blue/Light/Dark, Office Light/Black), *Import and Export Settings*, *Customize*, *Reset Toolbar Layout*; o clone só tem claro/escuro | B | Parcial |
 | 27 | Database › Tasks e Flush | Submenu *Tasks* reúne Export, Import, Backup, Restore, Data Generation, Documentation, *Create Scripts Folder*, Copy Databases e Find Invalid Objects (`Ctrl+Alt+F`); o menu Database ainda tem *Flush...* | B | Verificar |
 | 28 | Find Invalid Objects | Barra *Analyze*, *Script as ALTER*, *Script as DROP*; escolha de bancos num seletor com busca, *Refresh*, *Check All* e *Uncheck All* | B | Existe no clone; comparar a barra |
@@ -43,3 +43,37 @@ Prioridade: **A** = uso diário do editor; **B** = útil; **C** = acabamento.
 | 31 | Data Compare: assistente | Três páginas (*Source and Target*, *Options*, *Mapping*) com botões de copiar origem/destino, trocar lados e *Save* com menu. *Options* tem busca, gravação em arquivo de argumentos de linha de comando, descrição da opção selecionada e *Save As My Defaults* / *Devart Defaults* / *My Defaults*; grupos *Auto Mapping* (ignorar maiúsculas, sublinhados e espaços nos nomes, incluir/excluir por máscara, ignorar colunas LOB, por máscara e calculadas, excluir objetos novos) e *Comparison Options* (tabelas/views, arredondar float, ignorar maiúsculas, microssegundos, espaços à esquerda e internos). *Mapping* tem *Map Objects*, *Unmap*, *Reset*, *Custom Query*, *Filter*, chave de comparação por objeto, contagem *N of M columns* (negrito quando há colunas fora) e aviso de objetos sem par | M | Parcial: comparar opções e o mapeamento |
 
 Como medir: cada item vira linhas em `FIDELIDADE-MEDIDA.md` (rodada 3) com evidência (teste ou captura do clone).
+
+## Atualização de segurança e execução (2026-10-21)
+
+- **#25 Security Manager:** os campos IPC de contas, mudanças, escopos, privilégios e roles agora têm validação por discriminante, campos permitidos e limites. Isso reduz risco de entrada forjada, mas não fecha a diferença de apresentação/fluxo da grade nem substitui evidência e2e.
+- **#20, #21, #23–24, #26–30:** esta rodada não alterou o escopo funcional desses itens; seus estados e pendências acima continuam válidos.
+- **Debugger de triggers (fora da faixa 20–30):** o checkpoint lê comandos de estado confirmados durante a DML e usa um advisory lock para expor a linha pausada. O snapshot do trigger não contém variáveis locais e Step Out não percorre uma pilha filha; são limites do modelo, registrados na divergência do debugger.
+
+## Rodada de implementação — gaps 20, 21 e 24
+
+| Item | Estado verificado nesta rodada | Cobertura |
+|---|---|---|
+| 20 — Pivot | Implementado | Níveis temporais Year/Quarter/Month/Day selecionáveis por coluna de data, labels da hierarquia no resultado e linha Grand Total. Testes unitários cobrem níveis repetidos e agregação total. |
+| 21 — Report | Implementado | Entrada abre direto o canvas WYSIWYG, sete bandas com drag-and-drop, painéis Data Source / Group and Sort / Properties, prévia paginada e abrir/salvar desenho JSON com consulta incluída. |
+| 24 — Query Builder | Implementado | Confirmado que arrastar coluna entre cartões já traça joins; adicionadas abas Root Query/SubQuery, Wrap to Subquery/Insert e seleção de colunas por tabela à esquerda/direita. |
+
+A tela de relatório preview usa as linhas retornadas pelo limite do carregamento de dados; a consulta SQL e o desenho ficam no arquivo JSON e podem ser recarregados. Wrappers do Query Builder geram SQL em modo texto para revisão, sem execução automática.
+
+### Evidência e estado dos gaps 20–30 — rodada atual
+
+| # | Estado verificado no clone | Evidência / pendência |
+|---|---|---|
+| 20 | Parcial | Nenhuma alteração nesta rodada. |
+| 21 | Parcial | Nenhuma alteração nesta rodada. |
+| 22 | Parcial | Nenhuma alteração nesta rodada. |
+| 23 | Adaptado | Diferenças intencionais anteriores permanecem documentadas. |
+| 24 | Parcial | Smoke existente exercita construção de JOIN e agora inclui navegação entre Root Query/SubQuery. |
+| 25 | Implementação parcial | Global Privileges tem Granted e With Grant Option por privilégio; smoke passou pelas abas principais e cabeçalhos. Create User e Script Changes já estavam disponíveis. |
+| 26 | Implementado em parte | Skin Blue/Office, Customize e Reset Toolbar Layout agora funcionam; smoke comprovou Skin Blue e ocultação de Results. Import/Export Settings continua indisponível. |
+| 27 | Parcial implementado | Database > Flush confirma e abre um script revisável; smoke verificou o script sem executar. Um submenu Tasks dedicado ainda não foi criado. |
+| 28 | Existente | Find Invalid Objects não mudou nesta rodada. |
+| 29 | Parcial implementado | Restore tem três etapas e confirmação de destino; smoke passou pela revisão sem executar. Save Command Line ainda falta. |
+| 30 | Existente, evidência parcial | Dedicated/Shared e Link/Progress/Finish já são expostos; smoke dedicado do vínculo continua pendente. |
+
+A trilha de startup foi adicionada como marca de renderização/pintura e observação de long tasks; isso não equivale a um perfil completo de CPU/memória. Float real e grupos de editores divididos permanecem pendentes e não são marcados como concluídos.

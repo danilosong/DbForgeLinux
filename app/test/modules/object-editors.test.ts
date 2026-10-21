@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildObjectTemplate, buildRoutineTemplate, buildTableDdlPreview, normalizeObjectDefinition, validateTableDraft } from '../../src/modules/object-editors/index.js'
+import { buildObjectTemplate, buildRoutineTemplate, buildTableDdlPreview, normalizeObjectDefinition, objectRestoreFailureMessage, validateTableDraft } from '../../src/modules/object-editors/index.js'
 import type { ObjectEditorTarget } from '../../src/shared/contracts/object-editors.js'
 import type { TableModel } from '../../src/modules/schema/model.js'
 
@@ -29,6 +29,14 @@ describe('object editor drafts', () => {
     expect(normalizeObjectDefinition('CREATE VIEW `sample`.`active_customers` AS SELECT 1;', view)).toContain('CREATE VIEW')
     expect(() => normalizeObjectDefinition('DROP VIEW `sample`.`active_customers`;', view)).toThrow('CREATE')
     expect(() => normalizeObjectDefinition('CREATE VIEW `sample`.`other` AS SELECT 1;', view)).toThrow('coincidir')
+  })
+
+  it('does not disclose saved object DDL in a failed restoration message', () => {
+    const message = objectRestoreFailureMessage('billing_proc', '/private/recovery/original.sql')
+    expect(message).toContain('billing_proc')
+    expect(message).toContain('/private/recovery/original.sql')
+    expect(message).not.toContain('CREATE')
+    expect(message).not.toContain('password')
   })
 
   it('generates validated routine metadata and parameters into the live DDL', () => {

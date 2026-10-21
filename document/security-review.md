@@ -123,6 +123,38 @@ Revisão independente dos módulos AI Assistant, conexões/cofre, Database Tools
 - **EVIDENCE:** `decodeXml` substitui apenas `lt`, `gt`, `quot`, `apos`, `amp` e referências numéricas.
 - **SEVERITY:** LOW — limitação funcional e revisão futura.
 
+## Rodada 3
+
+Revisão de segurança dos comandos do editor, importação para tabela nova, documentos de criação e Security Manager. Não foi confirmado achado BLOCKER ou HIGH. Foram corrigidos dois achados MEDIUM, com regressões no contrato IPC e na mensagem de recuperação.
+
+### MEDIUM — Payload de Security Manager aceitava formas incompletas no IPC
+
+- **FINDING:** `security:preview`, `security:apply` e `security:details` recebiam objetos genéricos. O planejador já escapava nomes e restringia privilégios, mas o contrato IPC não rejeitava campos inesperados nem validava o tipo de rotina no escopo. Dados forjados podiam alcançar o gerador com valores fora do modelo e produzir falhas inconsistentes.
+- **LOCATION:** `app/src/main/ipc/guard.ts`, canais `security:*`.
+- **EXPECTED:** validar a forma por discriminante de cada mudança, campos permitidos, tipos de conta, escopo, privilégios e limites antes de chamar o planejador.
+- **ACTUAL:** o guard agora valida contas, mudanças create/alter/drop, grants e roles com listas de campos permitidos; valida limites, privilégios e `routineType` contra `PROCEDURE|FUNCTION`. `security:details` aceita somente `user` e `host`.
+- **EVIDENCE:** `app/test/ipc-guard.test.ts` cobre campos extras, referência de conta indevida e tentativa de inserir SQL em `routineType`; a suíte focada do guard passou.
+- **SEVERITY:** MEDIUM — corrigido.
+
+### MEDIUM — Erro de restauração de rotina podia incluir DDL sensível
+
+- **FINDING:** se a aplicação de uma definição falhasse e a restauração do objeto original também falhasse, a mensagem de erro carregava o DDL original completo. Uma procedure pode conter literais sensíveis inseridos pelo próprio usuário, e o erro é devolvido ao renderer.
+- **LOCATION:** `app/src/main/ipc/object-editors.ts`, recuperação de `object-editor:apply`.
+- **EXPECTED:** informar falha de restauração e o nome do objeto sem incluir o DDL ou anexar o erro interno à mensagem encaminhada ao renderer.
+- **ACTUAL:** antes do `DROP`, o handler grava o DDL num arquivo aleatório em `userData/object-recovery` com permissão `0600`; remove o arquivo se a alteração ou a restauração tiver sucesso. Se ambas falharem, mantém o backup e informa somente seu caminho, sem anexar a causa interna.
+- **EVIDENCE:** `app/test/modules/object-editors.test.ts` verifica que a mensagem não inclui DDL nem senha e identifica o arquivo privado de recuperação.
+- **SEVERITY:** MEDIUM — corrigido.
+
+### Superfícies conferidas sem achado BLOCKER/HIGH confirmado
+
+- **Comandos do editor:** ações aplicam transformações ao modelo Monaco; execução continua usando o canal SQL protegido pelo guard. Não foi encontrado `eval` ou execução implícita de texto em comandos de edição.
+- **Importar para tabela nova:** as colunas/tipos são validados no processo principal pelo gerador de DDL, identificadores são citados, valores das linhas usam parâmetros e a origem selecionada fica vinculada ao remetente e ao `jobId`. A criação direta pede confirmação antes de emitir `CREATE TABLE`.
+- **Documentos de criação:** os alvos são validados no handler e o Table Designer verifica tipos, nomes e relacionamentos antes de gerar DDL. Procedure/function usam listas de tipos e opções restritas; SQL livre permanece uma ação explícita do usuário no editor.
+- **Security Manager:** nomes de usuário, database, tabela e coluna são citados; privilégios passam por validação; previews mascaram senhas e falhas de execução removem segredos conhecidos.
+- **Contratos IPC destes fluxos:** `security:*`, `object-editor:*`, `import-export:*` e depurador de trigger têm validações estruturais e limites cobertos por regressões no guard.
+
+Resumo da Rodada 3: BLOCKER 0; HIGH 0; MEDIUM 2 corrigidos; LOW 0 novos.
+
 ## Rodada 2
 
 Revisão dos módulos updater, archive, grid, snippets/toolbox, SQL Formatter, Execute Large Script, Find Object, Documenter, Data Report/Pivot, Schema Compare e contratos IPC. Nenhum achado BLOCKER foi confirmado. Dois achados HIGH foram corrigidos nesta rodada; os riscos restantes estão listados abaixo.
@@ -236,4 +268,4 @@ Resumo da Rodada 2: BLOCKER 0; HIGH 2 corrigidos; MEDIUM 9 corrigidos; LOW 0 nov
 - **Grid viewer/editing:** valores de INSERT/UPDATE/DELETE são parâmetros; identificadores são escapados. Apply confere `affectedRows === 1` para operações sobre linhas existentes e mantém o conflito como erro.
 - **Documenter e report designer:** valores dinâmicos do HTML são escapados; PDF do Documenter é renderizado em BrowserWindow sandboxed. O JSON do designer tem limite de 1 MiB, valida versão, bandas e campos; HTML/PDF escapam dados exportados.
 - **Schema parser:** snapshot não é avaliado como código e DDL folder usa parser estático; limites de comprimento/quantidade existem. As falhas confirmadas desta família foram o plano executável via `createSql` e os limites aplicados após leitura, registrados acima.
-- **IPC:** teste verifica igualdade entre handlers declarados e canais do mapa de schemas; todos passam pelo wrapper instalado antes dos registros. A validação de campos internos ainda é genérica em payloads `object`, conforme achado MEDIUM.
+- **IPC:** teste verifica igualdade entre handlers declarados e canais do mapa de schemas; todos passam pelo wrapper instalado antes dos registros. A Rodada 2 endureceu grid, pivot, schema compare e importação; a Rodada 3 adicionou contratos estruturais para Security Manager e documentos de objeto.

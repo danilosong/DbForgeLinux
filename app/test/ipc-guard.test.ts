@@ -54,6 +54,23 @@ describe('IPC runtime guard', () => {
   it('allows explicit NULL routine parameters while rejecting other debugger argument types', () => {
     expect(() => validateIpcArguments('routine-debugger:start', [{ connectionId: 'c', database: 'd', name: 'p' }, ['value', null], [], true, true])).not.toThrow()
     expect(() => validateIpcArguments('routine-debugger:start', [{ connectionId: 'c', database: 'd', name: 'p' }, ['value', 3], [], true, true])).toThrow(/must be a string/)
+    expect(() => validateIpcArguments('routine-debugger:start', [{ connectionId: 'c', database: 'd', name: 'tr', kind: 'trigger' }, [], [], true, true, 'INSERT INTO t VALUES (1)'])).not.toThrow()
+    expect(() => validateIpcArguments('routine-debugger:start', [{ connectionId: 'c', database: 'd', name: 'tr', kind: 'trigger' }, [], [], true, true, 'INSERT INTO t VALUES (1); DROP TABLE t'])).toThrow(/one bounded DML/)
+    expect(() => validateIpcArguments('routine-debugger:compile', [{ connectionId: 'c', database: 'd', name: 'p', rawSql: 'DROP DATABASE d' }])).toThrow(/not allowed/)
+  })
+
+  it('validates Security Manager change records and routine scopes before SQL planning', () => {
+    const valid = { kind: 'grant', privileges: ['SELECT'], scope: { kind: 'routine', database: 'app', routine: 'load', routineType: 'PROCEDURE' }, grantee: { user: 'reader', host: '%' } }
+    expect(() => validateIpcArguments('security:preview', ['c', [valid]])).not.toThrow()
+    expect(() => validateIpcArguments('security:apply', ['c', [{ ...valid, rawSql: 'DROP USER x' }], true])).toThrow(/not allowed/)
+    expect(() => validateIpcArguments('security:preview', ['c', [{ ...valid, scope: { ...valid.scope, routineType: 'PROCEDURE; DROP USER x' } }]])).toThrow(/routineType is invalid/)
+    expect(() => validateIpcArguments('security:details', ['c', { user: 'reader', host: '%', password: 'secret' }])).toThrow(/not allowed/)
+  })
+
+  it('rejects extra or mismatched object editor targets at IPC boundaries', () => {
+    expect(() => validateIpcArguments('object-editor:load', [{ connectionId: 'c', database: 'app', kind: 'table', name: 'items' }])).not.toThrow()
+    expect(() => validateIpcArguments('object-editor:apply', [{ connectionId: 'c', database: 'app', kind: 'table', name: 'items', injected: 'DROP TABLE app.items' }, 'CREATE TABLE app.items(id INT)'])).toThrow(/not allowed/)
+    expect(() => validateIpcArguments('object-editor:apply-table', ['c', 'app', null, { kind: 'view', name: 'items', columns: [], indexes: [], foreignKeys: [], checks: [] }])).toThrow(/identity is invalid/)
   })
 
   it('rejects external origins, subframes and senders without an app window', () => {
