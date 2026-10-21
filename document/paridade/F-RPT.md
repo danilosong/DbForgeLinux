@@ -1,10 +1,15 @@
-# Paridade — F-RPT (Data Report / Pivot)
+# Paridade — F-RPT (Data Report / Pivot / Master-Detail)
 
-Fontes: inventário REA M16; `document/ux/16-data-report-pivot.md`; `document/ux/FIDELIDADE.md` Parte D.
+Fontes consultadas: `document/01-rea-inventario.md` (M16), `document/ux/16-data-report-pivot.md`, `document/ux/FIDELIDADE.md` (Parte D), catálogo interno `re/ui-strings/ui-text.txt` e notas de sessão anterior em `re/original-observation/NOTES.md` #18 / capturas em `re/original-observation/18-misc/`.
+Auditoria de origem de evidência: **(b) Sessão anterior / (c) Inferência/REA**. Nenhuma captura foi feita na sessão corrente; status classificado como **INFERIDA** pendente de nova observação da Lupa.
 
-| Comportamento esperado | Estado | Prova automatizada | Limite da prova |
+| Comportamento esperado | Estado | Evidência da referência | Prova no clone |
 |---|---|---|---|
-| Agrupar linhas/colunas e calcular sum/count, totais e subtotais. | CONFIRMADA | `app/test/modules/data-report-pivot.test.ts` — agregações e totais. | Os subtotais não estão cobertos em todos os agrupamentos. |
-| Aplicar filtros, agrupamento temporal e preparar série de gráfico. | CONFIRMADA | `app/test/modules/data-report-pivot.test.ts` — quarter, filtro e chart series. | Não verifica renderização do gráfico em browser. |
-| Exportar resultados do pivot para CSV, HTML e PDF válido. | ADAPTADA PARA LINUX | `app/test/modules/data-report-pivot.test.ts` — escaping/formato PDF. | Não prova DOCX nem designer do produto original. |
-| Toolbox, bandas e atalhos de designer correspondem ao produto. | DESCONHECIDA | `SEM EVIDÊNCIA` de equivalência REA. | UX 16/FIDELIDADE Parte D classifica controles como inferidos. |
+| Cálculo analítico de agregação (SUM, COUNT, AVG, MIN, MAX), subtotais e totais gerais. | INFERIDA | Inventário M16 e UX 16 §2; fórmulas analíticas padrão de pivot. Aguarda confirmação pela Lupa. | `app/test/modules/data-report-pivot.test.ts` e `app/test/modules/grid-viewer.test.ts` (`quickPivot`). |
+| Agrupamento temporal de datas (por trimestre, mês, ano) e preparação de séries de dados. | INFERIDA | Observado no catálogo de recursos REA para agrupamento de datas. Aguarda confirmação pela Lupa. | `app/test/modules/data-report-pivot.test.ts` comprova quarter grouping e séries de dados. |
+| Exportação de dados tabulados em formatos abertos (CSV, HTML e PDF sanitizado contra injeções). | ADAPTADA PARA LINUX | Geração de PDF e HTML respeitando ambiente headless e desktop Linux sem drivers Windows de impressão. | `app/test/modules/data-report-pivot.test.ts`. |
+| Documento MDI Pivot Table com zonas de arraste ("Drop Filter / Data / Row / Column Fields Here"). | DESCONHECIDA NO CLONE | Observado em notas de sessão anterior (`re/original-observation/18-misc/pivot.png` e `NOTES.md` #18): documento `PivotTable1.sql` com áreas de drop e lista de campos. | `SEM IMPLEMENTAÇÃO NA UI`: o clone calcula agrupamentos analíticos em memória, mas não possui a interface gráfica de zonas de arraste visual. |
+| Documento MDI Master-Detail Browser (`.mdet`) com sincronização automática entre tabela pai e filhas por FK. | DESCONHECIDA NO CLONE | Observado em notas de sessão anterior (`re/original-observation/18-misc/masterdetail.png` e `NOTES.md` #18): documento `MasterDetail1.mdet` com toolbar, canvas e vistas Design/Data. | `SEM IMPLEMENTAÇÃO NA UI`: o clone não possui o documento MDI com grades sincronizadas em cascata. |
+| Assistente "Data Report Wizard" em etapas (Standard Report, Label Report, Blank Report). | DESCONHECIDA NO CLONE | Observado em notas de sessão anterior (`re/original-observation/18-misc/report.png` e `NOTES.md` #18): assistente de relatórios com botão "Save Command Line...". | `SEM IMPLEMENTAÇÃO NA UI`: o clone gera exportações tabulares diretas, sem o assistente de design de relatórios. |
+| Designer WYSIWYG de relatórios com réguas, bandas de cabeçalho/detalhe/rodapé e toolbox de controles. | DESCONHECIDA NO CLONE | Presente no original em aba Report Designer. | `SEM IMPLEMENTAÇÃO NA UI`: o clone não implementa a superfície vetorial de diagramação de páginas impressas. |
+| Exportação em formato proprietário MS Word DOCX ou serialização de relatórios `.rdb`. | DESCONHECIDA | Formato legado do Windows dependente de assemblies Devart Reports. | Fora do escopo Linux; TuxSQL foca exclusivamente em CSV, HTML e PDF. |

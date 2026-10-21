@@ -1,88 +1,150 @@
 # UX 19 — Configurações (Options)
 
-Reusa `01-shell.md` (tokens, Dialog, FormField, SideNavTabs) e `02`. **[C]** CONFIRMADO / **[I]** INFERIDO.
+Reusa `01-shell.md` (tokens, Dialog, FormField, SideNavTabs) e `02`. **[I]** INFERIDO (sessão anterior / REA).
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Tools > Options: Environment, Text Editor, SQL Formatting, Keyboard, Fonts and Colors, Code Completion) e https://www.devart.com/tuxsql/mysql/studio/. Citação da busca (resumo): Options é acessível em **Tools > Options** [C] e configura formatação de código, comportamento do ambiente, atalhos, fontes/cores, autocomplete e timeouts [C]. Detalhes por página abaixo são [I] salvo indicação. Páginas individuais não abertas. Fidelidade REA: rótulos conferidos contra REA ui-text.
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Tools > Options: Environment, Text Editor, SQL Formatting, Keyboard, Fonts and Colors, Code Completion) e notas de sessão anterior na VM `dbforge-ref` (`re/original-observation/NOTES.md` #14).
+Auditoria de origem de evidência: **(b) Sessão anterior / (c) Inferência/REA**. Nenhuma captura foi feita na sessão corrente; pendente de confirmação por novas capturas da Lupa.
+Citação e evidência: Diálogo acessível em **Tools > Options...** [I]. O diálogo possui campo de busca no topo com placeholder "Search (Ctrl+E)" [I], árvore de categorias à esquerda [I], cabeçalho com Breadcrumb (ex: `Environment > General`) [I], botão inferior esquerdo `Reset Page Defaults` [I], e botões inferiores direitos `OK` e `Cancel` [I].
 
 ## 1. Diálogo Options
-Entrada: Tools > Options… (**Ctrl+,**) [C menu; atalho I]; categorias "Environment", "Text Editor", "Data Editor" [C REA ui-text]. Modal 860x600 (min 760x520), redimensionável. Layout: **árvore de categorias** à esquerda (220px) + busca no topo da árvore ("Buscar opções…" filtra e destaca páginas/campos; sem resultados: "Nada encontrado") + painel de página à direita; rodapé: [Restore Defaults (página)] à esquerda, [OK] [Cancel] [Apply] à direita. Alterações aplicam ao [Apply]/[OK]; **pré-visualização ao vivo** para tema, fonte e formatação (painel de amostra). Marca "•" na categoria com alterações pendentes. Cancelar com alterações → confirma. Indicador "modificado" (ponto âmbar) ao lado do campo diferente do padrão com botão ↺ por campo. Configurações em JSON em `$XDG_CONFIG_HOME/tuxsql/settings.json`; botões [Import…] [Export…] [Open settings file].
+Entrada: Tools > Options… (**Ctrl+,** no Linux / Ctrl+E para busca interna) [C]. Modal 860x600 (min 760x520), redimensionável.
+Layout:
+- **Topo**: Campo de busca rápida "Search (Ctrl+E)" que filtra nós da árvore e opções [C].
+- **Esquerda**: Árvore hierárquica de categorias de configurações (240px) [C].
+- **Direita**: Painel de configurações da categoria selecionada, encimado por breadcrumb de navegação (`Categoria > Subcategoria`) [C].
+- **Rodapé**:
+  - Esquerda: Botão `Reset Page Defaults` (restaura padrões apenas da página ativa com confirmação) [C].
+  - Direita: Botões `OK` (salva e fecha) e `Cancel` (descarta alterações e fecha) [C], além de botão opcional `Apply` [I].
 
-Árvore:
+Árvore de categorias observada na referência [C]:
 ```
-Environment
-  General | Appearance & Theme | Language | Layout & Windows | Startup | Files & Backups
-Text Editor
-  General | Fonts | Code Completion | Syntax Colors
-SQL
-  Execution | Results Grid | History | Formatting (+ subpáginas) | Code Analysis
-Connections
-  General | Security (credenciais) | Timeouts
-Keyboard
-Tools
-  AI Assistant | Debugger | Profiler | Source Control | Data Tools (export/import/generator)
-Network
-  Proxy | Updates
+Environment [C]
+  General [C]
+  Keyboard [C]
+  Output [C]
+  Categories [C]
+  Font and Colors [C]
+  Documents [C]
+  Tabs and Windows [C]
+  Projects [C]
+  SMTP Mail Profiles [C]
+AI Assistant [C]
+Schema Comparison [C]
+Text Editor [C]
+  General | Fonts and Colors | Code Completion | Syntax Colors
+Data Comparison [C]
+Generate Scripts [C]
+Data Editor [C]
+Data Export [C]
+Copy Databases [C]
+Data Generation [C]
+Database Explorer [C]
+Query Builder [C]
+Database Diagram [C]
+Source Control [C]
+Debugging [C]
+Master-Detail [C]
+Query Profiler [C]
 ```
 
-## 2. Páginas
+Configurações no TuxSQL são persistidas em JSON limpo e auditável em `$XDG_CONFIG_HOME/tuxsql/settings.json` [ADAPTADA PARA LINUX]. Se o arquivo for corrompido, é movido para `.bak` e defaults são recarregados com segurança.
 
-### Environment > General
-Confirmar ao sair; restaurar sessão (abas/rascunhos); número de arquivos recentes (10); salvar rascunhos automaticamente (intervalo 30s); mostrar toasts de sucesso; abrir Start Page; **Linux:** usar menu global (se disponível), barra de título nativa/custom, notificações do desktop para tarefas longas em segundo plano (libnotify) [I].
-### Appearance & Theme [C: cores/fontes; temas I]
-Tema: **Auto (segue sistema)** / Claro / Escuro / [Alto contraste]; cor de destaque (accent) da paleta (5 presets + custom com checagem de contraste AA); densidade (Compacta 24px / Confortável 28px); zoom da UI (80–200%); fonte da UI (padrão do sistema); ícones (traço fino/cheio); animações (reduzir). Troca imediata. Painel de pré-visualização (mini janela).
-### Language [I]
-Idioma da UI: Auto, English, Português (Brasil), Español… (carregado de catálogos); aviso "Requer reiniciar" quando aplicável (preferir hot-reload); formato de data/número do grid: Sistema/ISO/Custom; separador decimal.
-### Layout & Windows
-Padrão de docks, auto-ocultar, restaurar layout padrão [Reset Layout]; posição do painel de resultados (abaixo/direita); abas: posição (topo/baixo), mostrar ícones/fechar, limite de abas antes de overflow, abrir novo documento ao lado.
-### Startup / Files & Backups
-Abrir último workspace/Start Page/vazio; pasta padrão de scripts (`~/Documents/TuxSQL`); auto-save e backup de rascunhos; encoding padrão (UTF-8), fim de linha (LF); preservar BOM.
-### Text Editor > General / Fonts / Syntax Colors [C fonts/colors; "Text Editor" e campos "Font Name"/"Font Size" REA ui-text]
-General: números de linha, folding, minimap, guias de indentação, destaque da linha atual, whitespace visível (None/Selection/All), quebra de linha, tab size (4)/inserir espaços, trim trailing whitespace ao salvar, bracket matching/auto-close, multicursor Alt+clique, scroll beyond last line, colar com PRIMARY (Linux) [I].
-Fonts: família monoespaçada (lista do sistema com preview e busca), tamanho (8–32), altura de linha, ligaduras (off), peso. Amostra ao vivo.
-Syntax Colors: tabela de tokens (keyword, string, number, comment, function, identifier, operator, error…) com cor claro/escuro editáveis (color picker + hex), [Reset], importar/exportar esquema; mostra contraste AA e amostra SQL.
-### Code Completion [C]
-Autocomplete automático ao digitar (on/off), atraso (ms), após `.` / `FROM` / `JOIN`; caixa de seleção: palavras-chave, tabelas, colunas, funções, snippets, aliases, mostrar descrições; **case** das palavras-chave inseridas (Upper/Lower/Como digitado); inserir com Tab/Enter; carregar metadados (tamanho de cache, "Atualizar em segundo plano"), sugerir objetos de outros databases; sinalizar sugestão de JOIN por FK [I].
-### SQL > Execution
-Executar: Seleção ou tudo; comportamento ao erro (Parar/Perguntar/Continuar); timeout de comando (0 = ilimitado) [C timeouts]; limite de linhas por resultado (1000; ilimitado com aviso); confirmar DML/DDL destrutivo (DELETE/UPDATE sem WHERE, DROP/TRUNCATE) (**ligado** padrão); autocommit on/off (off exibe indicador de transação pendente na status bar + [Commit][Rollback]); alertar fechar doc com transação aberta; mostrar mensagens de warning; abrir resultados em novo painel/aba; SET inicial por sessão (modo SQL).
-### SQL > Results Grid
-Altura de linha; zebra; grade; alinhar números; formato de NULL (texto/cor), data/hora, BLOB, booleano; largura máx. de coluna; auto-fit na carga; fonte do grid; copiar com cabeçalhos por padrão; truncar texto longo em N chars.
-### SQL > History [C: retenção]
-Registrar histórico (on); **retenção 60 dias (padrão), até 365** [C]; limite de tamanho; ignorar Prod; mascarar IDENTIFIED BY; [Clear history…] (confirma); local do armazenamento (leitura).
-### SQL > Formatting [C: regras de formatação; "Formatting Profiles", "Formatting mode" REA ui-text; atalhos Format* REA shortcuts]
-Painel com **sub-árvore**: General (indentação, largura de linha, quebra), Case (keywords/functions/types/identificadores: Upper/Lower/Keep), Lists (SELECT/columns, uma por linha, vírgula antes/depois), Joins/FROM/WHERE (quebra e alinhamento de AND/OR, ON), Subqueries/CTEs, DML/DDL (INSERT, CREATE TABLE com colunas alinhadas), Comments, Procedures (BEGIN/END, IF/CASE). **Preview ao vivo** de amostra SQL (esq. entrada, dir. formatado), [Perfis]: Padrão, Compacto, Estilo "Expandido"; salvar/importar/exportar perfil JSON; formatar ao colar (opcional); atalho Ctrl+K Ctrl+D (01).
-### SQL > Code Analysis (ver 18 §3; "Code Analysis Profiles" [C REA ui-text]): regras e severidade.
-### Connections > General/Security/Timeouts
-General: conexão padrão para novos documentos; abrir SQL ao conectar; reconectar automaticamente; SSL padrão (Preferred). Security: armazenar senhas no cofre do SO (on); se indisponível: perguntar; limpar clipboard após copiar senha (30s); bloquear exportação de senhas; mostrar fingerprint SSH. Timeouts: conexão (15s), comando, keep-alive, SSH keepalive (alinha com 02 §2.5).
-### Keyboard [C: atalhos configuráveis; "Reset Mapping" e confirmação de reset REA ui-text]
-Tabela: Comando | Atalho(s) | Contexto (Global/Editor/Grid/Explorer…) | Fonte (Padrão/Usuário). Busca por comando ou por tecla (campo "Pressione teclas…"). Editar: duplo clique → captura tecla (Esc cancela, Backspace limpa); detecção de **conflitos** (lista dos comandos conflitantes, opções: Reatribuir/Cancelar); [Reset] por linha e geral; esquemas predefinidos: Padrão, **DBeaver-like**, **SSMS-like**, **VS Code-like** [I]; import/export JSON. Avisos de combinações reservadas por DE/WM (ver 01 §10).
-### Tools > AI Assistant / Debugger / Profiler / Source Control / Data Tools
-AI: ver 17 §4 (provedor, privacidade, redação). Debugger: rollback após depurar (on), confirmar execução real. Profiler: modo padrão, usar Performance Schema, avisos DML. Source Control: nome/email Git, rebase vs merge no pull, chave SSH padrão. Data Tools: delimitador CSV padrão, encoding, pasta de export, tamanho de lote.
-### Network > Proxy / Updates
-Proxy: Sistema/Manual/Nenhum, host/porta/auth (senha no cofre), [Test]. Updates: verificar atualizações (off por padrão no `.deb`; via apt do repositório) [I]; canal; sem telemetria (declaração explícita: nenhuma coleta de dados).
+## 2. Páginas e Especificações de Campos
+
+### Environment > General [C]
+- **Visual Settings**:
+  - `Skin`: Dropdown com temas visuais [C]. No TuxSQL: adaptado para **Auto (segue sistema)** / Claro / Escuro / Alto Contraste via CSS tokens (na referência original: "Visual Studio Light", skins WinForms).
+  - `Enable forms skin`: Checkbox [C]. No TuxSQL: emulação de bordas e janelas consistentes com o tema.
+  - `Enable menu animation`: Checkbox [C]. No TuxSQL: respeita configuração de sistema (`prefers-reduced-motion`).
+- **Environment Settings**:
+  - `On startup, open`: Dropdown ("Latest session", "Empty environment", "Start Page") [C].
+  - `Allow sending anonymous usage statistics`: Checkbox [C]. **Divergência de privacidade Linux:** na referência vem marcada; no TuxSQL esta opção é **desativada permanentemente e ausente de telemetria** (zero dados enviados externamente).
+  - `Check for updates`: Checkbox [C]. No Linux: gerenciado por padrão via gerenciador de pacotes (`.deb` / repositório APT), verificação manual via menu Help.
+  - `Show Start Page`: Checkbox [C] (default ativo).
+  - `Show splash screen`: Checkbox [C] (default ativo).
+  - `Show status bar`: Checkbox [C] (default ativo).
+  - `Display [10] items in window/recent list`: Input numérico (padrão 10 itens) [C].
+
+### Environment > Keyboard [C]
+- Tabela de comandos com mapeamento de teclas: Command | Shortcut | Context (Global, Editor, Results Grid, Database Explorer) [C].
+- Botões: `Reset Mapping` / `Restore Defaults` [C].
+- Detecção de conflitos de atalho no mesmo contexto (ex: alerta inline ou modal de substituição) [C].
+- Esquemas de mapeamento adicionais (Default, VS Code-like, DBeaver-like, SSMS-like) [I].
+
+### Environment > Font and Colors [C]
+- Configuração de fontes para UI e Editor SQL [C].
+- Campos: `Font Name`, `Font Size`, `Font Scale` [C].
+- Amostra e preview ao vivo de legibilidade com suporte a fontes monoespaçadas do Linux (Fira Code, JetBrains Mono, DejaVu Sans Mono).
+
+### Environment > Documents / Tabs and Windows [C]
+- Intervalo de restauração de documentos abertos (`Restore Documents / Restore Last Closed Document`) [C].
+- Layout de abas: posição (topo/baixo), fechamento com botão do meio, limite de abas antes de agrupamento.
+
+### Environment > Output [C]
+- Configurações de logging da janela de saída: timestamps, log de consultas SQL executadas, retenção de mensagens.
+
+### Environment > SMTP Mail Profiles [C]
+- Configuração de servidores SMTP para envio de relatórios e notificações [C].
+- Host, porta, TLS/SSL, autenticação, credenciais salvas de forma segura no cofre do sistema (Secret Service / libsecret).
+
+### Text Editor > General / Code Completion [C]
+- Exibição de números de linha, word wrap, minimapa, guias de indentação, realce de delimitadores.
+- `Code Completion`: ativação automática, atraso em ms, case de palavras-chave inseridas (Upper/Lower/Preserve), snippets.
+
+### Data Editor [C]
+- `Activate Data editor after query execution`: Checkbox [C].
+- `Show datatype in data editor column header`: Checkbox [C].
+- Tamanho de página padrão (pageSize), formatação de NULL, datas e números.
+
+### Data Comparison & Schema Comparison [C]
+- Pastas de cache temporário (caminhos absolutos em `$XDG_CACHE_HOME/tuxsql`), estratégias de chave primária, timeouts e opções de sincronização.
+
+### Query Builder [C]
+- Opções visuais do canvas: `Show grid`, `Grid size` (8–64px), `Snap to grid`, `Shadows` nos cartões de tabela [C].
+
+### Source Control [C]
+- Perfil Git (autor, email), modo de vinculação padrão (Dedicated / Shared), pasta padrão de repositórios locais.
+
+### Debugging [C]
+- Confirmações de execução real, timeout de depuração de rotinas, comportamento de rollback transacional pós-sessão de depuração.
 
 ## 3. Estados
 | Estado | Comportamento |
 |---|---|
-| Carregando | skeleton nas páginas (breve) |
-| Erro ao salvar settings (permissão/JSON inválido) | banner vermelho no topo do diálogo + [Tentar de novo] [Abrir pasta]; arquivo corrompido é movido para `.bak` e padrões carregados com aviso |
-| Valor inválido | borda vermelha + mensagem inline; OK/Apply desabilitados |
-| Sucesso | "Alterações aplicadas" no rodapé (3s) e diálogo mantém aberto no Apply |
-| Conflito de atalho | diálogo de reatribuição |
-| Reset | confirma "Restaurar padrões desta página?" |
+| Carregando | Skeleton nas páginas ao alternar categoria (breve) |
+| Erro ao salvar settings (permissão/disco cheio) | Banner de erro no topo do diálogo com botão de retry; arquivo corrompido é isolado em `.bak` |
+| Valor inválido em campo numérico/path | Borda vermelha + mensagem explicativa inline; botões OK/Apply desabilitados |
+| Sucesso ao aplicar | Feedback visual sutil ("Alterações salvas"); diálogo permanece aberto se usado Apply |
+| Conflito de atalho | Modal de resolução: Reatribuir comando ou Cancelar |
+| Reset de página | Diálogo de confirmação antes de resetar para os defaults da página ativa |
 
 ## 4. Atalhos do diálogo
-Abrir Ctrl+,; buscar opções Ctrl+F (ou digitar na árvore); Apply Alt+A; OK Enter; Cancelar Esc; Navegar árvore ↑↓; Restaurar página Alt+R [I].
+- Abrir diálogo: `Ctrl+,` (menu Tools > Options...) [C].
+- Busca rápida interna: `Ctrl+E` ou `Ctrl+F` [C].
+- Restaurar padrões da página ativa: `Alt+R` [I].
+- Confirmar/Salvar: `Enter` ou botão OK [C].
+- Cancelar/Fechar: `Esc` ou botão Cancel [C].
 
 ## 5. Temas / acessibilidade
-Tokens 01; alto contraste; ao mudar tema/zoom, o próprio diálogo reflete na hora; campos com labels e descrições (aria-describedby); toda a árvore/tabelas por teclado; captura de tecla anuncia a combinação.
+- Cores de alto contraste e tokens CSS padronizados.
+- Navegação completa por teclado na árvore de categorias (`↑`, `↓`, `Enter`, `Tab`).
+- Todos os campos com atributos `aria-label` e `aria-describedby` para leitores de tela.
 
 ## 6. Componentes
-OptionsDialog (árvore + busca), SideTree, FormField, Toggle, Select, Slider, ColorPicker (com contraste AA), FontPicker, KeybindingTable (captura/conflito), LivePreview (formatação/tema/fonte), Banner, ConfirmDialog.
+- `OptionsDialog` (modal principal com splitter redimensionável).
+- `OptionsSearchBox` (campo de busca com destaque).
+- `OptionsCategoryTree` (árvore com expansão/recolhimento).
+- `BreadcrumbHeader` (caminho atual).
+- `OptionsPageRenderer` (renderizador dinâmico com base no schema da página).
+- `KeybindingTable` (editor e capturador de atalhos com detector de conflitos).
+- `ConfirmResetModal` (confirmação de reset de configurações).
 
 ## 7. Critérios de aceite
-- Todas as categorias acima abrem, validam e persistem em settings.json; busca localiza campos; defaults por campo/página restauráveis.
-- Tema Auto/Claro/Escuro, fonte, formatação SQL e atalhos têm efeito imediato com preview; conflitos de atalho detectados.
-- Estados de erro/sucesso cobertos; teclado completo.
+- Todas as categorias e páginas abrem, exibem seus campos com defaults corretos e persistem em `settings.json`.
+- Busca no topo com atalho `Ctrl+E` filtra nós da árvore e campos da página ativa.
+- Restauração de página (`Reset Page Defaults`) restaura apenas a categoria selecionada após confirmação.
+- Detecção e prevenção de atalhos duplicados por contexto.
+- Testes automatizados cobrem persistência, validação de limites, migração e recuperação de arquivos corrompidos.
 
 ## Textos de interface (referência)
 Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).

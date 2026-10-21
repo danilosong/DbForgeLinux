@@ -1,72 +1,109 @@
 # UX 10 — Database Diagram, Diagram Overview e Virtual Relation Manager
 
-Reusa `01-shell.md`, `04` (Table Editor) e `09` (Canvas, TableCard). **[C]** CONFIRMADO / **[I]** INFERIDO.
+Reusa `01-shell.md`, `04` (Table Editor) e `09` (Canvas, TableCard). **[I]** INFERIDO (sessão anterior / REA).
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Database Design > Database Diagram; View > Other Windows > Virtual Relation Manager) e https://www.devart.com/tuxsql/mysql/studio/database-designer.html. Citações da busca vieram por redirecionamento; páginas individuais não foram abertas: confirmar detalhes. Fidelidade REA: rótulos conferidos contra REA ui-text.
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Database Design > Database Diagram), catálogo interno `re/ui-strings/ui-text.txt` e notas de sessão anterior em `re/original-observation/NOTES.md` #11.
+Auditoria de origem de evidência: **(b) Sessão anterior / (c) Inferência/REA**. Nenhuma captura foi feita na sessão corrente; pendente de confirmação por novas capturas da Lupa.
 
-## 1. Entradas
-Explorer > database/tabelas > **Send to > Database Diagram** (ou New Database Diagram) [C: arrastar do Explorer]; comando New Database Diagram ("Create an empty database diagram") [C: REA ui-text]. Documento em aba; arquivo de diagrama salvável/aberto (original `*.dbd`, [C: REA ui-text]; clone pode usar formato próprio JSON [I]).
+## 1. Entradas e Documento [I: sessão anterior]
+- **Entradas:**
+  - Menu Database > **New Database Diagram** ou Database > Tasks > **New Database Diagram**.
+  - Database Explorer > clique com botão direito no banco ou tabelas selecionadas > **Send to > Database Diagram**.
+  - Abertura de arquivo salvo `.dbd` (no TuxSQL em formato JSON limpo e portável `.dbd.json`).
+- **Estrutura MDI do Documento (`Diagram1.dbd`):**
+  - Tela inicial vazia contendo instrução central: *"You can drag database objects from Database Explorer here."*
+  - **Toolbar Superior do Diagrama:**
+    - Zoom combo (`100% ▾`), Zoom In, Zoom Out, Fit (`Ctrl+0`).
+    - Ferramentas da Paleta: Seleção (Ponteiro), Tabela, View, Relação, Container, Nota, Comentário.
+    - Botões de Ação: `[Auto Layout]`, `[Align ▾]`, `[Export to Image...]`, `[Print]`.
+    - Menu contextual de topo dedicado: **Layout** (adicionado dinamicamente à barra de menus).
 
-## 2. Layout
+## 2. Layout do Canvas e Cartões de Tabela [I: sessão anterior]
 ```
-+ Aba: [Diagram1] -----------------------------------------------+
-| Toolbar: [Select][Hand] [Table][View][Note][Container][Relation] |
-|  | [Auto Layout] [Align ▾][Zoom][Fit] | [Export Image ▾][Print]  |
-|  | [Show: Columns ▾ (Names|Names+Types|Keys only)] [Virtual Rel.] |
-+------------------------------------------------+----------------+
-| Canvas                                          | Diagram        |
-|   cartões de tabela + linhas de relação         | Overview (dock |
-|   containers, notas                             | 220px) minimapa|
-+------------------------------------------------+----------------+
-| Properties (F4) do item selecionado (dock inferior/direito)      |
-+------------------------------------------------------------------+
++ Aba: [Diagram1.dbd] ------------------------------------------------------------+
+| Toolbar: [Select] [Hand] [Table] [View] [Relation] | [Auto Layout] [Zoom 100% ▾]|
+|          [Fit] | [Export to Image...] | [Virtual Relation Manager]              |
++---------------------------------------------------------------------------------+
+| CANVAS:                                                                         |
+|                                                                                 |
+|  +-------------------------+                     +-------------------------+    |
+|  | orders              [-] |                     | customers           [-] |    |
+|  +-------------------------+                     +-------------------------+    |
+|  | [PK] id        INT      |                     | [PK] id        INT      |    |
+|  | [FK] cust_id   INT      |                     |      name      VARCHAR  |    |
+|  |      total     DECIMAL  |                     |      email     VARCHAR  |    |
+|  +-------------------------+                     +-------------------------+    |
+|  | ▸ Constraints (2)       |                     | ▸ Constraints (1)       |    |
+|  | ▸ Indexes (3)           |                     | ▸ Indexes (2)           |    |
+|  | ▸ Triggers (1)          |                     +-------------------------+    |
+|  +-------------------------+                                                    |
+|            |                                                 ^                  |
+|            +--- fk_orders_customer (ortogonal com losango) --+                  |
+|                                                                                 |
++---------------------------------------------------------------------------------+
 ```
 
-## 3. Canvas
-- Adicionar: arrastar tabelas/views/database inteiro do Explorer [C]; "Add Related" (expande FKs 1 nível, [I]). Itens: cartões Table/View, **Containers** (Insert Container / New Container) para agrupar objetos relacionados [C: REA ui-text], Notas (post-it texto), linhas de relação.
-- Cartão: título (+ database se de outro), colunas com ícones PK/FK/unique, tipo opcional, colapsar/expandir, cor de cabeçalho por container [I]. Duplo clique → Table Editor (04) [I].
-- **Relações físicas (FK)** aparecem como linhas com notação de cardinalidade (crow's foot ou setas, alternável em Options) [C: visualiza FKs]; seleção mostra tooltip (nome, ON DELETE/UPDATE).
-- **Relações virtuais** [C]: linha tracejada com rótulo "virtual" (Virtual Relation Manager / New/Edit Virtual Relation, convertível em FK) [C: REA ui-text]; criar por ferramenta Relation ou arrastando coluna → coluna com Alt [I].
-- Layout: Auto Layout (hierárquico/orgânico/ortogonal) [I], alinhar/distribuir, snap-to-grid, ajustar ao conteúdo. Seleção múltipla, copiar/colar itens entre diagramas, Delete remove **apenas do diagrama** (menu separado "Drop from database…" com confirmação forte).
-- Edição de esquema a partir do diagrama (P1/[I]): menu do cartão > Add Column, Edit Table; mudanças viram pendentes → [Apply to database] gera ALTER via ApplyChangesDialog (04 §3).
+### 2.1 Anatomia do Cartão de Tabela
+- **Cabeçalho:** Ícone do tipo de objeto, nome da tabela e botão recolher/expandir (`[-]`).
+- **Linhas de Coluna:**
+  - Ícone semântico: Chave Primária (ícone de chave amarela `[PK]`), Chave Estrangeira (ícone de chave vinculada azul `[FK]`), Coluna Comum.
+  - Nome da coluna.
+  - Tipo de dado simplificado (ex.: `INT`, `VARCHAR`, `DECIMAL`, `DATETIME` — omitindo comprimento/precisão para economizar espaço visual).
+  - Selo visual ou indicador de `NOT NULL`.
+- **Seções Recolhíveis no Cartão [C]:**
+  - Sub-seções internas expansíveis dentro do próprio cartão: `▸ Constraints`, `▸ Indexes` e `▸ Triggers`.
+- **Relações Físicas (Foreign Keys) [C]:**
+  - Conectores de linhas ortogonais automáticas interligando a coluna filha à coluna pai.
+  - Marcadores de cardinalidade nas pontas (notação pé-de-galinha / crow's foot).
+  - **Rótulo Textual da FK:** o nome da constraint (`fk_orders_customer`) é renderizado diretamente sobre a linha da relação.
 
-## 4. Diagram Overview (painel dock) [C: painel existe em DefaultLayout]
-Minimapa em escala com retângulo de viewport arrastável; clique reposiciona; zoom slider; atualiza em tempo real. Estado vazio: "Sem diagrama ativo". Ocultar via View > Diagram Overview.
+## 3. Relações Virtuais (Virtual Relations) [C]
+- Relacionamentos lógicos entre tabelas mantidos exclusivamente no nível da aplicação/projeto TuxSQL (sem alterar tabelas ou criar constraints físicas no servidor MySQL).
+- Exibidas visualmente no diagrama com linha tracejada e indicação de relação virtual.
+- Painel **Virtual Relation Manager** (`View > Other Windows > Virtual Relation Manager`):
+  - Grade: `Name` | `Child table.col` | `Parent table.col` | `Comment` | `Status`.
+  - Permite criar, editar, excluir e documentar relações virtuais.
+  - Relações virtuais são reconhecidas e utilizadas pelo Query Builder (09) para desenhar JOINs automáticos e pelo Documenter (13).
 
-## 5. Virtual Relation Manager [C]
-Painel dock (View > Other Windows > Virtual Relation Manager [C]; também botão na toolbar do diagrama [C]). Grid de relações virtuais da **conexão/database ativa** (persistidas por conexão, em arquivo local, nunca no servidor):
-| Coluna | Conteúdo |
-|---|---|
-| Name | editável |
-| Child table.col(s) | seletor |
-| Parent table.col(s) | seletor |
-| Comment | editável [C] |
-| Status | OK / Inconsistente (coluna inexistente) |
-Ações: New, Edit (diálogo com mapeamento de colunas múltiplas), Delete, **Show DDL** [C: gera DDL], **Convert to Foreign Key** [C]: diálogo com ON DELETE/ON UPDATE, nome, prévia do `ALTER TABLE … ADD CONSTRAINT`, aviso de tipos incompatíveis/linhas órfãs ("N linhas violam a relação" com [Ver linhas]); executa via confirmação padrão. Filtros por tabela; busca. Relações virtuais alimentam Query Builder (09) e Documenter (13) [C].
-Estados: loading skeleton; vazio "Nenhuma relação virtual" + [New]; erro de leitura do arquivo: banner + [Recriar].
+## 4. O que o TuxSQL ainda NÃO faz (Diferenças Objetivas em relação ao Original)
+1. **Seções Recolhíveis Internas de Constraints/Indexes/Triggers no Cartão (Pendente):** No original, cada cartão de tabela possui gavetas colapsáveis para Constraints, Índices e Triggers. No TuxSQL o cartão exibe apenas a lista de colunas com ícones de chave.
+2. **Rótulo Textual Fixo sobre a Linha da Relação (Pendente):** No original, o nome da chave estrangeira (`fk_orders_customer`) é desenhado como etiqueta de texto sobre o traço da linha. No TuxSQL o nome da relação é acessível via tooltip ao passar o cursor sobre a linha.
+3. **Elementos Adicionais no Canvas (Containers, Notas e Comentários) (Pendente):** O original possui paleta com containers retangulares coloridos para agrupar tabelas por módulo, além de post-its de notas adesivas e imagens. O TuxSQL suporta apenas nós de tabelas e views.
+4. **Painel Docado "Diagram Overview" (`Ctrl+W, V`) (Pendente):** O original possui uma janela dock dedicada com minimapa e retângulo de arraste rápido. O TuxSQL executa navegação via pan e zoom direto no canvas.
+5. **Assistente de Conversão de Relação Virtual em FK Física (Pendente):** No original há opção de converter uma relação virtual em constraint física real no banco via diálogo com verificação de dados órfãos. No TuxSQL as relações virtuais permanecem estritamente no armazenamento local do usuário.
 
-## 6. Estados do diagrama
+## 5. Estados de Interface
 | Estado | Comportamento |
 |---|---|
-| Loading | Cartões skeleton com spinner até metadados |
-| Objeto removido no servidor | Cartão com borda vermelha tracejada e ícone ⚠ "não existe mais" |
-| Diagrama grande (>200 itens) | Aviso de desempenho; virtualização/LOD (esconde colunas em zoom <40%) |
-| Salvar | "•" na aba; Save Ctrl+S; ao fechar Save/Discard |
-| Exportar | Export to Image [C: REA ui-text]; PNG/SVG/PDF [I] com área selecionada/diagrama inteiro; toast com [Abrir pasta] |
+| Canvas Vazio | Instrução central para arrastar objetos do Database Explorer |
+| Carregando Tabelas | Shimmer skeleton nos cartões recém-adicionados enquanto busca metadados |
+| Tabela Alterada no Banco | Indicador de aviso no cabeçalho sugerindo atualização com F5 |
+| Exportando Imagem | Diálogo de configuração (formato PNG/SVG, resolução, área total vs seleção) |
+| Erro de Conexão | Cartões permanecem em cache local marcados como offline |
 
-## 7. Atalhos
-Selecionar V; Mão H (ou Espaço); Zoom Ctrl+roda / Ctrl+= / Ctrl+-; Fit Ctrl+0; Copiar/Colar Ctrl+C/V; Delete; Auto Layout Ctrl+L [I]; Salvar Ctrl+S; Properties F4; Duplicar Ctrl+D.
+## 6. Atalhos de Teclado
+- Ferramenta Seleção: `V`
+- Mover / Mão: `H` (ou segurar barra de espaço)
+- Zoom In / Out: `Ctrl+=` / `Ctrl+-` (ou `Ctrl+Roda`)
+- Enquadrar Tudo (Fit): `Ctrl+0`
+- Atualizar Metadados: `F5`
+- Salvar Diagrama: `Ctrl+S`
+- Propriedades do Item Selecionado: `F4`
+- Remover do Diagrama: `Delete`
 
-## 8. Temas / acessibilidade
-Tokens 01; cartões bg.surface, borda border.default, cabeçalho bg.surfaceAlt; linhas text.secondary; cardinalidade por símbolo+texto. Modo lista alternativa (tabela de objetos e relações) navegável por teclado/leitor de tela. Exportação respeita tema claro (opção).
+## 7. Temas e Acessibilidade
+- Conformidade total com temas Claro e Escuro de `01-shell.md`.
+- Cores de cabeçalhos de cartão com alto contraste; linhas de relacionamento com espessura de 2px e marcadores geométricos bem definidos.
+- Suporte a modo lista acessível para inspeção de nós e relacionamentos por teclado e leitores de tela.
 
-## 9. Componentes
-Canvas, TableCard, RelationLine, Container, Note, MiniMap, PropertiesPanel, RelationGrid, ConvertToFkDialog, ApplyChangesDialog, ExportImageDialog.
+## 8. Componentes
+`DiagramDocument`, `DiagramCanvas`, `TableCardElement`, `RelationOrthogonalLine`, `VirtualRelationManagerDock`, `ExportImageModal`, `DiagramMiniMap`.
 
-## 10. Critérios de aceite
-- Arrastar tabelas do Explorer gera diagrama com FKs; Auto Layout e containers funcionam; salvar/abrir preserva posições.
-- Virtual Relation Manager cria/edita/exclui relações, mostra DDL e converte para FK com validação de dados.
-- Overview navega diagramas grandes; estados loading/erro/sucesso; claro/escuro; teclado.
+## 9. Critérios de Aceite
+- Permite arrastar tabelas do Explorer e visualizá-las com colunas, tipos e relacionamentos automáticos.
+- Algoritmo de layout organiza tabelas pai e filhas tolerando grafos cíclicos de relacionamento.
+- Suporta criação e persistência local de relações virtuais.
+- Exportação em formato vetorial SVG funcional.
 
 ## Textos de interface (referência)
 Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).

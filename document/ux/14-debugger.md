@@ -1,102 +1,99 @@
 # UX 14 — Debugger de rotinas (Breakpoints, Watches, Call Stack)
 
-Reusa `01-shell.md`, `05` (editores de rotina), `03` (CodeEditor, DataGrid). Legenda: **[C]** CONFIRMADO (REA: `ui-text`, `shortcuts`, `document/05-rea-debugger.md`) / **[I]** INFERIDO.
+Reusa `01-shell.md`, `05` (editores de rotina), `03` (CodeEditor, DataGrid). Legenda: **[I]** INFERIDO (baseado em sessão anterior em `NOTES.md` #13 e inventário REA `document/05-rea-debugger.md`; pendente de confirmação por novas capturas da Lupa).
 
-**Fontes:** `re/ui-strings/ui-text.txt` (uso interno), `document/05-rea-debugger.md` (strings/script embutido do `Devart.DbForge.Debugger.MySql.dll`; descrição própria, nenhum código copiado). O aviso anterior de inviabilidade foi **removido**: o mecanismo é conhecido (ver §1).
-
-## 1. Mecanismo confirmado (resumo para a UX) [C]
-MySQL não tem depurador nativo; o produto original **instrumenta** as rotinas e instala no servidor uma **infraestrutura de depuração** ("debug engine") — um schema auxiliar (`cr_debug` no original; **no clone: `tuxsql_linux_debug`**, nome próprio) com tabelas de breakpoints, call stack, sessões e watches e procedures de controle. Há duas sessões: **debug session** (controla/observa) e **target session** (executa a rotina instrumentada), sincronizadas por locks nomeados. Consequências de UX:
+## 1. Mecanismo (resumo para a UX) [I]
+O MySQL não possui protocolo de depuração embutido. O produto original **instrumenta** as rotinas e instala no servidor uma **infraestrutura de depuração** ("debug engine") — um schema auxiliar (`cr_debug` no original; **no clone: `tuxsql_linux_debug`**, nome próprio) com tabelas de breakpoints, call stack, sessões e watches e procedures de controle. Há duas sessões: **debug session** (controla/observa) e **target session** (executa a rotina instrumentada), sincronizadas por locks nomeados (`GET_LOCK`/`RELEASE_LOCK`). Consequências de UX:
 1. A infraestrutura precisa ser **instalada/atualizada/removida com confirmação explícita** (requer CREATE DATABASE/privilégios no servidor) — §3.
-2. Rotinas são **compiladas para depuração** (código instrumentado) antes de rodar — §4.
+2. Rotinas são **compiladas para depuração** (código instrumentado com pontos de verificação) antes de rodar — §4.
 3. Não se pode instalar/atualizar/remover a infraestrutura com **sessões de debug ativas** — §3.
-4. Funções e triggers têm suporte condicionado à versão do MySQL ("supported only on MySQL …", versão exata não extraída — **[I] pendente**).
-5. Edições do produto: recurso pode ser bloqueado por edição ("not available in the {0} edition"; ação "Unlock SQL code debugger"); no clone não há edições, ignorar esse fluxo.
+4. Resolução de incompatibilidade do MySQL 8.4: em sessão anterior observou-se que o original falha na instalação em modo estrito por tentar alocar colunas `VARCHAR(21845)` em charset UTF-8; o TuxSQL supera o original utilizando `MEDIUMTEXT` seguro no schema `tuxsql_linux_debug`.
 
-## 2. Entradas [C]
-Menu **Debug** (menu de topo existe [C]); Explorer > Procedure/Function > **Debug Stored Procedure…** / **Compile for Debugging…** / **Compile Dependants for Debugging…** / **Compile References for Debugging…**; comando **Start Debugging**; **Debug Wizard** (diálogo de seleção: "Select a stored procedure or function to debug", parâmetros); "Start debug session for a stored procedure/function". Iniciar abre diálogo de parâmetros (igual ao Execute de 05) e depois alterna para a **perspectiva de debug**. Sem seleção válida: mensagem "Please select a procedure or function to debug."
+## 2. Entradas e Fluxo de Inicialização [I: sessão anterior]
+- **Entradas:**
+  - Menu **Debug** no menu bar de topo.
+  - Database Explorer > clique com botão direito na Stored Procedure ou Function > **Step Into** (`F11`) ou **Compile for Debugging...**
+- **Etapas de Inicialização:**
+  1. *Checagem do Engine:* Se o schema auxiliar de debug não existir no servidor, exibe o diálogo modal:
+     `"Debug engine is not found on the server. To continue, you have to deploy the debug engine."` com botões `[Deploy]` e `[Cancel]`.
+  2. *Compilação da Rotina:* Se a rotina não estiver instrumentada, exibe:
+     `"<db>.<rotina> does not contain debug information. You should compile it before debug. Do you want to continue?"` com botões `[Yes]` e `[No]`.
+  3. *Diálogo "Edit Parameters":*
+     - Grade: `Name` | `Type` | `Direction` (Input/Output com ícone) | `Null value (☑)` | `Value`.
+     - Parâmetros de saída (`OUT`/`INOUT`) possuem campos de valor desabilitados para digitação prévia.
+     - Checkbox: `☑ Show after execute` (exibe valores de saída após a conclusão da rotina).
+     - Botões `[OK]` e `[Cancel]`.
+  4. *Abertura da Perspectiva de Depuração:* A rotina abre em aba dedicada com páginas `General`, `Data` e `SQL`.
 
-## 3. Gerenciar a infraestrutura de depuração (debug engine) [C]
-Menu Debug (ou Explorer > servidor/database > Debug): **Deploy Debug Engine**, **Remove Debug Engine**, e "Update" quando desatualizada.
-| Situação | Comportamento / mensagens (parafraseadas) |
+## 3. Gerenciar a infraestrutura de depuração (debug engine) [I]
+Menu Debug (ou Explorer > conexão > Debug): **Deploy Debug Engine**, **Remove Debug Engine**, e "Update" quando desatualizada.
+| Situação | Comportamento / mensagens |
 |---|---|
-| Não instalada ao iniciar debug | Diálogo: "A infraestrutura de depuração não foi encontrada no database `{0}`. Para continuar, é preciso instalá-la." [Deploy] [Cancel] — **sempre com explicação do que será criado** (schema auxiliar, privilégios necessários) |
-| Desatualizada | "A infraestrutura no servidor não está atualizada. Para continuar é preciso atualizá-la" [Update] [Cancel]; versão mais nova disponível: "Deseja atualizar?" |
-| Instalando | Progresso "Deploying debug engine to database `{0}`…" ; sucesso "Debug engine has been successfully deployed." ; falha "Deployment failed" |
-| Remover | Confirma; "Removing debug code from routines…" (opção "Remove debug code from routines") e "Removing the debug engine from the server…"; sucesso "The debug engine was removed."; inexistente: "…was not found… nothing to remove."; cancelado: "Debug engine removal was canceled." |
-| Sessões ativas | Bloqueio: "Deployment failed. There are active debug sessions…" (exceção `ActiveDebugSessionsException` no original); passo prévio "Checking for active debug sessions…"; sugere limpar a tabela de sessões e reinstalar apenas se as sessões forem descartáveis |
-| Privilégios insuficientes | "Your user account has insufficient privileges to use the debugging engine database." + dica: verificar privilégios no schema auxiliar pelo **Security Manager** (08) |
-| Sem privilégio de metadados | "Can't start debug. Probably, you do not have enough privileges to get object metadata." |
-Implementação própria do clone: schema `tuxsql_linux_debug`, parser SQL próprio, instrumentação (ver `document/05-rea-debugger.md`).
+| Não instalada ao iniciar debug | Diálogo: "A infraestrutura de depuração não foi encontrada no database `{0}`. Para continuar, é preciso instalá-la." [Deploy] [Cancel] com explicação técnica do schema auxiliar |
+| Desatualizada | "A infraestrutura no servidor não está atualizada. Para continuar é preciso atualizá-la" [Update] [Cancel] |
+| Instalando | Progresso com spinner "Deploying debug engine to database `{0}`…" ; sucesso "Debug engine has been successfully deployed." ; falha "Deployment failed" |
+| Remover | Confirmação; opção "Remove debug code from routines" e "Removing the debug engine from the server…"; sucesso "The debug engine was removed." |
+| Sessões ativas | Bloqueio atômico: "Deployment failed. There are active debug sessions in database `{0}`." Não permite sobrescrita destrutiva |
+| Privilégios insuficientes | "Your user account has insufficient privileges to use the debugging engine database." |
 
-## 4. Compilar para depuração [C]
-- Comandos: **Compile for Debugging**, **Compile Dependants for Debugging**, **Compile References for Debugging** (Explorer/menu Debug), com atalho Ctrl+Alt+F7 / Ctrl+Alt+F9 [C: `CompileObjectDebug`/`CompileDebug`]; **Compile** normal (sem debug) Ctrl+F7 / Ctrl+F9 [C]; "Remove debug code from routines" reverte.
-- Mensagens: sucesso "`{0}` `{1}` has been successfully compiled with debug info." / "Selected objects have been successfully compiled with debug info."; falha "Can't start debug. Error occurred during compilation object `{0}`."; objeto não compilado: "Object `{0}` is not compiled for debug!" → "You should compile it before debug. Do you want to continue?" [Yes: compila e continua] [No]; "`{0}` does not contain debug information."; "Debugging is impossible for the `{0}` object." ; "There is no code to debug."
-- Fonte modificada: "The source has been modified. Do you want to save before debugging?" (vários: "Some schema objects have been modified. Save them before debugging?").
-- Autocommit: "To start debugging, the autocommit mode will be enabled. Would you like to continue?" [C] — exibir antes de iniciar.
-- Compilação instrumentada preserva a rotina original (cópia/restauração no PRD; erro → restaurar e avisar).
+## 4. Compilar para depuração [I]
+- Comandos: **Compile for Debugging**, **Compile Dependants for Debugging**, **Compile References for Debugging** (Explorer/menu Debug).
+- Atalhos observados: `Ctrl+Alt+F7` / `Ctrl+Alt+F9`; compilação normal (sem debug) `Ctrl+F7` / `Ctrl+F9`.
+- Autocommit: "To start debugging, the autocommit mode will be enabled. Would you like to continue?" — aviso exibido caso a sessão esteja em modo manual.
 
-## 5. Perspectiva de debug
-```
-+ Aba: [sp_calc_total (debug)] -----------------------------------+
-| Toolbar: [Start/Run][Step Into][Step Over][Step Out]              |
-|  [Run To Cursor][Stop Debugging][Restart] | [Compile for Debugging]|
-+------------------------------------------+------------------------+
-| Editor (somente leitura durante debug)   | Painel lateral         |
-|  ● breakpoint (gutter), ▶ linha atual    | Watches / Variables    |
-+------------------------------------------+------------------------+
-| Abas inferiores: [Watches][Call Stack][Breakpoints][Output]       |
-+-------------------------------------------------------------------+
-```
-Painéis dock **Watches**, **Call Stack**, **Breakpoints** [C: menu Debug > Watches / Call Stack / Breakpoints].
+## 5. Perspectiva de Depuração [I]
+A rotina abre como documento no editor (ex.: `sample.sp_customer_orders`).
+- **Gutter do Editor:**
+  - Círculo vermelho para Breakpoints normais.
+  - Seta vermelha apontando para a linha atual de execução pausada.
+  - Linha ativa de execução realçada com fundo amarelo translúcido (`syntax.debugCurrentLine`).
+- **Painéis Docados de Apoio:**
+  - **Watches:** Grade com `Name` | `Value` | `Type`, contendo linha vazia ao final para adicionar nova variável observada.
+  - **Breakpoints:** Toolbar (`Disable All`, `Delete All`) + grade `Name` | `Line` | `Condition`.
+  - **Call Stack:** Grade com `Name` | `Line`; exibe a profundidade da chamada (ex.: `sp_customer_orders` linha 4).
+  - Abas inferiores docáveis: `Output` | `Error List` | `Watches` | `Breakpoints` | `Call Stack`.
 
-### 5.1 Breakpoints [C]
-- Comandos: **Toggle Breakpoint**, **Insert Breakpoint**, **Delete Breakpoint**, **Delete All Breakpoints** (confirma: "Do you want to delete all breakpoints?"), **Disable All Breakpoints**; ícones de estado: normal, **Disabled**, **Error** (colocado em posição inválida), marca também na barra de rolagem ("Breakpoint (Scroll Bar)") [C].
-- Posição inválida: "A breakpoint cannot be inserted at this location." / "Cannot set breakpoint at this position." (cursor proibido + tooltip).
-- Painel Breakpoints: lista (ativo, local rotina:linha, condição/hit count **[I]**); duplo clique navega. Persistência por rotina **[I]**.
-### 5.2 Execução e passos [C]
-**Start Debugging**, **Run** (continuar), **Step Into**, **Step Over**, **Step Out**, **Run To Cursor**, **Stop Debugging**, **Restart** (mensagem "Debug is restarting…"). Pausa (Pause) **[I]**. Mensagens de ciclo: "Debugging started at {0}", "Debugging finished at {0}". Stop: "Do you want to stop debugging?".
-Mudanças de código durante a sessão: "The code changes you have made will not be applied until you restart. If you continue debugging, your source will not match the executed code" com ação "Always ignore changes and continue debugging" [C]. Objeto modificado/renomeado durante debug: sessão encerrada ("Debug session for `{0}` was terminated. Probably object was modified." / "…was renamed to `{1}` during debug. Debug session will be terminated.") [C]. Objeto em debug não pode ser removido: "Object `{0}` is being debugged and can't be removed" [C]. Sessão já existente: "Application already has the debug session." [C].
-**Exceções** [C]: "Exception occurred at line {0}. If you want to continue debugging press '{1}' otherwise press '{2}'" → diálogo com [Continue] (segue após handler) / [Stop].
-### 5.3 Watches [C]
-Painel **Watches**; comandos **Add Watch**, **Delete Watch**; grid Nome | Valor | Tipo [I: colunas]; limite: "Watch name is too long. Watch cannot be created". Valores gravados como binário + tipo no servidor [C: `watches`]; no grid exibir formatados. Mudança de valor entre passos em destaque [I]. Erro de avaliação em vermelho [I].
-### 5.4 Call Stack [C]
-Painel **Call Stack**: frames por profundidade (`stack_depth` [C]); frame atual no topo; selecionar frame navega ao código e avalia Watches nesse contexto [I]. Step Into em CALL de outra rotina compilada abre sua aba [I].
+## 6. Comandos e Atalhos de Depuração [C: observado na VM]
+- **Step Into:** `F11` (entra na instrução ou rotina chamada).
+- **Step Over:** `F10` (executa a linha atual sem entrar em sub-rotinas).
+- **Step Out:** `Shift+F11` (executa até sair da rotina atual).
+- **Toggle Breakpoint:** `F9` (adiciona/remove breakpoint na linha do cursor).
+- **Delete All Breakpoints:** `Ctrl+Shift+F9` (com confirmação "Do you want to delete all breakpoints?").
+- **Continue / Run:** `Ctrl+F5` (ou `Alt+F9`).
+- **Break All:** `Ctrl+Alt+Pause` (interrompe execução imediata).
+- **Stop Debugging:** `Shift+F5` (encerra a sessão e restaura variáveis).
+- **Restart:** `Ctrl+Shift+F5` (reinicia do início com os mesmos parâmetros).
+- **Run To Cursor:** `Ctrl+F10` (ou `F4`).
 
-## 6. Estados
-| Estado | Aparência |
+## 7. O que o TuxSQL ainda NÃO faz (Diferenças Objetivas em relação ao Original)
+1. **Avaliação Dinâmica de Expressões Arbitrárias em Watches (Pendente):** No original, a linha vazia do painel Watches permite digitar expressões completas (ex.: `total * 1.1`, concatenações de strings). No TuxSQL o painel Watches reflete os valores das variáveis locais do snapshot atual.
+2. **Breakpoints Condicionais e Hit Count (Pendente):** O original suporta pausar apenas quando uma condição for verdadeira (`total > 500`) ou após N passagens (`Hit count = 10`). No TuxSQL os breakpoints pausam em qualquer passagem pela linha.
+3. **Edição de Variáveis em Tempo de Execução (Pendente):** No original, o desenvolvedor pode clicar duas vezes no valor de uma variável no painel Watches e alterar seu valor em memória para simular cenários. No TuxSQL as variáveis são somente leitura durante a inspeção.
+4. **Diálogo Interativo de Tratamento de Exceções (Pendente):** Quando ocorre um erro na execução depurada, o original oferece um diálogo modal com botões [Continue] e [Stop]. No TuxSQL exceções abortam a depuração e exibem a mensagem no painel Output.
+5. **Depuração de Event Schedulers e UDFs em C (Divergência Intencional):** TuxSQL foca exclusivamente em Stored Procedures e Triggers SQL.
+
+## 8. Estados de Interface
+| Estado | Comportamento |
 |---|---|
-| Preparando | "Checking for active debug sessions…" / "Compiling…" com spinner e [Cancel] |
-| Em execução | status bar "Debugging…"; Stop/Pause habilitados |
-| Pausado | linha atual realçada (accent 20% + seta); painéis ativos; "Paused at rotina:linha" |
-| Concluído | "Debugging finished at {0}" no Output + banner verde; resultados na aba Result (05) |
-| Erro | mensagens da §3/§4/§5 em Banner vermelho/âmbar + Output; "Could not attach debugger" quando falha o attach |
-| Conexão perdida | sessão encerrada, banner âmbar [Reiniciar] |
-Segurança: depurar executa código real; Prod exige confirmação extra; autocommit será ativado (aviso §4); DDL dentro de rotinas não pode ser revertido.
+| Checando Sessões / Compilando | Spinner modal "Checking for active debug sessions..." e "Compiling routine..." |
+| Em Execução Contínua | Status bar animada "Debugging in progress..." e botão Pause/Stop habilitado |
+| Pausado em Breakpoint | Foco automático no editor na linha ativa com seta vermelha e linha amarela destacada |
+| Concluído com Sucesso | Toast informativo "Debugging finished", resultado exibido no Output |
+| Erro de Sintaxe na Instrumentação | Banner vermelho detalhando erro de compilação sem alterar o código original no banco |
 
-## 7. Limitações a mostrar na UI (INFERIDAS, do PRD em `05-rea-debugger.md`) [I]
-SQL dinâmico (PREPARE/EXECUTE), recursão, locks/transações e triggers em tabelas em uso. Banner "Limitações do depurador" com link de ajuda.
-
-## 8. Atalhos
-| Ação | Atalho | Fonte |
-|---|---|---|
-| Run / Continue | Alt+F9 ou Ctrl+F5 | [C] REA shortcuts (`Run`) |
-| Run To Cursor | Ctrl+F10 ou F4 | [C] (`RunToCursor`) |
-| Restart | Shift+F9 | [C] (`Restart`) |
-| Compile for Debugging | Ctrl+Alt+F7 / Ctrl+Alt+F9 | [C] |
-| Compile (normal) | Ctrl+F7 / Ctrl+F9 | [C] |
-| Step Into / Over / Out, Toggle Breakpoint, Stop | F11 / F10 / Shift+F11, F9, Shift+F5 | [I] (comandos [C]; teclas não localizadas no mapa extraído) |
-Observação: o mapa de atalhos é a união de vários esquemas de teclado do original; no clone definir um esquema padrão e permitir reatribuir (19 §Keyboard). F10/F11 podem ser capturados por DEs (01 §10).
-
-## 9. Temas / acessibilidade
-Tokens 01; breakpoint por forma (círculo/oco/⚠) e não só cor; linha atual com seta + realce; aria-live para estado (Paused at…).
+## 9. Temas e Acessibilidade
+- Conformidade estrita com os temas Claro e Escuro de `01-shell.md`.
+- Breakpoints possuem formatos e marcadores distintivos (círculo sólido, círculo vazado para desabilitado, triângulo de aviso para erro).
+- Indicador da linha atual combina realce de fundo com seta visual no gutter e leitor de tela anuncia "Paused at routine, line X".
 
 ## 10. Componentes
-CodeEditor (gutter: breakpoints, seta), ToolbarDebug, WatchesGrid, CallStackList, BreakpointsList, DeployEngineDialog (explica o que será instalado), ProgressList, Banner, ConfirmDialog.
+`DebuggerToolbar`, `DebugEditorGutter`, `WatchesGrid`, `BreakpointsList`, `CallStackTree`, `EditParametersModal`, `DeployEngineConfirmDialog`, `EngineProgressView`.
 
-## 11. Critérios de aceite
-- Primeira depuração: detecta ausência da infraestrutura, explica e pede confirmação para instalar; atualização/remoção com bloqueio por sessões ativas.
-- Compilar para debug (+ dependentes/referências), avisar autocommit, iniciar com parâmetros, breakpoints, Step Into/Over/Out, Run To Cursor, Watches, Call Stack, tratar exceção (continuar/parar), parar e restaurar.
-- Mensagens de erro/sucesso conforme as listadas; Prod protegido; claro/escuro; teclado.
+## 11. Critérios de Aceite
+- Detecta ausência do engine de depuração e oferece diálogo de deploy com schema `tuxsql_linux_debug`.
+- Exibe diálogo Edit Parameters para configuração de valores de entrada e saída.
+- Execução respeita breakpoints, Step Into (`F11`), Step Over (`F10`) e Step Out (`Shift+F11`).
+- Painéis Watches e Call Stack sincronizam valores e profundidade de chamadas a cada passo.
 
 ## Textos de interface (referência)
 | Rótulo / mensagem (real, parafraseada se longa) | Onde usa | Chave i18n sugerida |
@@ -138,9 +135,3 @@ CodeEditor (gutter: breakpoints, seta), ToolbarDebug, WatchesGrid, CallStackList
 | Object '{0}' is being debugged and can't be removed | erro | `debug.object.busy` |
 | Please select a procedure or function to debug. | validação | `debug.select` |
 | There is no code to debug. | aviso | `debug.noCode` |
-
-## Pendências [I]
-- Teclas de Step Into/Over/Out, Toggle Breakpoint e Stop não localizadas no mapa extraído (apenas Run, RunToCursor, Restart, Compile*).
-- Versão mínima do MySQL para depurar funções e triggers (mensagem truncada na extração).
-- Condição/hit count em breakpoints, Pause, colunas exatas dos grids, persistência de breakpoints.
-- Protocolo exato entre debug/target session e reescrita da rotina instrumentada (design próprio).

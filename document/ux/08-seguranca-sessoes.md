@@ -1,128 +1,127 @@
 # UX 08 — Security Manager, Session Manager e Server Variables
 
-> Fidelidade REA: rótulos conferidos contra REA ui-text (Security Manager, Session Manager, Server Variables, Kill*, privilégios). Detalhes de layout, presets e mascaramento de senha são decisões de UX; ver `fidelidade-parts/B.md`.
+> Fidelidade REA: rótulos conferidos contra REA ui-text (Security Manager, Session Manager, Server Variables, Kill*, privilégios) e notas de sessão anterior em `re/original-observation/NOTES.md` #08.
+Auditoria de origem de evidência: **(b) Sessão anterior / (c) Inferência/REA**. Nenhuma captura foi feita na sessão corrente; pendente de confirmação por novas capturas da Lupa.
 
-Reusa `01-shell.md`, `03` (DataGrid, TreeView), `04` (MasterDetailList, EditableGrid) e `07` (SyncConfirmDialog padrão de confirmação). Todos abrem como documentos em aba ligados a **uma conexão** (nome da conexão e faixa de ambiente no cabeçalho). Entradas: Tools > Security Manager / Session Manager / Server Variables; Explorer > conexão > mesmo menu. Requerem privilégios; sem eles, ver §6.
+Reusa `01-shell.md`, `03` (DataGrid, TreeView), `04` (MasterDetailList, EditableGrid) e `07` (SyncConfirmDialog padrão de confirmação). Todos abrem como documentos MDI em aba ligados a **uma conexão** ativa.
+Entradas principais:
+- Atalhos em acordes (chords): **Security Manager** `Ctrl+D, Q` | **Session Manager** `Ctrl+D, S` | **Server Variables** `Ctrl+D, V`.
+- Menu Tools > Security Manager / Session Manager / Server Variables.
+- Database Explorer > clique com botão direito na conexão > Security Manager / Session Manager / Server Variables.
 
-## 1. Security Manager
+## 1. Security Manager [I: sessão anterior]
 
-### 1.1 Layout
+### 1.1 Layout do Documento
 ```
-+ Aba: [Security Manager - prod-db] -------------------------------+
-| Toolbar: [New User] [Clone] [Delete] [Refresh F5] [Apply Ctrl+S]  |
-|  [Discard] | [Search users...]                                    |
-+----------------------+--------------------------------------------+
-| Lista de usuários    | Detalhe do usuário                         |
-| (Name@Host, locked   | Abas: [General][Privileges][Roles]         |
-|  ícone, auth plugin) |        [Limits][Preview SQL]               |
-+----------------------+--------------------------------------------+
++ Aba: [Security Manager - mysql-teste] ------------------------------------------+
+| Toolbar: Connection: [mysql-teste ▾] [Refresh F5] [Save Ctrl+S] [Undo]           |
+|          [Script Changes] | [Create User ▾] [Delete]                             |
++------------------------------------+--------------------------------------------+
+| PAINEL ESQUERDO                    | PAINEL DIREITO                             |
+| (Árvore de Contas e Roles)         | "Details for user obs@%"                   |
+|                                    |                                            |
+| ▾ Users                            | Abas: [General] [Roles] [Global Privileges]|
+|   ▾ % (5)                          |       [Object Privileges] [Limits]         |
+|     • root@%                       |                                            |
+|     • obs@%                        |                                            |
+|   ▾ localhost (3)                  | Aba Global Privileges:                     |
+|     • mysql.sys@localhost          | [x] With Grant Option                      |
+|     • root@localhost               | Grade de Privilégios:                      |
+| ▸ Roles (2)                        | [x] | Name                       | Granted |
+|                                    | [x] | SELECT                     | Yes     |
+|                                    | [x] | INSERT                     | Yes     |
+|                                    | [ ] | AUDIT_ADMIN                | No      |
+|                                    | [ ] | BACKUP_ADMIN               | No      |
++------------------------------------+--------------------------------------------+
 ```
-Lista 300px: ícone (usuário, bloqueado com cadeado, expirado âmbar, role cinza), `user@host`, filtro por texto e por tipo (Users/Roles/Locked). Ordenação alfabética. Alterações ficam **pendentes** (como 04) até Apply; usuário novo/alterado/removido recebe marcas +, ✎, ✕.
 
-### 1.2 General
-| Campo | Controle | Notas |
-|---|---|---|
-| User name | texto | obrigatório; vazio = anônimo (aviso) |
-| Host | texto | `%` padrão, aceita wildcards/IP/máscara; dica de formato |
-| Authentication plugin | select (caching_sha2_password, mysql_native_password, auth_socket, …) | lista conforme servidor |
-| Password / Confirm | PasswordInput | força indicada (barra); botão "Generate" (24 chars, copiar); vazio no existente = não alterar |
-| Account locked | toggle | |
-| Password expiration | select (Default/Never/Now/Interval N days) | |
-| Require SSL/X509 | select (None/SSL/X509/Issuer/Subject) | |
-| Comment/Attribute | texto | MySQL 8 |
-Validação: duplicado user@host; senhas diferentes; política de senha do servidor (erro retornado ao Apply com mensagem clara).
+### 1.2 Abas de Detalhe do Usuário [C: observado na VM]
+- **General:**
+  - `User name`: texto do usuário.
+  - `Host`: endereço ou wildcard (`%` padrão).
+  - `Authentication type`: combo com plugins suportados (`caching_sha2_password`, `mysql_native_password`, `auth_socket`).
+  - `Authentication String` / `Password` / `Confirm Password`.
+  - `Password Expire`: seletor de expiração (`Never`, `Interval DEFAULT`, `Expire Date`).
+  - `Account Locked`: checkbox para bloqueio administrativo da conta.
+- **Global Privileges [C]:**
+  - Checkbox mestre: `☑ With Grant Option`.
+  - Tabela com lista completa de privilégios (`Name` | `Granted`):
+    - Privilégios relacionais: `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `CREATE`, `DROP`, `FILE`, `INDEX`, `ALTER`, etc.
+    - Privilégios administrativos: `SUPER`, `PROCESS`, `RELOAD`, `SHUTDOWN`, `SHOW DATABASES`, `CREATE USER`.
+    - Privilégios dinâmicos modernos do MySQL 8: `ALLOW_NONEXISTENT_DEFINER`, `APPLICATION_PASSWORD_ADMIN`, `AUDIT_ADMIN`, `BACKUP_ADMIN`, `BINLOG_ADMIN`, `CONNECTION_ADMIN`, `PERSIST_RO_VARIABLES_ADMIN`, etc.
+- **Object Privileges:** Árvore de banco de dados, tabelas e colunas, permitindo concessão seletiva de permissões em nível de objeto.
+- **Roles:** Concessão e revogação de papéis (roles) associados à conta.
+- **Limits:** Definição de limites de uso (`MAX_QUERIES_PER_HOUR`, `MAX_UPDATES_PER_HOUR`, `MAX_CONNECTIONS_PER_HOUR`, `MAX_USER_CONNECTIONS`).
 
-### 1.3 Privileges
-Seletor de **escopo** à esquerda (árvore): Global (*.*), cada Database (db.*), expansível para Tables/Columns/Routines (lazy; estados loading/erro de 03). Painel direito: grupos de checkboxes para o escopo selecionado:
-- **Data:** SELECT, INSERT, UPDATE, DELETE, FILE
-- **Structure:** CREATE, ALTER, DROP, INDEX, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, EXECUTE, TRIGGER, EVENT, REFERENCES, CREATE TEMPORARY TABLES, LOCK TABLES
-- **Administration (só global):** PROCESS, RELOAD, SHUTDOWN, SUPER, REPLICATION SLAVE/CLIENT, CREATE USER, CREATE TABLESPACE, SHOW DATABASES, GRANT OPTION, privilégios dinâmicos do 8 (lista pesquisável)
-Cada checkbox tri-state: marcado (concedido neste escopo), vazio, indeterminado (herdado de escopo superior, texto cinza + tooltip "Herdado de *.*"). Botões: [Select All] [Clear] [Preset ▾ (Read only, Read/Write, DBA)], **GRANT OPTION** destacado com aviso âmbar. Resumo no topo "Privilégios efetivos: 14". Colunas: no escopo tabela, subgrade de colunas com SELECT/INSERT/UPDATE/REFERENCES. Concessões perigosas (ALL, SUPER, GRANT OPTION, *.* para host `%`) mostram banner vermelho de aviso e exigem confirmação ao Apply.
+### 1.3 Operações Seguras e Preview DDL
+- **Save (`Ctrl+S`):** Aplica as alterações no banco com execução de `GRANT`, `REVOKE` e `ALTER USER`.
+- **Script Changes:** Abre o editor SQL com o script DDL equivalente gerado para revisão manual.
+- **Salvaguardas no Linux:** Senhas são mascaradas no preview (`'***'`); exclusão ou revogação de privilégios da própria conta ativa conectada é estritamente bloqueada com aviso impeditivo.
 
-### 1.4 Roles / Limits / Preview SQL
-- **Roles** (MySQL 8+/MariaDB 10.0.5+; aba oculta se não suportado): listas "Roles concedidas" ↔ "Disponíveis" (duplo clique move), default role.
-- **Limits:** MAX_QUERIES_PER_HOUR, MAX_UPDATES_PER_HOUR, MAX_CONNECTIONS_PER_HOUR, MAX_USER_CONNECTIONS (number, 0 = ilimitado).
-- **Preview SQL:** Monaco somente leitura com CREATE USER/ALTER USER/GRANT/REVOKE/DROP USER gerados; senhas mascaradas como `'***'` (exibição); botão Copy (copia com marcador `<senha>`).
+## 2. Session Manager [I: sessão anterior]
 
-### 1.5 Apply, Delete
-Apply: diálogo (padrão SyncConfirmDialog): resumo de contagens, lista de SQL (senha mascarada), riscos (DROP USER, REVOKE do próprio usuário atual — **bloqueado** com mensagem "Não é possível remover os próprios privilégios de administração desta conexão" salvo confirmação forte —, concessão global), [Apply] [Cancel]. Execução com progresso por statement; resultado ✓/✕ por item; falha parcial lista o que ficou aplicado; `FLUSH PRIVILEGES` automático quando necessário. Delete: "Excluir `user@host`? Sessões ativas do usuário não serão encerradas." com checkbox "Encerrar sessões ativas" (abre Session Manager filtrado). Usuário `root@localhost`/usuário da conexão atual: Delete desabilitado com tooltip.
-Clone: copia privilégios para novo user@host (pede nome/host/senha).
+### 2.1 Layout e Monitoramento
+- **Toolbar Superior:**
+  - Seletor de conexão: `Connection [mysql-teste ▾]`.
+  - Botão `[Refresh]` (`F5`).
+  - Botões de Ação: `[Kill Query]`, `[Kill Session]`.
+  - Controle de taxa: `Refresh interval: [02:00 ▾]` (desligado, 2s, 5s, 10s, 30s, 2min).
+  - Indicador temporal: `Last refreshed at: 17:14:02`.
+- **Grade de Processos Ativos:**
+  - Colunas: `Id` | `User` | `Host` | `Database` | `Command` | `Time (s)` | `State` | `Info`.
+  - Identifica e exibe tanto conexões de clientes externos quanto threads de segundo plano do sistema (ex.: `event_scheduler`, `Command Daemon`).
+- **Painel Inferior de Detalhe:**
+  - Exibe o texto completo e não-truncado da consulta da sessão selecionada na grade em editor Monaco somente leitura com destaque de sintaxe e botão de cópia.
 
-### 1.6 Estados
-Loading lista: skeleton; vazio com filtro: "Nenhum usuário"; erro de leitura (mysql.user inacessível): InlineErrorPanel "Sem acesso às contas — requer SELECT em mysql.* ou CREATE USER" [Tentar de novo]; sucesso: toast "Alterações aplicadas".
+### 2.2 Terminação de Processos
+- Ações `Kill Query` (`KILL QUERY id`) e `Kill Session` (`KILL id`) exigem confirmação modal explícita informando que transações ativas serão revertidas.
+- A sessão conectada do próprio estúdio é protegida contra auto-terminação acidental.
 
-## 2. Session Manager (processos)
+## 3. Server Variables [I: sessão anterior]
+- Documento MDI **"View Server Variables"**:
+  - Toolbar com toggle segmentado no topo: **[System | Status]** para alternar entre variáveis de configuração de sistema (`SHOW VARIABLES`) e contadores operacionais de status (`SHOW STATUS`).
+  - Botão `[Refresh]` (`F5`), botão `[Apply]` (`Ctrl+S`), caixa de busca instantânea e campo de filtro "Only dynamic".
+  - Grade de dados: `Name` | `Value` | `Description`.
+  - Edição inline para variáveis dinâmicas com destaque âmbar na célula alterada antes da aplicação.
+  - Aplicação via diálogo com `SET GLOBAL` e `SET SESSION`.
 
-### 2.1 Layout
-```
-+ Aba: [Sessions - prod-db] ---------------------------------------+
-| Toolbar: [Refresh F5] [Auto-refresh: Off|2s|5s|10s|30s ▾]         |
-|  [Kill Query] [Kill Session] | Filtros: [Sleep ☐ ocultar] [Mine ☐] |
-|  [Search...]                                                      |
-+-------------------------------------------------------------------+
-| Grid de sessões (topo)                                            |
-+-------------------------------------------------------------------+
-| Detalhe da sessão selecionada: [Query] [Locks*] [Info]            |
-+-------------------------------------------------------------------+
-```
-Grid (DataGrid de 03, somente leitura, ordenável): ID | User | Host | DB | Command | Time (s) | State | Info (query truncada) | Memory/Rows examined (se disponível). Linhas coloridas: Time > 60s âmbar, > 300s vermelho 15% (limites configuráveis); sessão própria em negrito com marca "(você)".
-Detalhe: **Query** (Monaco somente leitura com SQL completo, [Copy] [Open in SQL Editor]), **Locks** (transações/locks InnoDB, P1 — mensagem "Indisponível" se sem permissão), **Info** (propriedades da sessão).
+## 4. O que o TuxSQL ainda NÃO faz (Diferenças Objetivas em relação ao Original)
+1. **Aba "Locks" de Transações InnoDB no Session Manager (Pendente):** No original há uma aba dedicada para inspecionar árvores de deadlocks e transações concorrentes travadas no InnoDB (`information_schema.innodb_trx` / `data_locks`). O TuxSQL exibe a lista geral de processos do `SHOW PROCESSLIST`.
+2. **Cobertura Completa de Todos os 35+ Privilégios Dinâmicos do MySQL 8 (Pendente):** O original mapeia exaustivamente todos os privilégios dinâmicos introduzidos no MySQL 8.0/8.4 com checkboxes individuais. O TuxSQL oferece suporte a privilégios padrão e um subconjunto de dinâmicos essenciais.
+3. **Persistência de Variáveis com `SET PERSIST` no Disco (Pendente):** O original suporta persistência automática de variáveis globais gerando comandos `SET PERSIST` que modificam o `mysqld-auto.cnf` do servidor. O TuxSQL emite comandos `SET GLOBAL` e `SET SESSION` em memória transitória.
+4. **Gráfico Temporal de Variação de Taxas de Status (Pendente):** No original há monitores com gráficos de linha calculando variações por segundo de contadores (consultas/seg, bytes/seg). O TuxSQL apresenta os valores estáticos tabelados.
 
-### 2.2 Ações
-- **Kill Query** (`KILL QUERY id`) e **Kill Session** (`KILL id`): multiseleção; diálogo de confirmação "Encerrar 2 sessões? Transações em andamento serão revertidas." [Encerrar] [Cancelar]. A própria sessão e threads do sistema: desabilitado com tooltip. Resultado: toast verde / erro vermelho por sessão; refresh automático em seguida.
-- Auto-refresh: liga/desliga preservando seleção e scroll; indicador "Atualizado 12:03:44" + spinner sutil durante o fetch; falha de refresh: banner âmbar "Falha ao atualizar — tentando de novo" sem apagar dados anteriores (marcados "obsoletos" cinza).
-- Contadores no rodapé: "42 sessões · 3 ativas · 1 lenta".
-- Menu de contexto: Kill Query, Kill Session, Copy Query, Copy as row, Open Query in SQL Editor, Filter by User/Host/DB.
-
-### 2.3 Estados
-Loading inicial skeleton; vazio "Nenhuma sessão" (raro); erro de permissão: "Você só vê suas próprias sessões — requer privilégio PROCESS para ver todas" (banner informativo, grid mostra as próprias); erro de conexão: InlineErrorPanel [Reconectar].
-
-## 3. Server Variables
-
-### 3.1 Layout
-Toolbar: [Refresh F5] [Apply Ctrl+S] [Discard] | escopo **[Session | Global]** (toggle segmentado) | busca | filtros [Only modified] [Only dynamic] [Hide read-only] | [Export…] [Compare…(P2)] | aba extra **Status** (SHOW STATUS, somente leitura, mesma grade).
-Grade (EditableGrid): Name | Value | Default (se conhecido) | Dynamic (✓/✗) | Scope (Global/Session/Both) | Category | Description (tooltip longo/painel inferior). Agrupamento opcional por Category (InnoDB, Replication, Connections, Query Cache, Logging…).
-Valor editável apenas se Dynamic; tipos de editor: booleano (ON/OFF toggle), enum (select), numérico (com unidade e validação min/max), texto. Variáveis estáticas: linha cinza com cadeado "Requer reinício do servidor / arquivo my.cnf".
-Valor modificado: destaque âmbar + ícone ✎ + botão "Reset" por linha (volta ao valor atual do servidor).
-
-### 3.2 Apply
-Alterações pendentes aplicam via `SET GLOBAL`/`SET SESSION`. Diálogo: lista nome, valor antigo → novo, escopo, aviso "SET GLOBAL afeta todas as novas conexões e não persiste após reinício (use `SET PERSIST` no MySQL 8)": checkbox "Persistir (SET PERSIST)" disponível no 8+. Variáveis críticas (max_connections, innodb_*, sql_mode, read_only, super_read_only) mostram aviso âmbar; Prod: digitar nome da conexão. Resultado por item ✓/✕ (erro SQL exibido na linha, ex.: "Variable 'x' is a read only variable"). Falha não desfaz sucessos anteriores (informado). Sucesso: toast e Refresh.
-Sem SUPER/SYSTEM_VARIABLES_ADMIN: grade somente leitura com banner.
-
-### 3.3 Estados
-Loading skeleton (centenas de linhas virtualizadas); vazio de busca "Nenhuma variável corresponde"; erro InlineErrorPanel; sucesso toast. Export: CSV/JSON/`my.cnf` (somente modificadas).
-
-## 4. Atalhos
-
-| Ação | Atalho |
+## 5. Estados de Interface
+| Estado | Comportamento |
 |---|---|
-| Refresh | F5 |
-| Apply | Ctrl+S |
-| Discard | Ctrl+Z (pendências) |
-| Busca | Ctrl+F |
-| Kill Query / Kill Session | Delete / Shift+Delete (com confirmação) |
-| Alternar auto-refresh | Ctrl+Alt+R |
-| Escopo Session/Global | Ctrl+Shift+G |
-| Copiar linha | Ctrl+C |
-| Próxima aba interna | Ctrl+PgDn |
+| Carregando Processos / Variáveis | Shimmer skeleton na grade com indicador na status bar |
+| Auto-Refresh Ativo | Indicador de cronômetro atualizando no cabeçalho sem roubar foco da grade |
+| Privilégios Administrativos Faltantes | Banner informativo alertando que a conta atual não possui grant `PROCESS` ou `SUPER` |
+| Sessão Encerrada com Sucesso | Toast verde informativo e remoção imediata da linha correspondente na grade |
+| Tentativa de Kill na Própria Sessão | Botões Kill desabilitados com tooltip "Cannot kill current studio session" |
 
-## 5. Temas e acessibilidade
-Tokens de 01; linhas lentas/modificadas usam opacidade 15% + ícone/texto adicional; tri-state com marca textual (✓, —, herdado); grids e árvores navegáveis por teclado; anúncios aria-live para auto-refresh só em mudanças relevantes (evitar spam).
+## 6. Atalhos de Teclado
+- Abrir Security Manager: `Ctrl+D, Q`
+- Abrir Session Manager: `Ctrl+D, S`
+- Abrir Server Variables: `Ctrl+D, V`
+- Atualizar (`Refresh`): `F5`
+- Aplicar Alterações: `Ctrl+S`
+- Encerrar Consulta / Sessão Selecionada: `Delete` / `Shift+Delete`
+- Localizar na grade: `Ctrl+F`
 
-## 6. Permissões e segurança (transversal)
-- Detecção de privilégios ao abrir; ações indisponíveis ficam desabilitadas com tooltip do privilégio faltante, nunca ocultas.
-- Conexão read-only: apenas leitura em todas as três telas.
-- Senhas: nunca registradas em Output/log/clipboard por padrão; Preview mascara; gerador copia só com ação explícita (clipboard limpa em 30s).
-- Todas as ações destrutivas (DROP USER, KILL, SET GLOBAL crítico) com confirmação; Prod com digitação do nome.
+## 7. Temas e Acessibilidade
+- Conformidade integral com tokens de design system de `01-shell.md`.
+- Indicadores de tempo de consulta (alertas de queries lentas) combinam texto numérico com fundo colorido translúcido.
+- Grades e árvores de privilégios suportam navegação completa por teclado e marcação por barra de espaço.
 
-## 7. Componentes
-MasterDetailList, PrivilegeMatrix (checkbox tri-state por grupos + herança), ScopeTree, PasswordInput (+ strength + generate), DualList (roles), DataGrid/EditableGrid, AutoRefreshControl, ConfirmDialog/SyncConfirmDialog, SegmentedToggle, Banner, InlineErrorPanel, Skeleton, Toast.
+## 8. Componentes
+`SecurityManagerDocument`, `UserHierarchyTree`, `PrivilegesMatrixGrid`, `SessionManagerDocument`, `ProcessListGrid`, `QueryDetailViewer`, `ServerVariablesDocument`, `KillConfirmModal`.
 
-## 8. Critérios de aceite
-- Security Manager cria/edita/clona/exclui usuários e privilégios por escopo (global/db/tabela/coluna), exibe herança, mostra SQL com senha mascarada e aplica após confirmação com resumo de riscos.
-- Session Manager lista, filtra, atualiza automaticamente, e mata query/sessão com confirmação, protegendo a própria sessão.
-- Server Variables edita só variáveis dinâmicas, distingue Session/Global, explica persistência e aplica com resultado por item.
-- Estados loading/erro/sucesso e falta de permissão cobertos; claro/escuro; teclado completo.
+## 9. Critérios de Aceite
+- Permite gerenciar contas de usuário, senhas e concessões globais e por objeto.
+- Session Manager lista conexões em tempo real, exibe o SQL associado e emite KILL com segurança.
+- Server Variables diferencia variáveis de sistema e status e aplica alterações dinâmicas com confirmação.
+- Atalhos em acordes (`Ctrl+D, Q/S/V`) abrem os respectivos módulos com foco direto.
 
 ## Textos de interface (referência)
 Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).

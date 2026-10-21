@@ -1,10 +1,23 @@
 # Paridade — F-OPT (Options)
 
-Fontes: inventário REA M1/M19; `document/ux/19-configuracoes.md`; `document/ux/FIDELIDADE.md` Parte D.
+Fontes consultadas: inventário REA M1/M19; `document/ux/19-configuracoes.md`; `document/ux/FIDELIDADE.md` Parte D; notas de sessão anterior na VM `dbforge-ref` (`re/original-observation/NOTES.md` #14).
+Auditoria de origem de evidência: **(b) Sessão anterior / (c) Inferência/REA**. Nenhuma captura foi feita na sessão corrente; status classificado como **INFERIDA** pendente de nova observação da Lupa.
 
-| Comportamento esperado | Estado | Prova automatizada | Limite da prova |
+| Comportamento esperado | Estado | Evidência da referência | Prova no clone |
 |---|---|---|---|
-| Settings versionados são carregados com defaults e migram versão antiga. | ADAPTADA PARA LINUX | `app/test/modules/options.test.ts` — defaults, migração e persistência JSON. | Persistência em userData no ambiente Electron. |
-| Preferências inválidas são preservadas em backup e carregam defaults. | ADAPTADA PARA LINUX | `app/test/modules/options.test.ts` — arquivo `.bak`. | Estratégia própria de recuperação. |
-| Atalhos normalizados detectam conflito no mesmo contexto. | CONFIRMADA | `app/test/modules/options.test.ts` — conflito case/space insensitive e validação. | Não demonstra que cada binding está ligado à UI. |
-| Rótulos e valores default de todas as páginas Options correspondem à referência. | DESCONHECIDA | `SEM EVIDÊNCIA` de valores originais; FIDELIDADE Parte D lista defaults sem REA. | Testes provam a configuração do clone, não a referência. |
+| Estrutura do diálogo com busca no topo `Search (Ctrl+E)`, árvore à esquerda, breadcrumb no topo da página e botão `Reset Page Defaults`. | INFERIDA | Nota de sessão anterior (`re/original-observation/NOTES.md` #14). Aguarda confirmação pela Lupa. | `app/test/modules/options.test.ts`. |
+| Árvore de categorias contendo nós principais (Environment, AI Assistant, Schema Comparison, Text Editor, Data Comparison, Generate Scripts, Data Editor, Data Export, Copy Databases, Data Generation, Database Explorer, Query Builder, Database Diagram, Source Control, Debugging, Master-Detail, Query Profiler). | INFERIDA | Nota de sessão anterior (`re/original-observation/NOTES.md` #14). Aguarda confirmação pela Lupa. | `app/test/modules/options.test.ts`. |
+| Environment > General com Visual Settings (Skin, forms skin, menu animation) e Environment Settings (startup session, recent items count, splash, start page, status bar). | INFERIDA | Nota de sessão anterior (`re/original-observation/NOTES.md` #14). Aguarda confirmação pela Lupa. | `app/test/modules/options.test.ts`. |
+| Settings versionados são carregados com defaults e migram versão antiga para JSON. | ADAPTADA PARA LINUX | `app/test/modules/options.test.ts` — defaults, migração e persistência JSON. | Persistência em `$XDG_CONFIG_HOME/tuxsql` via Electron `userData` vs Registry do Windows. |
+| Preferências inválidas são preservadas em backup `.bak` e carregam defaults de recuperação. | ADAPTADA PARA LINUX | `app/test/modules/options.test.ts` — arquivo `.bak`. | Estratégia resiliente de recuperação de falhas em JSON. |
+| Atalhos normalizados detectam conflito no mesmo contexto (Keyboard options). | INFERIDA | Nota de sessão anterior (`re/original-observation/NOTES.md` #14) e REA. Aguarda confirmação pela Lupa. | `app/test/modules/options.test.ts` — conflito case/space insensitive e validação. |
+| Validação e migração de limites para Data Comparison (cacheFolder, keyStrategy) e Query Builder (gridSize, showGrid, snapToGrid). | INFERIDA | Nota de sessão anterior (`re/original-observation/NOTES.md` #14) e schema. Aguarda confirmação pela Lupa. | `app/test/modules/options.test.ts` — ranges e defaults migrados. |
+| Validação de páginas Data Editor (pageSize, showDataTypes) e Database Explorer (firstRows, selectionMode). | INFERIDA | Nota de sessão anterior e catálogo REA. Aguarda confirmação pela Lupa. | `app/test/modules/options.test.ts`. |
+| Rótulos e valores default de todas as páginas Options correspondem à referência ou possuem equivalentes documentados. | INFERIDA | Nota de sessão anterior (`re/original-observation/NOTES.md` #14); REA ui-text. Aguarda confirmação pela Lupa. | `app/test/modules/options.test.ts`; `app/test/modules/keymap.test.ts`. |
+
+## O que o TuxSQL ainda não faz (ou diverge conscientemente):
+1. **Motor de skins Devart WinForms**: Original usa biblioteca de skins C# Windows ("Visual Studio Light", "Visual Studio Dark", "Office", etc.) com hooks nativos Win32. O TuxSQL adota tokens de temas CSS modernos (Claro, Escuro, Auto/Sistema) com contraste WCAG AA.
+2. **Telemetria de uso anônimo (`Allow sending anonymous usage statistics`)**: A referência dbForge traz essa opção habilitada por padrão. O TuxSQL **rejeita intencionalmente qualquer telemetria** (privacidade estrita no Linux, sem envio de dados para servidores externos).
+3. **Animações de menu (`Enable menu animation`)**: Presente na referência WinForms; no Linux/Electron animações de menu seguem as diretrizes de acessibilidade (`prefers-reduced-motion`) do sistema.
+4. **Exportação de configurações em formato proprietário Devart/VS (`.vssettings`)**: O TuxSQL utiliza exclusivamente formato JSON interoperável e legível por humanos em `$XDG_CONFIG_HOME/tuxsql/settings.json`.
+5. **Integração MAPI/Outlook para SMTP Mail Profiles**: O TuxSQL suporta apenas perfis SMTP diretos (RFC 5321) com autenticação e STARTTLS/SSL, sem depender de clientes MAPI do Windows.

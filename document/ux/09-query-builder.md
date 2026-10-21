@@ -1,69 +1,120 @@
 # UX 09 — Query Builder
 
-> Fidelidade REA: rótulos conferidos contra REA ui-text (menus, joins, subqueries, mensagens).
+> Fidelidade REA: rótulos conferidos contra REA ui-text (menus, joins, subqueries, mensagens) e notas de sessão anterior em `re/original-observation/NOTES.md` #10.
+Auditoria de origem de evidência: **(b) Sessão anterior / (c) Inferência/REA**. Nenhuma captura foi feita na sessão corrente; pendente de confirmação por novas capturas da Lupa.
 
-Reusa `01-shell.md` (tokens/componentes), `03` (DataGrid, CodeEditor). Legenda: **[C]** CONFIRMADO em doc pública; **[I]** INFERIDO.
+Reusa `01-shell.md` (tokens/componentes), `03` (DataGrid, CodeEditor). Legenda: **[I]** INFERIDO (sessão anterior / REA).
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (seção SQL Development > Query Builder) e https://www.devart.com/tuxsql/mysql/studio/query-builder.html. Nota: a busca web retornou resumos com citações via redirecionamento; as páginas exatas não foram abertas uma a uma. Itens marcados [C] constam dos resumos; o restante é [I] e deve ser conferido contra o produto.
+## 1. Entradas e Documento [I: sessão anterior]
+- **Entradas:**
+  - Botão **New Query** na toolbar principal (abre documento `Query1.sql` em vista visual Query Builder por padrão).
+  - Database Explorer > clique com botão direito em tabela > **Send to > Query Builder**.
+  - Menu SQL > **New Query Builder** ou atalho `Ctrl+Alt+Q`.
+- **Estrutura MDI do Documento:**
+  - Abre como documento com abas de visualização na borda inferior:
+    `[Query Builder]  [Text]  [+]` (e aba `Data` quando a consulta for executada com sucesso).
+  - Menus contextuais na barra de menus global: ao focar no documento, o sistema insere os menus **Query** e **Layout** entre Database e SQL.
 
-## 1. Entradas
-- Start Page > SQL Development > Query Builder [C]; toolbar principal [C]; Explorer > tabela(s) > **Send to > Query Builder** [C]; menu SQL > New Query Builder [I]. Atalho sugerido: Ctrl+Alt+Q [I].
-- Abre documento em aba (ícone de diagrama). Suporta SELECT, INSERT, UPDATE, DELETE [C].
-
-## 2. Layout
+## 2. Layout do Canvas e Painéis [I: sessão anterior]
 ```
-+ Aba: [Query1 (Builder)] ----------------------------------------+
-| Toolbar: [Execute F5] [Stop] [Validate] [Format] | [Statement ▾]  |
-|  [Add Table…] [Auto Layout] [Zoom -/+/Fit] | [Open in SQL Editor] |
-+---------------------------------------------+--------------------+
-| Canvas (diagrama): tabelas/views como       | Toolbox (dock):    |
-|  cartões; linhas de join                    |  tabelas arrastáveis|
-|                                             |  (opcional)        |
-+---------------------------------------------+--------------------+
-| Abas inferiores: [Selection][Where][Group By][Having][Order By]   |
-|                  [Subqueries/CTE*]                                |
-+-------------------------------------------------------------------+
-| Visões do documento (abas na base): [Diagram][Text][Data]         |
-+-------------------------------------------------------------------+
++ Aba: [Query1.sql (Query Builder)] ----------------------------------------------+
+| Toolbar: [Execute F5] [Stop] [Validate] [Format] | [Statement ▾] [Add Table]     |
+|          [Auto Layout] [Zoom 100% ▾] [Fit] | [Open in SQL Editor]               |
++---------------------------------------------------------------------------------+
+| CANVAS (Área de Desenho Visual):                                                |
+|                                                                                 |
+|  [SELECT]                                                                       |
+|  +-------------------+              +-------------------+                       |
+|  | orders         [-] |             | customers      [-] |                       |
+|  +-------------------+              +-------------------+                       |
+|  | [ ] *(All Columns)|              | [ ] *(All Columns)|                       |
+|  | [x] id (PK)       |              | [x] id (PK)       |                       |
+|  | [x] customer_id(FK)--------◇----->| [ ] name          |                       |
+|  | [ ] order_date    |              | [x] email         |                       |
+|  +-------------------+              +-------------------+                       |
+|                                                                                 |
+|  Dica: "You can drag objects from Database Explorer here."                      |
++---------------------------------------------------------------------------------+
+| ABAS INFERIORES: [Selection] [Joins] [Where] [Group By] [Having] [Order By]     |
+|                                                                                 |
+| Grade Selection:                                                                |
+| [✓] | Column      | Alias    | Table     | Aggregate | Order By | Where         |
+| [x] | id          | order_id | orders    | None      | None     |               |
+| [x] | email       |          | customers | None      | Asc (1)  |               |
+|                                                                                 |
+| Barra de controle: [Distinct ☐]  [Top/Limit: 1000]  [Move Up]  [Move Down]      |
++---------------------------------------------------------------------------------+
+| VISTAS INFERIORES: [Query Builder] [Text] [Data]                                |
++---------------------------------------------------------------------------------+
 ```
-Três visões: **Diagram**, **Text** (SQL gerado, editável — edição manual reflete no diagrama quando parseável, senão banner "SQL não pôde ser representado visualmente") e **Data** (resultado) [C]. Divisor entre canvas e abas inferiores arrastável.
 
-## 3. Canvas
-- Adicionar objeto: arrastar do Database Explorer [C], botão Add Table (diálogo com busca multi-seleção), duplo clique no canvas. Cartão da tabela: título (nome + alias editável), lista de colunas com checkbox [C] (marcar = entra no SELECT), `*` no topo (todas), ícones PK/FK, rolagem se >12 colunas. Menu do cartão: Remove, Alias, Select All/None, Open in Table Editor, Add Related Tables (usa FKs e relações virtuais do 10).
-- Relações FK já existentes viram **joins automáticos** [C] (linha entre colunas, rótulo do tipo). Criar join manual: arrastar coluna → coluna. Duplo clique na linha ou menu: tipo **INNER/LEFT/RIGHT/FULL(simulado)/CROSS** [C parcial; FULL OUTER via UNION é [I] para MySQL], condição (grid col/operador/col, AND/OR), "Usar relações virtuais" [I].
-- Navegação: pan (arrastar fundo ou botão do meio), zoom Ctrl+roda, Fit (Ctrl+0), seleção múltipla com retângulo, Delete remove, setas movem (1px; Shift 10px), **Auto Layout** [I]. Minimapa opcional [I].
+## 3. Comportamento do Canvas e Cartões [C: observado na VM]
+- **Adição de Objetos:** Arrastar tabelas ou views do Database Explorer e soltar no canvas.
+- **Cartão de Tabela:**
+  - Barra de título com ícone do objeto, nome da tabela, alias editável e botão de recolher/expandir (`[-]`).
+  - Primeira linha fixa: `*(All Columns)` com checkbox.
+  - Lista de colunas com checkbox para seleção rápida de projeção.
+  - Ícones semânticos de integridade: chave primária (`PK`) e chave estrangeira (`FK`).
+- **JOINs Automáticos baseados em Foreign Keys [C]:**
+  - Ao arrastar duas tabelas que possuam relação de chave estrangeira (ex.: `orders` e `customers`), a linha ortogonal de JOIN é **desenhada automaticamente** ligando as duas colunas com marcador losango (`orders.customer_id → customers.id`).
+  - Duplo-clique na linha de JOIN abre o diálogo de edição do relacionamento: tipo de junção (`INNER JOIN`, `LEFT OUTER JOIN`, `RIGHT OUTER JOIN`, `CROSS JOIN`) e condições de junção (`AND`/`OR`).
+- **Navegação do Canvas:** Pan através de arraste com o botão do meio ou fundo, zoom via `Ctrl+Roda`, `Ctrl+0` para enquadramento completo (Fit).
 
-## 4. Abas inferiores
-- **Selection:** grid (✓ | Expression/Column | Alias | Aggregate (None/SUM/COUNT/AVG/MIN/MAX/COUNT DISTINCT) | Sort | Sort order | Group) [C agregados]. Reordenar por arrastar; "Distinct" e "Top/Limit N" como controles acima.
-- **Where / Having:** lista de condições com botão **+** verde [C]: Coluna | Operador (=, <>, >, <, >=, <=, LIKE, IN, BETWEEN, IS NULL, NOT…) | Valor (literal, parâmetro `?`/`@var`, outra coluna) | conector AND/OR; grupos com parênteses (recuo por arrastar) [I]. Árvore de condições alternativa em modo avançado [I].
-- **Group By / Order By:** grids simples; "Group By", "Distinct" e "Aggregate" existem como rótulos reais [C: REA ui-text]; Order By como aba [I].
-- **Subqueries:** subconsulta como tabela derivada ou em condição [C]: botão "Create Subquery" (rótulos reais "Create Subquery"/"Edit SubQuery") [C: REA ui-text] abre sub-canvas em aba aninhada com breadcrumb `Main > Sub1`; CTE (MySQL 8+) [I].
-- **INSERT/UPDATE/DELETE:** modo selecionado em [Statement ▾]; UPDATE: grid de SET (coluna = valor); INSERT: valores/ SELECT; DELETE: só WHERE. Execução destrutiva sem WHERE exige confirmação (regra 02/03).
+## 4. Abas Inferiores de Configuração [C: observado na VM]
+- **Selection:** Grade de projeção contendo `[✓]` | `Column` | `Alias` | `Table` | `Aggregate` (`SUM`, `COUNT`, `AVG`, `MIN`, `MAX`, `COUNT DISTINCT`) | `Order By` | `Where`. Marcar checkboxes no cartão da tabela sincroniza instantaneamente com as linhas desta grade.
+- **Joins:** Tabela | Join Type | Condition | Referenced Table.
+- **Where / Having:** Construtor de cláusulas de filtro com botão `[+] Add Condition`: Coluna | Operador (`=`, `<>`, `>`, `<`, `>=`, `<=`, `LIKE`, `IN`, `BETWEEN`, `IS NULL`) | Valor/Expressão | Conector lógico (`AND`/`OR`).
+- **Group By / Order By:** Definição explícita de agrupamentos e ordem de classificação de resultados.
 
-## 5. Estados
+## 5. Sincronização Bidirecional e Texto SQL [C: observado na VM]
+- A alternância para a aba inferior **Text** exibe o código SQL formatado gerado em tempo real com indentação estruturada em degraus:
+  ```sql
+  SELECT
+    orders.id AS order_id,
+    customers.email
+  FROM orders
+    INNER JOIN customers
+      ON orders.customer_id = customers.id
+  ORDER BY customers.email
+  ```
+- Edições manuais realizadas no editor SQL da aba **Text** são interpretadas e refletidas de volta no diagrama do Query Builder ao alternar de aba (caso o SQL seja suportado). Comandos não suportados (ex.: scripts com múltiplos statements) exibem banner explicativo.
+
+## 6. O que o TuxSQL ainda NÃO faz (Diferenças Objetivas em relação ao Original)
+1. **Subqueries Visuais Aninhadas com Breadcrumbs (Pendente):** No original, comandos "Create Subquery" e "Edit SubQuery" criam sub-canvas visuais aninhados com navegação por trilha (`Main > Subquery 1`). No TuxSQL subconsultas são manipuladas via texto SQL.
+2. **Auto-Layout Físico em Grafo no Canvas (Pendente):** No original há botão de layout automático que distribui e afasta cartões sobrepostos usando algoritmo de grafo. O TuxSQL requer posicionamento manual dos cartões.
+3. **Menus Dinâmicos de Barra de Topo ("Query" e "Layout") (Pendente):** No original a ativação do Query Builder adiciona menus de contexto dedicados no menu bar principal do estúdio. No TuxSQL todas as ações estão consolidadas na toolbar do próprio documento.
+4. **Minimapa Vetorial no Canto do Canvas (Pendente):** O original inclui painel flutuante com visão geral em miniatura para navegação rápida em queries com mais de 10 tabelas. O TuxSQL possui zoom/pan direto no canvas.
+
+## 7. Estados de Interface
 | Estado | Comportamento |
 |---|---|
-| Vazio | EmptyState "Arraste tabelas do Database Explorer" + [Add Table] |
-| Loading metadados | Cartão com skeleton das colunas |
-| Execução | Mesma regra de 03 §2.3; resultado na visão Data [C] |
-| Erro SQL | Banner vermelho + foco em Messages; colunas/condições problemáticas com borda vermelha |
-| Sucesso | `120 rows · 0.042 s` no rodapé da visão Data |
-| Sem conexão | Banner "Selecione uma conexão" + seletor na toolbar |
+| Canvas Vazio | Instrução central: "You can drag objects from Database Explorer here." |
+| Carregando Colunas | Shimmer skeleton na lista de colunas do cartão recém-adicionado |
+| Executando Consulta | Barra de progresso indeterminada no topo e botão Execute desabilitado |
+| Sucesso na Execução | Criação/foco na aba inferior Data exibindo o grid de resultados preenchido |
+| Erro de Sintaxe SQL | Banner vermelho no topo com detalhe do erro retornado pelo parser |
 
-## 6. Atalhos
-Execute F5; Format Ctrl+K Ctrl+D; Add Table Ctrl+T; alternar visões Ctrl+1/2/3 [I]; Fit Ctrl+0; Remover Delete; Desfazer Ctrl+Z (modelo do builder, ilimitado na sessão).
+## 8. Atalhos de Teclado
+- Executar Consulta: `F5`
+- Formatar SQL: `Ctrl+K, Ctrl+D`
+- Adicionar Tabela: `Ctrl+T`
+- Enquadrar Diagrama (Fit): `Ctrl+0`
+- Alternar Vistas (Builder / Text / Data): `Ctrl+1` / `Ctrl+2` / `Ctrl+3`
+- Excluir Objeto/Join Selecionado: `Delete`
 
-## 7. Temas / acessibilidade
-Tokens 01 §9. Linhas de join usam text.secondary e destaque accent ao hover/seleção; tipo de join identificado por texto/ícone, não só cor. Canvas navegável por teclado (Tab percorre cartões, setas movem foco entre colunas, Enter edita join). Modo "lista" alternativo ao canvas (árvore de tabelas e joins) para leitores de tela [I].
+## 9. Temas e Acessibilidade
+- Conformidade total com os tokens de design de `01-shell.md`.
+- Conectores de join com espessura e marcadores vetoriais nítidos em alto contraste em temas Claro e Escuro.
+- Navegação completa por teclado entre cartões, colunas e campos de abas inferiores.
 
-## 8. Componentes
-Canvas (pan/zoom/seleção), TableCard, JoinLine/JoinDialog, ConditionRow/ConditionGroup, SelectionGrid, ViewTabs, SubqueryBreadcrumb, CodeEditor, DataGrid.
+## 10. Componentes
+`QueryBuilderCanvas`, `TableCardNode`, `JoinConnectorLine`, `SelectionTabGrid`, `ConditionBuilderGrid`, `GroupByGrid`, `SubqueryBreadcrumbView`, `SyncSqlEditor`.
 
-## 9. Critérios de aceite
-- Montar um SELECT com 3 tabelas, joins, WHERE, GROUP BY/HAVING e ORDER BY só com mouse, vendo o SQL ao vivo.
-- Edição no texto sincroniza com o diagrama (ou avisa).
-- Execução mostra dados na visão Data; INSERT/UPDATE/DELETE gerados e protegidos.
-- Claro/escuro, teclado, estados loading/erro/sucesso.
+## 11. Critérios de Aceite
+- Permite arrastar tabelas do Database Explorer e criar joins manuais e automáticos baseados em FKs.
+- Seleção de colunas e definições de agregação, ordenação e filtros geram SQL válido e executável.
+- Sincronização em tempo real entre o diagrama visual e a aba Text.
+- Execução do SELECT preenche adequadamente a aba de resultados Data.
 
 ## Textos de interface (referência)
 Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).

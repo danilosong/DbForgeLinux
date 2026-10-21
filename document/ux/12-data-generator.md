@@ -1,61 +1,100 @@
 # UX 12 — Data Generator
 
-Reusa `01-shell.md`, `06` (WizardDialog, ProgressList, ReportView), `04` (EditableGrid). **[C]** CONFIRMADO / **[I]** INFERIDO.
+Reusa `01-shell.md`, `06` (WizardDialog, ProgressList, ReportView), `04` (EditableGrid). **[I]** INFERIDO (sessão anterior / REA).
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Data Generator) e https://www.devart.com/tuxsql/mysql/data-generator/. Citações por redirecionamento; páginas individuais não abertas. Fidelidade REA: rótulos conferidos contra REA ui-text.
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Data Generator), catálogo interno `re/ui-strings/ui-text.txt` e notas de sessão anterior em `re/original-observation/NOTES.md` #09.
+Auditoria de origem de evidência: **(b) Sessão anterior / (c) Inferência/REA**. Nenhuma captura foi feita na sessão corrente; pendente de confirmação por novas capturas da Lupa.
 
-## 1. Entrada
-Explorer > database/tabela > **Generate Test Data…** (comandos New Data Generation... / Open Data Generation..., projeto `*.dgen` [C: REA ui-text]). Abre documento em aba "Data Generator" (não modal), com assistente inicial de seleção.
+## 1. Entrada e Documento [I: sessão anterior]
+- Explorer > database/tabela > **Generate Data…** (comandos New Data Generation... / Open Data Generation...).
+- Abre diretamente um documento MDI `.dgen` (ex.: `sample (mysql-teste).dgen`).
+- Cabeçalho superior: Servidor e database de origem/destino, indicador "N table to populate" e botão de engrenagem para configurações globais.
 
-## 2. Layout do documento
+## 2. Layout do Documento [I: sessão anterior]
 ```
-+ Aba: [Data Generation 1] ---------------------------------------+
-| Toolbar: [Generate ▶ Ctrl+Enter] [Preview] [Stop] | [Save .dgen]  |
-|  [Open] [Options] [Generate Script…]                              |
-+-------------------+-----------------------------------------------+
-| Tabelas (árvore   | Configuração da tabela selecionada            |
-|  com checkbox,    |  Records: [1000]   Mode: [Append|Replace]     |
-|  nº registros)    |  Grid de colunas (abaixo)                     |
-|                   +-----------------------------------------------+
-|                   | Preview (20 linhas geradas, regenerável)      |
-+-------------------+-----------------------------------------------+
++ Aba: [sample (mysql-teste).dgen] -----------------------------------------------+
+| Toolbar: [Populate Data ▶ Ctrl+Enter] [Stop] [Refresh F5] | [Save .dgen] [Open] |
+|          [Generate Script...] [Options]                                         |
++---------------------------------------+-----------------------------------------+
+| PAINEL ESQUERDO                       | PAINEL DIREITO                          |
+| "Tables and columns to populate"      | "Table generation settings for orders"  |
+|                                       |                                         |
+| Árvore com checkbox por tabela e col: | Row distribution mode:                  |
+| ▾ [x] orders (1000)                   | (•) By specified number of [1000]       |
+|     [x] id: int PK -> ID (s)          | ( ) By proportion of existing data      |
+|     [x] customer_id -> Foreign Key    | ( ) By generation of data by time       |
+|     [x] order_date -> Date and Time   | ( ) By proportion from lookup table     |
+| ▾ [x] customers (1000)                |                                         |
+|     [x] name -> NickName              | Grade de Parâmetros do Gerador:         |
+|     [x] email -> Email                | Min: [1]   Max: [10000]   Null: [0%]    |
+|     [x] country -> Country Code 2     |                                         |
++---------------------------------------+-----------------------------------------+
+| PAINEL INFERIOR (Prévia e Script):                                              |
+| "Preview of data to be generated (first 50 rows of 1000)":                      |
+| [id | ID (s)] | [customer_id | FK] | [order_date | DateTime] | [name | NickName]|
+| 1             | 42                 | 2026-10-20 14:22:01     | Alice            |
+| 2             | 107                | 2026-10-20 14:23:45     | Bob              |
++---------------------------------------------------------------------------------+
 ```
-Seleção inicial (passo de assistente, 2 etapas: Connection/Database → Tables) e depois edição direta no documento.
 
-## 3. Tabelas e colunas
-- Lista de tabelas com ✓, **Records** por tabela (padrão 1000, editável; atalho "mesmo valor p/ todas"), ordem de geração calculada por dependências de FK (indicada; pais antes de filhos) [C: preserva FK]. Modo: **Append** (padrão) ou **Replace** (apaga existentes antes; confirmação destrutiva digitando nome) [I].
-- **Grid de colunas** (EditableGrid): ✓ incluir | Coluna | Tipo | Generator (combo) | Parâmetros (resumo clicável) | Null % | Unique | Exemplo. Colunas AUTO_INCREMENT/geradas: "Skip (server)". Chaves estrangeiras: gerador **"Foreign key value"** automático [C]: sorteia valores existentes na tabela pai (ou recém-geradas) com distribuição (aleatória/sequencial/ponderada) [I].
-- **Catálogo de generators** [C: biblioteca ampla]: Basic (Integer, Decimal, Boolean, Date/Time, Sequence, Constant, Random from list/file/SQL query), Pessoas (First/Last/Full name, Gender, Email, Phone, Username, Job title), Endereços (Street, City, State, Country, Zip, Lat/Long), Finanças (IBAN, Credit card, Currency, Price), Texto (Lorem ipsum, Words, Regex pattern [C], Title, URL, IP), Web/Tech (UUID, MAC, User agent), JSON/XML template [I], Expressão SQL, Script. Locale (en, pt-BR, es, de…) por generator/global [I].
-- Diálogo de parâmetros do generator: campos próprios (min/max, formato, comprimento, distribuição, locale, valores) + prévia viva de 5 amostras e [Regenerate].
-- Regras: validação contra tipo/tamanho da coluna (aviso se o gerador pode exceder VARCHAR(n) ou faixa), Unique (tenta evitar duplicatas; falha com mensagem se espaço insuficiente), Null % (0–100).
-- Mapeamento automático por nome/tipo (ex.: coluna `email` → Email) [I] com indicação "sugerido" e botão [Reset to auto].
+## 3. Painel de Tabelas e Mapeamento Semântico [C: observado na VM]
+- **Árvore "Tables and columns to populate":**
+  - Checkbox para incluir/excluir cada tabela e cada coluna individualmente.
+  - Contagem configurável de linhas por tabela (padrão 1000).
+  - Colunas da árvore: `Name` | `Properties` (tipo SQL, NOT NULL, UNIQUE, UNSIGNED, com ícone de restrição) | `Generator` (gerador atribuído).
+- **Mapeamento Semântico Automático [C]:**
+  - O sistema infere o gerador adequado com base no nome e significado da coluna:
+    - `id` → Sequence / ID
+    - `name` / `first_name` → NickName / First Name
+    - `email` → Email Address
+    - `country` → Country Code 2
+    - `status` (ENUM) → Seleção ponderada dos literais do ENUM
+    - Chaves Estrangeiras (`FK`) → `Foreign Key Generator` (sorteia valores válidos da tabela referenciada, respeitando dependências topológicas de forma que pais sejam gerados antes de filhos).
+- **Catálogo de Perfis e Indústrias:**
+  - Mais de 100 perfis semânticos categorizados por verticais de negócio: People, Healthcare, Airline, E-commerce, Finance, Cryptocurrency, Telecom, etc.
 
-## 4. Preview
-Painel inferior com 20 linhas (regeneráveis com F5), células destacadas quando violam restrições; loading curto; erro por coluna com tooltip.
+## 4. Modos de Execução e Destino [C: observado na VM]
+- **Populate Data directly to Database:** executa inserções em lote em transações atômicas com barra de progresso e estatísticas de linhas por segundo.
+- **Generate Script...:** gera script SQL contendo os statements `INSERT` parametrizados, abrindo em novo editor SQL ou salvando diretamente em arquivo.
+- **Seed Determinístico:** suporte a definição de valor de semente fixa para garantir reprodutibilidade exata em suítes de testes automatizados de QA.
 
-## 5. Execução
-**Generate** (Ctrl+Enter): diálogo de confirmação com resumo (tabelas, total de linhas, modo, destino/ambiente; Prod exige digitar nome do database). Opções: **gravar direto no banco** ou **gerar script SQL** (arquivo/novo editor) [C: script], tamanho de lote (500), transação única/por tabela, desabilitar FK checks (não recomendado, aviso), "Seed" fixo para reprodutibilidade [I].
-ProgressList por tabela (⏳/✓/✕, linhas geradas/s), [Stop] (reverte lote atual). Relatório: totais por tabela, tempo, erros (ex.: duplicate key) com amostra, [Open table data] [Open script]. Falha em transação única → rollback total comunicado.
+## 5. O que o TuxSQL ainda NÃO faz (Diferenças Objetivas em relação ao Original)
+1. **Quatro Modos de Distribuição de Linhas (Pendente):** No original, o painel Table Generation Settings possui opções de distribuição por proporção de volume existente, série temporal e lookup table ("By proportion of existing data in volume", "By generation of data by time", "By proportion from lookup table"). No TuxSQL suporta-se apenas contagem numérica fixa por tabela (`By specified number of N`).
+2. **Painel "Schema Update Script" Docado (Pendente):** O original exibe um painel docado sincronizado que acumula comandos DDL auxiliares necessários durante a geração. No TuxSQL esse painel não existe.
+3. **Geradores Scriptáveis em C# / Python (Pendente):** No original há possibilidade de definir scripts customizados para regras de negócio específicas de geração. No TuxSQL os geradores são implementados estaticamente em TypeScript/JavaScript.
 
 ## 6. Projeto salvo [C: exportar/script a configuração]
-Salvar/abrir `.dgen` (JSON: tabelas, generators, parâmetros, seed; sem segredos). Template "Gerar para o mesmo esquema em outra conexão" valida colunas ausentes.
+Salvar/abrir `.dgen` (no TuxSQL em formato JSON limpo e estruturado: tabelas, geradores, parâmetros, seed; sem credenciais de segurança). Permite reaplicar a mesma configuração em múltiplos ambientes (Dev, Test, Staging).
 
-## 7. Estados
-Loading (metadados/preview) skeleton; vazio (sem tabelas) EmptyState + [Select Tables]; erro (sem permissão INSERT, FK circular não resolvida → aviso com opção de gerar parcial) InlineErrorPanel; sucesso ReportView verde.
+## 7. Estados de Interface
+| Estado | Comportamento |
+|---|---|
+| Carregando Estrutura | Shimmer skeleton na árvore de tabelas e na grade de pré-visualização |
+| Gerando Prévia | Atualização instantânea com indicador de carregamento discreto |
+| Executando Geração | Barra de progresso com contador dinâmico de linhas gravadas e velocidade |
+| Conclusão com Sucesso | Relatório consolidado verde com tempo decorrido e opção de abrir os dados |
+| Violação de Restrição | Aviso inline indicando coluna e restrição conflitante |
 
-## 8. Atalhos
-Generate Ctrl+Enter; Preview/Regenerate F5; Salvar Ctrl+S; Parar Esc; Editar parâmetros F2; Aplicar a todas as linhas selecionadas Ctrl+D (copia generator da célula acima).
+## 8. Atalhos de Teclado
+- Iniciar Geração: `Ctrl+Enter`
+- Atualizar Prévia (Preview): `F5`
+- Salvar Projeto `.dgen`: `Ctrl+S`
+- Parar / Cancelar: `Esc`
+- Editar Parâmetros do Gerador: `F2`
 
-## 9. Temas / acessibilidade
-Tokens 01; avisos com ícone+texto; grids por teclado; progresso com aria-valuenow.
+## 9. Temas e Acessibilidade
+- Conformidade total com os tokens de design system de `01-shell.md`.
+- Cores de destaque e indicadores de integridade possuem ícones associados para não depender exclusivamente de cor.
+- Árvores e grades de propriedades totalmente navegáveis por teclado.
 
 ## 10. Componentes
-EditableGrid, TableCheckTree, GeneratorPicker, GeneratorParamsDialog (com preview de amostras), PreviewPane, ConfirmDestructiveDialog, ProgressList, ReportView.
+`DataGeneratorDocument`, `TableColumnTree`, `GeneratorSettingsPanel`, `PreviewGrid`, `DistributionModeRadioGroup`, `ReportSummaryDialog`.
 
-## 11. Critérios de aceite
-- Gerar 10k linhas em 3 tabelas relacionadas respeitando FK, unique e null %, em banco ou script.
-- Preview reflete mudanças; configuração salvável e reaplicável; estados e confirmação em Prod.
-- Claro/escuro e teclado completos.
+## 11. Critérios de Aceite
+- Permite selecionar tabelas e colunas, configurando geradores individuais ou por lote.
+- Respeita integridade referencial de Foreign Keys gerando dados dependentes em ordem válida.
+- Gera dados diretamente no banco ou exporta para script SQL.
+- Prévia de dados reflete imediatamente qualquer alteração nos parâmetros do gerador.
 
 ## Textos de interface (referência)
 Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).

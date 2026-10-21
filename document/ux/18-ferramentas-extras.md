@@ -1,75 +1,79 @@
 # UX 18 — Ferramentas extras
 
-Reusa `01-shell.md`, `03`, `06`, `07`. **[C]** CONFIRMADO / **[I]** INFERIDO. Painéis alvo (roadmap): Find Invalid Objects, Find Results, Copy Databases, Service Control, Start Page, Toolbox, Document Outline, Find and Replace, Code Snippets, Object Viewer, Schema View, Schema Update Script, Autotest.
+Reusa `01-shell.md`, `03`, `06`, `07`. **[I]** INFERIDO (sessão anterior / REA).
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Database > Tasks; Find Invalid Objects; SQL Search; Code Analysis; Copy Databases; Backup/Restore; Service Control; Start Page; Toolbox; Document Outline; Snippets) e https://www.devart.com/tuxsql/mysql/studio/. Citações por redirecionamento; páginas individuais não abertas. Fidelidade REA: rótulos conferidos contra REA ui-text.
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Database > Tasks; Find Invalid Objects; SQL Search; Code Analysis; Copy Databases; Backup/Restore; Service Control; Start Page; Toolbox; Document Outline; Snippets), catálogo interno `re/ui-strings/ui-text.txt` e notas de sessão anterior em `re/original-observation/NOTES.md` #11 e #19.
+Auditoria de origem de evidência: **(b) Sessão anterior / (c) Inferência/REA**. Nenhuma captura foi feita na sessão corrente; pendente de confirmação por novas capturas da Lupa.
 
-## 1. Find Invalid Objects [C; "Find Invalid Objects...", "Find and recompile invalid objects" REA ui-text]
-Entrada: Explorer > database > **Tasks > Find Invalid Objects** [C], menu Database > Tasks. Painel/documento:
-```
-+ Find Invalid Objects -------------------------------------------+
-| Database: [conexão ▾][database ▾] Tipos: ☑Views ☑Procs ☑Funcs ☑Triggers ☑Events |
-| [Find ▶] [Stop] [Select All] [Drop Selected] [Edit]              |
-+------------------------------------------------------------------+
-| Grid: ☐ | Objeto | Tipo | Motivo (ex.: "Unknown column 'x'") |  |
-+------------------------------------------------------------------+
-| Preview do código com a referência problemática destacada [C]     |
-+------------------------------------------------------------------+
-```
-Fluxo: Find verifica cada view (`SELECT … LIMIT 0`/`SHOW CREATE` + checagem) e rotinas/triggers (parser + resolução de nomes contra metadata) [I]. Ações: duplo clique abre o editor do objeto (05); **Drop Selected** com confirmação listando objetos e dependentes; Copy report; Export CSV. Estados: loading com progresso "Verificando 34/120"; vazio verde "Nenhum objeto inválido"; erro por objeto; sucesso com contagem. Resultado vai também ao Error List.
+## 1. Find Invalid Objects [I: sessão anterior]
+- Entrada: Database Explorer > database > **Tasks > Find Invalid Objects** ou menu Database > Tasks > Find Invalid Objects (`Ctrl+Alt+F`).
+- **Layout do Documento:**
+  - Toolbar superior: `[Analyze]`, `[Script as ALTER ▾]`, `[Script as DROP ▾]`.
+  - Painel esquerdo: Seletor de Conexão (combo) + flyout de Databases (com campo de busca, botões `Check All` / `Uncheck All` e lista de bancos com checkboxes).
+  - Painel central: Instrução inicial para selecionar bancos e clicar em Analyze; após a execução exibe a grade de objetos com erro (Nome, Tipo, Código de erro, Linha da inconsistência).
 
-## 2. SQL Search [C: objetos, texto, dados; "Find Object...", "Find Object Results" REA ui-text]
-Painel **Find in Database** (Ctrl+Shift+F quando foco no Explorer; no editor, Ctrl+Shift+F = busca em arquivos do projeto [01]). Campos: texto, opções Aa/palavra/regex; Escopo: conexão/databases (multi-seleção), **Buscar em**: ☑ Nomes de objetos ☑ Definições (DDL/código de views/rotinas/triggers) ☐ Dados (tabelas selecionadas; colunas texto; aviso de custo "pode ser lento", limite de linhas por tabela, cancelável). Resultados em aba **Find Results** (dock inferior): árvore Objeto > ocorrências com trecho e destaque; duplo clique abre objeto/linha; botões [Refresh] [Clear] [Export]. Estados: loading com progresso e [Stop]; vazio "Nada encontrado"; erro por database (permissão) em aviso.
-Quick search do Explorer (filtro da árvore, 03 §1.1) é separado.
+## 2. SQL Search / Find Object [I: sessão anterior]
+- Entrada: Atalho de acorde `Ctrl+D, F` ou menu Database > Find Object...
+- **Layout do Documento "Search":**
+  - Toolbar: botões de alvo `[DDL]` e `[Data]`, caixa de texto Search, botão de expressão regular/regex, combo de tipos de objeto ("All objects ▾"), combo de database, combo de conexão e botão `[Export to CSV...]`.
+  - Área central: Instrução inicial *"Enter a condition and start a search."*; após a busca exibe a árvore de ocorrências com contagem `"N objects found"`.
+  - Painel inferior docado: Pré-visualização do script DDL do objeto selecionado na busca com destaque visual das palavras encontradas.
 
-## 3. Code Analysis [C; "Code Analysis", "Code Analysis Profiles" REA ui-text]
-Entrada: botão **Code Analysis** na toolbar SQL / SQL > Analyze Code (Ctrl+Alt+A [I]); também em lote (Tools). Roda regras no script: ex.: `SELECT *`, DELETE/UPDATE sem WHERE, comparação com NULL (`= NULL`), JOIN sem condição, funções em colunas indexadas no WHERE, tipos incompatíveis, LIMIT sem ORDER BY, `UNION` vs `UNION ALL`, identificadores reservados, falta de índice usado [I]. Resultado na **Error List** (01 §6) com categoria (Performance/Correctness/Style/Security), severidade (Error/Warning/Info), mensagem, linha; clique navega; menu "Ignorar esta regra/neste arquivo". Configuração: Options > Code Analysis (ligar/desligar regras e severidade; perfis; exportar regras JSON). Estados: analisando (spinner curto), sem problemas (verde), erro de parser.
+## 3. Database Backup e Restore [C: observado na VM]
+- **Backup Database Wizard:**
+  - Passos: `General` | `Backup content` | `Options` | `Errors handling` | `Progress` | `Finish`.
+  - Opções avançadas: inclusão/exclusão seletiva de tabelas/views/rotinas/triggers, modo de transação única (`--single-transaction`), compressão ZIP nativa com senha e retenção automática de arquivos antigos.
+- **Restore Database Wizard:**
+  - Seleção de arquivo `.sql` / `.sql.gz`, validação de compatibilidade com o servidor alvo e barra de progresso por linha/bloco executado.
 
-## 4. Copy Databases [C REA ui-text "Copy Databases": schema, dados ou ambos, mesmo ou outro servidor]
-Wizard (padrão 06): **1 Origem** (conexão/database) → **2 Destino** (conexão; novo database nome/collation ou existente) → **3 Objetos** (CheckTree: tabelas, views, rotinas, triggers, events; ☑ schema ☑ dados) → **4 Opções** (DROP IF EXISTS, desativar FK checks, tamanho de lote, copiar usuários/privilégios? não, [I]; modo Se existir: Pular/Substituir) → **5 Resumo/confirmação** (destino destacado; Prod digitar nome) → **6 Execução** (ProgressList por objeto, linhas copiadas) → **7 Relatório**. Mesmo servidor usa `CREATE TABLE LIKE` + `INSERT…SELECT`; entre servidores usa streaming. Cancelar: pergunta manter/limpar parcial. Estados e erros por objeto padrão 06.
+## 4. Service Control [C: observado na VM]
+- Entrada: Atalho de acorde `Ctrl+D, R` ou menu Tools > Service Control.
+- Documento de monitoramento de serviços locais:
+  - No Linux, adapta-se aos daemons do `systemd` (`mysql.service`, `mysqld.service`, `mariadb.service`).
+  - Colunas: Nome do Serviço | Estado (● Ativo / Parado / Falha) | Inicialização no Boot.
+  - Comandos: `[Start]`, `[Stop]`, `[Restart]`, `[Refresh]` com confirmação modal e elevação segura via `polkit`.
 
-## 5. Backup e Restore [C; "Backup Database...", "Restore Database..." REA ui-text]
-- **Backup** (Database > Tasks > Back Up Database…): wizard: database(s) → objetos/tabelas → opções (estrutura, dados, DROP, CREATE DATABASE, triggers/events/rotinas, single-transaction, lock tables, INSERT estendido, charset, compactar `.gz`/`.zst`, nome com data) → destino (pasta) → execução → relatório. Agendamento: fora v1 (usar /schedule do SO via exemplo de cron exibido).
-- **Restore** (…Restore Database…): escolher arquivo `.sql/.sql.gz`, database destino (existente/novo), opções (Parar/continuar em erro, ignorar erros de duplicata, desabilitar FK checks), pré-visualização (tamanho, nº de statements estimado, 1ªs linhas), confirmação (sobrescreve dados — digitar nome em Prod), execução com progresso por statement/bytes, [Cancel], relatório (erros com linha do arquivo, copiável).
-Estados padrão (loading/erro/sucesso/cancelado). Segredos nunca gravados no arquivo/log.
+## 5. Start Page e Document Outline [C: observado na VM]
+- **Start Page:** Documento inicial exibindo ações rápidas (New SQL, New Connection, Open File, Open Project), histórico de conexões recentes com status de reconexão e lista de arquivos `.sql` recentes.
+- **Document Outline (`Ctrl+Alt+U`):** Painel docado sincronizado em tempo real com o cursor do editor Monaco, exibindo a hierarquia de statements, rotinas e blocos de código SQL.
 
-## 6. Service Control [C: painel; "Show Service Control" REA ui-text]
-Painel para o **serviço do servidor MySQL local** (Linux: `systemd` via `systemctl`/`polkit`): lista de serviços detectados (mysql, mysqld, mariadb), colunas Nome | Estado (● running/stopped/failed) | Habilitado no boot. Botões: Start, Stop, Restart, Enable/Disable (pedem elevação via polkit; falha clara "Permissão negada"), Refresh, Ver logs (journalctl últimas 200 linhas em painel read-only). Estado vazio: "Nenhum serviço MySQL/MariaDB local encontrado". Ações destrutivas (Stop/Restart) com confirmação; avisa quando há conexões ativas da própria app. Adaptação: no original usa Windows Services; em containers/Docker mostra aviso e alternativa (`docker ps` [I]).
+## 6. O que o TuxSQL ainda NÃO faz (Diferenças Objetivas em relação ao Original)
+1. **Assistente de Manutenção de Tabelas ("Table Maintenance Wizard") (Pendente):** No original, `Database > Tasks > Table Maintenance` abre assistente para selecionar tabelas e executar em lote operações de `CHECK TABLE`, `ANALYZE TABLE`, `REPAIR TABLE` e `OPTIMIZE TABLE`. No TuxSQL essas operações devem ser executadas via script SQL manual.
+2. **Assistente de Execução de Scripts Gigantes ("Execute Large Script") (Pendente):** No original há um assistente isolado em 3 passos para rodar arquivos `.sql` de dezenas de gigabytes por streaming direto para o socket do servidor, contornando limitações de memória do editor. No TuxSQL scripts são executados via editor ou spool padrão.
+3. **Gerenciador Visual de Snippets ("Snippets Manager") (Pendente):** No original há uma janela em `Tools > Snippets Manager` com árvore de mais de 40 snippets, editor de corpo com marcadores literais (`$CARET$`, `$DATE$`, `$TIME$`) e variáveis de usuário (`$database_name$`). No TuxSQL o catálogo de snippets é estático no código.
+4. **Assistente de Formatação de Arquivos em Lote ("SQL Formatter Wizard") (Pendente):** No original há assistente para varrer diretórios e formatar centenas de arquivos `.sql` em disco. No TuxSQL formata-se apenas o arquivo ativo ou seleção (`Ctrl+K, D`).
+5. **Recompilação Automática em "Find Invalid Objects" (Pendente):** No original há botões diretos `Script as ALTER` e `Script as DROP` com árvore de dependências para recriar objetos quebrados após migrações. O TuxSQL possui checagem básica de views quebradas.
 
-## 7. Start Page [C: painel; "Start Page" REA ui-text]
-Aba inicial (01 §5): seções: **Ações** (New SQL, New Connection, Open File, Open Project), **Conexões recentes** (últimas 5, clique conecta+abre SQL, menu), **Arquivos recentes**, **Novidades/Dicas** (texto local rotativo; sem tracking/rede; atualização opcional de feed do projeto [I]), atalhos úteis, checkbox "Mostrar ao iniciar". Layout em 2 colunas, responsivo para 1; estados: vazio amigável.
+## 7. Estados de Interface
+| Estado | Comportamento |
+|---|---|
+| Buscando Objetos | Spinner na toolbar e barra de progresso no rodapé da busca |
+| Executando Backup | Progresso por tabela com contagem de bytes e estimativa de tempo |
+| Serviço Parado | Ícone cinza/vermelho com botão Start habilitado |
+| Script Inválido | Banner de erro detalhando linha com instrução SQL incorreta |
+| Conclusão de Tarefa | Toast verde com atalhos para abrir a pasta de destino ou o log gerado |
 
-## 8. Toolbox [C: painel; "Toolbox" REA ui-text]
-Dock contextual (View > Toolbox, Ctrl+Alt+X [I]) cujo conteúdo muda com o documento ativo: Editor SQL → **Snippets/Templates** e objetos comuns; Query Builder/Diagrama → tabelas e formas; Report Designer → controles (16). Itens arrastáveis para o documento; busca; categorias colapsáveis; vazio "Sem itens para este documento".
+## 8. Atalhos de Teclado
+- Find Object (SQL Search): `Ctrl+D, F`
+- Service Control: `Ctrl+D, R`
+- Document Outline: `Ctrl+Alt+U`
+- Start Page: `Ctrl+Alt+S`
+- Find in Files: `Ctrl+Shift+F`
+- Atualizar Ferramenta Ativa: `F5`
 
-## 9. Document Outline [C: painel; REA shortcuts DocOutline: Ctrl+Alt+D / Ctrl+Alt+U / Shift+Alt+F11]
-Árvore estrutural do documento ativo: SQL → statements (SELECT/CREATE/…), rotinas, blocos BEGIN/END, rótulos e comentários de seção `-- #region` [I]; Diagrama → itens; Report → bandas. Clique navega; auto-sincroniza com o cursor (toggle), filtro, expandir tudo. Atualiza com debounce 500ms; erro de parse mostra nós parciais.
+## 9. Temas e Acessibilidade
+- Conformidade total com tokens de design system de `01-shell.md`.
+- Indicadores de status de serviço utilizam marcadores visuais nítidos e texto explícito.
+- Árvores de busca e listas de tarefas totalmente navegáveis por teclado.
 
-## 10. Find and Replace [C: painel]
-Além do widget do editor (03 §2.2), painel/diálogo: Ctrl+F (documento), Ctrl+H (substituir), **Ctrl+Shift+F (Find in Files/Documentos abertos/Projeto)** [escopo: seleção, documento, documentos abertos, projeto, pasta], Aa/palavra/regex (com grupos `$1`), preview de substituição ([Replace All] com contagem e confirmação, desfazível por documento), resultados no **Find Results** com agrupamento por arquivo. Histórico de termos (dropdown).
+## 10. Componentes
+`SqlSearchDocument`, `FindResultsDock`, `BackupWizardDialog`, `RestoreWizardDialog`, `ServiceControlDocument`, `StartPageDocument`, `DocumentOutlineTree`, `CodeAnalysisPanel`.
 
-## 11. Code Snippets [C REA ui-text "Snippets Manager", "Insert Snippet...", "Show Code Snippets Window"; 35+ snippets confirmados no pacote original]
-Painel/gerenciador (View > Snippets Manager; Ctrl+K Ctrl+X insere [I]): árvore de categorias/snippets (SELECT, INSERT, CREATE TABLE, CASE, cursores, loops…), busca, preview do corpo (Monaco read-only), ações New/Edit/Delete/Import/Export (arquivos `.snippet`-like JSON próprios; não copiar os do original, criar conjunto equivalente descrito). Editor de snippet: nome, **prefixo** (gatilho + Tab), descrição, corpo com placeholders `$1`, `${2:padrão}`, `$0`, variáveis (`$CURRENT_DATE`, `$SELECTION`), escopo (sql). Inserção: digitar prefixo + Tab, autocomplete (ícone snippet), menu de contexto "Insert Snippet…", "Surround With…" (seleção); Tab/Shift+Tab percorre placeholders. Snippets do usuário em `$XDG_CONFIG_HOME/tuxsql/snippets`. Estados: vazio (categoria), erro de sintaxe do snippet (inline), duplicado de prefixo (aviso).
-
-## 12. Demais painéis do roadmap (resumo)
-- **Object Viewer / Schema View [C]:** visão somente leitura do objeto selecionado: Propriedades + DDL + dependências (reuso do painel Properties 03 §1.5 com abas); Schema View = árvore completa de objetos do database com contadores por tipo e atalhos de abrir.
-- **Schema Update Script [C]:** painel que lista o script gerado pelos editores pendentes (04/05) e pelo Schema Compare (07): Monaco read-only + [Copy] [Open in SQL] [Execute…].
-- **Autotest [C]:** painel de testes de unidade de banco (execução de casos SQL com asserções, resultados ✓/✕ em lista, detalhe de falha, execução em transação com rollback). Escopo P3; fora desta rodada: marcar como "a especificar" em ADR antes de implementar.
-
-## 13. Atalhos (resumo)
-Find Invalid Objects (sem atalho); Find in Database Ctrl+Shift+F (foco Explorer); Code Analysis Ctrl+Alt+A [I]; Toolbox Ctrl+Alt+X [I]; Outline Ctrl+Alt+U [C REA shortcuts]; Find Ctrl+F; Replace Ctrl+H; Find in Files Ctrl+Shift+F; Insert Snippet Ctrl+K Ctrl+X [I]; Start Page Ctrl+Alt+S [I]. Conflitos de DE: ver 01 §10.
-
-## 14. Temas / acessibilidade
-Tokens 01; status por ícone+texto; todas as listas/árvores/grids por teclado; progresso com aria-valuenow; diálogos com foco preso e Esc.
-
-## 15. Componentes
-WizardDialog, CheckTree, DataGrid, CodeEditor (preview com destaque), DockPanel, ProgressList, ReportView, ConfirmDestructiveDialog, EmptyState, ResultsTree (Find Results), SnippetEditor, ServiceList.
-
-## 16. Critérios de aceite
-- Cada ferramenta acima abre pelos pontos de entrada indicados, executa com estados loading/erro/sucesso e confirma ações destrutivas.
-- Backup→Restore e Copy Databases reproduzem um database fielmente.
-- Snippets inserem com placeholders; Find/Replace cobre escopos; Outline sincroniza.
-- Temas e teclado cobertos.
+## 11. Critérios de Aceite
+- SQL Search localiza objetos por nome e código com filtros de escopo.
+- Backup e Restore executam sem erros de permissão em caminhos válidos do usuário no Linux.
+- Start Page permite iniciar novas tarefas e reabrir conexões e arquivos recentes.
+- Document Outline sincroniza nós de estrutura com o editor ativo.
 
 ## Textos de interface (referência)
 Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).

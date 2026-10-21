@@ -1,82 +1,91 @@
 # UX 16 — Data Viewer, Pivot, Master-Detail e Report Designer
 
-Reusa `01-shell.md`, `03` (DataGrid), `06` (export). **[C]** CONFIRMADO / **[I]** INFERIDO.
+Reusa `01-shell.md`, `03` (DataGrid), `06` (export). **[I]** INFERIDO (sessão anterior / REA).
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Data Editor; Pivot Table; Master-Detail Browser; Data Report) e https://www.devart.com/tuxsql/mysql/studio/data-reports.html, .../pivot-table.html. Citações por redirecionamento; páginas individuais não abertas. Fidelidade REA: rótulos conferidos contra REA ui-text.
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Data Editor; Pivot Table; Master-Detail Browser; Data Report), catálogo interno `re/ui-strings/ui-text.txt` e notas de sessão anterior em `re/original-observation/NOTES.md` #18.
+Auditoria de origem de evidência: **(b) Sessão anterior / (c) Inferência/REA**. Nenhuma captura foi feita na sessão corrente; pendente de confirmação por novas capturas da Lupa.
 
-## 1. Data Viewer [C: painel; "Data Viewer" / "Show Data Viewer" REA ui-text]
-Painel dock que mostra o conteúdo **da célula selecionada** no grid (Table Data/resultado). Abas: **Text**, **Hex**, **Image**, **JSON**, **XML**/HTML [I]. Auto-detecta tipo; seletor manual. Texto: Monaco read-only com quebra de linha opcional, busca, copy; Hex: offset|bytes|ASCII, 16 por linha; Image: zoom/fit/ rotate, dimensões e tamanho; JSON: árvore colapsável + pretty; modo edição (se grid editável): [Apply to cell] [Revert], Load from file…/Save to file… (BLOB, via portal GTK). Estados: vazio "Selecione uma célula"; loading de BLOB grande (skeleton + [Cancel]); erro de decodificação ("Não é uma imagem válida – exibindo Hex"); limite de preview (ex.: 10 MB; [Carregar tudo]).
+## 1. Data Viewer [I: painel; REA ui-text]
+Painel docado que mostra o conteúdo **da célula selecionada** no grid (Table Data/resultado de consulta).
+- Abas de exibição: **Text**, **Hex**, **Image**, **JSON**, **XML/HTML** e **Spatial** (para tipos geométricos).
+- Auto-detecção do formato do dado ou seleção manual pelo usuário.
+- Suporte a edição direta para tipos BLOB (carregar arquivo binário do disco via portal de arquivos / salvar em arquivo).
 
-## 2. Pivot Table [C: no grid; "Build Pivot Table", "Drag Items to the Pivot Table" REA ui-text]
-Entrada: aba/botão **Pivot** na visão de resultado/Table Data (Result | Pivot) [C], ou menu de contexto "Show as Pivot Table".
-```
-+ Pivot ----------------------------------------------------------+
-| Campos disponíveis (lista) |  Zonas: Filter | Columns | Rows | Data |
-|  ☐ Region  ☐ Year  ☐ Sales |  [Region]  [Year]   [Product] [SUM(Sales)] |
-+----------------------------+--------------------------------------+
-| Tabela dinâmica (grid): cabeçalhos agrupados, totais/subtotais     |
-+--------------------------------------------------------------------+
-```
-- Arrastar campos da lista para as 4 zonas (ou menu de contexto do campo: Add to Rows/Columns/Data/Filter); reordenar; remover com ✕. Teclado: seleção na lista + Alt+1..4 [I].
-- Funções de agregação no Data: Sum, Count, Avg, Min, Max, StdDev, Distinct Count; formatos numéricos; "% do total/linha/coluna" [I].
-- Agrupamento de datas (ano/trimestre/mês/dia) e de números (intervalos) [C REA ui-text: grupo por data, por intervalos numéricos e por primeira letra]; ordenar por campo/valor; filtro por valores (dropdown com checklist e busca) no cabeçalho do campo; expandir/recolher grupos (+/−), totais e totais gerais (liga/desliga).
-- Cálculo é **local** sobre o resultado carregado; aviso se resultado truncado ("Dados parciais: 1000 de 54.000 linhas [Carregar todos]").
-- Exportar (CSV/XLSX/HTML) e **Gráfico**: botão [Chart] ("Show Chart" / "Open Chart Designer" [C REA ui-text]) cria gráfico (barras, linhas, pizza, área, empilhado) a partir do pivot [I]; opções de título, legenda, cores (tokens), exportar PNG/SVG.
-Estados: vazio EmptyState "Arraste campos para as zonas"; loading ao carregar todos; erro de memória/limite (aviso e sugestão de filtrar); sucesso.
+## 2. Pivot Table [I: sessão anterior]
+- **Entrada e Documento:**
+  - Documento MDI `PivotTable1.sql` (ou aba na visão de resultados do grid).
+  - Toolbar superior: `[Refresh]`, `[Edit SQL Text]`, Seletor de Conexão, Filtro, Formatação, `[Show Chart]`.
+  - Vistas inferiores: `[Pivot Table]  [+]`.
+- **Canvas com Áreas Dropáveis [I]:**
+  - Quatro áreas retangulares com bordas pontilhadas e textos explicativos:
+    - `"Drop Filter Fields Here"` (filtros globais).
+    - `"Drop Column Fields Here"` (cabeçalhos de coluna dinâmicos).
+    - `"Drop Row Fields Here"` (agrupamentos de linhas).
+    - `"Drop Data Items Here"` (campos numéricos agregados com SUM, COUNT, AVG, MIN, MAX).
+    - `"Grand Total"` (totais gerais de linha e coluna).
+  - Dica central: *"You can drag database objects from Database Explorer here, design SQL query or write it manually."*
+  - Painel lateral direito: Lista de campos disponíveis com botão `[Add To ▾]`.
+  - Agrupamento temporal inteligente para datas (por ano, trimestre, mês ou dia).
 
-## 3. Master-Detail Browser [C; "Master-Detail Browser", "Browse master-detail data", arquivo `*.mdet` REA ui-text; atualizar = BrowseData F5 REA shortcuts]
-Entrada: Explorer > tabela > "Master-Detail Browser" ou menu SQL/Data > New Master-Detail. Documento em aba.
-```
-+ Aba: [Master-Detail: customers] --------------------------------+
-| Toolbar: [Refresh][Add Detail][Remove Detail][Layout: ▤ ▥][Edit] |
-+------------------------------------------------------------------+
-| Master grid (customers)  [filtro]                                 |
-+------------------------------------------------------------------+
-| Abas de detalhe: [orders (FK)] [addresses (FK)] [+ custom…]       |
-|  Detail grid filtrado pela linha selecionada do master            |
-+------------------------------------------------------------------+
-```
-Master = tabela/consulta; detalhes = automaticamente tabelas com FK para a master (e **relações virtuais** do 10) [C parcial]; adicionar detalhe manual (escolher tabela + colunas de ligação). Detalhes aninhados (detalhe do detalhe) em abas internas/ expansão por linha [I]. Selecionar linha master dispara carga do detalhe (loading skeleton no grid de detalhe, cancelável). Edição permitida segundo regras 03 §4.4 com Apply por grid. Layout horizontal/vertical alternável. Estados: vazio detalhe "Sem registros relacionados"; erro por detalhe isolado (não afeta master).
+## 3. Master-Detail Browser [I: sessão anterior]
+- **Entrada e Documento:**
+  - Documento MDI `MasterDetail1.mdet`.
+  - Menu contextual de topo: **Layout**.
+  - Toolbar: `[Refresh]` (`F5`), `[Browse Data]`, `[Set Master]`, `[Select all columns]`, `[Unselect all columns]`, `[Sort Ascending]`, Zoom combo (`100% ▾`).
+  - Vistas inferiores do documento: `[Design]  [Data]`.
+- **Comportamento [C]:**
+  - Canvas inicial com instrução: *"You can drag objects from Database Explorer here."*
+  - Ao arrastar duas ou mais tabelas vinculadas por Foreign Key, a relação Mestre-Detalhe é mapeada automaticamente.
+  - Na aba **Data**, a seleção de um registro na grade mestre filtra instantaneamente as grades filhas correspondentes.
 
-## 4. Data Report [C: WYSIWYG, wizard]
-### 4.1 Wizard "Data Report Wizard" [C REA ui-text: "New Data Report Wizard...", "Blank Data Report", "Design in Report Wizard..."; arquivo `*.rdb` no original]
-Passos: **1 Tipo** (Standard, Master-Detail, Pivot [I], Em branco) → 2 Dados (consulta SQL/tabelas/view; parâmetros) → 3 Campos (selecionar, ordem) → 4 Layout (tabular/colunar/lista; agrupamento; resumos) → 5 Estilo (modelos, página A4/Letter, orientação, margens) → 6 Concluir (abre no designer). 
-### 4.2 Report Designer (documento em aba) [C: WYSIWYG; "Report Designer..." REA ui-text]
-```
-+ Aba: [Report1 (Designer)] --------------------------------------+
-| Toolbar: [Preview][Save][Export ▾][Print] | [Undo][Redo] | zoom   |
-|  | alinhar/distribuir | fonte/negrito/cor | bordas             |
-+-----------+-----------------------------------+------------------+
-| Toolbox   | Página (réguas, guias, bandas:    | Properties /     |
-| (controles| Report Header, Page Header, Group | Field List /     |
-|  arraste) | Header, Detail, Group Footer,     | Report Explorer  |
-|           | Page Footer, Report Footer)       |                  |
-+-----------+-----------------------------------+------------------+
-| Abas base: [Designer][Preview][Script*]                           |
-+------------------------------------------------------------------+
-```
-- **Toolbox:** Label, Field (campo de dados `[coluna]`), Table, Picture, Line, Shape, Chart, Barcode [I], Page Info (nº/total, data), Rich Text, Sub-report, Check box.
-- Bandas por arrastar; propriedades (fonte, cor, formato, visibilidade condicional, expressão de formatação, alinhamento, bordas, quebra de página); Field List com colunas da consulta + parâmetros + variáveis de resumo; expressões (soma, contagem, média por grupo/relatório).
-- Grupos e totais; formatação condicional (regra → estilo); parâmetros com diálogo de entrada ao visualizar.
-- **Preview:** paginação, navegação (setas/primeira/última/ir para), zoom, busca no texto, atualizar dados; [Export] PDF, HTML, XLSX, DOCX [I], CSV, imagem; [Print] via CUPS (diálogo do SO).
-- Arquivo `.dbrep` (JSON/XML próprio) [I]; modelos incluídos. Sem formato proprietário do original.
-Estados: designer loading; erro de consulta (banner + [Editar consulta]); preview gerando (progresso por página); sucesso exportando (toast + [Abrir]).
+## 4. Data Report e Report Wizard [C: observado na VM]
+- **Assistente "Data Report Wizard":**
+  - Tela inicial: *"Welcome to the Data Report Wizard"*.
+  - Tipos de Relatório:
+    - `(•) Standard Report` (relatório colunar/tabular padrão).
+    - `( ) Label Report` (etiquetas postais / código de barras).
+    - `( ) Blank Report` (documento em branco para desenho livre).
+  - Botão `[Save Command Line...]` para automatizar a geração de relatórios via linha de comando.
+- **Report Designer (Superfície WYSIWYG):**
+  - Divisão de bandas de impressão: `Report Header`, `Page Header`, `Group Header`, `Detail`, `Group Footer`, `Page Footer`, `Report Footer`.
+  - Toolbox lateral de componentes: Label, Field, Table, Picture, Line, Shape, Chart, Page Info, Rich Text.
+  - Painel de Propriedades com controle de réguas, margens e fontes.
+  - Aba de **Preview** com paginação, zoom e exportação para PDF, HTML, XLSX e CSV.
 
-## 5. Atalhos
-Pivot toggle Ctrl+Alt+V [I]; Chart Ctrl+Shift+H [I]; Master-Detail refresh F5; Designer: Salvar Ctrl+S, Preview F5, Desfazer/Refazer Ctrl+Z/Y, Alinhar Ctrl+Shift+setas [I], Zoom Ctrl+roda, Duplicar Ctrl+D; Data Viewer: Copiar Ctrl+C, Buscar Ctrl+F.
+## 5. O que o TuxSQL ainda NÃO faz (Diferenças Objetivas em relação ao Original)
+1. **Designer Gráfico WYSIWYG de Relatórios em Bandas (Pendente):** No original há um ambiente vetorial de diagramação de relatórios com réguas milimétricas, divisão em 7 bandas e toolbox de controles arrastáveis. O TuxSQL executa exportações tabulares analíticas diretas, sem o editor visual de layouts de impressão.
+2. **Documento MDI .mdet Master-Detail Interativo (Pendente):** No original há o documento dedicado `.mdet` para desenhar visualmente relações mestre-detalhe com atualização síncrona de grids filhas. No TuxSQL grids filhas operam de forma independente.
+3. **Canvas de Pivot Table com Áreas Dropáveis (Pendente):** No original as colunas e linhas da tabela dinâmica são arrastadas para caixas visuais no canvas ("Drop Fields Here"). No TuxSQL o cálculo de pivots é executado via rotinas analíticas em memória (`quickPivot`), sem a interface gráfica drag-and-drop.
+4. **Assistente Step-by-Step de Relatórios ("Data Report Wizard") (Pendente):** O original guia a criação de relatórios em etapas com escolha de templates. O TuxSQL foca nas ferramentas de exportação padrão do grid.
 
-## 6. Temas / acessibilidade
-Tokens 01; relatório (página) mantém fundo branco no designer independentemente do tema (WYSIWYG), com moldura temática; gráficos usam paleta com contraste e padrões/rótulos para daltonismo; pivot e grids por teclado; designer oferece Report Explorer em árvore (alternativa ao canvas).
+## 6. Estados de Interface
+| Estado | Comportamento |
+|---|---|
+| Pivot Vazio | Painel com áreas delimitadas e convite para arrastar campos da lista lateral |
+| Calculando Agregações | Shimmer skeleton na grade dinâmica com indicador de cálculo |
+| Master sem Detalhe Selecionado | Grade detalhe exibe mensagem neutra "No related records for current selection" |
+| Erro de Sintaxe na Consulta do Relatório | Alerta impeditivo no assistente de relatório com link para editar a consulta SQL |
+| Exportando Relatório | Diálogo modal com barra de progresso por página gerada |
 
-## 7. Componentes
-DataViewerTabs, PivotFieldList, PivotZones, PivotGrid, ChartView, MasterDetailLayout, DetailTabs, WizardDialog, DesignerSurface (bandas/réguas), ControlToolbox, PropertyGrid, FieldList, ReportExplorer, PreviewPaginated, ExportDialog.
+## 7. Atalhos de Teclado
+- Atualizar Dados: `F5`
+- Salvar Documento / Template: `Ctrl+S`
+- Alternar Visualização Designer / Preview: `Ctrl+Shift+P`
+- Desfazer / Refazer no Designer: `Ctrl+Z` / `Ctrl+Y`
+- Duplicar Elemento Selecionado: `Ctrl+D`
 
-## 8. Critérios de aceite
-- Data Viewer mostra texto/hex/imagem/JSON da célula e salva/carrega BLOB.
-- Pivot por arrastar-e-soltar com agregações, filtros, totais e gráfico a partir de um resultado.
-- Master-Detail navega relações FK/virtuais com detalhes sob demanda.
-- Report Designer cria relatório com agrupamento/total via wizard, edita no designer WYSIWYG, visualiza e exporta PDF/HTML/XLSX.
-- Estados, temas, teclado cobertos.
+## 8. Temas e Acessibilidade
+- Conformidade total com os tokens de design system de `01-shell.md`.
+- No modo Report Designer a folha de impressão mantém fundo branco para garantir fidelidade de cores de saída (WYSIWYG), com bordas contrastantes no tema escuro.
+- Tabelas dinâmicas e grades totalmente acessíveis via teclado com navegação por setas e anúncio de cabeçalhos hierárquicos.
+
+## 9. Componentes
+`DataViewerDock`, `PivotCanvas`, `DropZoneContainer`, `PivotSummaryGrid`, `MasterDetailDocument`, `CascadeDataGrid`, `ReportDesignerSurface`, `BandLayoutDivider`, `ReportToolbox`.
+
+## 10. Critérios de Aceite
+- Cálculo correto de agregações e totais em dados agrupados por dimensões categóricas e temporais.
+- Exportação de dados do pivot para CSV, HTML e PDF funcional e sanitizada.
+- Data Viewer decodifica e exibe conteúdos de texto, hexadecimal, JSON e imagens com suporte a leitura e gravação de BLOBs.
 
 ## Textos de interface (referência)
 Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas parafraseadas).

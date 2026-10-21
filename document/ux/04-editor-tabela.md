@@ -1,7 +1,6 @@
-# UX 04 — Table Editor
+# UX 04 — Table Editor e Grid de Edição de Dados
 
-**Fidelidade REA:** rótulos conferidos contra REA ui-text. **[C]** (REA ui-text): Edit Table, Columns, Foreign Keys, Check Constraints, Triggers, Options:, Engine:, Character set:, Collation:, Allow Nulls, Auto Increment, Add Column, Add Primary Key/Foreign Key/Check Constraint/Unique Key, Referenced Table:, Referenced Columns:, Apply Changes, Discard Changes. Validação "A column name field cannot be empty." **[C]**. Atalho Properties = F4 **[C] (REA shortcuts)**; DeleteColumn = Delete **[C]**. Nomes de páginas Indexes/Partitions/DDL, Preview DDL e atalhos Ctrl+Alt+D permanecem **[I]** (ver `fidelidade-parts/A.md`).
-
+**Fidelidade REA:** rótulos conferidos contra REA ui-text e **observação direta da VM de referência `dbforge-ref`** (dbForge Studio for MySQL v2026.2.82, capturas em `re/original-observation/04-sql-editor/resultado.png` e `NOTES.md` #04, #08, #18). **[C]** (REA ui-text): Edit Table, Columns, Foreign Keys, Check Constraints, Triggers, Options:, Engine:, Character set:, Collation:, Allow Nulls, Auto Increment, Add Column, Add Primary Key/Foreign Key/Check Constraint/Unique Key, Referenced Table:, Referenced Columns:, Apply Changes, Discard Changes. Validação "A column name field cannot be empty." **[C]**. Atalho Properties = F4 **[C] (REA shortcuts)**; DeleteColumn = Delete **[C]**. Nomes de páginas Indexes/Partitions/DDL, Preview DDL e atalhos Ctrl+Alt+D permanecem **[I]** (ver `fidelidade-parts/A.md`).
 
 Reusa tokens/componentes de `01-shell.md`; abre como documento em aba (ícone tabela). Entrada: Explorer > Tabela > "Edit Table" (Enter/F4 com foco na tabela) ou Create > Table (modo novo).
 
@@ -29,7 +28,7 @@ Campos de topo (acima das páginas): Name (obrigatório, ≤64 chars), Database 
 
 Modelo de edição: alterações ficam **pendentes** (não vão ao servidor) até Apply. Aba mostra "•"; células/linhas alteradas ganham destaque (novo=verde 15%, alterado=âmbar 15%, removido=vermelho 15% riscado — tokens status.*).
 
-## 2. Páginas
+## 2. Páginas do Editor de Tabela
 
 ### 2.1 Columns
 Grid editável (mesmo DataGrid de 03): colunas da grade:
@@ -70,11 +69,30 @@ Seletor "Partition by": None | RANGE | LIST | HASH | KEY | LINEAR HASH/KEY + exp
 ### 2.8 DDL
 Editor Monaco somente leitura. Alterna: **CREATE TABLE** (estado atual completo) e **ALTER TABLE (alterações pendentes)** (modo padrão em tabelas existentes). Botões: Copy, Open in SQL Editor, Save to file. Atualiza com debounce de 300ms; indicador "Calculando…" curto; erro de validação → painel substitui por lista de problemas ("Corrija 2 erros para ver o DDL").
 
-### 2.9 Data
-Embute o grid Table Data de 03 §4.4 (mesmas regras de edição e Apply separado). Aviso se há alterações de estrutura pendentes: "Aplique a estrutura antes de editar dados" (grid em read-only até lá).
+### 2.9 Data (Grid de Edição Inline) [C: observado na VM]
+Embute o grid Table Data de 03 §4.4 com suporte a:
+- **Modos de Visualização:**
+  - Grade clássica horizontal tabular (linhas e colunas com redimensionamento e reordenação).
+  - Modo Cartão Vertical (**Card View**): exibe registro individual verticalmente, facilitando análise de tabelas largas com 50+ colunas.
+- **Edição Inline de Células:**
+  - `F2` ou duplo-clique entra no modo edição.
+  - Inserção de nova linha via `Ctrl+Insert`.
+  - Exclusão via `Delete`.
+  - Atribuição de valor nulo com `Set NULL` ou atalho `Ctrl+0`.
+  - Destaque cromático por estado: verde (novos registros), âmbar (células modificadas), vermelho riscado (linhas marcadas para exclusão).
+- **Apply Changes (`Ctrl+S`) e Discard:**
+  - Operação atômica em transação contra o servidor.
+  - Rollback e restauração de valores originais em caso de erro (ex.: chave duplicada).
+- **Segurança e Bloqueio de Edição (Read-only):**
+  - Tabelas sem chave primária ou consultas derivadas (`JOIN`) recebem banner explícito: "Table has no primary key: direct editing is disabled".
 
-## 3. Apply Changes (fluxo)
+## 3. O que o TuxSQL ainda NÃO faz no Grid (Diferenças Objetivas em relação ao Original)
+1. **Visualizador Espacial GIS Vetorial (Pendente):** No original, a aba "Spatial" do Cell Viewer renderiza mapas vetoriais interativos para colunas geométricas (`GEOMETRY`, `POINT`, `POLYGON`). No TuxSQL os dados são apresentados em formato textual WKT ou binário Hex.
+2. **Tabela Dinâmica Integrada (Pivot Table interativa no grid) (Pendente):** No original há um modo dinâmico onde colunas e linhas podem ser arrastadas para cruzar dados diretamente sobre o resultado da consulta. No TuxSQL o cálculo de agrupamentos analíticos ocorre via utilitário `quickPivot`, mas sem o canvas visual drag-and-drop.
+3. **Navegação Síncrona Master-Detail no Grid (Pendente):** O original permite conectar duas tabelas por chave estrangeira em painéis superior e inferior síncronos (clicar em um cliente carrega automaticamente seus pedidos). O TuxSQL renderiza grids independentes.
+4. **Construtor Visual de Filtros Complexos (Pendente):** O original possui uma janela de diálogo com construtor em árvore para operadores lógicos (AND, OR, NOT, BETWEEN, IN) aplicados ao grid. O TuxSQL aplica filtros rápidos por texto e operadores básicos de coluna.
 
+## 4. Apply Changes (fluxo)
 1. Ctrl+S / Apply: valida; erros bloqueiam e focam o primeiro.
 2. Diálogo "Apply Changes" com o ALTER gerado (somente leitura), checkbox "Executar em uma transação quando possível" (nota: DDL do MySQL faz commit implícito), avisos destrutivos (DROP COLUMN, redução de tamanho/tipo → "Pode causar perda de dados", MODIFY em tabela grande → "pode bloquear a tabela"), botões [Apply] [Copy SQL] [Cancel]. Conexão Prod: exige digitar o nome da tabela.
 3. Loading: botão "Applying…" + progresso indeterminado; cancelamento não disponível após envio (nota).
@@ -83,8 +101,7 @@ Embute o grid Table Data de 03 §4.4 (mesmas regras de edição e Apply separado
 Fechar com pendências: diálogo Save/Discard/Cancel. Tabela alterada externamente (detectado no Refresh/Apply): banner âmbar "A tabela mudou no servidor. [Recarregar] [Manter minhas alterações]".
 Modo "Create": botão rotulado "Create Table"; DDL = CREATE TABLE.
 
-## 4. Estados
-
+## 5. Estados
 | Estado | Comportamento |
 |---|---|
 | Loading estrutura | Skeleton nas páginas + spinner na aba |
@@ -94,8 +111,7 @@ Modo "Create": botão rotulado "Create Table"; DDL = CREATE TABLE.
 | Pendente | "•" na aba, Apply/Discard habilitados |
 | Sucesso | toast + limpar destaques |
 
-## 5. Atalhos
-
+## 6. Atalhos
 | Ação | Atalho |
 |---|---|
 | Apply | Ctrl+S |
@@ -107,13 +123,13 @@ Modo "Create": botão rotulado "Create Table"; DDL = CREATE TABLE.
 | Preview DDL | Ctrl+Alt+D |
 | Refresh | F5 |
 
-## 6. Temas e acessibilidade
+## 7. Temas e acessibilidade
 Tokens de 01 §9; destaques por mistura status.* a 15%; legendas não dependem só de cor (ícones +, ✎, ✕ na primeira coluna). Grades navegáveis por teclado (role grid), erros ligados por aria-describedby.
 
-## 7. Componentes
-SideNavTabs, EditableGrid (com validação por célula), MasterDetailList (lista + detalhe), TypeCombo, ColumnPicker, SplitPreview (DDL), ApplyChangesDialog, DependencyWarningDialog, Banner, InlineErrorPanel, Skeleton (todos de 01/03 quando existentes).
+## 8. Componentes
+SideNavTabs, EditableGrid (com validação por célula), MasterDetailList (lista + detalhe), TypeCombo, ColumnPicker, SplitPreview (DDL), ApplyChangesDialog, DependencyWarningDialog, Banner, InlineErrorPanel, Skeleton.
 
-## 8. Critérios de aceite
+## 9. Critérios de aceite
 - Todas as páginas editam o modelo pendente e o DDL ALTER/CREATE reflete cada mudança em até 300ms.
 - Validações listadas bloqueiam o Apply com mensagem inline.
 - Apply mostra SQL, avisos destrutivos e tem estados loading/sucesso/erro; falha não perde pendências.
