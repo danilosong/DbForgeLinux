@@ -1,10 +1,10 @@
 import { execFile } from 'node:child_process'
-import { chmod, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
+import { chmod, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 import { afterEach, describe, expect, it } from 'vitest'
-import { GitRepository, addProjectFile, createProject, exportSchemaToFolder, openProject, writeProjectScript } from '../../src/modules/source-control/index.js'
+import { GitRepository, addProjectFile, cloneRepository, createProject, exportSchemaToFolder, linkProject, openProject, projectFileStatuses, readProjectScripts, writeProjectScript } from '../../src/modules/source-control/index.js'
 import type { DatabaseModel } from '../../src/modules/schema/model.js'
 
 const run = promisify(execFile)
@@ -84,5 +84,51 @@ describe('source control module', () => {
     expect(report).toEqual({ written: ['tables/orders.sql', 'views/order_view.sql'], errors: [] })
     expect(await readFile(join(folder, 'tables/orders.sql'), 'utf8')).toContain('CREATE TABLE')
     expect(await readFile(join(folder, 'views/order_view.sql'), 'utf8')).toContain('CREATE VIEW')
+  })
+
+  it('links a database to a dedicated/shared project without storing connection secrets', async () => {
+    const folder = await temp()
+    await createProject(folder, 'Commerce scripts')
+    const linked = await linkProject(folder, 'Commerce scripts', 'conn-1', 'Dev MySQL', 'commerce', 'dedicated')
+    expect(linked.linkedDatabase).toEqual({ connectionId: 'conn-1', connectionName: 'Dev MySQL', database: 'commerce', model: 'dedicated' })
+    const persisted = await readFile(join(folder, '.dbproj.json'), 'utf8')
+    expect(persisted).not.toMatch(/password|secret|credential/i)
+    await linkProject(folder, 'Commerce scripts', 'conn-1', 'Dev MySQL', 'commerce', 'shared')
+    expect((await openProject(folder)).linkedDatabase?.model).toBe('shared')
+  })
+
+  it('clones only into a new destination and blocks remote actions when no remote is configured', async () => {
+    const origin = await temp()
+    await git(origin, 'init', '-b', 'main')
+    await git(origin, 'config', 'user.name', 'Test User')
+    await git(origin, 'config', 'user.email', 'test@example.com')
+    await mkdir(join(origin, 'tables'), { recursive: true })
+    await writeFile(join(origin, 'tables', 'orders.sql'), 'CREATE TABLE orders (id INT);\n')
+    await git(origin, 'add', '--', 'tables/orders.sql')
+    await git(origin, 'commit', '-m', 'Add order table')
+    const parent = await temp()
+    const destination = join(parent, 'clone')
+    await cloneRepository(origin, destination)
+    const repository = new GitRepository(destination)
+    expect(await repository.hasRemote()).toBe(true)
+    expect((await repository.status()).branch).toBe('main')
+    const localOnly = await temp(); const noRemote = new GitRepository(localOnly)
+    await noRemote.initialize()
+    expect(await noRemote.hasRemote()).toBe(false)
+    await expect(noRemote.pull(true)).rejects.toThrow(/remote/i)
+    await expect(noRemote.push(true)).rejects.toThrow(/remote/i)
+  })
+
+  it('groups project scripts by object folder and reads only listed safe scripts for preview', async () => {
+    const folder = await temp()
+    await createProject(folder, 'Explorer project')
+    await writeProjectScript(folder, 'tables/orders.sql', 'CREATE TABLE orders (id INT);')
+    await writeProjectScript(folder, 'procedures/rebuild.sql', 'CALL rebuild();')
+    const files = await projectFileStatuses(folder)
+    expect(files.map(({ category, path, state }) => [category, path, state])).toEqual([
+      ['tables', 'tables/orders.sql', 'clean'], ['procedures', 'procedures/rebuild.sql', 'clean']
+    ])
+    expect(await readProjectScripts(folder, ['tables/orders.sql'])).toEqual([{ path: 'tables/orders.sql', contents: 'CREATE TABLE orders (id INT);' }])
+    await expect(readProjectScripts(folder, ['../outside.sql'])).rejects.toThrow(/belong to this project/)
   })
 })

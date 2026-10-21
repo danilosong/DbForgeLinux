@@ -4,12 +4,12 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { promisify } from 'node:util'
 import { createTable } from '../schema/ddl.js'
 import type { DatabaseModel, SchemaObject } from '../schema/model.js'
-import type { ExportSchemaReport, ProjectMetadata, RepositoryBranch, RepositoryCommit, RepositoryStatus, WorkingChange } from './types.js'
+import type { ExportSchemaReport, ProjectFileStatus, ProjectMetadata, RepositoryBranch, RepositoryCommit, RepositoryStatus, WorkingChange } from './types.js'
 
 const execFileAsync = promisify(execFile)
 const maxBuffer = 16 * 1024 * 1024
 
-export type { ExportSchemaReport, ProjectMetadata, RepositoryBranch, RepositoryCommit, RepositoryStatus, SourceControlState, WorkingChange } from './types.js'
+export type { ExportSchemaReport, ProjectFileStatus, ProjectMetadata, RepositoryBranch, RepositoryCommit, RepositoryStatus, SourceControlState, WorkingChange } from './types.js'
 
 export class GitRepository {
   constructor(readonly path: string) {}
@@ -32,6 +32,7 @@ export class GitRepository {
     return { root, branch, ahead, behind, changes, conflicted: changes.some((change) => change.state === 'conflicted') }
   }
   async diff(file?: string, staged = false): Promise<string> {
+    if (file) await projectFilePath(this.path, file)
     if (file && !staged) {
       const status = await this.status()
       if (status.changes.some((change) => change.path === file && change.state === 'untracked')) {
@@ -49,6 +50,7 @@ export class GitRepository {
     const cleanMessage = message.trim()
     if (!cleanMessage) throw new Error('Informe a commit message.')
     if (!files.length) throw new Error('Selecione ao menos um arquivo para commit.')
+    for (const file of files) await projectFilePath(this.path, file)
     await this.git('add', '--', ...files)
     await this.git('commit', '-m', cleanMessage)
     const log = await this.git('log', '-1', '--format=%H%x1f%an%x1f%ae%x1f%aI%x1f%s')
@@ -80,14 +82,54 @@ export class GitRepository {
     if (!confirmed) throw new Error('Confirme a exclusão da branch.')
     await this.git('branch', '-d', '--', name)
   }
-  async fetch(): Promise<void> { await this.git('fetch', '--all', '--prune') }
-  async pull(): Promise<void> { await this.git('pull', '--ff-only') }
-  async push(): Promise<void> { await this.git('push') }
-  async log(limit = 50): Promise<RepositoryCommit[]> {
+  async hasRemote(): Promise<boolean> { return Boolean((await this.git('remote')).trim()) }
+  async fetch(): Promise<void> { if (!await this.hasRemote()) throw new Error('Configure a remote repository before fetching.'); await this.git('fetch', '--all', '--prune') }
+  async pull(confirmed = false): Promise<void> { if (!confirmed) throw new Error('Confirm before pulling remote changes.'); if (!await this.hasRemote()) throw new Error('Configure a remote repository before pulling.'); await this.git('pull', '--ff-only') }
+  async push(confirmed = false): Promise<void> { if (!confirmed) throw new Error('Confirm before pushing changes.'); if (!await this.hasRemote()) throw new Error('Configure a remote repository before pushing.'); await this.git('push') }
+  async log(limit = 50, file?: string): Promise<RepositoryCommit[]> {
     const count = Math.max(1, Math.min(200, Math.floor(limit)))
-    const raw = await this.git('log', `-${count}`, '--format=%H%x1f%an%x1f%ae%x1f%aI%x1f%s')
+    if (file) await projectFilePath(this.path, file)
+    const raw = await this.git('log', `-${count}`, '--format=%H%x1f%an%x1f%ae%x1f%aI%x1f%s', '--', ...(file ? [file] : []))
     return raw.split('\n').filter(Boolean).map(parseCommit)
   }
+}
+
+export async function cloneRepository(url: string, destination: string): Promise<void> {
+  const cleanUrl = url.trim()
+  if (!cleanUrl || cleanUrl.startsWith('-') || /[\r\n\0]/.test(cleanUrl)) throw new Error('Enter a valid repository URL.')
+  const target = resolve(destination)
+  try { await access(target); throw new Error('The clone destination already exists.') } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
+  await execFileAsync('git', ['-c', 'core.hooksPath=/dev/null', '-c', 'core.fsmonitor=false', '-c', 'protocol.ext.allow=never', 'clone', '--', cleanUrl, target], { encoding: 'utf8', maxBuffer, shell: false, env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_CONFIG_NOSYSTEM: '1' } })
+}
+
+export async function linkProject(root: string, name: string, connectionId: string, connectionName: string, database: string, model: 'dedicated' | 'shared'): Promise<ProjectMetadata> {
+  let project: ProjectMetadata
+  try { project = await openProject(root) } catch { project = await createProject(root, name) }
+  project.linkedDatabase = { connectionId, connectionName, database, model }
+  await writeProjectMetadata(project.root, project)
+  return project
+}
+
+export async function projectFileStatuses(root: string): Promise<ProjectFileStatus[]> {
+  const project = await openProject(root)
+  let changes: WorkingChange[] = []
+  try { changes = (await new GitRepository(root).status()).changes } catch { /* folders can be source projects before git init */ }
+  const stateByPath = new Map(changes.map((change) => [change.path, change.state]))
+  const paths = [...new Set([...project.files, ...changes.map((change) => change.path)])].filter((path) => path.toLowerCase().endsWith('.sql'))
+  return paths.map((path) => ({ path, category: path.split('/')[0] ?? 'scripts', state: stateByPath.get(path) ?? 'clean' }))
+}
+
+export async function readProjectScripts(root: string, files: string[]): Promise<Array<{ path: string; contents: string }>> {
+  const project = await openProject(root)
+  const results: Array<{ path: string; contents: string }> = []
+  for (const file of [...new Set(files)]) {
+    if (!project.files.includes(file)) throw new Error('Select scripts that belong to this project.')
+    const target = await projectFilePath(project.root, file)
+    const info = await lstat(target)
+    if (!info.isFile()) throw new Error('Project scripts must be regular files.')
+    results.push({ path: file, contents: await readFile(target, 'utf8') })
+  }
+  return results
 }
 
 export function parseChange(record: string): WorkingChange {
