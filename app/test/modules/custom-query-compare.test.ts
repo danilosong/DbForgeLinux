@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { compareCustomQueryRows, validateCustomCompareQuery } from '../../src/modules/data-compare/custom-query.js'
+import { boundCustomCompareQuery, compareCustomQueryRows, validateCustomCompareQuery } from '../../src/modules/data-compare/custom-query.js'
 
 describe('custom query Data Compare', () => {
   it('matches rows by explicit keys and reports different and one-sided records', () => {
@@ -30,5 +30,13 @@ describe('custom query Data Compare', () => {
     expect(validateCustomCompareQuery('SELECT id FROM items;')).toBe('SELECT id FROM items')
     expect(() => validateCustomCompareQuery('SELECT 1; DELETE FROM items')).toThrow(/read-only/i)
     expect(() => validateCustomCompareQuery('UPDATE items SET id = 2')).toThrow(/read-only/i)
+  })
+
+  it('blocks SELECT side effects and adds a database-side row cap', () => {
+    expect(() => validateCustomCompareQuery("SELECT * FROM t INTO OUTFILE '/tmp/export'" )).toThrow(/read-only/i)
+    expect(() => validateCustomCompareQuery('SELECT id FROM t FOR UPDATE')).toThrow(/read-only/i)
+    expect(() => validateCustomCompareQuery('SELECT SLEEP(60)')).toThrow(/read-only/i)
+    expect(boundCustomCompareQuery('SELECT id FROM items')).toContain('LIMIT 50001')
+    expect(boundCustomCompareQuery('WITH rows AS (SELECT 1 AS id) SELECT id FROM rows')).toContain('LIMIT 50001')
   })
 })

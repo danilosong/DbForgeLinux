@@ -9,8 +9,14 @@ import { ResultSpoolRegistry } from '../db/ResultSpool.js'
 import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 import { describeGridResult } from './grid-editing.js'
+import { validateSystemOpenPath, type SystemOpenKind } from '../security/systemOpenPath.js'
 const openedSqlFiles = new Map<number, Set<string>>()
 export function registerSqlIpc({driver,resolveConnectionConfig,userDataDir}:IpcDeps):void {
+ ipcMain.handle('file:open-in-system',async(_event,path:string,kind:SystemOpenKind)=>{
+  if(kind!=='file'&&kind!=='folder')throw new Error('Unsupported system open target.')
+  const target=await validateSystemOpenPath(path,kind);const error=await shell.openPath(target);if(error)throw new Error(error);return target
+ })
+ const floatingSqlWindows = new Map<string, BrowserWindow>()
  ipcMain.handle('file:reveal-path',(_event,path:string)=>{if(!path.trim())throw new Error('Path is required.');shell.showItemInFolder(resolve(path))})
  const resultSpools=new ResultSpoolRegistry(join(userDataDir,'query-results'))
  const spoolCleanup=resultSpools.cleanStaleFiles().catch(()=>{})
@@ -74,11 +80,23 @@ export function registerSqlIpc({driver,resolveConnectionConfig,userDataDir}:IpcD
   paths.add(dest)
   return dest
  })
- ipcMain.handle('document:float-sql', async (_event, title: string, contents: string) => {
-  if (typeof title !== 'string' || title.length > 180 || typeof contents !== 'string' || Buffer.byteLength(contents, 'utf8') > 1_000_000) throw new Error('Floating SQL document is invalid or too large.')
-  const escapeHtml = (value: string): string => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;')
-  const window = new BrowserWindow({ width: 860, height: 620, title, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true } })
-  const html = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${escapeHtml(title)}</title><style>body{margin:0;padding:16px;background:#1e1e1e;color:#ddd;font:14px system-ui}h1{font-size:16px;margin:0 0 12px}pre{white-space:pre-wrap;overflow:auto;font:13px ui-monospace,monospace}</style><h1>${escapeHtml(title)}</h1><pre>${escapeHtml(contents)}</pre>`
-  await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+ ipcMain.handle('document:float-sql', async (_event, documentId: string, title: string, contents: string) => {
+  if (typeof documentId !== 'string' || documentId.length > 128 || typeof title !== 'string' || title.length > 180 || typeof contents !== 'string' || Buffer.byteLength(contents, 'utf8') > 1_000_000) throw new Error('Floating SQL document is invalid or too large.')
+  const existing = floatingSqlWindows.get(documentId)
+  if (existing && !existing.isDestroyed()) { existing.focus(); return }
+  const window = new BrowserWindow({ width: 860, height: 620, title, webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true, nodeIntegration: false, sandbox: true } })
+  floatingSqlWindows.set(documentId, window)
+  window.on('closed', () => { if (floatingSqlWindows.get(documentId) === window) floatingSqlWindows.delete(documentId) })
+  const hash = `float-sql?doc=${encodeURIComponent(documentId)}&title=${encodeURIComponent(title)}&contents=${encodeURIComponent(contents)}`
+  await window.loadFile(join(__dirname, '../renderer/index.html'), { hash })
+ })
+ ipcMain.handle('document:float-change', (event, documentId: string, contents: string) => {
+  if (typeof documentId !== 'string' || typeof contents !== 'string' || Buffer.byteLength(contents, 'utf8') > 1_000_000) throw new Error('Floating SQL update is invalid or too large.')
+  const floating = floatingSqlWindows.get(documentId)
+  if (floating && floating.webContents.id === event.sender.id) {
+   for (const candidate of BrowserWindow.getAllWindows()) if (!candidate.isDestroyed() && candidate !== floating) candidate.webContents.send('document:float-update', documentId, contents)
+  } else if (floating && !floating.isDestroyed()) {
+   floating.webContents.send('document:float-update', documentId, contents)
+  }
  })
 }

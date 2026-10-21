@@ -76,7 +76,16 @@ A tela de relatório preview usa as linhas retornadas pelo limite do carregament
 | 29 | Parcial implementado | Restore tem três etapas, confirmação de destino e Save Command Line: grava script mysql com quoting shell, modo 0700 e prompt de senha. Smoke verifica o conteúdo sem executar a restauração. |
 | 30 | UI comprovada, backend adaptado para teste seguro | Smoke e2e percorre Link/Progress/Finish nos modelos Dedicated e Shared usando diretório descartável com `.git` e handlers IPC simulados; nenhum comando Git é executado conforme a regra da tarefa. O backend real continua coberto por testes de módulo existentes, não executados nesta rodada por invocarem Git. |
 
-A trilha de startup foi adicionada como marca de renderização/pintura e observação de long tasks; isso não equivale a um perfil completo de CPU/memória. Smoke e2e comprova a janela nativa Float para cópia de leitura do SQL e o arraste de aba atribui orientação visual comum às duas abas. Edição sincronizada no Float e visualização simultânea dos grupos em painéis divididos continuam pendentes.
+A trilha de startup foi adicionada como marca de renderização/pintura e observação de long tasks; isso não equivale a um perfil completo de CPU/memória. A primeira versão do Float abria uma cópia de leitura e os grupos marcavam somente orientação. O follow-up abaixo implementa sincronismo editável e painéis reais, com editor leve na divisão.
+
+## Follow-up — Shell split e Explorer regex
+
+| Gap | Estado | Evidência nesta rodada |
+|---|---|---|
+| Grupos de abas em painéis simultâneos | Implementado | Arrastar uma aba sobre outra abre um segundo painel com seletor independente. O painel é editável e compartilha o rascunho com o editor principal para o mesmo documento. Smoke verifica edição na divisão e leitura do texto na aba principal. |
+| Multi-split sincronizado | Implementado com editor leve na divisão | A ação Split view abre o documento selecionado em dois painéis; o painel secundário edita o mesmo estado React controlado pelo editor principal. Grupos horizontais/verticais determinam a orientação. A divisão usa textarea para reduzir o custo de uma segunda instância Monaco. |
+| Float sincronizado | Implementado | Janela flutuante carrega a mesma rota do renderer e recebe/sinaliza alterações por IPC com schema runtime e validação de origem. Smoke verifica abertura, conteúdo e propagação da edição para a janela principal. |
+| Filtro avançado do Explorer | Implementado | O filtro aceita Regex e Case sensitive em conexões e nomes de objetos. Testes cobrem correspondência, sensibilidade e expressão inválida; smoke filtra a conexão descartável por regex. |
 
 ## Rodada de implementação — gaps 31–33
 
@@ -88,6 +97,18 @@ A trilha de startup foi adicionada como marca de renderização/pintura e observ
 
 O compare por Custom Queries exige uma chave explícita e aceita apenas um SELECT/WITH de leitura por lado. Ele não gera DML de sincronização; a prévia de diferenças fica disponível para análise.
 
+## Follow-up — Pivot Chart e Bookmarks/Outlining do editor
+
+| Área | Estado | Verificação e comportamento atual |
+|---|---|---|
+| Pivot Chart | Implementado | O chart mantém a escolha de tipo (barras, linhas, pizza, área ou barras empilhadas), exporta SVG e agora reconstrói a projeção com debounce após alterações nas zonas de campos, hierarquia ou agregação. Uma resposta antiga de cálculo não substitui a configuração mais recente. Teste unitário troca o campo de linha e verifica que os rótulos mudam. |
+| Bookmarks SQL | Implementado | Marcadores ficam presos ao modelo/documento Monaco, acompanham mudanças de linha por decorações e Previous/Next agora posicionam o cursor e fazem wrap-around. Toggle/Clear continuam no menu Edit e no contexto do editor; chords continuam centralizados no keymap. |
+| Outlining SQL | Implementado | Toggle All alterna entre dobrar e expandir; Start Automatic Outlining e Stop Outlining aplicam os estados correspondentes ao modelo ativo. Ctrl+M,M continua alternando a dobra sob o cursor. |
+
 ## Tasks Explorer e acessibilidade dos assistentes
 
 O Tasks Explorer é um dock em View e reabre o assistente associado à tarefa recente. A persistência grava apenas tipo, título, detalhe limitado e data; não armazena SQL, senha, caminho local ou arquivo selecionado. Os projetos de backup e templates de Import/Export continuam sendo carregados dentro dos respectivos assistentes, mas ainda não aparecem como itens separados no Tasks Explorer. A barra de Find Invalid Objects e o grupo de seleção de bancos foram reorganizados para navegação por teclado e leitores de tela.
+
+### Gap 15 — Finish e abertura das saídas
+
+O bloco Finish comum agora é usado por Import/Export, Backup/Restore, Documenter e Link Database to Source Control. Saídas de arquivo exibem **Open file** e **Open folder** via IPC `file:open-in-system`; o processo principal valida caminho absoluto, tipo regular, existência e ausência de symlink antes de chamar `shell.openPath` (integração do Electron com o abridor do sistema, incluindo `xdg-open` em Linux). Restore sem arquivo de saída mostra o relatório sem ações de abertura. Os demais painéis de execução imediata ainda apresentam o relatório no próprio painel e não têm uma etapa Finish própria; o gap fica parcialmente implementado até que esses fluxos ganhem uma etapa final comum.

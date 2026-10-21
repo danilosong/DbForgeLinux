@@ -719,6 +719,8 @@ const editorCommandPtBr = {
 }
 Object.assign(enMessages, editorCommandEn)
 Object.assign(ptBrMessages, editorCommandPtBr)
+Object.assign(enMessages, { 'assistant.finish.title': 'Finish', 'assistant.finish.openFile': 'Open file', 'assistant.finish.openFolder': 'Open folder', 'assistant.finish.openError': 'Could not open this path in the system.', 'assistant.finish.noRun': 'No operation has run yet.' })
+Object.assign(ptBrMessages, { 'assistant.finish.title': 'Concluir', 'assistant.finish.openFile': 'Abrir arquivo', 'assistant.finish.openFolder': 'Abrir pasta', 'assistant.finish.openError': 'Não foi possível abrir este caminho no sistema.', 'assistant.finish.noRun': 'Nenhuma operação foi executada.' })
 Object.assign(ptBrCatalog, editorCommandPtBr)
 Object.assign(enMessages, {
   'backup.wizard.includeStructure': 'Include structure', 'backup.wizard.includeDefiner': 'Include DEFINER', 'backup.wizard.includeDrop': 'Include DROP statements', 'backup.wizard.dropIfExists': 'Use IF EXISTS in DROP', 'backup.wizard.includeUse': 'Include USE database statement', 'backup.wizard.noAutoValueOnZero': 'Include NO_AUTO_VALUE_ON_ZERO', 'backup.wizard.lockTables': 'Lock selected tables for read', 'backup.wizard.flushLogs': 'Flush logs before dump', 'backup.wizard.totalObjects': 'Total objects', 'backup.wizard.openScript': 'Open script in editor'

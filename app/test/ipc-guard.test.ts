@@ -29,6 +29,7 @@ describe('IPC runtime guard', () => {
     expect(() => validateIpcArguments('db:execute', ['connection', 'SELECT 1', 'x', 'demo', 'extra'])).toThrow(/expects/)
     expect(() => validateIpcArguments('service-control:action', ['mysqld.service', 'delete'])).toThrow(/allowed value/)
     expect(() => validateIpcArguments('file:open-sql-path', ['../../etc/passwd'])).toThrow(/absolute path/)
+    expect(() => validateIpcArguments('file:open-in-system', ['/tmp/output.csv', 'command'])).toThrow(/allowed/)
     expect(() => validateIpcArguments('source-control:write-script', ['/tmp/repo', '../escape.sql', 'SELECT 1'])).toThrow(/confined relative path/)
     expect(() => validateIpcArguments('sessions:kill', ['connection', [17], 'query', false])).toThrow(/confirmation/)
     expect(() => validateIpcArguments('db:execute', ['connection', 'x'.repeat(20 * 1024 * 1024 + 1)])).toThrow(/size limit/)

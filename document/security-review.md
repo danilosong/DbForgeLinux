@@ -155,6 +155,46 @@ Revisão de segurança dos comandos do editor, importação para tabela nova, do
 
 Resumo da Rodada 3: BLOCKER 0; HIGH 0; MEDIUM 2 corrigidos; LOW 0 novos.
 
+## Rodada 4
+
+Revisão focada em Float, grupos de abas, consultas personalizadas do Data Compare, Tasks Explorer e Restore Command Line. Nenhuma operação Git foi executada e não houve conexão a databases de referência.
+
+### HIGH — Consultas personalizadas podiam escrever arquivo no servidor e exceder o limite antes da verificação
+
+- **FINDING:** a validação de SELECT bloqueava DML, mas aceitava `SELECT ... INTO OUTFILE/DUMPFILE`; além disso, o limite de 50.000 linhas era verificado só depois que a consulta terminava e já havia sido armazenada.
+- **LOCATION:** `app/src/modules/data-compare/custom-query.ts`; execução em `app/src/renderer/src/ui/panels/data-compare/Panel.tsx`.
+- **EXPECTED:** custom query deve continuar somente leitura e impor o limite de linhas no SQL enviado ao servidor.
+- **ACTUAL:** `INTO`, funções de lock/carga de arquivo e funções de espera são recusados após mascarar literais/comentários; a consulta validada é envolvida por um SELECT externo com `LIMIT 50001`, preservando a detecção de excesso.
+- **EVIDENCE:** regressões em `app/test/modules/custom-query-compare.test.ts` cobrem OUTFILE, `FOR UPDATE`, SLEEP, CTE e o limite externo.
+- **SEVERITY:** HIGH — corrigido.
+
+### MEDIUM — Abrir saída do assistente no sistema permitia caminhos sem conferência de tipo
+
+- **FINDING:** a abertura via `shell.openPath` não verificava se o destino ainda existia, se era arquivo/pasta do tipo pedido, nem se o caminho atravessava symlink.
+- **LOCATION:** `app/src/main/security/systemOpenPath.ts`, canal `file:open-in-system` e `documenter:open`.
+- **EXPECTED:** validar caminho absoluto existente, tipo regular esperado e ausência de symlinks antes de chamar a integração do sistema.
+- **ACTUAL:** o helper usa `lstat`, `realpath` e `stat`; o IPC valida enum e schema, e o Documenter usa a mesma validação.
+- **EVIDENCE:** `app/test/systemOpenPath.test.ts` cobre arquivo, pasta, caminho ausente, tipo incorreto e symlink; `app/test/ipc-guard.test.ts` rejeita tipo de destino inválido.
+- **SEVERITY:** MEDIUM — corrigido.
+
+### LOW — Texto livre do Tasks Explorer podia persistir rótulos óbvios de credenciais
+
+- **FINDING:** títulos e detalhes de tarefa são texto fornecido pelo renderer e persistem em `userData`; embora não haja campo de senha nem caminho/SQL selecionado, uma chamada podia incluir um par `token=...` ou `password=...`.
+- **LOCATION:** `app/src/main/modules/tasks/RecentTasksStore.ts`.
+- **EXPECTED:** manter somente metadata curta e remover credenciais rotuladas antes de persistir.
+- **ACTUAL:** texto segue limitado/normalizado e rótulos comuns de password, token, secret, API key e credential são substituídos por `[redacted]`; campos fora da allowlist continuam descartados.
+- **EVIDENCE:** `app/test/modules/tasks-ipc.test.ts` verifica redação de token e API key e ausência de campo de senha adicional no arquivo persistido.
+- **SEVERITY:** LOW — corrigido; valores secretos sem rótulo inseridos manualmente no texto permanecem indistinguíveis de nomes/detalhes comuns.
+
+### Superfícies conferidas sem achado adicional confirmado
+
+- **Float:** título e SQL são escapados para HTML; tamanho é limitado, a janela usa sandbox/context isolation sem Node e a atualização do texto passa por canal de documento limitado.
+- **Grupos de abas:** orientação e identidade de documentos ficam no estado do renderer; não há execução de comando nem persistência de payload externo nessa funcionalidade.
+- **Restore Command Line:** o script usa quoting POSIX de cada argumento, redireciona o arquivo selecionado e deixa a senha para o prompt do cliente MySQL; o arquivo é salvo com modo `0700`. Testes cobrem aspas e caminhos com espaços e confirmam ausência de credencial.
+- **Risco residual de custom query:** a validação é lexical e não consegue provar que uma função definida pelo usuário no servidor não tenha efeito colateral ou custo excessivo; execute consultas somente em servidores e contas confiáveis.
+
+Resumo da Rodada 4: BLOCKER 0; HIGH 1 corrigido; MEDIUM 1 corrigido; LOW 1 corrigido com risco residual descrito.
+
 ## Rodada 2
 
 Revisão dos módulos updater, archive, grid, snippets/toolbox, SQL Formatter, Execute Large Script, Find Object, Documenter, Data Report/Pivot, Schema Compare e contratos IPC. Nenhum achado BLOCKER foi confirmado. Dois achados HIGH foram corrigidos nesta rodada; os riscos restantes estão listados abaixo.

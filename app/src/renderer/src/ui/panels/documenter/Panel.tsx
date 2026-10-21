@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import type { GeneratedDocumentation, WrittenDocumentation } from '../../../../../modules/documenter/index.js'
 import type { DocumentFormat } from '../../../../../modules/documenter/index.js'
 import { usePanelConnection } from '../registry'
+import AssistantFinish from '../../components/AssistantFinish.js'
 
 const localDateTime = (): { date: string; stamp: string } => {
   const now = new Date(); const pad = (value: number): string => String(value).padStart(2, '0')
@@ -84,7 +85,7 @@ export default function Panel(): React.JSX.Element {
       <div><button disabled={!connectionId || !database} onClick={() => void previewDoc()}>{t('panel.documenter.m697fa19667')}</button> <button className="button-primary" disabled={busy || !connectionId || !database || !directory.trim() || !formats.length} onClick={() => void generate()}>{busy ? t('documenter.generating') : t('documenter.generate')}</button></div>
     </fieldset>
     {preview && <details open><summary>{t('panel.documenter.m48be62c9c8')}</summary><iframe title={t('panel.documenter.m772c9aea69')} srcDoc={preview.html} style={{ width: '100%', height: 260, border: '1px solid var(--border)' }} /><pre>{preview.markdown.slice(0, 1800)}</pre></details>}
-    {result && <p role="status">{t('panel.documenter.mace24bede7')} {Object.values(result).filter(Boolean).join(' · ')}</p>}{error && <p role="alert">{error}</p>}
+    {result && <AssistantFinish summary={<p role="status">{t('panel.documenter.mace24bede7')} {Object.values(result).filter(Boolean).join(' · ')}</p>} paths={Object.values(result).filter((path): path is string => Boolean(path))} onError={setError} />}{error && <p role="alert">{error}</p>}
     <style>{`.documenter-panel{display:flex;flex-direction:column;gap:10px;overflow:auto}.documenter-panel header h2{margin:0}.documenter-panel header p{margin:4px 0;color:var(--text-secondary)}.documenter-panel fieldset{border:1px solid var(--border);border-radius:5px;padding:10px}.documenter-panel legend{font-weight:600}.documenter-panel label{display:inline-flex;align-items:center;gap:6px;margin:5px 12px 5px 0}.documenter-panel fieldset>label{display:flex;max-width:650px}.documenter-panel fieldset>label input:not([type=checkbox]),.documenter-fields input,.documenter-fields textarea{flex:1;min-width:120px}.documenter-fields{display:grid;grid-template-columns:repeat(2,minmax(220px,1fr));gap:4px 12px}.documenter-fields label{display:flex}.documenter-formats{display:flex;gap:12px}.documenter-panel details{margin-top:8px}.documenter-panel pre{max-height:220px;overflow:auto}`}</style>
   </section>
 }

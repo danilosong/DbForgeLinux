@@ -95,13 +95,14 @@ try {
   const panel = page.getByTestId('report-pivot-panel')
   await panel.waitFor({ state: 'visible' })
   await panel.locator('.rp-query-label button').click()
-  await panel.locator('textarea').fill(`SELECT region, amount FROM \`${table}\``)
+  await panel.locator('textarea').fill(`SELECT id, region, amount FROM \`${table}\``)
 
   for (let iteration = 0; iteration < repeats; iteration += 1) {
     phase = `report/pivot/card render cycle ${iteration + 1}/${repeats}`
     await panel.getByRole('button', { name: 'Load query fields' }).click()
     await page.waitForFunction(() => document.querySelector('[data-testid="report-query-state"]')?.getAttribute('data-state') === 'ready' && document.querySelector('[data-testid="report-pivot-panel"]')?.getAttribute('aria-busy') === 'false', null, { timeout: 20_000 })
     await panel.getByLabel('Zone for region').selectOption('rows')
+    await panel.getByLabel('Zone for id').selectOption('none')
     await panel.getByLabel('Zone for amount').selectOption('values')
     await panel.getByLabel('Aggregation for amount').selectOption('sum')
     await panel.getByRole('button', { name: 'Build Pivot Table' }).click()
@@ -123,6 +124,9 @@ try {
     await chart.locator('svg[role="img"]').waitFor({ state: 'visible' })
     await page.waitForFunction(() => { const svg = document.querySelector('[data-testid="pivot-chart"] svg'); const box = svg?.getBoundingClientRect(); return Boolean(svg && box && box.width > 0 && box.height > 0 && svg.querySelectorAll('rect, path, polyline, circle').length > 0) })
     if (iteration === 0) await captureThemePair('pivot-chart')
+    await panel.getByLabel('Zone for region').selectOption('none')
+    await panel.getByLabel('Zone for id').selectOption('rows')
+    await chart.locator('svg text').filter({ hasText: 'id: 1' }).waitFor({ state: 'visible', timeout: 20_000 })
     await panel.getByRole('button', { name: 'Hide Chart' }).click()
     await chart.waitFor({ state: 'detached' })
 

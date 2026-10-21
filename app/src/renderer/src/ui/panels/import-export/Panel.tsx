@@ -7,6 +7,7 @@ import { usePanelConnection, usePanelNavigation } from '../registry'
 import { exportFormats, importFormats, unsupportedExportFormats, unsupportedImportFormats } from './formats.js'
 import { getSelectedGridRows, subscribeSelectedGridRows } from '../../components/gridSelection.js'
 import { buildCreateTableSql, inferImportColumns, type InferredColumn } from '../../../../../modules/data-export-import/inference.js'
+import AssistantFinish from '../../components/AssistantFinish.js'
 
 type Direction = 'export' | 'import'
 function sqlIdentifier(value: string): string { return `\`${value.replaceAll('`', '``')}\`` }
@@ -44,7 +45,7 @@ export default function Panel(): React.JSX.Element {
   const [databases, setDatabases] = useState<string[]>([]); const [selectedDatabase, setSelectedDatabase] = useState(''); const [sourceObjects, setSourceObjects] = useState<DatabaseObject[]>([]); const [selectedSources, setSelectedSources] = useState<string[]>([]); const [sourceSearch, setSourceSearch] = useState('')
   const [dataTypes, setDataTypes] = useState<Record<string, 'String' | 'Integer' | 'Float' | 'DateTime' | 'HexString'>>({})
   const [formatCategory, setFormatCategory] = useState<'all' | 'formats' | 'templates'>('all')
-  const [step, setStep] = useState(0); const [busy, setBusy] = useState(false); const [message, setMessage] = useState(''); const [report, setReport] = useState(''); const [jobId, setJobId] = useState(() => crypto.randomUUID()); const [progress, setProgress] = useState<{ phase: string; rows: number; bytes?: number } | null>(null); const [templates, setTemplates] = useState<ImportExportTemplate[]>([])
+  const [step, setStep] = useState(0); const [busy, setBusy] = useState(false); const [message, setMessage] = useState(''); const [report, setReport] = useState(''); const [resultPaths, setResultPaths] = useState<string[]>([]); const [jobId, setJobId] = useState(() => crypto.randomUUID()); const [progress, setProgress] = useState<{ phase: string; rows: number; bytes?: number } | null>(null); const [templates, setTemplates] = useState<ImportExportTemplate[]>([])
   const steps = direction === 'export' ? exportSteps : importSteps
   useEffect(() => { setSelectedGridRows(getSelectedGridRows().rows); return subscribeSelectedGridRows((_columns, rows) => setSelectedGridRows(rows)) }, [])
   const formats = direction === 'export' ? exportFormats : importFormats
@@ -59,7 +60,7 @@ export default function Panel(): React.JSX.Element {
     return true
   }, [direction, step, query, sourceFile, table, mapping, mode, keys, rowMode, selectedGridRows, destinationMode, selectedDatabase])
   useEffect(() => { void window.dbforge.getConnections().then((items) => { const selected = items.find((item) => item.id === activeConnection?.recordId || item.name === activeConnection?.name)?.id ?? items[0]?.id ?? ''; setRecords(items); setConnection(selected) }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar conexões.')); void window.dbforge.listImportExportTemplates().then(setTemplates).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar templates.')) }, [activeConnection?.name, activeConnection?.recordId])
-  useEffect(() => { const listener = (event: Event): void => { const kind = (event as CustomEvent<{ kind?: string }>).detail?.kind; if (kind !== 'import' && kind !== 'export') return; setDirection(kind); setStep(0); setMessage(''); setReport('') }; window.addEventListener('dbforge:task:restore', listener); return () => window.removeEventListener('dbforge:task:restore', listener) }, [])
+  useEffect(() => { const listener = (event: Event): void => { const kind = (event as CustomEvent<{ kind?: string }>).detail?.kind; if (kind !== 'import' && kind !== 'export') return; setDirection(kind); setStep(0); setMessage(''); setReport(''); setResultPaths([]) }; window.addEventListener('dbforge:task:restore', listener); return () => window.removeEventListener('dbforge:task:restore', listener) }, [])
   useEffect(() => window.dbforge.onImportExportProgress(jobId, setProgress), [jobId])
   useEffect(() => {
     const record = records.find((item) => item.id === connection)
@@ -111,7 +112,7 @@ export default function Panel(): React.JSX.Element {
   async function run(): Promise<void> {
     const record = records.find((item) => item.id === connection)
     if (!record) { setMessage('Selecione uma conexão.'); return }
-    setBusy(true); setMessage(direction === 'export' ? 'Exporting…' : 'Importing…'); setReport('')
+    setBusy(true); setMessage(direction === 'export' ? 'Exporting…' : 'Importing…'); setReport(''); setResultPaths([])
     let connectedId = ''
     try {
       const connected = await window.dbforge.connect(record); connectedId = connected.id
@@ -119,7 +120,7 @@ export default function Panel(): React.JSX.Element {
         const rowQuery = rowMode === 'range' ? `${query.replace(/\s+LIMIT\s+\d+(?:\s+OFFSET\s+\d+)?\s*;?$/i, '')} LIMIT ${Math.max(0, rowCount)} OFFSET ${Math.max(0, rowStart - 1)}` : query
         const sources = rowMode === 'selected' ? [''] : selectedSources.length ? selectedSources : ['']
         if (sources.length > 1 && outputMode !== 'separate') throw new Error(t('imex.multiFileRequired'))
-        const savedReports: string[] = []
+        const savedReports: string[] = []; const outputPaths: string[] = []
         for (const sourceName of sources) {
           const objectQuery = sourceName ? `SELECT * FROM \`${selectedDatabase.replaceAll('`', '``')}\`.\`${sourceName.replaceAll('`', '``')}\`` : rowQuery
           let sourceQuery = rowMode === 'selected' ? selectedRowsQuery(selectedGridRows) : sourceName ? objectQuery : rowQuery
@@ -129,7 +130,9 @@ export default function Panel(): React.JSX.Element {
           const columnTypes = Object.fromEntries(Object.entries(mapping).filter(([, alias]) => alias.trim()).map(([column, alias]) => [alias, dataTypes[column] ?? 'String'])) as Record<string, 'String' | 'Integer' | 'Float' | 'DateTime' | 'HexString'>
           const saved = await window.dbforge.exportData(connectedId, sourceQuery, exportFormat, { delimiter, quote, header, forceQuotes, encoding: encoding as 'utf8' | 'utf16le' | 'latin1', fileName: sourceName || fileName, appendTimestamp: timestamp, autoDeleteDays: autoDelete ? deleteDays : undefined, autoDeleteCount: autoDelete ? deleteCount : undefined, rowStart, rowCount, columnTypes, compress: zipEnabled, zipLevel, zipPassword: zipPassword || undefined, zipComment }, jobId)
           savedReports.push(`${sourceName || fileName}: ${saved.report.rows} rows · ${formatBytes(saved.report.bytes)}\n${saved.path}`)
+          outputPaths.push(saved.path)
         }
+        setResultPaths(outputPaths)
         void window.dbforge.recordRecentTask({ kind: 'export', title: `${exportFormat.toUpperCase()} export`, detail: selectedDatabase || t('tasks.allData') }).catch(() => undefined)
         setReport(`Data Export finished successfully.\n${savedReports.join('\n\n')}`)
       } else {
@@ -142,6 +145,7 @@ export default function Panel(): React.JSX.Element {
         const importOptions = { delimiter: importFormat === 'text' && delimiter === ',' ? '\t' : delimiter, quote, header, skipLines, headerPosition, onRowError: errorPolicy === 'ignore' ? 'continue' as const : errorPolicy, encoding, rowElement, ...(importFormat !== 'sql' && Object.keys(columnMapping).length ? { columnMapping } : {}), ...(newTableSchema ? { createTable: newTableSchema } : {}) }
         if (importOutput !== 'direct') {
           const generated = await window.dbforge.generateImportSql(targetTable, importFormat, mode, keyColumns, importOptions, jobId)
+          setResultPaths([generated.path])
           if (importOutput === 'editor') {
             await window.dbforge.openSqlPath(generated.path)
           }
@@ -156,7 +160,7 @@ export default function Panel(): React.JSX.Element {
         const result = await window.dbforge.importData(connectedId, targetTable, importFormat, mode, keyColumns, importOptions, jobId)
         void window.dbforge.recordRecentTask({ kind: 'import', title: `${importFormat.toUpperCase()} import`, detail: targetTable }).catch(() => undefined)
         let reportText = `Import complete\nRows imported: ${result.inserted}\nErrors: ${result.errors}\nWarnings: 0\n${result.read} rows read · ${result.inserted} inserted · ${result.updated} updated · ${result.deleted} deleted${result.rowErrors.length ? `\n\n${result.rowErrors.map((item) => `Row ${item.row}: ${item.message}`).join('\n')}` : ''}`
-        if (writeLog && result.rowErrors.length) { const logPath = await window.dbforge.saveImportExportLog(reportText); if (logPath) reportText += `\n\nError log: ${logPath}` }
+        if (writeLog && result.rowErrors.length) { const logPath = await window.dbforge.saveImportExportLog(reportText); if (logPath) { reportText += `\n\nError log: ${logPath}`; setResultPaths([logPath]) } }
         setReport(reportText)
       }
       setStep(steps.length - 1); setMessage('')
@@ -218,7 +222,7 @@ export default function Panel(): React.JSX.Element {
       {step === 7 && direction === 'import' && <><h3>{t('io.errors.title')}</h3><ErrorOptions policy={errorPolicy} setPolicy={setErrorPolicy} writeLog={writeLog} setWriteLog={setWriteLog} /></>}
       {step === (direction === 'export' ? 7 : 8) && <><h3>{direction === 'export' ? 'Ready to export' : 'Ready to import'}</h3><p>{direction === 'export' ? `Export ${query.trim() ? 'the selected query' : 'data'} as ${selectedFormatTitle}.` : `${sourceFile?.name ?? 'Selected file'} → ${table || 'destination table'} · ${mode}.`}</p><p>{t('panel.import.export.mca128259eb')} {direction === 'export' ? 'Export' : 'Import'} {t('panel.import.export.m7d6b5badc4')}</p></>}
       {step === steps.length - 2 && <><h3>{direction === 'export' ? 'Ready to export' : 'Ready to import'}</h3><p>{direction === 'export' ? `Export ${query.trim() ? 'the selected query' : 'data'} as ${selectedFormatTitle}.` : `${sourceFile?.name ?? 'Selected file'} → ${table || 'destination table'} · ${mode}.`}</p><p>{t('panel.import.export.mca128259eb')} {direction === 'export' ? 'Export' : 'Import'} {t('panel.import.export.m7d6b5badc4')}</p></>}
-      {step === steps.length - 1 && <><h3>{t('panel.import.export.mb5c5405fcc')}</h3><pre className="io-report" role="status">{report || 'No operation has run yet.'}</pre></>}
+      {step === steps.length - 1 && <AssistantFinish summary={<pre className="io-report" role="status">{report || t('assistant.finish.noRun')}</pre>} paths={resultPaths} onError={setMessage} />}
     </main>
     {templates.length > 0 && <div className="io-templates"><label>{t('panel.import.export.me16fe4b9f2')} <select defaultValue="" onChange={(event) => { const item = templates.find((template) => template.id === event.target.value); if (item) loadTemplate(item) }}><option value="">{t('panel.import.export.mf953f535f3')}</option>{templates.map((item) => <option value={item.id} key={item.id}>{item.name} · {item.direction}</option>)}</select></label>{templates.map((item) => <button type="button" aria-label={`Delete template ${item.name}`} title={t('panel.import.export.m333d0ddce5')} key={item.id} onClick={() => void deleteTemplate(item.id)}>× {item.name}</button>)}</div>}
     <footer className="io-footer"><div><button type="button" onClick={() => void saveTemplate()} disabled={busy}>{t('panel.import.export.m6b8f437d0d')}</button></div><div>{step > 0 && step < steps.length - 1 && <button type="button" onClick={() => setStep((current) => current - 1)} disabled={busy}>{t('panel.import.export.m631bf5f93f')}</button>}{step < steps.length - 2 ? <button type="button" className="button-primary" onClick={() => setStep((current) => current + 1)} disabled={!canAdvance || busy}>{t('panel.import.export.m73136aa4bd')}</button> : step === steps.length - 2 ? <button type="button" className="button-primary" onClick={() => void run()} disabled={busy || !connection || (direction === 'export' ? !query.trim() : !table.trim() || !sourceFile)}>{busy ? 'Working…' : direction === 'export' ? 'Export' : 'Import'}</button> : <button type="button" onClick={() => { setStep(0); setReport(''); setMessage(''); setSourceFile(null); setSample([]); setMapping({}); setImportColumns([]); setJobId(crypto.randomUUID()) }}>{direction === 'import' ? t('imex.importMore') : t('panel.import.export.m1795ee1801')}</button>}{busy ? <button type="button" onClick={() => void window.dbforge.cancelImportExport(jobId)}>{t('common.cancel')}</button> : step < steps.length - 1 && <button type="button" onClick={() => { setStep(0); setReport(''); setMessage(''); setSourceFile(null); setJobId(crypto.randomUUID()) }}>{t('common.cancel')}</button>}</div></footer>

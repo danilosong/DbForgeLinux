@@ -1,0 +1,1 @@
+.assistant-finish{display:flex;flex-direction:column;gap:10px;min-width:0}.assistant-finish h3{margin:0}.assistant-finish-summary{min-width:0}.assistant-finish-output{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1px solid var(--border);border-radius:4px;padding:8px}.assistant-finish-output code{flex:1 1 260px;overflow-wrap:anywhere;color:var(--text-secondary)}

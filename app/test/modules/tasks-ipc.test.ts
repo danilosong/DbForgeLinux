@@ -16,12 +16,15 @@ describe('recent tasks IPC', () => {
       const list = handlers.get('tasks:recent:list')!
       const remove = handlers.get('tasks:recent:delete')!
       await record({}, { kind: 'backup', title: 'Daily backup', detail: 'inventory', password: 'must not persist' })
+      await record({}, { kind: 'export', title: 'api_key=hidden', detail: 'token:abc123' })
       await record({}, { kind: 'import', title: 'CSV import', detail: 'inventory' })
       const latest = await record({}, { kind: 'backup', title: 'Daily backup', detail: 'inventory updated' }) as { id: string }
-      expect(await list({})).toMatchObject([{ kind: 'backup', detail: 'inventory updated' }, { kind: 'import' }])
+      expect(await list({})).toMatchObject([{ kind: 'backup', detail: 'inventory updated' }, { kind: 'import' }, { kind: 'export', title: 'api_key=[redacted]', detail: 'token=[redacted]' }])
       expect(await readFile(join(dir, 'recent-tasks.json'), 'utf8')).not.toContain('must not persist')
+      expect(await readFile(join(dir, 'recent-tasks.json'), 'utf8')).not.toContain('abc123')
+      expect(await readFile(join(dir, 'recent-tasks.json'), 'utf8')).not.toContain('api_key=hidden')
       await remove({}, latest.id)
-      expect(await list({})).toMatchObject([{ kind: 'import' }])
+      expect(await list({})).toMatchObject([{ kind: 'import' }, { kind: 'export', title: 'api_key=[redacted]' }])
     } finally { await rm(dir, { recursive: true, force: true }) }
   })
 

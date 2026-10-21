@@ -73,7 +73,7 @@ export function compareCustomQueryRows(
   return { report, differences }
 }
 
-const forbiddenSelectWords = /\b(?:INSERT|UPDATE|DELETE|REPLACE|CALL|LOAD|DO|SET|USE|ALTER|DROP|CREATE|TRUNCATE|GRANT|REVOKE|LOCK|UNLOCK|HANDLER|PREPARE|EXECUTE|DEALLOCATE)\b/i
+const forbiddenSelectWords = /\b(?:INSERT|UPDATE|DELETE|REPLACE|CALL|LOAD|DO|SET|USE|ALTER|DROP|CREATE|TRUNCATE|GRANT|REVOKE|LOCK|UNLOCK|HANDLER|PREPARE|EXECUTE|DEALLOCATE|INTO|SLEEP|BENCHMARK|GET_LOCK|RELEASE_LOCK|LOAD_FILE)\b/i
 
 /** Keep the custom-query workflow read-only and single-statement. */
 export function validateCustomCompareQuery(sql: string): string {
@@ -86,4 +86,11 @@ export function validateCustomCompareQuery(sql: string): string {
     throw new Error('Custom comparison accepts one read-only SELECT or WITH query per side.')
   }
   return trimmed.replace(/;\s*$/, '')
+}
+
+/** Server-side cap prevents large custom results from being spooled before the UI can enforce its limit. */
+export function boundCustomCompareQuery(sql: string, maximum = 50_001): string {
+  if (!Number.isSafeInteger(maximum) || maximum < 1 || maximum > 50_001) throw new RangeError('Custom comparison row limit is invalid.')
+  const query = validateCustomCompareQuery(sql)
+  return `SELECT * FROM (${query}) AS _dbforge_custom_result LIMIT ${maximum}`
 }

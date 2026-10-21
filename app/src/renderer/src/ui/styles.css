@@ -197,6 +197,8 @@ textarea { resize: vertical; }
 .dock-heading > div { display: flex; gap: 3px; }
 .dock-heading .button { min-height: 23px; width: 24px; }
 .explorer-filter { margin: 7px 8px; min-height: 25px; }
+.explorer-filter-options { display: flex; gap: 14px; padding: 0 9px 5px; color: var(--text-secondary); font-size: 11px; }
+.explorer-filter-options label { display: inline-flex; align-items: center; gap: 4px; }
 .system-database-toggle { color: var(--text-secondary); font-size: 11px; padding: 0 8px 5px; }
 .explorer-tree { flex: 1; overflow: auto; padding-bottom: 10px; }
 .group-label { color: var(--text-secondary); font-size: 11px; padding: 4px 10px; }
@@ -276,6 +278,17 @@ textarea { resize: vertical; }
 .panel-hidden .document-workspace { grid-template-rows: 30px minmax(0, 1fr) 0 0; }
 .panel-hidden .bottom-panel { display: none; }
 .document-main { min-height: 0; display: grid; grid-template-rows: 34px minmax(80px, 1fr) minmax(80px, 28%); }
+.document-content { min-height: 0; min-width: 0; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr); }
+.document-content.split-vertical { grid-template-columns: minmax(0, 1fr) 5px minmax(0, 1fr); }
+.document-content.split-horizontal { grid-template-rows: minmax(0, 1fr) 5px minmax(0, 1fr); }
+.document-content.split-vertical > .document-split-pane { grid-column: 3; }
+.document-content.split-horizontal > .document-split-pane { grid-row: 3; }
+.document-split-pane { min-width: 0; min-height: 0; display: grid; grid-template-rows: 32px minmax(0, 1fr); border-left: 1px solid var(--border); }
+.document-split-pane header { display: flex; align-items: center; gap: 6px; padding: 2px 6px; border-bottom: 1px solid var(--border); }
+.document-split-pane textarea { min-width: 0; min-height: 0; resize: none; padding: 12px; border: 0; color: var(--text-primary); background: var(--bg-surface); font: 13px/1.5 ui-monospace, monospace; tab-size: 2; }
+.float-sql-document { height: 100vh; display: grid; grid-template-rows: 42px minmax(0, 1fr); background: var(--bg-surface); color: var(--text-primary); }
+.float-sql-document header { display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-bottom: 1px solid var(--border); }
+.float-sql-document textarea { min-width: 0; min-height: 0; resize: none; border: 0; padding: 16px; color: inherit; background: transparent; font: 13px/1.55 ui-monospace, monospace; tab-size: 2; }
 .document-main:has(.grid-card-view) { grid-template-rows: 34px minmax(80px, 1fr) minmax(210px, 42%); }
 .document-workspace:has(.start-page) { grid-template-rows: 30px minmax(0, 1fr) 5px 200px; }
 .vertical-splitter, .horizontal-splitter { touch-action: none; background: var(--border); }

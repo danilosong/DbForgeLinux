@@ -4,6 +4,7 @@ import { databaseObjectDragType } from '../../../../shared/databaseObjectDrag.js
 import { Button } from './Button'
 import { useI18n } from '../i18n/useI18n.js'
 import { explorerContextMenu, explorerFolderContextMenu, type ExplorerMenuItem } from './explorerContextMenu.js'
+import { isValidExplorerRegex, matchesExplorerFilter } from './explorerFilter.js'
 
 export type ExplorerContext = { connection: ConnectionSummary; database?: string; object?: DatabaseObject; target: 'server' | 'database' | DatabaseObjectKind }
 
@@ -45,6 +46,8 @@ export function DatabaseExplorer(props: Props): React.JSX.Element {
   const { t } = useI18n()
   const { records, active, databases, objects, loadingObjects, connecting, errors, onNew, onManage, onConnect, onDisconnect, onExpand, onLoadObjects, onSelectDatabase, onSelectTop, onGenerateScript, onCreateObject, onEdit, onSelectObject, onContextAction } = props
   const [filter, setFilter] = useState('')
+  const [regexFilter, setRegexFilter] = useState(false)
+  const [caseSensitiveFilter, setCaseSensitiveFilter] = useState(false)
   const [showSystemDatabases, setShowSystemDatabases] = useState(false)
   const [selectedConnectionId, setSelectedConnectionId] = useState('')
   const [expanded, setExpanded] = useState<string[]>([])
@@ -53,7 +56,7 @@ export function DatabaseExplorer(props: Props): React.JSX.Element {
   const [folderFilters, setFolderFilters] = useState<Record<string, string>>({})
   const [context, setContext] = useState<{ x: number; y: number; value: ExplorerContext }>()
   const contextMenuRef = useRef<HTMLDivElement>(null)
-  const visible = useMemo(() => records.filter((record) => `${record.name} ${record.host} ${record.category ?? ''}`.toLowerCase().includes(filter.toLowerCase())), [records, filter])
+  const visible = useMemo(() => records.filter((record) => matchesExplorerFilter(`${record.name} ${record.host} ${record.category ?? ''}`, filter, regexFilter, caseSensitiveFilter)), [records, filter, regexFilter, caseSensitiveFilter])
   const groups = new Map<string, ConnectionRecord[]>()
   for (const record of visible) { const category = record.category?.trim() || 'Connections'; groups.set(category, [...(groups.get(category) ?? []), record]) }
 
@@ -106,7 +109,8 @@ export function DatabaseExplorer(props: Props): React.JSX.Element {
 
   return <aside className="explorer-dock">
     <header className="dock-heading"><strong title={titleConnection ? `${t('explorer.title')} - ${titleConnection.name}` : t('explorer.title')}>{t('explorer.title')}{titleConnection && <span className="explorer-title-connection"> - {titleConnection.name}</span>}</strong><div><Button className="icon-button" title={t('conn.new')} onClick={onNew}>＋</Button><Button className="icon-button" title={t('conn.manager.title')} onClick={onManage}>⚙</Button></div></header>
-    <input className="explorer-filter" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder={t('explorer.filter')} aria-label={t('explorer.filter')} />
+    <input className="explorer-filter" value={filter} onChange={(event) => setFilter(event.target.value)} placeholder={t('explorer.filter')} aria-label={t('explorer.filter')} aria-invalid={regexFilter && !isValidExplorerRegex(filter)} />
+    <div className="explorer-filter-options"><label><input type="checkbox" checked={regexFilter} onChange={(event) => setRegexFilter(event.target.checked)} />{t('explorer.regex')}</label><label><input type="checkbox" checked={caseSensitiveFilter} onChange={(event) => setCaseSensitiveFilter(event.target.checked)} />{t('explorer.caseSensitive')}</label></div>
     <label className="system-database-toggle"><input type="checkbox" checked={showSystemDatabases} onChange={(event) => setShowSystemDatabases(event.target.checked)} />{t('explorer.showSystemDatabases')}</label>
     <div className="explorer-tree">
       {visible.length === 0 ? <div className="empty-state compact"><strong>{filter ? t('explorer.empty.search', [filter]) : t('explorer.empty.title')}</strong><p>{t('explorer.empty.hint')}</p><Button variant="primary" onClick={onNew}>{t('conn.new')}</Button></div> : <div role="tree" aria-label="Database Explorer">{[...groups.entries()].map(([category, items]) => <div className="explorer-group" role="group" aria-label={category} key={category}>
@@ -134,7 +138,7 @@ export function DatabaseExplorer(props: Props): React.JSX.Element {
                   {dbExpanded && <div className="object-groups">{loadingObjects.includes(dbKey) ? <small>{t('common.loading')}</small> : kinds.map(({ kind, icon }) => {
                     const members = dbObjects.filter((object) => object.kind === kind)
                     const groupKey = `${dbKey}:${kind}`
-                    const matchingMembers = members.filter((object) => object.name.toLowerCase().includes((folderFilters[groupKey] ?? '').toLowerCase()))
+                    const matchingMembers = members.filter((object) => matchesExplorerFilter(object.name, folderFilters[groupKey] ?? '', regexFilter, caseSensitiveFilter))
                     return <div className="object-group" key={kind}><div className="object-group-heading" onContextMenu={(event) => showContextMenu(event, { connection, database, target: kind })}><button className="object-group-name" onClick={() => toggleKind(groupKey)}>{expandedKinds.includes(groupKey) ? '▾' : '▸'} {t(`explorer.kind.${kind}`)} ({members.length})</button><button className="object-create" title={t('explorer.menu.newObject')} onClick={() => onCreateObject(connection, database, kind)}>＋</button></div>
                       {expandedKinds.includes(groupKey) && matchingMembers.map((object) => <button key={`${kind}:${object.name}`} className="object-name" draggable={kind === 'table' || kind === 'view'} onDragStart={(event) => { if (kind !== 'table' && kind !== 'view') return; event.dataTransfer.effectAllowed = 'copy'; event.dataTransfer.setData(databaseObjectDragType, JSON.stringify({ connectionId: connection.recordId, database, kind, name: object.name })); event.dataTransfer.setData('text/plain', `${database}.${object.name}`) }} onClick={() => onSelectObject(connection, database, object)} onDoubleClick={() => kind === 'table' || kind === 'view' ? onSelectTop(connection, database, object) : onGenerateScript(connection, database, object)} onContextMenu={(event) => { onSelectObject(connection, database, object); showContextMenu(event, { connection, database, object, target: kind }) }}>{icon} {object.name}</button>)}
                     </div>

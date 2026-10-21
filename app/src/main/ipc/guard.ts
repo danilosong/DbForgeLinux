@@ -26,7 +26,7 @@ const outputFormat = enumOf('csv', 'text', 'json', 'xml', 'sql', 'xlsx', 'html',
 /** Runtime argument contracts for every invoke channel. Structured records are recursively size/type checked below. */
 export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'app:renderer-ready': [],
-  'document:float-sql': [text, sql],
+  'document:float-sql': [id, text, sql], 'document:float-change': [id, sql],
   'tasks:recent:list': [], 'tasks:recent:record': [object], 'tasks:recent:delete': [id],
   'about:info': [], 'about:open-link': [enumOf('documentation', 'repository', 'license')],
   'ai-assistant:settings:load': [], 'ai-assistant:settings:save': [object, opt(s('text'))], 'ai-assistant:settings:test': [object, opt(s('text'))],
@@ -47,7 +47,7 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'grid-data:master-detail': [id, object, object],
   'db:result-read': [id, integer, integer], 'db:result-dispose': [id], 'db:cancel': [id, id], 'db:transaction-begin': [id], 'db:transaction-commit': [id], 'db:transaction-rollback': [id],
   'db:tables': [id, ident], 'db:objects': [id, ident], 'db:show-create': [id, ident, object], 'db:set-database': [id, ident],
-  'file:open-sql': [], 'file:open-sql-path': [path], 'file:reveal-path': [path], 'file:save-sql': [opt(path), sql],
+  'file:open-sql': [], 'file:open-sql-path': [path], 'file:open-in-system': [path, enumOf('file', 'folder')], 'file:reveal-path': [path], 'file:save-sql': [opt(path), sql],
   'documenter:tree': [id, ident], 'documenter:preview': [id, ident, opt(text)], 'documenter:generate': [object], 'documenter:open': [path], 'editor:metadata': [id, ident, opt(bool)], 'editor:invalidate-metadata': [id, opt(ident)],
   'er-diagram:load': [id, ident, id], 'er-diagram:save-relations': [id, ident, objects], 'er-diagram:save-file': [object], 'er-diagram:open-file': [],
   'schema-update:list': [], 'schema-update:queue': [object], 'schema-update:queue-table': [id, ident, s('nullable-object'), object], 'schema-update:remove': [strings], 'schema-update:execute': [strings, trueOnly],

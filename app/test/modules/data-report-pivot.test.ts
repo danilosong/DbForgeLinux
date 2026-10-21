@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildPivot, buildPivotChart, exportPivot, validateReportQuery, type PivotConfig } from '../../src/modules/data-report-pivot/index.js'
+import { buildPivot, buildPivotChart, buildPivotConfigFromRoles, exportPivot, validateReportQuery, type PivotConfig } from '../../src/modules/data-report-pivot/index.js'
 import { createReportDesign, exportDesignedReport, parseReportDesign, placeReportField, reportPages } from '../../src/modules/data-report-pivot/report-design.js'
 
 describe('Data Report Pivot', () => {
@@ -35,6 +35,21 @@ describe('Data Report Pivot', () => {
     expect(grouped.grandTotal).toEqual({ 'average(sales)': 15 })
     const chart = buildPivotChart(grouped, { type: 'bar', title: 'Sales' })
     expect(chart).toMatchObject({ type: 'bar', title: 'Sales', labels: ['year: 2024 Q1'], series: [{ values: [15] }] })
+  })
+
+  it('rebuilds chart projections from changed field roles and supports each exportable chart type', () => {
+    const fields = ['region', 'product', 'sales']
+    const firstConfig = buildPivotConfigFromRoles(fields, { region: 'rows', sales: 'values' }, {}, { sales: 'sum' }, { grandTotal: true })
+    const firstChart = buildPivotChart(buildPivot(rows, firstConfig), { type: 'bar' })
+    expect(firstChart.labels).toEqual(['region: North', 'region: South'])
+
+    const secondConfig = buildPivotConfigFromRoles(fields, { product: 'rows', sales: 'values' }, {}, { sales: 'sum' }, { grandTotal: true })
+    const refreshed = buildPivot(rows, secondConfig)
+    expect(refreshed).not.toBe(firstConfig)
+    expect(buildPivotChart(refreshed, { type: 'line' }).labels).toEqual(['product: A', 'product: B'])
+    for (const type of ['bar', 'line', 'pie', 'area', 'stacked'] as const) {
+      expect(buildPivotChart(refreshed, { type }).type).toBe(type)
+    }
   })
 
   it('moves report fields between bands, validates saved JSON, and paginates preview rows', () => {

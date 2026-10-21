@@ -1,7 +1,7 @@
 import { useI18n } from '../../i18n/useI18n.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PivotAggregation, PivotChartType, PivotConfig, PivotGrouping, PivotResult, ReportExportFormat } from '../../../../../modules/data-report-pivot/types.js'
-import { buildPivotChart } from '../../../../../modules/data-report-pivot/index.js'
+import { buildPivotChart, buildPivotConfigFromRoles } from '../../../../../modules/data-report-pivot/index.js'
 import { usePanelConnection } from '../registry.js'
 import { createReportDesign, exportDesignedReport, parseReportDesign, placeReportField, reportPages, REPORT_BANDS, type ReportDesign } from '../../../../../modules/data-report-pivot/report-design.js'
 
@@ -38,6 +38,8 @@ export default function DataReportPivotPanel(): React.JSX.Element {
   const [reportDesign, setReportDesign] = useState<ReportDesign>(() => createReportDesign('Data Report', []))
   const [page, setPage] = useState(0)
   const chartWrapRef = useRef<HTMLDivElement>(null)
+  const lastPivotConfigRef = useRef('')
+  const pivotRequestRef = useRef(0)
   const chart = useMemo(() => pivot ? buildPivotChart(pivot, { type: chartType }) : null, [pivot, chartType])
 
   useEffect(() => {
@@ -81,21 +83,33 @@ export default function DataReportPivotPanel(): React.JSX.Element {
 
   async function build(): Promise<void> {
     if (!datasetId) { setMessage('Load a query before building the pivot.'); return }
-    const next: PivotConfig = {
-      filters: config.filters,
-      rowTotals: config.rowTotals,
-      columnTotals: config.columnTotals,
-      grandTotal: config.grandTotal,
-      subtotals: config.subtotals,
-      rows: fields.filter((field) => roles[field] === 'rows').flatMap((field) => dateGrouping[field]?.length ? dateGrouping[field]!.map((grouping) => ({ field, grouping, label: `${field} ${grouping}` })) : [{ field }]),
-      columns: fields.filter((field) => roles[field] === 'columns').flatMap((field) => dateGrouping[field]?.length ? dateGrouping[field]!.map((grouping) => ({ field, grouping, label: `${field} ${grouping}` })) : [{ field }]),
-      values: fields.filter((field) => roles[field] === 'values').map((field) => ({ field, aggregation: aggregationByField[field] ?? 'sum' }))
-    }
-    setBusy(true); setMessage('Building pivot…'); setPivot(null); setChartVisible(false); setDesignMode(false)
-    try { const result = await window.dbforge.buildPivot(datasetId, next); setPivot(result); setConfig(next); setMessage(`${result.rowCount.toLocaleString()} rows${result.truncated ? ' · partial result' : ''}`) }
+    const next = buildPivotConfigFromRoles(fields, roles, dateGrouping, aggregationByField, config)
+    const request = ++pivotRequestRef.current
+    setBusy(true); setMessage('Building pivot…'); setDesignMode(false)
+    try { const result = await window.dbforge.buildPivot(datasetId, next); if (request !== pivotRequestRef.current) return; lastPivotConfigRef.current = JSON.stringify(next); setPivot(result); setConfig(next); setMessage(`${result.rowCount.toLocaleString()} rows${result.truncated ? ' · partial result' : ''}`) }
     catch (error) { setMessage(error instanceof Error ? error.message : 'Unable to build pivot.') }
     finally { setBusy(false) }
   }
+
+  useEffect(() => {
+    if (!datasetId || !pivot) return
+    const next = buildPivotConfigFromRoles(fields, roles, dateGrouping, aggregationByField, config)
+    const signature = JSON.stringify(next)
+    if (signature === lastPivotConfigRef.current) return
+    const timer = window.setTimeout(() => {
+      const request = ++pivotRequestRef.current
+      void window.dbforge.buildPivot(datasetId, next).then((result) => {
+        if (request !== pivotRequestRef.current) return
+        lastPivotConfigRef.current = signature
+        setPivot(result)
+        setConfig(next)
+        setMessage(`${result.rowCount.toLocaleString()} rows${result.truncated ? ' · partial result' : ''}`)
+      }).catch((error: unknown) => {
+        if (request === pivotRequestRef.current) setMessage(error instanceof Error ? error.message : 'Unable to refresh the pivot chart.')
+      })
+    }, 140)
+    return () => window.clearTimeout(timer)
+  }, [aggregationByField, config, datasetId, dateGrouping, fields, pivot, roles])
 
   async function exportResult(format: ReportExportFormat): Promise<void> {
     if (!pivot) return

@@ -24,7 +24,9 @@ import type { ExtraToolsApi } from './extra-tools.js'
 import type { AboutApi } from './about.js'
 import type { UpdaterApi } from './updater.js'
 export interface DbForgeApi extends SecurityApi, SessionsApi, SchemaCompareApi, DataCompareApi, ImportExportApi, ERDiagramApi, QueryBuilderApi, EditorApi, HistoryApi, SourceControlApi, ObjectEditorApi, OptionsApi, DatabaseToolsApi, ReportPivotApi, AiAssistantApi, RoutineDebugContract, TasksApi, ServiceControlApi, CodeAnalysisApi, GridEditingApi, GridDataApi, ExtraToolsApi, AboutApi, UpdaterApi {
-  floatSqlDocument(title: string, contents: string): Promise<void>
+  floatSqlDocument(documentId: string, title: string, contents: string): Promise<void>
+  floatSqlChange(documentId: string, contents: string): Promise<void>
+  onFloatSqlUpdate(handler: (documentId: string, contents: string) => void): () => void
   initializeNonCriticalIpc(): Promise<{ ready: true }>
   getConnections(): Promise<ConnectionRecord[]>
   saveConnection(record: ConnectionRecord): Promise<void>
@@ -50,6 +52,7 @@ export interface DbForgeApi extends SecurityApi, SessionsApi, SchemaCompareApi, 
   openSqlFile(): Promise<SqlFile | null>
   openSqlPath(path: string): Promise<SqlFile>
   revealPath(path: string): Promise<void>
+  openPathInSystem(path: string, kind: 'file' | 'folder'): Promise<string>
   onOpenSqlPath(handler: (path: string) => void): () => void
   saveSqlFile(path: string | undefined, contents: string): Promise<string | null>
 }

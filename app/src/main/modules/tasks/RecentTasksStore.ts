@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import type { RecentTask, TaskKind } from '../../../shared/contracts/tasks.js'
 
 const kinds = new Set<TaskKind>(['backup', 'export', 'import', 'schema-compare', 'data-compare'])
-const cleanText = (value: unknown, max: number): string => typeof value === 'string' ? Array.from(value, (character) => { const code = character.codePointAt(0) ?? 0; return code <= 31 || code === 127 ? ' ' : character }).join('').trim().slice(0, max) : ''
+const cleanText = (value: unknown, max: number): string => typeof value === 'string' ? Array.from(value, (character) => { const code = character.codePointAt(0) ?? 0; return code <= 31 || code === 127 ? ' ' : character }).join('').replace(/\b(password|passwd|token|secret|api[_-]?key|credential)\s*[:=]\s*[^\s,;]+/gi, '$1=[redacted]').trim().slice(0, max) : ''
 
 export class RecentTasksStore {
   constructor(private readonly filePath: string) {}

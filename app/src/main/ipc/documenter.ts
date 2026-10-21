@@ -2,8 +2,9 @@ import { ipcMain, BrowserWindow, shell } from 'electron'
 import { inspectDatabase } from '../../modules/schema/index.js'
 import { generateDocumentation, writeDocumentation, type DocumentFormat } from '../../modules/documenter/index.js'
 import type { IpcDeps } from './registry.js'
+import { validateSystemOpenPath } from '../security/systemOpenPath.js'
 export function registerDocumenterIpc({driver}:IpcDeps):void {
- ipcMain.handle('documenter:open',async(_event,path:string)=>{if(!path.trim())throw new Error('Caminho de documentação vazio.');return shell.openPath(path)})
+ ipcMain.handle('documenter:open',async(_event,path:string)=>{const target=await validateSystemOpenPath(path,'file');return shell.openPath(target)})
  const inspect=(id:string,database:string)=>inspectDatabase((sql,parameters)=>driver.queryRows(id,sql,parameters),database)
  ipcMain.handle('documenter:tree',async(_event,id:string,database:string)=>{const schema=await inspect(id,database);return schema.tables.map(table=>({name:table.name,columns:table.columns.map(column=>column.name),indexes:table.indexes.map(index=>index.name)}))})
  ipcMain.handle('documenter:preview',async(_event,id:string,database:string,title?:string)=>generateDocumentation(await inspect(id,database),{title}))
