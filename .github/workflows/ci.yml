@@ -47,6 +47,7 @@ jobs:
             image: mariadb:11
     services:
       database:
+        # TCP probe instead of mysqladmin: mariadb:11 images no longer ship the mysqladmin binary.
         image: ${{ matrix.image }}
         env:
           MYSQL_ROOT_PASSWORD: integration-only
@@ -54,10 +55,10 @@ jobs:
         ports:
           - 33067:3306
         options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pintegration-only"
+          --health-cmd="bash -c 'exec 3<>/dev/tcp/127.0.0.1/3306'"
           --health-interval=5s
           --health-timeout=5s
-          --health-retries=20
+          --health-retries=30
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
