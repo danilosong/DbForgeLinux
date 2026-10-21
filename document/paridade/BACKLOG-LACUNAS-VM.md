@@ -72,7 +72,9 @@ Virtual→FK física: o assistente deve detectar linhas órfãs e exigir confirm
 | R4 | Painel docado Diagram Overview (Ctrl+W,V) com viewport em miniatura | B | Codex + UX |
 | R5 | Assistente Virtual Relation → FK física com detecção de órfãos | B | Codex |
 
-## Security, Sessions e Server Variables (F-SEC) — observado
+## Security, Sessions e Server Variables (F-SEC) — PARCIALMENTE CONFIRMADO pela Lupa (13 PNGs, re/original-observation/07-seguranca-sessoes/)
+Confirmado: Security Manager como documento com árvore Users (por host) e Roles, Create User/Create Role, Save/Undo/Script Changes; abas General (autenticação caching_sha2_password, expiração, limites por hora, bloqueio de conta), Roles (Granted/Admin Option/Default), Users, Global Privileges (With Grant Option, privilégios dinâmicos do MySQL 8 — S1 confirmado), Object Privileges; Server Variables com toggle System/Status; Session Manager (Id/User/Host/Database/Command/Time/State, refresh 02:00, confirmação de kill 'Do you really want to kill selected session?'). A Lupa respondeu NÃO ao kill; nada foi alterado no servidor. Aba Locks (S2) e SET PERSIST (S3) NÃO foram vistos: seguem INFERIDOS.
+Desconhecido: criar/salvar usuário, Service Control, mensagem pós-kill.
 Segurança: SET PERSIST/PERSIST_ONLY e privilégios globais são operações perigosas; exigir ação explícita, preview do SQL e confirmação forte; nunca logar senhas.
 | # | Lacuna | Prio | Dono |
 |---|---|---|---|
