@@ -165,15 +165,14 @@ function expandLicenseRows(groups) {
   }))))
 }
 
-function collectLicenseEntries() {
+function collectLicenseEntries({ rendererModulesPath = resolve(buildRoot, 'renderer-bundle-modules.json') } = {}) {
   const licenseRows = expandLicenseRows(loadLicenses())
   const productionGroups = JSON.parse(execFileSync('pnpm', ['licenses', 'list', '--json', '--prod'], { cwd: appRoot, encoding: 'utf8' }))
   const includedKeys = new Set(expandLicenseRows(productionGroups).map((row) => `${row.name}@${row.versions[0]}`))
   const electronVersion = JSON.parse(readFileSync(resolve(appRoot, 'node_modules/electron/package.json'), 'utf8')).version
   includedKeys.add(`electron@${electronVersion}`)
-  const moduleInventoryPath = resolve(buildRoot, 'renderer-bundle-modules.json')
-  if (existsSync(moduleInventoryPath)) {
-    for (const modulePath of JSON.parse(readFileSync(moduleInventoryPath, 'utf8'))) {
+  if (existsSync(rendererModulesPath)) {
+    for (const modulePath of JSON.parse(readFileSync(rendererModulesPath, 'utf8'))) {
       const modulePackage = packageForModule(modulePath)
       if (modulePackage) includedKeys.add(`${modulePackage.name}@${modulePackage.version}`)
     }
@@ -239,12 +238,11 @@ function readFontVersion(buffer) {
   return 'version unavailable'
 }
 
-async function packagedFontNotices() {
-  const inventoryPath = resolve(buildRoot, 'renderer-bundle-assets.json')
+async function packagedFontNotices(inventoryPath = resolve(buildRoot, 'renderer-bundle-assets.json'), licenseEntries = collectLicenseEntries()) {
   if (!existsSync(inventoryPath)) throw new Error('Renderer asset inventory is missing; run the production build before generating license notices.')
   const inventory = JSON.parse(await readFile(inventoryPath, 'utf8'))
   const fontAssets = inventory.filter((asset) => /\.(?:ttf|otf|woff2?)$/i.test(asset.fileName))
-  const monaco = collectLicenseEntries().find((entry) => entry.name === 'monaco-editor')
+  const monaco = licenseEntries.find((entry) => entry.name === 'monaco-editor')
   const sections = ['Packaged fonts']
   for (const asset of fontAssets) {
     const baseName = basename(asset.fileName).toLowerCase()
@@ -276,17 +274,24 @@ async function packagedFontNotices() {
   return sections.join('\n')
 }
 
-async function generateNotices() {
-  const entries = collectLicenseEntries()
+async function generateNotices({
+  rendererAssetsPath = resolve(buildRoot, 'renderer-bundle-assets.json'),
+  rendererModulesPath = resolve(buildRoot, 'renderer-bundle-modules.json'),
+  rootOutputPath = resolve(repositoryRoot, 'THIRD-PARTY-NOTICES.txt'),
+  packagedOutputPath = resolve(buildRoot, 'THIRD-PARTY-NOTICES.txt')
+} = {}) {
+  const entries = collectLicenseEntries({ rendererModulesPath })
   const sections = [`THIRD-PARTY NOTICES — TuxSQL\n\nThis file lists packages included in the renderer bundle or packaged runtime dependencies. Package notices are reproduced from the installed package license files.\n`]
   for (const entry of entries) {
     sections.push(`\n================================================================================\n${entry.name} ${entry.versions?.[0] ?? 'version unknown'}\nSPDX: ${entry.spdx}\nURL: ${entry.homepage ?? 'not provided'}\n${entry.author ? `Copyright/author: ${entry.author}\n` : ''}\n${await readLicenseText(entry)}`)
   }
   sections.push(`\n================================================================================\nElectron and Chromium\nElectron ${JSON.parse(await readFile(resolve(appRoot, 'node_modules/electron/package.json'), 'utf8')).version} is included. Its license file ships with the packaged Electron runtime. Chromium notices are provided by Electron in LICENSES.chromium.html beside the executable when available; use the License page link to open that file.\n`)
-  sections.push(`\n================================================================================\n${await packagedFontNotices()}\n`)
+  sections.push(`\n================================================================================\n${await packagedFontNotices(rendererAssetsPath, entries)}\n`)
   const notices = sections.join('\n')
-  await writeFile(resolve(repositoryRoot, 'THIRD-PARTY-NOTICES.txt'), notices)
-  await writeFile(resolve(buildRoot, 'THIRD-PARTY-NOTICES.txt'), notices)
+  await mkdir(dirname(rootOutputPath), { recursive: true })
+  await mkdir(dirname(packagedOutputPath), { recursive: true })
+  await writeFile(rootOutputPath, notices)
+  await writeFile(packagedOutputPath, notices)
   return notices
 }
 

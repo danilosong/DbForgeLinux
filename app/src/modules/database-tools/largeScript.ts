@@ -173,12 +173,17 @@ export async function executeLargeScript(options: {
   try {
     if (stopped) stream.destroy()
     if (!stopped) {
-      for await (const chunk of stream) {
-        if (options.signal?.aborted) { stopped = true; break }
-        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
-        bytesRead += buffer.byteLength
-        await feedText(decoder.decode(buffer, { stream: true }))
-        if (stopped) break
+      try {
+        for await (const chunk of stream) {
+          if (options.signal?.aborted) { stopped = true; break }
+          const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
+          bytesRead += buffer.byteLength
+          await feedText(decoder.decode(buffer, { stream: true }))
+          if (stopped) break
+        }
+      } catch (error) {
+        if (!options.signal?.aborted) throw error
+        stopped = true
       }
     }
     if (options.signal?.aborted) stopped = true

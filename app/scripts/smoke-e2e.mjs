@@ -8,8 +8,10 @@ import { randomUUID } from 'node:crypto'
 import { _electron as electron } from 'playwright'
 import mysql from 'mysql2/promise'
 
-const electronPath = process.env.TUXSQL_ELECTRON_PATH ?? join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql')
-if (!existsSync(electronPath)) throw new Error(`Packaged Electron executable not found at ${electronPath}. Run pnpm dist:deb first.`)
+const electronPath = process.env.TUXSQL_ELECTRON_PATH ?? join(process.cwd(), 'node_modules', 'electron', 'dist', 'electron')
+if (!existsSync(electronPath)) throw new Error(`Electron executable not found at ${electronPath}. Run pnpm install first.`)
+const electronArgs = ['--disable-gpu', '--use-fake-device-for-media-stream']
+if (electronPath.includes(`${join('node_modules', 'electron', 'dist')}${process.platform === 'win32' ? '\\' : '/'}`)) electronArgs.push(process.cwd())
 const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-smoke-'))
 const admin = await mysql.createConnection({ host: '127.0.0.1', port: 33067, user: 'root', password: process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only' })
 // Keep this long-running E2E schema outside mysql:clean-test's broad tuxsql_test_ sweep.
@@ -59,7 +61,7 @@ BEGIN
 END`)
   app = await electron.launch({
     executablePath: electronPath,
-    args: ['--disable-gpu', '--use-fake-device-for-media-stream'],
+    args: electronArgs,
     cwd: process.cwd(),
     timeout: 90_000,
     env: {

@@ -8,6 +8,27 @@ import { ptBrModulesDocs } from '../src/renderer/src/i18n/ptBrModulesDocs.ts'
 
 let scratch
 
+async function createRendererInventoryFixtures() {
+  scratch ??= await mkdtemp(join(tmpdir(), 'tuxsql-docs-build-'))
+  const rendererModulesPath = join(scratch, 'renderer-bundle-modules.json')
+  const rendererAssetsPath = join(scratch, 'renderer-bundle-assets.json')
+  const appRoot = process.cwd()
+  await writeFile(rendererModulesPath, JSON.stringify([
+    resolve(appRoot, 'node_modules/@monaco-editor/react/dist/index.js'),
+    resolve(appRoot, 'node_modules/monaco-editor/esm/vs/base/browser/ui/codicons/codicon.js'),
+    resolve(appRoot, 'node_modules/echarts/lib/echarts.js'),
+    resolve(appRoot, 'node_modules/.pnpm/echarts@6.1.0/node_modules/zrender/lib/zrender.js')
+  ]))
+  await writeFile(rendererAssetsPath, JSON.stringify([
+    { fileName: 'assets/rubik-spray-paint-fixture.ttf' },
+    { fileName: 'assets/sedgwick-ave-display-fixture.ttf' },
+    { fileName: 'assets/codicon-fixture.ttf' },
+    { fileName: 'assets/Inter-400-latin-fixture.woff2' },
+    { fileName: 'assets/JetBrainsMono-400-latin-fixture.woff2' }
+  ]))
+  return { rendererModulesPath, rendererAssetsPath }
+}
+
 afterEach(async () => {
   if (scratch) await rm(scratch, { recursive: true, force: true })
   scratch = undefined
@@ -56,18 +77,26 @@ describe('offline documentation build', () => {
     expect(await readFile(join(output, 'pt-BR/docs.js'), 'utf8')).toContain('tuxsql-doc-theme')
   })
 
-  it('has a known permissive license record for every renderer bundle package and production dependency', () => {
-    const entries = collectLicenseEntries()
+  it('has a known permissive license record for every renderer bundle package and production dependency', async () => {
+    const { rendererModulesPath } = await createRendererInventoryFixtures()
+    const entries = collectLicenseEntries({ rendererModulesPath })
     expect(entries.length).toBeGreaterThan(0)
     expect(entries.some((entry) => entry.name === 'react')).toBe(true)
+    expect(entries.some((entry) => entry.name === '@monaco-editor/react')).toBe(true)
+    expect(entries.some((entry) => entry.name === 'monaco-editor')).toBe(true)
+    expect(entries.some((entry) => entry.name === 'echarts')).toBe(true)
+    expect(entries.some((entry) => entry.name === 'zrender')).toBe(true)
     expect(entries.some((entry) => entry.name === 'mysql2')).toBe(true)
     expect(entries.every((entry) => entry.spdx && !/unknown|unlicensed|\b(?:AGPL|GPL)(?:-|\b)/i.test(entry.spdx))).toBe(true)
     expect(entries.every((entry) => entry.versions?.[0] && entry.homepage)).toBe(true)
   })
 
   it('writes complete package, project, and bundled-font notices to both required destinations', async () => {
-    const notices = await generateNotices()
-    const entries = collectLicenseEntries()
+    const { rendererModulesPath, rendererAssetsPath } = await createRendererInventoryFixtures()
+    const rootOutputPath = join(scratch, 'THIRD-PARTY-NOTICES.txt')
+    const packagedOutputPath = join(scratch, 'build-resources/THIRD-PARTY-NOTICES.txt')
+    const notices = await generateNotices({ rendererAssetsPath, rendererModulesPath, rootOutputPath, packagedOutputPath })
+    const entries = collectLicenseEntries({ rendererModulesPath })
     for (const entry of entries) {
       expect(notices).toContain(`${entry.name} ${entry.versions?.[0]}`)
       expect(notices).toContain(`SPDX: ${entry.spdx}`)
@@ -76,15 +105,18 @@ describe('offline documentation build', () => {
     expect(notices).toContain('Sedgwick Ave Display')
     expect(notices).toContain('SIL OPEN FONT LICENSE Version 1.1')
     expect(notices).toContain('Inter and JetBrains Mono are system-font fallbacks only')
-    const rootNotices = await readFile(resolve(process.cwd(), '../THIRD-PARTY-NOTICES.txt'), 'utf8')
-    const packagedNotices = await readFile(resolve(process.cwd(), 'build-resources/THIRD-PARTY-NOTICES.txt'), 'utf8')
+    const rootNotices = await readFile(rootOutputPath, 'utf8')
+    const packagedNotices = await readFile(packagedOutputPath, 'utf8')
     expect(rootNotices).toBe(notices)
     expect(packagedNotices).toBe(notices)
   })
 
   it('embeds the complete repository MIT license in both localized license pages', async () => {
+    scratch = await mkdtemp(join(tmpdir(), 'tuxsql-docs-license-'))
+    const output = join(scratch, 'docs')
     const original = (await readFile(resolve(process.cwd(), '../LICENSE'), 'utf8')).trim()
     const escaped = original.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;')
-    for (const lang of ['en', 'pt-BR']) expect(await readFile(resolve(process.cwd(), `build-resources/docs/${lang}/license.html`), 'utf8')).toContain(escaped)
+    await buildDocs({ outputRoot: output, noticesOverride: 'NOTICE FIXTURE' })
+    for (const lang of ['en', 'pt-BR']) expect(await readFile(join(output, lang, 'license.html'), 'utf8')).toContain(escaped)
   })
 })

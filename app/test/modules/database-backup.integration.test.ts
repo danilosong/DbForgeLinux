@@ -4,9 +4,11 @@ import { createDefaultConnection } from '../../src/shared/connectionDefaults.js'
 import { createBackupSqlWithOptions, restoreBackup } from '../../src/modules/database-tools/backup.js'
 import { inspectDatabase } from '../../src/modules/schema/index.js'
 import { mysqlTestPrefix } from '../mysqlTestNames.js'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 
 const enabled = process.env.MYSQL_INTEGRATION === '1'
+const dumpContainer = process.env.MYSQL_DUMP_DOCKER_CONTAINER
+const localDumpBinary = ['mysqldump', 'mariadb-dump'].find((binary) => spawnSync(binary, ['--version'], { stdio: 'ignore' }).status === 0)
 describe.skipIf(!enabled)('database backup MySQL integration', () => {
   const driver = new MysqlDriver(); const prefix = mysqlTestPrefix('backup_restore'); const sourceDb = `${prefix}_src`; const targetDb = `${prefix}_dst`; const victimDb = `${prefix}_victim`; let connectionId = ''
   afterAll(async () => {
@@ -32,7 +34,7 @@ describe.skipIf(!enabled)('database backup MySQL integration', () => {
     expect(await driver.queryRows(connectionId, 'SELECT id, label FROM items')).toEqual([{ id: 1, label: 'owned test row' }])
   }, 30_000)
 
-  it('restores a real mysqldump and keeps splitter and session SQL modes aligned against an escaped-quote payload', async () => {
+  it.skipIf(!dumpContainer && !localDumpBinary)('restores a real mysqldump and keeps splitter and session SQL modes aligned against an escaped-quote payload', async () => {
     const defaults = createDefaultConnection(`${prefix}_mode_connection`, 'Backup SQL mode integration')
     connectionId = await driver.connect({ ...defaults, advanced: { ...defaults.advanced, sqlMode: 'STRICT_TRANS_TABLES,NO_BACKSLASH_ESCAPES' }, host: '127.0.0.1', port: 33067, user: 'root', password: process.env.MYSQL_PASSWORD ?? 'integration-only' })
     await driver.executeSql(connectionId, `DROP DATABASE IF EXISTS \`${sourceDb}\`; DROP DATABASE IF EXISTS \`${targetDb}\`; DROP DATABASE IF EXISTS \`${victimDb}\``)
@@ -41,9 +43,10 @@ describe.skipIf(!enabled)('database backup MySQL integration', () => {
     const label = `O'Brien "double quote" \\ backslash`
     const rawData = Buffer.from([0, 0x27, 0x22, 0x5c, 0x00])
     await driver.executeParameterized(connectionId, `INSERT INTO \`${sourceDb}\`.items VALUES (1, ?, ?)`, [label, rawData])
-    const container = process.env.MYSQL_DUMP_DOCKER_CONTAINER
-    if (!container) throw new Error('MYSQL_DUMP_DOCKER_CONTAINER must name the local MySQL test container for this integration case.')
-    const dump = execFileSync('docker', ['exec', '-e', `MYSQL_PWD=${process.env.MYSQL_PASSWORD ?? 'integration-only'}`, container, 'mysqldump', '--host=127.0.0.1', '--port=3306', '--user=root', '--compact', '--no-create-info', '--skip-add-locks', '--skip-triggers', '--hex-blob', sourceDb, 'items'], { encoding: 'buffer', maxBuffer: 8 * 1024 * 1024 })
+    const password = process.env.MYSQL_PASSWORD ?? 'integration-only'
+    const dump = dumpContainer
+      ? execFileSync('docker', ['exec', '-e', `MYSQL_PWD=${password}`, dumpContainer, 'mysqldump', '--host=127.0.0.1', '--port=3306', '--user=root', '--compact', '--no-create-info', '--skip-add-locks', '--skip-triggers', '--hex-blob', sourceDb, 'items'], { encoding: 'buffer', maxBuffer: 8 * 1024 * 1024 })
+      : execFileSync(localDumpBinary!, ['--host=127.0.0.1', '--port=33067', '--user=root', '--compact', '--no-create-info', '--skip-add-locks', '--skip-triggers', '--hex-blob', sourceDb, 'items'], { encoding: 'buffer', maxBuffer: 8 * 1024 * 1024, env: { ...process.env, MYSQL_PWD: password } })
     const script = dump.toString('utf8').replaceAll(`\`${sourceDb}\`.`, '')
     expect(script).toContain("O\\'Brien")
     expect(script).toContain('double quote')
