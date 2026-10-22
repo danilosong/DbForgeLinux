@@ -32,6 +32,9 @@ jobs:
           TUXSQL_RELEASE_BUILD: '1'
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pnpm build && pnpm exec electron-builder --linux AppImage deb --config packaging/electron-builder.yml --publish never
+      - name: Checksums
+        working-directory: app/dist
+        run: sha256sum *.AppImage *.deb > SHA256SUMS.txt
       - name: Publish release assets
         uses: softprops/action-gh-release@v2
         with:
@@ -41,3 +44,4 @@ jobs:
             app/dist/*.deb
             app/dist/latest-linux.yml
             app/dist/*.blockmap
+            app/dist/SHA256SUMS.txt

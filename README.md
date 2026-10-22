@@ -29,6 +29,19 @@ Specs de UX verificadas contra evidência    ███████████�
 
 ---
 
+## Download (versão já compilada)
+
+Baixe o instalador pronto na página de **[Releases](https://github.com/danilosong/TuxSQL/releases/latest)**, sem precisar compilar:
+
+| Formato | Para quem | Como usar |
+| --- | --- | --- |
+| `tuxsql_<versão>_amd64.deb` | Ubuntu, Debian, Linux Mint, Pop!_OS | `sudo apt install ./tuxsql_<versão>_amd64.deb` |
+| `tuxsql_<versão>_x86_64.AppImage` | Qualquer distribuição Linux x86_64, sem instalar | `chmod +x tuxsql_*.AppImage && ./tuxsql_*.AppImage` |
+
+Confira a integridade com o arquivo `SHA256SUMS.txt` da release (`sha256sum -c SHA256SUMS.txt --ignore-missing`). Os binários são gerados automaticamente pelo GitHub Actions a partir de uma tag `v*`; eles ficam nas Releases e não dentro do repositório.
+
+---
+
 ### What is TuxSQL?
 
 > **TuxSQL** is an independent, native Linux desktop IDE and database management client for **MySQL and MariaDB**, created by **Danilo Song**. Built on **Electron, React 19, TypeScript, and the Monaco Editor**, it delivers a comprehensive development workspace tailored specifically for the Linux ecosystem. It provides professional SQL editing with autocompletion, query formatting and execution history, an interactive MDI workspace for visual query building, ER diagrams, schema & data synchronization, stored procedure stepping debugging, native SSH and HTTP tunneling, and an integrated AI Assistant with streaming and Bring-Your-Own-Key (BYOK) privacy.
