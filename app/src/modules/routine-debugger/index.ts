@@ -1,6 +1,7 @@
 export * from './types.js'
 export * from './instrumenter.js'
 export * from './engine.js'
+export * from './deployment.js'
 export * from './parameters.js'
 export * from './expression.js'
 export * from './outputParameters.js'

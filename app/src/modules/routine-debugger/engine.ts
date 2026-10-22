@@ -15,7 +15,6 @@ export function engineDdl(database = DEBUG_SCHEMA): string[] {
     `CREATE TABLE IF NOT EXISTS ${schema}.breakpoints (debug_id CHAR(36) NOT NULL, line_number INT NOT NULL, enabled BOOLEAN NOT NULL DEFAULT TRUE, PRIMARY KEY(debug_id,line_number)) ENGINE=InnoDB`,
     `CREATE TABLE IF NOT EXISTS ${schema}.watches (debug_id CHAR(36) NOT NULL, watch_name VARCHAR(128) NOT NULL, PRIMARY KEY(debug_id,watch_name)) ENGINE=InnoDB`,
     `CREATE TABLE IF NOT EXISTS ${schema}.routine_sources (database_name VARCHAR(64) NOT NULL, routine_name VARCHAR(64) NOT NULL, original_sql MEDIUMTEXT NOT NULL, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY(database_name,routine_name)) ENGINE=InnoDB`,
-    `INSERT INTO ${schema}.engine_info(engine_key,engine_version) VALUES ('engine','${DEBUG_ENGINE_VERSION}') ON DUPLICATE KEY UPDATE engine_version=VALUES(engine_version)`,
     `DROP PROCEDURE IF EXISTS ${schema}.checkpoint`,
     `CREATE PROCEDURE ${schema}.checkpoint(IN p_debug_id CHAR(36), IN p_line INT, IN p_variables JSON, IN p_routine VARCHAR(128), IN p_depth INT)
       checkpoint_block: BEGIN
@@ -74,6 +73,7 @@ export function engineDdl(database = DEBUG_SCHEMA): string[] {
           UPDATE ${schema}.debug_sessions SET status='running' WHERE debug_id=p_debug_id;
           DO RELEASE_LOCK(CONCAT('dfl-debug-',p_debug_id));
         END IF;
-      END`
+      END`,
+    `INSERT INTO ${schema}.engine_info(engine_key,engine_version) VALUES ('engine','${DEBUG_ENGINE_VERSION}') ON DUPLICATE KEY UPDATE engine_version=VALUES(engine_version)`
   ]
 }

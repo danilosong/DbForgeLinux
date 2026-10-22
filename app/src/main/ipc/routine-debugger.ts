@@ -3,7 +3,8 @@ import { createHash } from 'node:crypto'
 import type { IpcMainInvokeEvent, WebContents } from 'electron'
 import type { IpcDeps } from './registry.js'
 import { ipcMain } from './registry.js'
-import { DEBUG_SCHEMA, calledProcedureNames, engineDdl, instrumentProcedure, instrumentTrigger, quoteDebugIdentifier, type DebugBreakpoint, type DebugRoutineTarget, type DebugSessionStatus, type DebugSnapshot, type DebugStepKind, type DebugWatch } from '../../modules/routine-debugger/index.js'
+import { DEBUG_SCHEMA, calledProcedureNames, instrumentProcedure, instrumentTrigger, quoteDebugIdentifier, type DebugBreakpoint, type DebugRoutineTarget, type DebugSessionStatus, type DebugSnapshot, type DebugStepKind, type DebugWatch } from '../../modules/routine-debugger/index.js'
+import { deployDebugEngine } from '../../modules/routine-debugger/deployment.js'
 import type { DedicatedMysqlSession } from '../db/MysqlDriver.js'
 import { evaluateWatchExpression } from '../../modules/routine-debugger/expression.js'
 import { buildDebugCallPlan } from '../../modules/routine-debugger/outputParameters.js'
@@ -20,14 +21,7 @@ export function registerRoutineDebuggerIpc({ driver }: IpcDeps): void {
   ipcMain.handle('routine-debugger:engine:inspect', async (_event, connectionId: string) => inspectEngine(driver, connectionId))
   ipcMain.handle('routine-debugger:engine:deploy', async (_event, connectionId: string, confirmed: boolean) => {
     if (confirmed !== true) throw new Error('Deploying the debug engine requires explicit confirmation.')
-    const state = await inspectEngine(driver, connectionId)
-    if (state.activeSessions) throw new Error(`Debug engine deployment is blocked while ${state.activeSessions} debug session(s) are active.`)
-    const connection = await driver.openDedicatedSession(connectionId)
-    try {
-      for (const sql of engineDdl()) await connection.execute(sql)
-      const commandVersion = await connection.query('SELECT COUNT(*) AS total FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME=? AND COLUMN_NAME=?', [DEBUG_SCHEMA, 'debug_sessions', 'command_version'])
-      if (Number(commandVersion[0]?.total) === 0) await connection.execute(`ALTER TABLE ${table('debug_sessions')} ADD COLUMN command_version INT NOT NULL DEFAULT 0`)
-    } finally { await connection.close() }
+    await deployDebugEngine(driver, connectionId)
   })
   ipcMain.handle('routine-debugger:engine:remove', async (_event, connectionId: string, confirmed: boolean) => {
     if (confirmed !== true) throw new Error('Removing the debug engine requires explicit confirmation.')
@@ -191,8 +185,10 @@ async function inspectEngine(driver: IpcDeps['driver'], connectionId: string): P
   if (!schemas.length) return { installed: false, activeSessions: 0 }
   let rows: Array<Record<string, unknown>> = []
   let active: Array<Record<string, unknown>> = []
-  try { rows = await driver.queryRows(connectionId, `SELECT engine_version FROM ${table('engine_info')} WHERE engine_key='engine'`) } catch { /* deployment can repair a partially installed schema */ }
-  try { active = await driver.queryRows(connectionId, `SELECT debug_id FROM ${table('debug_sessions')} WHERE status IN ('preparing','running','paused')`) } catch { /* no session table exists yet */ }
+  const tables = await driver.queryRows(connectionId, 'SELECT table_name FROM information_schema.tables WHERE table_schema=? AND table_name IN (?,?)', [DEBUG_SCHEMA, 'engine_info', 'debug_sessions'])
+  const tableNames = new Set(tables.map((row) => String(row.table_name ?? row.TABLE_NAME ?? Object.values(row)[0])))
+  if (tableNames.has('engine_info')) rows = await driver.queryRows(connectionId, `SELECT engine_version FROM ${table('engine_info')} WHERE engine_key='engine'`)
+  if (tableNames.has('debug_sessions')) active = await driver.queryRows(connectionId, `SELECT debug_id FROM ${table('debug_sessions')} WHERE status IN ('preparing','running','paused')`)
   return { installed: true, activeSessions: active.length, version: String(rows[0]?.engine_version ?? Object.values(rows[0] ?? {})[0] ?? '') }
 }
 

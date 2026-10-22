@@ -2,7 +2,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { createDefaultConnection } from '../../src/shared/connectionDefaults.js'
 import { MysqlDriver } from '../../src/main/db/MysqlDriver.js'
-import { engineDdl, instrumentProcedure, instrumentTrigger, quoteDebugIdentifier } from '../../src/modules/routine-debugger/index.js'
+import { deployDebugEngine, engineDdl, instrumentProcedure, instrumentTrigger, quoteDebugIdentifier } from '../../src/modules/routine-debugger/index.js'
 
 const enabled = process.env.MYSQL_INTEGRATION === '1'
 describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
@@ -47,6 +47,18 @@ describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
     executor = await driver.openDedicatedSession(connectionId)
     await controller.execute("SET SESSION sql_mode='STRICT_ALL_TABLES,ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'")
     for (const sql of engineDdl(testDatabase)) await controller.execute(sql)
+    const preservedSessionId = randomUUID()
+    const activeSessionId = randomUUID()
+    await controller.execute(`UPDATE ${schema('engine_info')} SET engine_version='2' WHERE engine_key='engine'`)
+    await controller.execute(`ALTER TABLE ${schema('debug_sessions')} DROP COLUMN command_version`)
+    await controller.execute(`INSERT INTO ${schema('debug_sessions')}(debug_id,connection_id,database_name,routine_name,status,step_kind) VALUES (?,?,?,?,'finished','continue'),(?,?,?,?,'paused','into')`, [preservedSessionId, connectionId, testDatabase, 'preserved_v2_session', activeSessionId, connectionId, testDatabase, 'active_v2_session'])
+    await expect(deployDebugEngine(driver, connectionId, testDatabase)).rejects.toThrow(/blocked while 1 debug session/)
+    expect(String((await controller.query(`SELECT engine_version FROM ${schema('engine_info')} WHERE engine_key='engine'`))[0]?.engine_version)).toBe('2')
+    await controller.execute(`UPDATE ${schema('debug_sessions')} SET status='finished' WHERE debug_id=?`, [activeSessionId])
+    await deployDebugEngine(driver, connectionId, testDatabase)
+    expect(String((await controller.query(`SELECT engine_version FROM ${schema('engine_info')} WHERE engine_key='engine'`))[0]?.engine_version).trim()).toBe('3')
+    expect((await controller.query(`SELECT debug_id FROM ${schema('debug_sessions')} WHERE debug_id IN (?,?)`, [preservedSessionId, activeSessionId])).length).toBe(2)
+    expect(Number((await controller.query(`SELECT COUNT(*) AS total FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=? AND TABLE_NAME='debug_sessions' AND COLUMN_NAME='command_version'`, [testDatabase]))[0]?.total)).toBe(1)
     await executor.execute(`USE ${quoteDebugIdentifier(testDatabase)}`)
     await executor.execute('DROP TABLE IF EXISTS debug_values')
     await executor.execute('CREATE TABLE debug_values (id INT PRIMARY KEY)')
@@ -69,6 +81,9 @@ BEGIN
 END`
     await executor.execute(`DROP PROCEDURE IF EXISTS ${quoteDebugIdentifier(procedure)}`)
     await executor.execute(original)
+    const loadedSource = await driver.showCreateObject(connectionId, testDatabase, { name: procedure, kind: 'procedure' })
+    expect(loadedSource).toContain('DECLARE local_value INT')
+    expect(loadedSource).toContain('SELECT total_value INTO @routine_debug_result')
     const instrumented = instrumentProcedure(original, testDatabase)
     await controller.execute(`USE ${quoteDebugIdentifier(testDatabase)}`)
     await controller.execute(`INSERT INTO ${schema('debug_sessions')}(debug_id,connection_id,database_name,routine_name,status,step_kind) VALUES (?,?,?,?,'running','into')`, [debugId, connectionId, testDatabase, procedure])
