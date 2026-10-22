@@ -1,4 +1,4 @@
-/* global process, console, setTimeout, clearTimeout, window, document, localStorage, CustomEvent */
+/* global process, console, setTimeout, clearTimeout, window, document, localStorage, CustomEvent, navigator, DOMException */
 import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -59,7 +59,7 @@ BEGIN
 END`)
   app = await electron.launch({
     executablePath: electronPath,
-    args: ['--disable-gpu'],
+    args: ['--disable-gpu', '--use-fake-device-for-media-stream'],
     cwd: process.cwd(),
     timeout: 90_000,
     env: {
@@ -82,6 +82,27 @@ END`)
     ipcMain.handle('file:open-in-system', (_event, path, kind) => { calls.push({ path, kind }); return '' })
   })
   await page.waitForFunction(() => window.performance.getEntriesByName('tuxsql:first-paint-settled', 'mark').length > 0, null, { timeout: 15_000 })
+  await page.evaluate(async () => {
+    const probe = `tuxsql-clipboard-${Date.now()}`
+    await navigator.clipboard.writeText(probe)
+    if (await navigator.clipboard.readText() !== probe) throw new Error('Primary-window clipboard read/write permission is unavailable.')
+  })
+  await page.evaluate(() => window.tuxsql.openAboutLink('documentation', 'en', 'light'))
+  let docsPage
+  for (let attempt = 0; attempt < 40 && !docsPage; attempt += 1) {
+    for (const candidate of app.windows()) {
+      if (candidate !== page && candidate.url().includes('/docs/')) { docsPage = candidate; break }
+    }
+    if (!docsPage) await new Promise((resolve) => setTimeout(resolve, 250))
+  }
+  if (!docsPage) throw new Error('Offline documentation window did not open.')
+  const docsMediaResult = await docsPage.evaluate(async () => {
+    if (!navigator.mediaDevices?.getUserMedia) return 'unavailable'
+    try { await navigator.mediaDevices.getUserMedia({ audio: true }); return 'granted' }
+    catch (error) { return error instanceof DOMException ? error.name : 'rejected' }
+  })
+  if (docsMediaResult !== 'NotAllowedError') throw new Error(`Documentation window media permission was ${docsMediaResult}; expected NotAllowedError.`)
+  await docsPage.close()
   page.on('dialog', (dialog) => dialog.accept())
   await page.addLocatorHandler(page.locator('.panel-dialog-backdrop:has(.update-dialog)'), async () => {
     const laterButton = page.getByRole('button', { name: /^(Later|Depois)$/ }).last()
@@ -176,15 +197,25 @@ END`)
   await page.getByRole('heading', { name: 'Recent Connections' }).waitFor()
   await page.locator('.start-page .start-recent-list').first().getByRole('button', { name: /Smoke MySQL 33067/ }).waitFor()
   const recentSqlPath = join(dataRoot, 'recent-e2e.sql')
-  await writeFile(recentSqlPath, 'SELECT 1 AS recent_file;\n', 'utf8')
+  const gridQuery = `SELECT * FROM \`${database}\`.\`${docTable}\`;`
+  await writeFile(recentSqlPath, `${gridQuery}\n`, 'utf8')
   await app.evaluate(({ dialog }, filePath) => {
     dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [filePath] })
   }, recentSqlPath)
   await page.getByRole('button', { name: 'Open SQL File…' }).click()
-  await page.getByText('SELECT 1 AS recent_file;', { exact: true }).waitFor()
+  await page.getByText(gridQuery, { exact: true }).waitFor()
   await page.locator('.sql-context-toolbar').getByRole('button', { name: /Execute/ }).click()
   await page.locator('.grid-result').waitFor()
-  await page.locator('.grid-result tbody tr td').filter({ hasText: /^1$/ }).first().waitFor()
+  const gridRow = page.locator('.grid-result tbody tr').filter({ hasText: 'Smoke card' }).first()
+  await gridRow.waitFor()
+  const gridCell = gridRow.locator('td').filter({ hasText: 'Smoke card' }).first()
+  await gridCell.click({ button: 'right' })
+  await page.getByRole('menuitem', { name: 'Copy cell' }).click()
+  const copiedGridValue = await page.evaluate(() => navigator.clipboard.readText())
+  if (copiedGridValue !== 'Smoke card') throw new Error(`Grid copy put ${JSON.stringify(copiedGridValue)} on the clipboard.`)
+  await page.evaluate(() => navigator.clipboard.writeText('2\tPasted smoke'))
+  const pastePayload = await page.evaluate(() => navigator.clipboard.readText())
+  if (pastePayload !== '2\tPasted smoke') throw new Error(`Grid paste could not read clipboard data: ${JSON.stringify(pastePayload)}.`)
   await page.locator('.workbench.panel-hidden').waitFor()
   await mkdir(evidenceDirectory, { recursive: true })
   await page.screenshot({ path: join(evidenceDirectory, 'reconcile-ui-light.png') })
@@ -204,7 +235,7 @@ END`)
   const recentFile = page.locator('.start-page').getByRole('button', { name: /recent-e2e\.sql/ })
   await recentFile.waitFor()
   await recentFile.click()
-  await page.getByText('SELECT 1 AS recent_file;', { exact: true }).waitFor()
+  await page.getByText(gridQuery, { exact: true }).waitFor()
   await page.getByRole('tab', { name: 'Start Page' }).click()
   await page.getByRole('button', { name: 'New SQL', exact: true }).click()
   await page.getByRole('tab', { name: /SQL/ }).last().waitFor()

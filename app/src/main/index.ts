@@ -1,5 +1,5 @@
 import { initializeStartupTrace, isStartupRendererMilestone, markStartup } from './startupTrace.js'
-import { app, BrowserWindow, ipcMain, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, session } from 'electron'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { MysqlDriver } from './db/MysqlDriver.js'
@@ -18,6 +18,7 @@ import { SettingsStore } from '../modules/options/index.js'
 import { SplashProgressModel, type SplashPhase, type SplashCompletionReason } from '../modules/startup/splashProgress.js'
 import { splashEnMessages } from '../shared/splashMessages.js'
 import { ptBrModulesSplash } from '../shared/ptBrSplashMessages.js'
+import { isAllowedWindowPermission } from './security/permissionPolicy.js'
 
 const driver = new MysqlDriver()
 let vault: PasswordVault
@@ -192,6 +193,12 @@ if (scheduledBackupId === undefined && ownsSingleInstance) {
  })
  app.whenReady().then(()=>{
   markStartup('app-ready')
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+   callback(isAllowedWindowPermission(webContents, permission, mainWindow?.webContents))
+  })
+  session.defaultSession.setPermissionCheckHandler((webContents, permission) =>
+   isAllowedWindowPermission(webContents, permission, mainWindow?.webContents)
+  )
   if (splashPreviewPercent !== undefined) {
    splashLocale = 'en'
    splashEnabled = true
