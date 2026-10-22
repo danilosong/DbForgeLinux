@@ -13,13 +13,16 @@ export type SplashCompletionReason = 'ready' | 'timeout' | 'error' | 'skip'
 export const splashTiming = {
   minimumVisibleMs: 3000,
   readyHoldMs: 300,
-  fadeOutMs: 250
+  fadeOutMs: 250,
+  maximumVisibleMs: 8000
 } as const
 
 export interface SplashReadyPlan {
   completeAt: number
   fadeAt: number
   closeAt: number
+  holdMs: number
+  fadeOutMs: number
 }
 
 export class SplashTimingModel {
@@ -31,10 +34,24 @@ export class SplashTimingModel {
 
   readyPlan(now: number): SplashReadyPlan {
     const visibleAt = this.visibleAt ?? now
-    const latestCompleteAt = visibleAt + splashTiming.minimumVisibleMs - splashTiming.readyHoldMs - splashTiming.fadeOutMs
-    const completeAt = Math.max(now, latestCompleteAt)
-    const fadeAt = completeAt + splashTiming.readyHoldMs
-    return { completeAt, fadeAt, closeAt: fadeAt + splashTiming.fadeOutMs }
+    const hardDeadline = visibleAt + splashTiming.maximumVisibleMs
+    const minimumCompleteAt = visibleAt + splashTiming.minimumVisibleMs - splashTiming.readyHoldMs - splashTiming.fadeOutMs
+    const completeAt = Math.max(now, minimumCompleteAt)
+    const normalCloseAt = completeAt + splashTiming.readyHoldMs + splashTiming.fadeOutMs
+    if (normalCloseAt <= hardDeadline) {
+      const fadeAt = completeAt + splashTiming.readyHoldMs
+      return { completeAt, fadeAt, closeAt: normalCloseAt, holdMs: splashTiming.readyHoldMs, fadeOutMs: splashTiming.fadeOutMs }
+    }
+
+    const remainingMs = Math.max(0, hardDeadline - now)
+    const holdMs = Math.min(splashTiming.readyHoldMs, remainingMs)
+    const fadeOutMs = Math.min(splashTiming.fadeOutMs, remainingMs - holdMs)
+    const fadeAt = now + holdMs
+    return { completeAt: now, fadeAt, closeAt: fadeAt + fadeOutMs, holdMs, fadeOutMs }
+  }
+
+  hardDeadlineAt(): number {
+    return (this.visibleAt ?? 0) + splashTiming.maximumVisibleMs
   }
 
   skipCloseAt(now: number): number {

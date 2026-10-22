@@ -24,7 +24,7 @@ describe('startup splash progress', () => {
     const timing = new SplashTimingModel()
     timing.startVisible(100)
     const plan = timing.readyPlan(900)
-    expect(plan).toEqual({ completeAt: 2550, fadeAt: 2850, closeAt: 3100 })
+    expect(plan).toEqual({ completeAt: 2550, fadeAt: 2850, closeAt: 3100, holdMs: 300, fadeOutMs: 250 })
     expect(plan.closeAt - 100).toBe(splashTiming.minimumVisibleMs)
     expect(plan.fadeAt - plan.completeAt).toBe(splashTiming.readyHoldMs)
     expect(plan.closeAt - plan.fadeAt).toBe(splashTiming.fadeOutMs)
@@ -40,6 +40,30 @@ describe('startup splash progress', () => {
   it('starts the completion hold immediately if startup becomes ready after the minimum window', () => {
     const timing = new SplashTimingModel()
     timing.startVisible(100)
-    expect(timing.readyPlan(3200)).toEqual({ completeAt: 3200, fadeAt: 3500, closeAt: 3750 })
+    expect(timing.readyPlan(3200)).toEqual({ completeAt: 3200, fadeAt: 3500, closeAt: 3750, holdMs: 300, fadeOutMs: 250 })
+  })
+
+  it('finishes on the main window ready-to-show fallback when the renderer ready milestone is missing', () => {
+    const timing = new SplashTimingModel()
+    timing.startVisible(100)
+    const plan = timing.readyPlan(900)
+    expect(plan.closeAt).toBe(100 + splashTiming.minimumVisibleMs)
+  })
+
+  it('keeps a late renderer ready milestone under the absolute visible-time ceiling', () => {
+    const timing = new SplashTimingModel()
+    timing.startVisible(100)
+    const plan = timing.readyPlan(7700)
+    expect(timing.hardDeadlineAt()).toBe(100 + splashTiming.maximumVisibleMs)
+    expect(plan).toEqual({ completeAt: 7700, fadeAt: 8000, closeAt: 8100, holdMs: 300, fadeOutMs: 100 })
+    expect(plan.closeAt).toBeLessThanOrEqual(timing.hardDeadlineAt())
+  })
+
+  it('starts the minimum and absolute deadline only when a late preference allows the splash to become visible', () => {
+    const timing = new SplashTimingModel()
+    timing.startVisible(10_000)
+    const plan = timing.readyPlan(10_100)
+    expect(plan.closeAt).toBe(10_000 + splashTiming.minimumVisibleMs)
+    expect(timing.hardDeadlineAt()).toBe(10_000 + splashTiming.maximumVisibleMs)
   })
 })

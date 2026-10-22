@@ -177,6 +177,8 @@ export default function App(): React.JSX.Element {
   const [metadataLoading, setMetadataLoading] = useState(false)
   const [pageQueries, setPageQueries] = useState<Record<string, PageQuery>>({})
   const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null)
+  const activeSqlForStartupRef = useRef(false)
+  const startupAppReadySentRef = useRef(false)
   const shortcutChordRef = useRef('')
   const metadataRef = useRef<EditorMetadata>(emptyEditorMetadata)
   const completionProviderRef = useRef<{ dispose(): void } | null>(null)
@@ -278,6 +280,7 @@ export default function App(): React.JSX.Element {
   const activePanelTab = documents.find((tab) => tab.id === selectedDocument)?.panelId
   const primaryGroupTabs = findDocumentGroup(documentLayout.root, selectedDocument)?.tabs ?? documents.map((tab) => tab.id)
   const activeSql = selectedDocument !== 'start' && !activeObjectTab && !activeDatabaseTab && !activePanelTab
+  activeSqlForStartupRef.current = activeSql
   const activeSqlText = activeSql ? sqlByDocument[selectedDocument] ?? '' : ''
   const navigationSqlDocument = documents.find((tab) => tab.id === selectedDocument && !tab.objectEditor && !tab.databaseEditor && !tab.panelId)
     ?? [...documents].reverse().find((tab) => !tab.objectEditor && !tab.databaseEditor && !tab.panelId && tab.id !== 'start')
@@ -325,7 +328,7 @@ export default function App(): React.JSX.Element {
     window.addEventListener('tuxsql:close-panel', onClosePanel)
     window.addEventListener('tuxsql:task:reopen', onReopenTask)
     window.addEventListener('tuxsql:grid:send-to-panel', onGridSendToPanel)
-    void window.tuxsql.loadSettings().then((result) => applySettings(result.settings, true)).catch((error: unknown) => log('Options', error instanceof Error ? error.message : 'Settings unavailable.', 'warning'))
+    void window.tuxsql.loadSettings().then((result) => { applySettings(result.settings, true); window.tuxsql.traceStartup('renderer-settings-loaded') }).catch((error: unknown) => { log('Options', error instanceof Error ? error.message : 'Settings unavailable.', 'warning'); window.tuxsql.traceStartup('renderer-settings-loaded') })
     let readyActive = true
     const frame = window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
       void window.tuxsql.initializeNonCriticalIpc().then(() => { if (readyActive) setNonCriticalReady(true) }).catch((error: unknown) => log('Startup', error instanceof Error ? error.message : 'Optional tools are unavailable.', 'warning'))
@@ -360,7 +363,14 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     performance.mark('tuxsql:renderer-mounted')
     let secondFrame = 0
-    const firstFrame = requestAnimationFrame(() => { secondFrame = requestAnimationFrame(() => performance.mark('tuxsql:first-paint-settled')) })
+    const firstFrame = requestAnimationFrame(() => { secondFrame = requestAnimationFrame(() => {
+      performance.mark('tuxsql:first-paint-settled')
+      window.tuxsql.traceStartup('renderer-first-paint')
+      if (!activeSqlForStartupRef.current && !startupAppReadySentRef.current) {
+        startupAppReadySentRef.current = true
+        window.tuxsql.traceStartup('renderer-app-interactive')
+      }
+    }) })
     const observer = typeof PerformanceObserver === 'undefined' ? undefined : new PerformanceObserver((entries) => {
       for (const entry of entries.getEntries()) if (entry.duration >= 200) console.warn(`[startup-trace] long task ${Math.round(entry.duration)} ms at ${Math.round(entry.startTime)} ms`)
     })
@@ -1674,6 +1684,7 @@ export default function App(): React.JSX.Element {
           <div className="editor-surface"><Suspense fallback={<div className="editor-loading" role="status">Loading SQL editor…</div>}><Editor path={`tuxsql://sql/${encodeURIComponent(selectedDocument)}`} height="100%" language="sql" theme={editorTheme} value={sqlByDocument[selectedDocument] ?? ''} onMount={(editor, monaco) => {
             editorRef.current = editor
             monacoApiRef.current = monaco
+            window.tuxsql.traceStartup('renderer-editor-interactive')
             applyEditorTheme(monaco, appSettingsRef.current, theme === 'dark' || theme === 'high-contrast' ? theme : 'light')
             editor.onDidChangeModelContent(() => { const model = editor.getModel(); const position = editor.getPosition(); if (!model || !position) return; const value = model.getValue(); const offset = model.getOffsetAt(position); const adjusted = applyKeywordCaseAtOffset(value, offset, appSettingsRef.current.editor.keywordCase); if (adjusted !== value) { let start = 0; while (start < value.length && value[start] === adjusted[start]) start++; let suffix = 0; while (suffix < value.length - start && value[value.length - suffix - 1] === adjusted[adjusted.length - suffix - 1]) suffix++; const from = model.getPositionAt(start); const to = model.getPositionAt(value.length - suffix); const range = new monaco.Range(from.lineNumber, from.column, to.lineNumber, to.column); editor.executeEdits('keyword-case', [{ range, text: adjusted.slice(start, adjusted.length - suffix) }]) } const current = model.getValue(); const caret = model.getPositionAt(Math.min(offset, current.length)); const e = appSettingsRef.current.editor; const suggestions = buildSqlSuggestions(current, Math.min(offset, current.length), metadataRef.current, userSnippetsRef.current, { filter: e.completionFilter, sortKeywords: e.completionSortKeywords, qualifyColumnWithAlias: e.qualifyColumnWithAlias, autoAlias: e.autoAlias, aliasUppercase: e.aliasUppercase, aliasUseAs: e.aliasUseAs, aliasQualifier: e.aliasQualifier, aliasRules: e.aliasRules, identifierQuoting: e.identifierQuoting }); const match = suggestions.find((item) => item.kind === 'table' && metadataRef.current.objects.some((object) => object.name.toLowerCase() === item.label.toLowerCase())); const detail = match && metadataRef.current.objects.find((object) => object.name.toLowerCase() === match.label.toLowerCase()); setCompletionDetails(detail); setEditorPosition({ line: caret.lineNumber, column: caret.column }) })
             editor.onDidChangeModelContent((event) => { if (formattingRef.current) return; const editorSettings = appSettingsRef.current.editor; const inserted = event.changes.map((change) => change.text).join(''); if ((editorSettings.formatOnStatementEnd && inserted.includes(';')) || (editorSettings.formatOnType && /[;\n]/.test(inserted))) window.requestAnimationFrame(() => formatEditor('statement')) })

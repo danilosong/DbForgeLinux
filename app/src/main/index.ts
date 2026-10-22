@@ -29,6 +29,7 @@ let splashWindow: BrowserWindow | undefined
 let splashProgressModel: SplashProgressModel | undefined
 let splashTimingModel: SplashTimingModel | undefined
 let splashTimeout: NodeJS.Timeout | undefined
+let splashAbsoluteFailsafeTimer: NodeJS.Timeout | undefined
 let splashCompletionTimer: NodeJS.Timeout | undefined
 let splashHoldTimer: NodeJS.Timeout | undefined
 let splashDismissTimer: NodeJS.Timeout | undefined
@@ -36,6 +37,7 @@ let splashLocale: 'en' | 'pt-BR' = 'en'
 let splashEnabled = false
 let splashHasBeenShown = false
 let splashDismissed = false
+let splashFailsafeTriggered = false
 let splashReadyRequested = false
 let splashFinishReason: SplashCompletionReason | 'skip' | undefined
 let splashDidFinishLoad = false
@@ -91,16 +93,34 @@ function closeSplashWindow(): void {
  if (!window || window.isDestroyed()) {
   splashWindow = undefined
   splashDismissed = true
-  showMainWindowWhenReady()
+  if (splashFailsafeTriggered) forceShowMainWindow()
+  else showMainWindowWhenReady()
   return
  }
  window.close()
+}
+function forceShowMainWindow(): void {
+ if (!splashPreferenceResolved || !mainWindow || mainWindow.isDestroyed() || mainWindow.isVisible()) return
+ mainWindow.show()
+ markStartup('main-window-failsafe-shown')
+}
+function forceCloseSplashAtDeadline(): void {
+ if (splashDismissed) return
+ splashFailsafeTriggered = true
+ markStartup('splash-absolute-deadline')
+ clearSplashFinishTimers()
+ if (splashAbsoluteFailsafeTimer) clearTimeout(splashAbsoluteFailsafeTimer)
+ splashAbsoluteFailsafeTimer = undefined
+ if (splashTimeout) clearTimeout(splashTimeout)
+ splashTimeout = undefined
+ closeSplashWindow()
 }
 function finishSplash(reason: SplashCompletionReason | 'skip' = 'ready'): void {
  if (reason === 'ready' && splashWindow && !splashPreferenceResolved) { splashReadyRequested = true; return }
  if (reason === 'ready' && splashFinishReason) return
  if (reason === 'skip' && splashFinishReason === 'skip') return
  if ((reason === 'timeout' || reason === 'error') && (splashFinishReason === 'timeout' || splashFinishReason === 'error')) return
+ if (reason === 'timeout' || reason === 'error') splashFailsafeTriggered = true
  if (reason === 'skip' || reason === 'timeout' || reason === 'error') clearSplashFinishTimers()
  if (splashTimeout) clearTimeout(splashTimeout)
  splashTimeout = undefined
@@ -124,8 +144,8 @@ function finishSplash(reason: SplashCompletionReason | 'skip' = 'ready'): void {
    sendSplashPayload(splashPayload(snapshot.phase, snapshot.percent))
    splashHoldTimer = setTimeout(() => {
     if (lastSplashPayload) sendSplashPayload({ ...lastSplashPayload, fadeOut: true })
-    splashDismissTimer = setTimeout(closeSplashWindow, splashTiming.fadeOutMs)
-   }, splashTiming.readyHoldMs)
+    splashDismissTimer = setTimeout(closeSplashWindow, plan.fadeOutMs)
+   }, plan.holdMs)
   }, Math.max(0, plan.completeAt - performance.now()))
   splashCompletionTimer.unref?.()
   return
@@ -149,21 +169,33 @@ function finishSplash(reason: SplashCompletionReason | 'skip' = 'ready'): void {
   splashDismissTimer.unref?.()
  } else closeSplashWindow()
 }
+function finishSplashIfMainWindowReady(): void {
+ if (!splashEnabled || !mainReadyToShow || process.env.TUXSQL_TEST_DISABLE_MAIN_READY_SPLASH_FALLBACK === '1') return
+ markStartup('splash-main-window-ready-fallback')
+ if (!splashHasBeenShown) { closeSplashWindow(); return }
+ finishSplash('ready')
+}
 function revealSplashWhenReady(): void {
  if (!splashEnabled || !splashReadyToShow || !splashWindow || splashWindow.isDestroyed() || splashHasBeenShown) return
+ if (splashTimeout) clearTimeout(splashTimeout)
+ splashTimeout = undefined
  splashWindow.show()
  splashHasBeenShown = true
  splashTimingModel?.startVisible(performance.now())
  markStartup('splash-window-shown')
+ splashAbsoluteFailsafeTimer = setTimeout(forceCloseSplashAtDeadline, splashTiming.maximumVisibleMs - 100)
+ splashAbsoluteFailsafeTimer.unref?.()
  if (lastSplashPayload) sendSplashPayload({ ...lastSplashPayload, visible: true, fadeOut: false })
  if (splashReadyRequested) {
   splashReadyRequested = false
   splashFinishReason = undefined
   finishSplash('ready')
  }
+ finishSplashIfMainWindowReady()
 }
 function showMainWindowWhenReady(): void {
  if (!splashPreferenceResolved || !mainReadyToShow || !mainWindow || mainWindow.isDestroyed() || (splashEnabled && !splashDismissed)) return
+ if (mainWindow.isVisible()) return
  mainWindow.show()
  markStartup('main-window-shown')
 }
@@ -203,11 +235,15 @@ function createSplashWindow(): void {
    if (splashWindow === window) splashWindow = undefined
    splashDismissed = true
    markStartup('splash-closed')
-   showMainWindowWhenReady()
+   clearSplashFinishTimers()
+   if (splashAbsoluteFailsafeTimer) clearTimeout(splashAbsoluteFailsafeTimer)
+   splashAbsoluteFailsafeTimer = undefined
+   if (splashFailsafeTriggered) forceShowMainWindow()
+   else showMainWindowWhenReady()
   })
   const query = splashPreviewPercent === undefined ? undefined : { preview: String(splashPreviewPercent) }
   void window.loadFile(splashFile, query ? { query } : undefined).catch(() => finishSplash('error'))
-  splashTimeout = setTimeout(() => { markStartup('splash-safety-timeout'); finishSplash('timeout') }, 25_000)
+  splashTimeout = setTimeout(() => { markStartup('splash-prepaint-timeout'); finishSplash('timeout') }, splashTiming.maximumVisibleMs)
   splashTimeout.unref?.()
  } catch { finishSplash('error') }
 }
@@ -245,7 +281,13 @@ function createWindow():void {
  const window=createTuxSqlBrowserWindow({width:1440,height:900,minWidth:1024,minHeight:640,autoHideMenuBar:true,show:false,webPreferences:{preload:join(__dirname,'../preload/index.js')}})
  mainWindow=window
  markStartup('main-window-created')
- window.once('ready-to-show',()=>{mainReadyToShow=true;markStartup('main-window-ready-to-show');advanceSplash('editor');showMainWindowWhenReady()})
+ window.once('ready-to-show', () => {
+  mainReadyToShow = true
+  markStartup('main-window-ready-to-show')
+  advanceSplash('editor')
+  finishSplashIfMainWindowReady()
+  showMainWindowWhenReady()
+ })
   window.webContents.once('did-finish-load',()=>markStartup('main-window-did-finish-load'))
  window.webContents.on('did-fail-load',()=>finishSplash('error'))
  window.webContents.on('render-process-gone',()=>finishSplash('error'))
@@ -260,6 +302,10 @@ function createWindow():void {
 if (scheduledBackupId === undefined && ownsSingleInstance) {
  ipcMain.on('startup:trace', (event, milestone: unknown) => {
   if (event.sender !== mainWindow?.webContents || !isStartupRendererMilestone(milestone)) return
+  if (process.env.TUXSQL_TEST_MISSING_STARTUP_MILESTONE === '1' && (milestone === 'renderer-editor-interactive' || milestone === 'renderer-app-interactive')) {
+   markStartup('test-suppressed-renderer-ready-milestone')
+   return
+  }
   markStartup(milestone)
   if (milestone === 'renderer-settings-loaded') advanceSplash('interface')
   if (milestone === 'renderer-first-paint') advanceSplash('editor')
