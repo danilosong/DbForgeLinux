@@ -4,9 +4,9 @@ import { join } from 'node:path'
 import type { AboutInfo, AboutLink } from '../../shared/contracts/about.js'
 
 const links: Record<AboutLink, string> = {
-  documentation: 'https://github.com/danilosong/TuxSQL/tree/main/document/user-guide',
+  documentation: 'https://github.com/danilosong/TuxSQL/tree/HEAD/document/user-guide',
   repository: 'https://github.com/danilosong/TuxSQL',
-  license: 'https://github.com/danilosong/TuxSQL/blob/main/app/LICENSE'
+  license: 'https://github.com/danilosong/TuxSQL/blob/HEAD/LICENSE'
 }
 
 export function registerAboutIpc(): void {

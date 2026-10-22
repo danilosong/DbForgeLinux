@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { handlers, openExternal } = vi.hoisted(() => ({
@@ -29,15 +31,32 @@ describe('About IPC', () => {
     await openLink({}, 'repository')
     await openLink({}, 'license')
     expect(openExternal.mock.calls.map(([url]) => url)).toEqual([
-      'https://github.com/danilosong/TuxSQL/tree/main/document/user-guide',
+      'https://github.com/danilosong/TuxSQL/tree/HEAD/document/user-guide',
       'https://github.com/danilosong/TuxSQL',
-      'https://github.com/danilosong/TuxSQL/blob/main/app/LICENSE'
+      'https://github.com/danilosong/TuxSQL/blob/HEAD/LICENSE'
     ])
     await expect(openLink({}, 'https://attacker.example')).rejects.toThrow('Unsupported About link.')
   })
 
-  it('provides the independent-project legal notice in English and pt-BR', () => {
-    expect(aboutEnMessages['about.legal']).toContain('Independent implementation')
-    expect(aboutPtBrMessages['about.legal']).toBe('Implementação independente inspirada em funcionalidades de ferramentas de banco de dados; não contém código nem assets do dbForge e não é afiliada à Devart.')
+  it('keeps every opened link pointing at a file that exists in the repository and never at a fixed branch', async () => {
+    const openLink = handlers.get('about:open-link')!
+    for (const link of ['documentation', 'repository', 'license'] as const) await openLink({}, link)
+    const repoRoot = join(process.cwd(), '..')
+    for (const [url] of openExternal.mock.calls as Array<[string]>) {
+      const match = /^https:\/\/github\.com\/danilosong\/TuxSQL(?:\/(?:tree|blob)\/([^/]+)\/(.+))?$/.exec(url)
+      expect(match, url).not.toBeNull()
+      if (!match?.[1]) continue
+      expect(match[1], `${url} must use HEAD so it follows the default branch`).toBe('HEAD')
+      expect(existsSync(join(repoRoot, match[2]!)), `${match[2]} must exist in the repository`).toBe(true)
+    }
+  })
+
+  it('describes the project as an independent client without naming third-party products', () => {
+    for (const text of [aboutEnMessages['about.legal'], aboutPtBrMessages['about.legal']]) {
+      expect(text).toContain('TuxSQL')
+      expect(text).not.toMatch(/dbforge|devart/i)
+    }
+    expect(aboutEnMessages['about.legal']).toContain('independent database client')
+    expect(aboutPtBrMessages['about.legal']).toContain('cliente de banco de dados independente')
   })
 })
