@@ -8,11 +8,11 @@ Open **Tools → Options → Updates** to choose the channel, startup behavior, 
 
 The development channel is available in builds launched from a local Git checkout with `tools/tuxsql-dev`. It checks local commits and `origin` without changing source files during the check. Applying an update requires a clean working tree and the same branch used to build the app. The updater uses `git pull --ff-only` when the remote branch is ahead, installs dependencies only when the lockfile changed, builds in a separate output directory, validates it, then swaps the app bundle atomically. If compilation or validation fails, the current bundle stays in place.
 
-Use channel **Automatic** to select the local development channel in a checkout and GitHub releases in a packaged installation. **Release** always uses published GitHub assets. On Linux, AppImage and supported Debian packages use their package updater; if package installation is unavailable, the release page opens for a manual install.
+Use channel **Development** to enable Git and pnpm operations. **Automatic** and **Release** use published GitHub releases; a checkout or repository path in build metadata alone does not enable development commands. On Linux, AppImage and supported Debian packages use their package updater; if package installation is unavailable, the release page opens for a manual install.
 
 ## Build metadata
 
-Each build writes `out/buildInfo.json`. Release builds omit the local repository path, so they cannot expose a developer checkout or select the development channel automatically.
+Each build writes `out/buildInfo.json`. Release builds omit the local repository path, so they cannot expose a developer checkout or run development-channel commands.
 
 ## Instalar o `.deb` e atualizar pelo repositório (vínculo de desenvolvimento)
 
@@ -29,7 +29,8 @@ build embutido. Assim o botão **Atualizar** (git + rebuild + reinício) muda o 
    ```
 
 3. Garanta que o clone foi compilado ao menos uma vez (`cd app && pnpm install && pnpm build`).
-4. Para voltar ao build embutido: apague o arquivo ou abra com `TUXSQL_NO_DEV_LINK=1`.
+4. No TuxSQL vinculado, escolha o canal **Desenvolvimento** em **Tools → Options → Updates**. O canal **Automatic** usa releases e não executa Git/pnpm.
+5. Para voltar ao build embutido: apague o arquivo ou abra com `TUXSQL_NO_DEV_LINK=1`.
 
 O vínculo é ignorado (e o build embutido é usado) se o build do repositório não existir, não for seu ou for gravável por outros usuários.
 

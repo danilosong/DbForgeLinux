@@ -1,16 +1,29 @@
 # UX 07 — Schema Compare e Synchronization
 
 **Fidelidade REA & Observação VM:** especificação baseada no inventário REA M9, ui-text e **observação direta da VM de referência `dbforge-ref`** (dbForge Studio for MySQL v2026.2.82, capturas em `re/original-observation/06-schema-compare/` e varredura completa em `re/original-observation/p2-04-schema-compare/`).
-- **[C] Menu Comparison e Assistente de 2 Etapas (`p2-04/03-12`):** Menu principal dedicado (`03-menu-comparison-1917.png`), diálogo New Schema Comparison com Source e Target (`04-new-schema-comparison-1917.png` a `08-target-sample_b-1917.png`), Options em 4 páginas com presets Devart/My Defaults (`09-options-1917.png` a `12-options-pag4-1918.png`).
-- **[C] Documento `.scomp` e Grade de Diferenças (`p2-04/13-22`):** Grade de 20 objetos selecionados divididos em `Only in Source` (Create ➔*) e `Only in Target` (Drop ✕) (`13-comparando-1918.png` a `21-target-lista-d-1919.png`), filtro lateral de tipos (`15-17`), Monaco diff inferior com realce verde e hachurado "Object does not exist" (`14-comparador-max-1918.png`).
-- **[C] Sync Wizard e Action Plan Topológico (`p2-04/26-35`):** 4 etapas (`26-sync-wizard-inicio-1919.png`), Output com 3 modos, Options de script (`27`), Additional Scripts (`28`), Summary com Action Plan expandido em 19 passos (`29` e `31-34`) e aba Warnings com alerta sobre DETERMINISTIC na function1 (`30-sync-warnings-1920.png`).
-- **[C] Script de Sincronização e Execução (`p2-04/36-56`):** Geração de script SQL de 176 linhas (`36-script-gerado-topo-1920.png` a `46-script-pagina-6-1921.png`) com cabeçalho de metadados, `SET FOREIGN_KEY_CHECKS=0`, `USE sample_b`, DROPs ordenados e CREATEs com `DELIMITER $$`. Execução com F5 (`47-execucao-f5-1921.png`) com warning do MySQL e persistência comprovada no destino (`50-resultado-sample_b-1929.png`, `53-56`).
+- **[C] Menu Comparison e Assistente de 2 Etapas:**
+  - Menu dedicado: `re/original-observation/06-schema-compare/menu-comparison-ativo.png`, `re/original-observation/p2-04-schema-compare/03-menu-comparison-1917.png`.
+  - Diálogo New Schema Comparison (Source e Target): `re/original-observation/06-schema-compare/wizard-1.png`, `re/original-observation/06-schema-compare/tipo-origem.png`, `re/original-observation/06-schema-compare/target-conexao.png`, `re/original-observation/06-schema-compare/target-db-lista.png`, `re/original-observation/p2-04-schema-compare/04-new-schema-comparison-1917.png`, `re/original-observation/p2-04-schema-compare/05-target-conexao-1917.png`, `re/original-observation/p2-04-schema-compare/06-target-db-1917.png`, `re/original-observation/p2-04-schema-compare/07-target-digita-1917.png`, `re/original-observation/p2-04-schema-compare/08-target-sample_b-1917.png`.
+  - Options em 4 páginas com presets Devart/My Defaults: `re/original-observation/06-schema-compare/wizard-options.png`, `re/original-observation/p2-04-schema-compare/09-options-1917.png`, `re/original-observation/p2-04-schema-compare/10-options-pag2-1918.png`, `re/original-observation/p2-04-schema-compare/11-options-pag3-1918.png`, `re/original-observation/p2-04-schema-compare/12-options-pag4-1918.png`.
+- **[C] Documento `.scomp` e Grade de Diferenças:**
+  - Card de progresso de comparação: `re/original-observation/p2-04-schema-compare/13-comparando-1918.png`.
+  - Grade de 20 objetos e Monaco diff: `re/original-observation/06-schema-compare/resultado.png`, `re/original-observation/p2-04-schema-compare/14-comparador-max-1918.png`, `re/original-observation/p2-04-schema-compare/18-janela-arrastada-1918.png`, `re/original-observation/p2-04-schema-compare/19-target-lista-b-1919.png`, `re/original-observation/p2-04-schema-compare/20-target-lista-c-1919.png`, `re/original-observation/p2-04-schema-compare/21-target-lista-d-1919.png`.
+  - Filtro lateral de tipos: `re/original-observation/p2-04-schema-compare/15-recolhe-source-1918.png`, `re/original-observation/p2-04-schema-compare/16-reativa-packages-1918.png`, `re/original-observation/p2-04-schema-compare/17-recolhe-source-ok-1918.png`.
+  - Menu Comparison com comparador ativo: `re/original-observation/p2-04-schema-compare/22-menu-comparison-ativo-1919.png`.
+  - Painel View Update Script: `re/original-observation/p2-04-schema-compare/23-view-update-script-1919.png`, `re/original-observation/p2-04-schema-compare/24-update-script-espera-1919.png`, `re/original-observation/p2-04-schema-compare/25-update-script-topo-1919.png`.
+- **[C] Sync Wizard e Action Plan Topológico:**
+  - 4 etapas do assistente de sincronização: `re/original-observation/06-schema-compare/sync-1.png`, `re/original-observation/06-schema-compare/sync-wizard-1.png`, `re/original-observation/p2-04-schema-compare/26-sync-wizard-inicio-1919.png` (Passo 1 Output), `re/original-observation/06-schema-compare/sync-wizard-2.png`, `re/original-observation/p2-04-schema-compare/27-sync-options-1919.png` (Passo 2 Options), `re/original-observation/06-schema-compare/sync-wizard-3.png`, `re/original-observation/p2-04-schema-compare/28-sync-additional-scripts-1919.png` (Passo 3 Additional Scripts), `re/original-observation/06-schema-compare/sync-wizard-4.png`, `re/original-observation/p2-04-schema-compare/29-sync-summary-1920.png` (Passo 4 Summary).
+  - Warnings e Action Plan: `re/original-observation/p2-04-schema-compare/30-sync-warnings-1920.png` (alerta DETERMINISTIC na function1), `re/original-observation/p2-04-schema-compare/31-action-plan-expandido-1920.png`, `re/original-observation/p2-04-schema-compare/32-action-plan-pag2-1920.png`, `re/original-observation/p2-04-schema-compare/33-action-plan-pag3-1920.png`, `re/original-observation/p2-04-schema-compare/34-action-plan-pag4-1920.png`, `re/original-observation/p2-04-schema-compare/35-sync-clique-synchronize-1920.png`.
+- **[C] Script de Sincronização e Execução:**
+  - Script SQL de 176 linhas gerado: `re/original-observation/p2-04-schema-compare/36-script-gerado-topo-1920.png`, `re/original-observation/p2-04-schema-compare/37-script-gerado-fim-1920.png`, `re/original-observation/p2-04-schema-compare/38-script-editor-grande-topo-1921.png`, `re/original-observation/p2-04-schema-compare/39-script-topo-editor-grande-1921.png`, `re/original-observation/p2-04-schema-compare/41-script-pagina-1-1921.png`, `re/original-observation/p2-04-schema-compare/42-script-pagina-2-1921.png`, `re/original-observation/p2-04-schema-compare/43-script-pagina-3-1921.png`, `re/original-observation/p2-04-schema-compare/44-script-pagina-4-1921.png`, `re/original-observation/p2-04-schema-compare/45-script-pagina-5-1921.png`, `re/original-observation/p2-04-schema-compare/46-script-pagina-6-1921.png`.
+  - Execução com F5 no SQL Editor: `re/original-observation/p2-04-schema-compare/47-execucao-f5-1921.png`.
+  - Persistência e verificação pós-execução no destino (`sample_b`): `re/original-observation/p2-04-schema-compare/50-resultado-sample_b-1929.png`, `re/original-observation/p2-04-schema-compare/52-explorer-procura-sample_b-1932.png`, `re/original-observation/p2-04-schema-compare/53-sample_b-expandido-1932.png`, `re/original-observation/p2-04-schema-compare/54-sample_b-pastas-expandidas-1932.png`, `re/original-observation/p2-04-schema-compare/55-sample_b-rolado-1933.png`, `re/original-observation/p2-04-schema-compare/56-sample_b-events-1933.png`, `re/original-observation/p2-04-schema-compare/57-fecha-sql10-1934.png`, `re/original-observation/p2-04-schema-compare/58-sql10-fechada-1934.png`.
 
 ---
 
-## 1. Fluxo de Entrada e Assistente "New Schema Comparison"
+## 1. Fluxo de Entrada e Assistente "New Schema Comparison" [C: re/original-observation/06-schema-compare/wizard-1.png, re/original-observation/p2-04-schema-compare/04-new-schema-comparison-1917.png]
 
-A funcionalidade é acionada via menu principal (`Comparison > New Schema Comparison...`), atalho da barra de ferramentas ou menu de contexto de database no Explorer (`Compare With...`).
+A funcionalidade é acionada via menu principal (`Comparison > New Schema Comparison...` em `re/original-observation/p2-04-schema-compare/03-menu-comparison-1917.png`), atalho da barra de ferramentas ou menu de contexto de database no Explorer (`Compare With...`).
 O fluxo abre um assistente modal de configuração estruturado em 2 etapas:
 
 ```
@@ -32,12 +45,12 @@ O fluxo abre um assistente modal de configuração estruturado em 2 etapas:
 +--------------------------------------------------------------------------+
 ```
 
-### 1.1 Etapa 1: Source and Target
+### 1.1 Etapa 1: Source and Target [C: re/original-observation/06-schema-compare/wizard-1.png, re/original-observation/p2-04-schema-compare/04-new-schema-comparison-1917.png]
 - **Colunas Paralelas (Source e Target):**
-  - `Type:` combo box (`Database`, `Project`, `Scripts Folder`, `Snapshot`, `Source Control`).
-  - `Connection:` combo box com `<Manage...>` para abrir Connection Manager.
-  - `Server Version:` exibição dinâmica da versão do servidor (ex.: `8.4.11` ou `not available`).
-  - `Database:` combo box com `<Refresh...>`, botão `+` para criar novo schema e seletor rápido.
+  - `Type:` combo box (`Database`, `Project`, `Scripts Folder`, `Snapshot`, `Source Control`) [C: `re/original-observation/06-schema-compare/tipo-origem.png`].
+  - `Connection:` combo box com `<Manage...>` para abrir Connection Manager [C: `re/original-observation/06-schema-compare/target-conexao.png`, `re/original-observation/p2-04-schema-compare/05-target-conexao-1917.png`].
+  - `Server Version:` exibição dinâmica da versão do servidor (ex.: `8.4.11` ou `not available`) [C: `re/original-observation/p2-04-schema-compare/04-new-schema-comparison-1917.png`].
+  - `Database:` combo box com `<Refresh...>`, botão `+` para criar novo schema e seletor rápido com digitação e autocomplete (`re/original-observation/06-schema-compare/target-db-lista.png`, `re/original-observation/p2-04-schema-compare/06-target-db-1917.png`, `re/original-observation/p2-04-schema-compare/07-target-digita-1917.png`, `re/original-observation/p2-04-schema-compare/08-target-sample_b-1917.png`).
 - **Botões de Interação entre Painéis:**
   - `[ Copy ▶ ]`: copia conexão e database da Origem para o Destino.
   - `[ ⇄ ]`: inverte os lados de Origem e Destino.
@@ -46,25 +59,27 @@ O fluxo abre um assistente modal de configuração estruturado em 2 etapas:
   Se o usuário tentar avançar para `Options` ou acionar `Compare` com o Destino inválido ou vazio, o sistema exibe um alerta modal de bloqueio:
   > *"Comparison target is invalid"* `[ OK ]`
 
-### 1.2 Etapa 2: Options
-- **Busca:** Campo de texto com placeholder `Search` e ícone vermelho `✖` para limpar o filtro.
+### 1.2 Etapa 2: Options [C: re/original-observation/06-schema-compare/wizard-options.png, re/original-observation/p2-04-schema-compare/09-options-1917.png a 12-options-pag4-1918.png]
+- **Busca:** Campo de texto com placeholder `Search` e ícone vermelho `✖` para limpar o filtro (`re/original-observation/p2-04-schema-compare/09-options-1917.png`).
 - **Link CLI:** `Save settings to a command line arguments file...` para exportação de script de automação.
-- **Grupos de Opções (Árvore/Accordion):**
+- **Grupos de Opções (Árvore/Accordion) observados em 4 páginas (`re/original-observation/p2-04-schema-compare/09-options-1917.png` a `re/original-observation/p2-04-schema-compare/12-options-pag4-1918.png`):**
   - `▾ Common`:
     - `☐ Disable dependency analysis`
     - `☐ Ignore AUTO_INCREMENT clause`
-    - `☑ Ignore AUTO_INCREMENT table option` *(ativo por padrão)*
-    - `☑ Ignore average row length` *(ativo por padrão)*
+    - `☑ Ignore AUTO_INCREMENT table option` *(ativo por padrão [C])*
+    - `☑ Ignore average row length` *(ativo por padrão [C])*
     - `☐ Ignore collations`
     - `☐ Ignore column data types`
     - `☐ Ignore column default values`
-    - `☑ Ignore DEFINER clause` *(ativo por padrão)*
+    - `☑ Ignore DEFINER clause` *(ativo por padrão [C])*
     - `☐ Ignore ENDS clause`
     - `☐ Ignore permissions`
-    - `☑ Ignore SQL SECURITY clause` *(ativo por padrão)*
+    - `☑ Ignore SQL SECURITY clause` *(ativo por padrão [C])*
     - `☐ Ignore STARTS clause`
     - `☐ Ignore table engine`
-  - `▾ Auto Mapping`
+  - `▾ Auto Mapping` (`Associate column names having similar name options, 80%`, `Ignore case in object names`, `Ignore spaces in object names` [C: `re/original-observation/p2-04-schema-compare/10-options-pag2-1918.png`])
+  - `▾ Tables` (`Force column order`, `Ignore NOT NULL constraints`, `Ignore partitions`, `Ignore row format table option` [C: `re/original-observation/p2-04-schema-compare/11-options-pag3-1918.png`])
+  - `▾ Indexes and constraints` e `Script Objects` (`re/original-observation/p2-04-schema-compare/12-options-pag4-1918.png`)
 - **Painel de Descrição Contextual:** Exibe o nome e a explicação detalhada do item atualmente em foco.
 - **Botões de Perfil (Presets):**
   - Esquerda: `[ Save As My Defaults ]`
@@ -72,7 +87,7 @@ O fluxo abre um assistente modal de configuração estruturado em 2 etapas:
 
 ---
 
-## 2. Execução e Card de Progresso In-Flight
+## 2. Execução e Card de Progresso In-Flight [C: re/original-observation/p2-04-schema-compare/13-comparando-1918.png]
 
 Ao clicar no botão `[ Compare ]`, o assistente inicia a análise e apresenta um card centralizado com as 5 etapas sequenciais e indicadores dinâmicos:
 
@@ -95,9 +110,9 @@ Ao clicar no botão `[ Compare ]`, o assistente inicia a análise e apresenta um
 
 ---
 
-## 3. Documento de Comparação (.scomp)
+## 3. Documento de Comparação (.scomp) [C: re/original-observation/06-schema-compare/resultado.png, re/original-observation/p2-04-schema-compare/14-comparador-max-1918.png]
 
-Ao concluir a análise, o documento MDI abre na aba `<source> vs. <target>.scomp*`.
+Ao concluir a análise, o documento MDI abre na aba `<source> vs. <target>.scomp*` (`re/original-observation/p2-04-schema-compare/14-comparador-max-1918.png`).
 
 ### 3.1 Estrutura do Layout
 
@@ -125,7 +140,7 @@ Ao concluir a análise, o documento MDI abre na aba `<source> vs. <target>.scomp
 +-------------------------------------------------------------------------+
 ```
 
-### 3.2 Menus e Atalhos Associados
+### 3.2 Menus e Atalhos Associados [C: re/original-observation/p2-04-schema-compare/22-menu-comparison-ativo-1919.png]
 - Menu dedicado `Comparison` no menu principal da aplicação:
   - `New Schema Comparison...`
   - `New Data Comparison...`
@@ -134,34 +149,34 @@ Ao concluir a análise, o documento MDI abre na aba `<source> vs. <target>.scomp
   - `Refresh` (`F5`)
   - `Stop Execution`
   - `Change Synchronization Direction`
-  - `View Schema Update Script` (abre painel com script do objeto selecionado)
+  - `View Schema Update Script` (abre painel inferior `Schema Update Script` em `re/original-observation/p2-04-schema-compare/23-view-update-script-1919.png`, `re/original-observation/p2-04-schema-compare/24-update-script-espera-1919.png`, `re/original-observation/p2-04-schema-compare/25-update-script-topo-1919.png`)
   - `Generate Comparison Report...` (exportação CSV/HTML)
   - `Synchronize...` (`F8`)
 
-### 3.3 Painel Esquerdo de Filtro de Objetos
+### 3.3 Painel Esquerdo de Filtro de Objetos [C: re/original-observation/p2-04-schema-compare/15-recolhe-source-1918.png a 17-recolhe-source-ok-1918.png]
 - Dropdown de controle de exclusão (`Nothing excluded` / `N items excluded`).
 - Árvore hierárquica com checkboxes por categoria:
   `Events`, `Functions`, `Packages`, `Procedures`, `Sequences`, `Tables`, `Triggers`, `Views`.
 
-### 3.4 Grade de Objetos e Agrupamento
+### 3.4 Grade de Objetos e Agrupamento [C: re/original-observation/p2-04-schema-compare/18-janela-arrastada-1918.png a 21-target-lista-d-1919.png]
 - **Colunas:** `Type`, `Source Object`, `☑` (seleção para sincronização), `Operation`, `Target Object`.
 - **Agrupamentos por Status:**
-  - `Only in Source`: Operação `➔* Create`.
+  - `Only in Source`: Operação `➔* Create` (`re/original-observation/p2-04-schema-compare/14-comparador-max-1918.png`).
   - `Different`: Operação `➔ Update`.
-  - `Only in Target`: Operação `✕ Drop`.
-- **Seleção Padrão:** No original, todos os objetos vêm selecionados por padrão, incluindo operações de `Drop`.
+  - `Only in Target`: Operação `✕ Drop` (`re/original-observation/p2-04-schema-compare/19-target-lista-b-1919.png`, `re/original-observation/p2-04-schema-compare/21-target-lista-d-1919.png`).
+- **Seleção Padrão:** No original, todos os objetos vêm selecionados por padrão, incluindo operações de `Drop` ("20 of 20 objects selected").
 
-### 3.5 Monaco Diff Editor Lado a Lado
+### 3.5 Monaco Diff Editor Lado a Lado [C: re/original-observation/p2-04-schema-compare/14-comparador-max-1918.png]
 - Comparação visual DDL entre Origem e Destino com rolagem sincronizada.
 - Quando um objeto existe apenas em um dos lados, o lado oposto exibe preenchimento hachurado diagonal acompanhado da etiqueta centralizada `Object does not exist`.
 
 ---
 
-## 4. Assistente de Sincronização (Schema Synchronization Wizard — F8)
+## 4. Assistente de Sincronização (Schema Synchronization Wizard — F8) [C: re/original-observation/06-schema-compare/sync-wizard-1.png a sync-wizard-4.png, re/original-observation/p2-04-schema-compare/26-sync-wizard-inicio-1919.png a 35-sync-clique-synchronize-1920.png]
 
-Acionado pela tecla de atalho `F8` ou pelo botão `Synchronize...`. É um assistente de 4 etapas:
+Acionado pela tecla de atalho `F8` ou pelo botão `Synchronize...` (`re/original-observation/06-schema-compare/sync-1.png`). É um assistente de 4 etapas:
 
-### 4.1 Etapa 1: Output
+### 4.1 Etapa 1: Output [C: re/original-observation/06-schema-compare/sync-wizard-1.png, re/original-observation/p2-04-schema-compare/26-sync-wizard-inicio-1919.png]
 - **Opções de Destino do Script:**
   - `(•) Open the synchronization script in the internal editor` *(padrão)*
   - `( ) Save the script to a file`:
@@ -171,7 +186,7 @@ Acionado pela tecla de atalho `F8` ou pelo botão `Synchronize...`. É um assist
   - `( ) Execute the script directly against the target database`:
     - `☑ Refresh comparison results after successful synchronization`
 
-### 4.2 Etapa 2: Options
+### 4.2 Etapa 2: Options [C: re/original-observation/06-schema-compare/sync-wizard-2.png, re/original-observation/p2-04-schema-compare/27-sync-options-1919.png]
 - **Grupos:**
   - `▾ Common`:
     - `☐ Check for object existence`
@@ -182,7 +197,7 @@ Acionado pela tecla de atalho `F8` ou pelo botão `Synchronize...`. É um assist
     - `☐ Exclude comments`
 - Painel de descrição da opção focada e botões de preset (`Save As My Defaults`, `Devart Defaults`, `My Defaults`).
 
-### 4.3 Etapa 3: Additional Scripts
+### 4.3 Etapa 3: Additional Scripts [C: re/original-observation/06-schema-compare/sync-wizard-3.png, re/original-observation/p2-04-schema-compare/28-sync-additional-scripts-1919.png]
 - **Seções Pré e Pós Sincronização:**
   - `☐ Scripts to execute before:`
     - `(•) Use embedded script:` (editor de texto SQL multilinha)
@@ -191,23 +206,14 @@ Acionado pela tecla de atalho `F8` ou pelo botão `Synchronize...`. É um assist
     - `(•) Use embedded script:` (editor de texto SQL multilinha)
     - `( ) Use external script:` (caminho do arquivo `.sql` + `☐ Include USE`)
 
-### 4.4 Etapa 4: Summary
+### 4.4 Etapa 4: Summary [C: re/original-observation/06-schema-compare/sync-wizard-4.png, re/original-observation/p2-04-schema-compare/29-sync-summary-1920.png]
 - **Abas do Painel:**
-  - `Action Plan (N)`: Lista sequencial em 10 passos estritos ordenados por dependência topológica:
-    1. `▶ Start Transaction`
-    2. `田 Drop tables`
-    3. `目 Create columns`
-    4. `田 Alter tables`
-    5. `目 Drop columns`
-    6. `目 Alter columns`
-    7. `Drop indexes`
-    8. `Create views`
-    9. `Create tables`
-    10. `✔ Commit Transaction`
-  - `Warnings (M)`: Lista de avisos críticos de sincronização acompanhada do aviso:
+  - `Action Plan (N)` [C: `re/original-observation/p2-04-schema-compare/31-action-plan-expandido-1920.png` a `re/original-observation/p2-04-schema-compare/34-action-plan-pag4-1920.png`]: Lista sequencial de passos ordenados por dependência topológica (Start Transaction, Drop functions/tables/events/triggers/procedures, Create tables/triggers/views/procedures/functions/events, Commit Transaction).
+  - `Warnings (M)` [C: `re/original-observation/p2-04-schema-compare/30-sync-warnings-1920.png`]: Lista de avisos críticos de sincronização acompanhada do aviso:
     > *"Please view carefully the following warnings. They can affect the synchronization."*
-- **Contador no cabeçalho:** `N of M objects included in synchronization`.
-- **Botões do Rodapé:** `[ 💾 Save ▾ ]`, `[ < Back ]`, `[ Next > ]`, `[ Synchronize ]`, `[ Close ]`.
+    Exemplo real observado: alerta sobre `function1` exigindo `DETERMINISTIC, NO SQL or READS SQL DATA` para evitar erro de criação no MySQL.
+- **Contador no cabeçalho:** `N of M objects included in synchronization` ("20 of 20 objects included in synchronization").
+- **Botões do Rodapé:** `[ 💾 Save ▾ ]`, `[ < Back ]`, `[ Next > ]`, `[ Synchronize ]` (`re/original-observation/p2-04-schema-compare/35-sync-clique-synchronize-1920.png`), `[ Close ]`.
 
 ---
 
@@ -218,11 +224,11 @@ Acionado pela tecla de atalho `F8` ou pelo botão `Synchronize...`. É um assist
 > - No dbForge original, a execução direta (`Execute the script directly against the target database`) executa comandos destrutivos como `DROP TABLE` sem qualquer confirmação ou aviso extra ao clicar em `Synchronize`.
 > - No **TuxSQL para Linux**, a execução direta com ações destrutivas (`DROP TABLE`, `DROP COLUMN`) impõe uma **confirmação forte obrigatória** com preview do DDL e checkbox explícito `riskAccepted` ("Entendo que dados serão excluídos definitivamente"). O modo padrão do assistente sempre prioriza a abertura do script gerado no editor interno para revisão humana antes da aplicação.
 
-### Comportamento Pós-Execução
-- Quando a sincronização é executada com sucesso:
-  1. A comparação de esquemas é recarregada automaticamente (`runCompare()`).
-  2. O status de objetos sincronizados transita para `Identical` com cor acinzentada.
-  3. O painel `Error List` / `Output` é aberto automaticamente caso o servidor MySQL reporte avisos de depreciação ou notas de execução.
+### Script Gerado e Comportamento Pós-Execução [C: re/original-observation/p2-04-schema-compare/36-script-gerado-topo-1920.png a 58-sql10-fechada-1934.png]
+- O assistente gera script SQL de 176 linhas (`re/original-observation/p2-04-schema-compare/36-script-gerado-topo-1920.png` a `re/original-observation/p2-04-schema-compare/46-script-pagina-6-1921.png`) contendo cabeçalho metadados, desativação de foreign keys (`SET FOREIGN_KEY_CHECKS=0`), `SET NAMES 'utf8'`, `USE sample_b`, DROPs em lote, CREATEs estruturados e restauração de foreign keys.
+- Execução com F5 no SQL Editor (`re/original-observation/p2-04-schema-compare/47-execucao-f5-1921.png`): "Query completed with warnings. 00:00:03.424".
+- Verificação no destino (`re/original-observation/p2-04-schema-compare/50-resultado-sample_b-1929.png` e árvore em `re/original-observation/p2-04-schema-compare/53-sample_b-expandido-1932.png` a `re/original-observation/p2-04-schema-compare/56-sample_b-events-1933.png`): objetos sincronizados com sucesso no banco alvo.
+- Fechamento da consulta de verificação: `re/original-observation/p2-04-schema-compare/57-fecha-sql10-1934.png`, `re/original-observation/p2-04-schema-compare/58-sql10-fechada-1934.png`.
 
 ---
 

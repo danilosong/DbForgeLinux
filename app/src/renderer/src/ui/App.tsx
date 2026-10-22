@@ -18,6 +18,7 @@ import { dockDirectionClass, normalizeDockDirection, type DockDirection } from '
 import { expandSqlWildcards, qualifyObjectNames, transformIdentifiers } from '../../../modules/editor/refactoring.js'
 import { findBookmark, toggleBookmark, toggleOutlining } from '../../../modules/editor-navigation.js'
 import { createDefaultConnection } from '../../../shared/connectionDefaults'
+import { redactSqlSecrets } from '../../../shared/redactSqlSecrets.js'
 import { Button } from './components/Button'
 import { ConnectionManager } from './components/ConnectionManager'
 import { ConnectionPropertiesDialog, type ConnectionAction, type ConnectionSecrets } from './components/ConnectionPropertiesDialog'
@@ -378,7 +379,7 @@ export default function App(): React.JSX.Element {
 
   function log(origin: string, message: string, tone = 'info'): void {
     const timestamp = new Date().toLocaleTimeString('pt-BR', { hour12: false })
-    setOutput((current) => [...current, { timestamp, origin, message: maskSecrets(message), tone }].slice(-500))
+    setOutput((current) => [...current, { timestamp, origin, message: maskSecrets(redactSqlSecrets(message)), tone }].slice(-500))
   }
 
   function logSql(sql: string, results: QueryResult[], elapsedMs: number, failed = false): void {
@@ -387,7 +388,7 @@ export default function App(): React.JSX.Element {
     const executionMs = results.reduce((sum, item) => sum + (item.executionTimeMs ?? 0), 0)
     const fetchMs = results.reduce((sum, item) => sum + (item.fetchTimeMs ?? 0), 0)
     const rows = results.reduce((sum, item) => sum + (item.rowCount ?? item.rows.length), 0)
-    const message = `${normalizeQuery(sql).slice(0, 2000)} · total ${elapsedMs.toFixed(2)} ms · execution ${executionMs.toFixed(2)} ms · fetch ${fetchMs.toFixed(2)} ms · ${rows} rows${failed ? ' · failed' : ''}`
+    const message = `${normalizeQuery(redactSqlSecrets(sql)).slice(0, 2000)} · total ${elapsedMs.toFixed(2)} ms · execution ${executionMs.toFixed(2)} ms · fetch ${fetchMs.toFixed(2)} ms · ${rows} rows${failed ? ' · failed' : ''}`
     setSqlLog((current) => [...current, { timestamp, origin: documents.find((tab) => tab.id === selectedDocument)?.label ?? 'SQL', message, tone: failed ? 'error' : 'info' }].slice(-500))
     log('Execution', `${documents.find((tab) => tab.id === selectedDocument)?.label ?? 'SQL'} · total ${elapsedMs.toFixed(2)} ms · execution ${executionMs.toFixed(2)} ms · fetch ${fetchMs.toFixed(2)} ms · ${rows} rows${failed ? ' · failed' : ''}`, failed ? 'error' : 'success')
   }
@@ -871,6 +872,7 @@ export default function App(): React.JSX.Element {
     const sql = (queryOverride ?? (mode === 'current' ? current ?? '' : selectedText || source)).trim()
     if (!sql) return
     const statements = splitSqlStatements(sql)
+    const splitterCompatible = /\\['"`]/.test(sql)
     const settingsForWarnings = appSettingsRef.current
     const warningCategory = settingsForWarnings.execution.warningCategories[currentRecord?.environment ?? 'none']
     const categoryWarnings = settingsForWarnings.execution.showWarnings ? findDangerousStatements(sql, settingsForWarnings.execution.warningScriptLimitKb).filter(({ kind }) => warningCategory[kind]) : []
@@ -907,7 +909,7 @@ export default function App(): React.JSX.Element {
       const canBatchScript = statements.length >= 100 && currentRecord?.advanced.multipleStatements && statements.every(({ sql: statement }) => !/^\s*(SELECT|WITH)\b/i.test(statement))
       if (canBatchScript) {
         const requestId = `${token}:batch`; setExecutionId(requestId)
-        const batchResults = await window.tuxsql.executeSql(currentConnection.id, statements.map(({ sql: statement }) => statement).join(';\n') + ';', requestId, currentConnection.database)
+        const batchResults = await window.tuxsql.executeSql(currentConnection.id, statements.map(({ sql: statement }) => statement).join(';\n') + ';', requestId, currentConnection.database, splitterCompatible)
         logSql(sql, batchResults, performance.now() - startedAt)
         next.push(...batchResults)
         await collectWarnings(batchResults, statements.length, requestId)
@@ -921,7 +923,7 @@ export default function App(): React.JSX.Element {
           setExecutionId(requestId)
           const statementStartedAt = performance.now()
           let statementResults: QueryResult[]
-          try { statementResults = await window.tuxsql.executeSql(currentConnection.id, statement.sql, requestId, currentConnection.database) }
+          try { statementResults = await window.tuxsql.executeSql(currentConnection.id, statement.sql, requestId, currentConnection.database, splitterCompatible) }
           catch (statementError) {
             const code = statementError && typeof statementError === 'object' ? String((statementError as { code?: unknown }).code ?? '') : ''
             if (code === 'ER_QUERY_INTERRUPTED' || code === '1317' || (statementError instanceof Error && statementError.name === 'AbortError')) throw statementError

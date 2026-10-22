@@ -21,10 +21,10 @@
 ```text
 Cobertura de funcionalidades de referência  ███████████████████░  94,9%
 Módulos implementados e testados            ████████████████████   100%  (20 de 20)
-Specs de UX verificadas contra evidência    ████████████████░░░░    79%  (15 de 19)
+Specs de UX verificadas contra evidência    ███████████████████░    95%  (18 de 19)
 ```
 
-<sub>Implementação independente, não é cópia nem produto afiliado a terceiros (ver LEGAL.md). A cobertura é medida contra evidência real: mais de 800 capturas do produto de referência feitas em VM, com checagem por amostra. Itens que dependem do Windows ou de serviços externos viram adaptações para Linux (systemd, Docker/Podman, agendamento por systemd timers/cron) ou diferenças intencionais por segurança, e ficam registrados em <code>document/paridade/</code>. Specs de UX só contam como verificados quando citam capturas existentes.</sub>
+<sub>Implementação independente, não é cópia nem produto afiliado a terceiros (ver LEGAL.md). A cobertura é medida contra evidência real: mais de 800 capturas do produto de referência feitas em VM, com checagem por amostra. Itens que dependem do Windows ou de serviços externos viram adaptações para Linux (systemd, Docker/Podman, agendamento por systemd timers/cron) ou diferenças intencionais por segurança, e ficam registrados em <code>document/paridade/</code>. Specs de UX só contam como verificados quando citam capturas existentes; o do AI Assistant fica de fora porque só a casca deslogada pôde ser observada.</sub>
 <!-- PROGRESS:END -->
 
 ---

@@ -1,15 +1,11 @@
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import type { SqlExecutionHistoryEntry, SqlExecutionHistoryQuery } from '../../shared/contracts/history.js'
+import { redactSqlSecrets } from '../../shared/redactSqlSecrets.js'
 
 const MAX_HISTORY_ENTRIES = 500
 
-export function redactSqlSecrets(sql: string): string {
-  return sql.slice(0, 100_000)
-    .replace(/(\bIDENTIFIED\s+BY\s+(?:PASSWORD\s+)?)(?:'(?:\\.|''|[^'])*'|"(?:\\.|""|[^"])*"|`[^`]*`|[^\s;,]+)/gi, '$1\'****\'')
-    .replace(/(\b(?:PASSWORD|PASSWD|PASSPHRASE)\s*=\s*)(?:'(?:\\.|''|[^'])*'|"(?:\\.|""|[^"])*"|`[^`]*`|[^\s;,]+)/gi, '$1\'****\'')
-    .replace(/(\bmysql:\/\/[^:/\s]+:)[^@/\s]+@/gi, '$1****@')
-}
+export { redactSqlSecrets }
 
 export class SqlExecutionHistoryStore {
   private entries?: SqlExecutionHistoryEntry[]

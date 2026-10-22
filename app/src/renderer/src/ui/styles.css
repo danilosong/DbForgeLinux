@@ -214,6 +214,8 @@ textarea { resize: vertical; }
 .connection-dot.connected { color: var(--success); }
 .connection-dot.connecting { color: var(--warning); }
 .connection-dot.error { color: var(--error); }
+.connection-security { flex: none; margin: 0 3px; color: var(--text-secondary); font-size: 9px; white-space: nowrap; }
+.connection-security.unsafe { color: var(--error); font-weight: 700; }
 .node-name { flex: 1; min-width: 0; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .node-menu { min-width: 24px; padding: 1px; }
 .node-error { color: var(--error); padding: 1px 8px 5px 40px; font-size: 11px; overflow-wrap: anywhere; }

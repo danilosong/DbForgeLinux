@@ -11,6 +11,7 @@ import type { ImportExportOptions, ImportExportTemplate } from '../../shared/con
 import { encodeZipArchive } from '../../modules/archive/index.js'
 import { deleteExportFilesAfterConfirmation, planExportRetention } from '../../modules/data-export-import/exportRetention.js'
 import { buildCreateTableSql, type InferredColumn } from '../../modules/data-export-import/inference.js'
+import { createTuxSqlBrowserWindow } from '../windowOptions.js'
 
 interface ActiveJob { controller: AbortController; senderId: number }
 interface SelectedSource { file: string; senderId: number }
@@ -128,7 +129,7 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
       const exportOptions = options && { ...options, createTable: undefined }
       const report = await exportData({ driver, connectionId, query: statement, format: exportFormat, options: exportOptions, signal: controller.signal, onProgress: (value) => progress(event, jobId, value), destination: createWriteStream(temporaryHtml ?? temporaryOutput, { mode: 0o600 }) })
       if (format === 'pdf' && temporaryHtml) {
-        const printer = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } })
+        const printer = createTuxSqlBrowserWindow({ show: false })
         try { await printer.loadURL(pathToFileURL(temporaryHtml).toString()); const pdf = await printer.webContents.printToPDF({ printBackground: true, pageSize: 'A4' }); await writeFile(temporaryOutput, pdf, { mode: 0o600 }) }
         finally { printer.destroy() }
       }

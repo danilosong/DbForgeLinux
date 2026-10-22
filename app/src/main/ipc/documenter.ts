@@ -1,9 +1,10 @@
-import { BrowserWindow, ipcMain, shell } from 'electron'
+import { ipcMain, shell } from 'electron'
 import { inspectDatabase } from '../../modules/schema/index.js'
 import { generateDocumentation, writeDocumentation, type DocumentFormat, type DocumenterPalette } from '../../modules/documenter/index.js'
 import { inspectDocumenterAccounts } from '../../modules/documenter/accounts.js'
 import type { IpcDeps } from './registry.js'
 import { validateSystemOpenPath } from '../security/systemOpenPath.js'
+import { createTuxSqlBrowserWindow } from '../windowOptions.js'
 
 interface GenerateInput {
   connectionId: string; database: string; title?: string; author?: string; copyright?: string; logo?: string; created?: string
@@ -40,7 +41,7 @@ export function registerDocumenterIpc({ driver }: IpcDeps): void {
       outputDirectory: input.outputDirectory,
       pdfPrinter: {
         printToPDF: async (html, options) => {
-          const window = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } })
+          const window = createTuxSqlBrowserWindow({ show: false })
           try {
             await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
             return await window.webContents.printToPDF({ printBackground: options?.printBackground, pageSize: options?.pageSize, landscape: options?.landscape, displayHeaderFooter: options?.displayHeaderFooter, footerTemplate: options?.footerTemplate })

@@ -42,7 +42,7 @@ export interface TuxSqlApi extends SecurityApi, SessionsApi, SchemaCompareApi, D
   onSshKeyboardInteractivePrompt(handler: (request: SshInteractiveRequest) => void): () => void
   respondSshKeyboardInteractive(requestId: string, answers: string[] | null): Promise<boolean>
   listTables(connectionId: string, database: string): Promise<string[]>
-  executeSql(connectionId: string, sql: string, executionId?: string, database?: string): Promise<QueryResult[]>
+  executeSql(connectionId: string, sql: string, executionId?: string, database?: string, splitterCompatible?: boolean): Promise<QueryResult[]>
   readResultRows(resultStoreId: string, offset: number, limit: number): Promise<Array<Record<string, unknown>>>
   disposeResult(resultStoreId: string): Promise<void>
   cancelQuery(connectionId: string, executionId: string): Promise<void>

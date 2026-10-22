@@ -106,13 +106,22 @@ export interface ConnectionSummary {
   environment: ConnectionEnvironment
   environmentShape?: EnvironmentShape
   color?: string
+  tlsVersion?: string
+  tlsVerified?: boolean
+  sshTunnel?: boolean
+  httpTunnel?: boolean
+  httpTunnelSecure?: boolean
+  httpTunnelRemote?: boolean
 }
 
 export interface ConnectionTestResult {
   serverVersion: string
   elapsedMs: number
   tlsVersion?: string
+  tlsVerified?: boolean
   sshTunnel: boolean
   httpTunnel?: boolean
+  httpTunnelSecure?: boolean
+  httpTunnelRemote?: boolean
   databases?: string[]
 }

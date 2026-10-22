@@ -30,6 +30,14 @@ describe('SQL execution history store', () => {
     expect(found[0]?.success).toBe(false)
   })
 
+  it('redacts user, password function, replication and auth-plugin credentials', async () => {
+    const sql = "CREATE USER 'app'@'%' IDENTIFIED WITH caching_sha2_password BY 'create-secret'; SET PASSWORD FOR 'app'@'%' = PASSWORD('set-secret'); CHANGE REPLICATION SOURCE TO SOURCE_PASSWORD='replica-secret'; SELECT PASSWORD('hash-secret')"
+    const redacted = redactSqlSecrets(sql)
+    for (const secret of ['create-secret', 'set-secret', 'replica-secret', 'hash-secret']) expect(redacted).not.toContain(secret)
+    expect(redacted).toContain("IDENTIFIED WITH caching_sha2_password BY '****'")
+    expect(redacted).toContain("SET PASSWORD FOR 'app'@'%' = '****'")
+  })
+
   it('replaces duplicate ids and enforces a bounded newest-first result', async () => {
     const { store } = await createStore()
     await store.record({ id: 'a', timestamp: '2026-10-20T12:00:00.000Z', connection: 'one', sql: 'SELECT 1', elapsedMs: 2, success: true })

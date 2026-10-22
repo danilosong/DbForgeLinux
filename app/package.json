@@ -24,8 +24,9 @@
     "perf:benchmark": "vitest run test/performance-benchmark.test.ts --reporter=verbose",
     "perf:metadata": "node scripts/metadata-scale-benchmark.mjs",
     "perf:startup": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/startup-benchmark.mjs",
-    "dist:deb": "TUXSQL_RELEASE_BUILD=1 pnpm build && electron-builder --linux deb --config packaging/electron-builder.yml && pnpm build",
+    "dist:deb": "TUXSQL_RELEASE_BUILD=1 pnpm build && TUXSQL_RELEASE_BUILD=1 electron-builder --linux deb --config packaging/electron-builder.yml && pnpm build",
     "smoke:e2e": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/smoke-e2e.mjs",
+    "smoke:release-fuses": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/release-fuses-smoke.mjs",
     "screenshots:updater": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/updater-screenshots.mjs",
     "qa:risk:e2e": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/qa-risk-e2e.mjs",
     "screenshots:extras": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/extras-screenshots.mjs",
@@ -56,6 +57,7 @@
   },
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^1.0.1",
+    "@electron/fuses": "1.8.0",
     "@eslint/js": "^10.0.1",
     "@monaco-editor/react": "^4.7.0",
     "@types/node": "^24.8.1",

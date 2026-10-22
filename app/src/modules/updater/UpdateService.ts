@@ -113,9 +113,9 @@ export class UpdateService {
     try {
       const preferences = await this.options.settings()
       const buildInfo = await this.readBuildInfo()
-      const channel = preferences.channel === 'auto' ? buildInfo?.repoPath ? 'dev' : 'release' : preferences.channel
+      const channel = preferences.channel === 'dev' ? 'dev' : 'release'
       if (channel === 'dev' && buildInfo?.repoPath) return await this.checkDev(buildInfo, preferences, controller.signal)
-      if (channel === 'dev') throw new Error('The development update channel is unavailable because this build has no local repository metadata.')
+      if (channel === 'dev') throw new UpdateRequirementError('The development update channel is unavailable because this build has no local repository metadata.')
       return await this.checkRelease(preferences)
     } catch (error) {
       if (controller.signal.aborted) return this.update({ phase: 'idle', message: 'Update check cancelled.' }, 'Update check cancelled.')

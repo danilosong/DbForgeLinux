@@ -53,16 +53,18 @@ export function registerSchemaCompareIpc({ driver }: IpcDeps): void {
     const statements = assertSchemaUpdateScript(script)
     const errors: string[] = []
     let succeeded = 0
-    for (const statement of statements) {
-      try {
-        await driver.setDatabase(targetConnectionId, targetDatabase)
-        await driver.executeSql(targetConnectionId, statement)
-        succeeded++
-      } catch (error) {
-        errors.push(error instanceof Error ? error.message : 'Falha ao executar statement.')
-        break
+    await driver.setDatabase(targetConnectionId, targetDatabase)
+    await driver.withSplitterCompatibleSqlMode(targetConnectionId, async (execute) => {
+      for (const statement of statements) {
+        try {
+          await execute(statement)
+          succeeded++
+        } catch (error) {
+          errors.push(error instanceof Error ? error.message : 'Falha ao executar statement.')
+          break
+        }
       }
-    }
+    })
     return { succeeded, failed: errors.length, errors }
   })
 }

@@ -51,6 +51,7 @@ deb:
     - libgbm1
 artifactName: tuxsql_${version}_${arch}.${ext}
 npmRebuild: false
+afterPack: packaging/afterPack.cjs
 publish:
   provider: github
   owner: danilosong

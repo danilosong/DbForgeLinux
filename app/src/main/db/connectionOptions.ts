@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises'
+import { isIP } from 'node:net'
 import type { ConnectConfig } from 'ssh2'
 import type { ConnectionOptions } from 'mysql2/promise'
 import type { ConnectionRecord, SshConfig, SshInteractiveChallenge } from '../../shared/contracts.js'
@@ -42,20 +43,29 @@ export async function buildSslOptions(
   loadFile: (path: string) => Promise<Buffer> = (path) => readFile(path)
 ): Promise<ConnectionOptions['ssl']> {
   if (ssl.mode === 'disabled') return undefined
-  const verify = ssl.mode === 'verify-ca' || ssl.mode === 'verify-identity'
-  if (verify && !ssl.caPath) throw new Error('CA obrigatório para validar o certificado TLS.')
+  const verifyCa = ssl.mode === 'verify-ca'
+  const verifyIdentity = ssl.mode === 'verify-identity'
+  if (verifyCa && !ssl.caPath) throw new Error('CA obrigatório para validar o certificado TLS.')
   if (Boolean(ssl.certPath) !== Boolean(ssl.keyPath)) {
     throw new Error('Certificado e chave de cliente TLS devem ser informados juntos.')
   }
 
-  const result: Record<string, unknown> = { rejectUnauthorized: verify }
+  const result: Record<string, unknown> = { rejectUnauthorized: verifyCa || verifyIdentity }
   if (ssl.caPath) result.ca = await loadFile(ssl.caPath)
   if (ssl.certPath) result.cert = await loadFile(ssl.certPath)
   if (ssl.keyPath) result.key = await loadFile(ssl.keyPath)
   if (ssl.cipher) result.ciphers = ssl.cipher
   if (ssl.minVersion && ssl.minVersion !== 'auto') result.minVersion = ssl.minVersion
-  if (ssl.mode === 'verify-identity') result.servername = hostname
+  if (verifyIdentity) result.servername = hostname
   return result as ConnectionOptions['ssl']
+}
+
+export function isLoopbackMysqlTarget(host: string, socketPath?: string): boolean {
+  if (socketPath?.trim()) return true
+  const normalized = host.trim().toLowerCase().replace(/^\[|\]$/g, '').replace(/\.$/, '')
+  if (normalized === 'localhost' || normalized === '::1') return true
+  if (isIP(normalized) === 4) return Number(normalized.split('.')[0]) === 127
+  return normalized.startsWith('::ffff:127.') && isIP(normalized.slice(7)) === 4
 }
 
 export async function buildMysqlOptions(

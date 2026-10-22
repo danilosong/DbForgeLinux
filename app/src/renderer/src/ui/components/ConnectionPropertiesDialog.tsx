@@ -27,7 +27,7 @@ const PAGES: Page[] = ['General', 'Advanced', 'Security', 'HTTP', 'Embedded']
 const EMPTY_SECRETS: ConnectionSecrets = { password: '', sshPassword: '', sshPassphrase: '', httpPassword: '', proxyPassword: '' }
 
 export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, onTrustHostKey, onCancel }: Props): React.JSX.Element {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [record, setRecord] = useState(initial)
   const [secrets, setSecrets] = useState(EMPTY_SECRETS)
   const [remember, setRemember] = useState(true)
@@ -66,7 +66,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
       if (result) {
         setDatabaseChoices(result.databases ?? [])
         setConnectionError('')
-        setStatus({ kind: 'success', text: `${t('conn.test.success')}. ${t('conn.test.serverVersion', [result.serverVersion])}` })
+        setStatus({ kind: 'success', text: `${t('conn.test.success')}. ${t('conn.test.serverVersion', [result.serverVersion])}. ${tlsStatusText(result, record.host, record.socketPath, locale)}` })
       }
     } catch (error) {
       setConnectionError(sanitizeError(error, secrets))
@@ -116,7 +116,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
       if (action === 'test' && result) {
         setConnectionError('')
         setDatabaseChoices(result.databases ?? [])
-        setStatus({ kind: 'success', text: `${t('conn.test.success')}. ${t('conn.test.serverVersion', [result.serverVersion])}` })
+        setStatus({ kind: 'success', text: `${t('conn.test.success')}. ${t('conn.test.serverVersion', [result.serverVersion])}. ${tlsStatusText(result, attempted.host, attempted.socketPath, locale)}` })
       }
     } catch (error) {
       const message = sanitizeError(error, secrets)
@@ -128,7 +128,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
         setStatus({ kind: 'loading', text: `Verificando chave e conectando a ${trusted.host}:${trusted.port}…` })
         try {
           const result = await onAction(trusted, secrets, remember, action)
-          if (action === 'test' && result) { setDatabaseChoices(result.databases ?? []); setStatus({ kind: 'success', text: `${t('conn.test.success')}. ${t('conn.test.serverVersion', [result.serverVersion])}` }) }
+          if (action === 'test' && result) { setDatabaseChoices(result.databases ?? []); setStatus({ kind: 'success', text: `${t('conn.test.success')}. ${t('conn.test.serverVersion', [result.serverVersion])}. ${tlsStatusText(result, trusted.host, trusted.socketPath, locale)}` }) }
           return
         } catch (retryError) {
           const retryMessage = sanitizeError(retryError, secrets)
@@ -176,7 +176,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
           <label className="check-field wide"><input type="checkbox" checked={record.ssh.enabled || record.ssl.mode !== 'disabled'} onChange={(event) => { if (!event.target.checked) { updateSsl({ mode: 'disabled' }); updateSsh({ enabled: false }) } else if (record.ssl.mode === 'disabled') updateSsl({ mode: 'preferred' }) }} /> {t('conn.security.useProtocol')}</label>
           <Field label={t('conn.security.protocol')}><select value={record.ssh.enabled ? 'ssh' : 'ssl'} onChange={(event) => { const ssh = event.target.value === 'ssh'; updateSsh({ enabled: ssh }); if (ssh) { updateSsl({ mode: 'disabled' }); updateHttp({ enabled: false }) } else updateSsl({ mode: record.ssl.mode === 'disabled' ? 'preferred' : record.ssl.mode }) }}><option value="ssl">SSL/TLS</option><option value="ssh">SSH tunnel</option></select></Field>
           {!record.ssh.enabled && <>
-          <Field label={t('conn.ssl.mode')}><select value={record.ssl.mode} onChange={(event) => updateSsl({ mode: event.target.value as ConnectionRecord['ssl']['mode'] })}><option value="disabled">Disabled</option><option value="preferred">Preferred</option><option value="required">Required</option><option value="verify-ca">Verify CA</option><option value="verify-identity">Verify Identity</option></select></Field>
+          <Field label={t('conn.ssl.mode')}><select value={record.ssl.mode} onChange={(event) => updateSsl({ mode: event.target.value as ConnectionRecord['ssl']['mode'] })}><option value="disabled">{locale === 'pt-BR' ? 'Desativado (senha em texto puro)' : 'Disabled (password sent in plain text)'}</option><option value="preferred">{locale === 'pt-BR' ? 'Preferencial (TLS; aceita certificado autoassinado)' : 'Preferred (TLS; accepts self-signed certificates)'}</option><option value="required">{locale === 'pt-BR' ? 'Obrigatório (criptografado, certificado não verificado)' : 'Required (encrypted, certificate not verified)'}</option><option value="verify-ca">{locale === 'pt-BR' ? 'Verificar CA' : 'Verify CA'}</option><option value="verify-identity">{locale === 'pt-BR' ? 'Verificar CA e identidade' : 'Verify CA and identity'}</option></select></Field>
           <PathField label={t('conn.ssl.ca')} value={record.ssl.caPath ?? ''} enabled={record.ssl.mode !== 'disabled'} error={errors.caPath} onChange={(caPath) => updateSsl({ caPath: caPath || undefined })} />
           <PathField label={t('conn.ssl.cert')} value={record.ssl.certPath ?? ''} enabled={record.ssl.mode !== 'disabled'} onChange={(certPath) => updateSsl({ certPath: certPath || undefined })} />
           <PathField label={t('conn.ssl.key')} value={record.ssl.keyPath ?? ''} enabled={record.ssl.mode !== 'disabled'} error={errors.clientKey} onChange={(keyPath) => updateSsl({ keyPath: keyPath || undefined })} />
@@ -275,4 +275,15 @@ function sanitizeError(error: unknown, secrets: ConnectionSecrets): string {
   let message = normalized instanceof Error ? normalized.message : typeof normalized === 'string' ? normalized : 'Connection failed.'
   for (const secret of Object.values(secrets)) if (secret) message = message.split(secret).join('••••••')
   return message
+}
+
+function tlsStatusText(result: ConnectionTestResult, host: string, socketPath: string | undefined, locale: string): string {
+  const portuguese = locale === 'pt-BR'
+  if (result.tlsVersion) return `${portuguese ? result.tlsVerified ? 'criptografada e verificada' : 'criptografada (certificado não verificado)' : result.tlsVerified ? 'encrypted and verified' : 'encrypted (certificate not verified)'} · ${result.tlsVersion}`
+  if (result.sshTunnel) return portuguese ? 'tráfego protegido pelo túnel SSH' : 'traffic protected by SSH tunnel'
+  if (result.httpTunnel && result.httpTunnelSecure) return portuguese ? 'tráfego criptografado pelo túnel HTTPS' : 'traffic encrypted by HTTPS tunnel'
+  if (result.httpTunnel && result.httpTunnelRemote) return portuguese ? 'SEM criptografia — túnel HTTP remoto sem TLS' : 'NO ENCRYPTION — remote HTTP tunnel has no TLS'
+  if (result.httpTunnel) return portuguese ? 'TLS do MySQL ausente (túnel HTTP local)' : 'MySQL TLS is off (local HTTP tunnel)'
+  const local = Boolean(socketPath) || ['localhost', '::1'].includes(host.trim().toLowerCase()) || /^127(?:\.\d{1,3}){3}$/.test(host.trim())
+  return local ? (portuguese ? 'SEM criptografia (loopback)' : 'NO ENCRYPTION (loopback)') : (portuguese ? 'SEM criptografia — a senha será enviada em texto puro' : 'NO ENCRYPTION — the password will be sent in plain text')
 }

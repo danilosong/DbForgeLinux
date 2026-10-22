@@ -26,7 +26,7 @@ describe('IPC runtime guard', () => {
 
   it('rejects malformed arguments, unsafe paths, wrong enums and missing confirmations', () => {
     expect(() => validateIpcArguments('db:execute', ['connection', 12])).toThrow(/must be a string/)
-    expect(() => validateIpcArguments('db:execute', ['connection', 'SELECT 1', 'x', 'demo', 'extra'])).toThrow(/expects/)
+    expect(() => validateIpcArguments('db:execute', ['connection', 'SELECT 1', 'x', 'demo', true, 'extra'])).toThrow(/expects/)
     expect(() => validateIpcArguments('service-control:action', ['mysqld.service', 'delete', 'DELETE mysqld.service'])).toThrow(/allowed value/)
     expect(() => validateIpcArguments('service-control:action', ['mysqld.service', 'stop'])).toThrow(/expects 3 to 3 arguments/)
     expect(() => validateIpcArguments('file:open-sql-path', ['../../etc/passwd'])).toThrow(/absolute path/)

@@ -2,9 +2,16 @@
 
 Stack alvo (ADR-001): Electron + React + Monaco. Esta spec descreve comportamento/visual; sem código. Visual inspirado no dbForge (DevartBlue), apenas descrito, sem reutilizar assets protegidos (ícones/skins `.vsf` não são copiados).
 
-Legenda: **[C]** = confirmado por evidência REA (`re/ui-strings/ui-text.txt`, mapa de atalhos `REA shortcuts`); **[I]** = inferido/decisão de design sem evidência. Itens sem marca nas seções abaixo seguem como [I] salvo indicação; os confirmados aparecem em "Textos de interface (referência)" e nas notas **[C]** inline.
+**Fidelidade REA & Observação VM:**
+- **[C] Shell e Layout Inicial:** janela principal com Database Explorer à esquerda, Start Page com categorias à direita, barra de menus e toolbar superior observadas em `re/original-observation/00-shell/first-run.png` e `re/original-observation/00-shell/activated.png`.
+- **[C] Barra de Menus Completa:** todos os 10 menus principais do shell observados em `re/original-observation/05-menus/file.png`, `re/original-observation/05-menus/edit.png`, `re/original-observation/05-menus/view.png`, `re/original-observation/05-menus/database.png`, `re/original-observation/05-menus/sql.png`, `re/original-observation/05-menus/comparison.png`, `re/original-observation/05-menus/debug.png`, `re/original-observation/05-menus/tools.png`, `re/original-observation/05-menus/window.png`, `re/original-observation/05-menus/help.png`; e estados com editor ativo em `re/original-observation/12-start-menus-erros/12-menu-file-1809.png`, `re/original-observation/12-start-menus-erros/13-menu-edit-1809.png`, `re/original-observation/12-start-menus-erros/14-menu-view-1809.png`, `re/original-observation/12-start-menus-erros/15-menu-window-1810.png`, `re/original-observation/12-start-menus-erros/16-menu-help-1810.png`.
+- **[C] Start Page Categorizada:** abas de categoria e cartões de ação observados em `re/original-observation/12-start-menus-erros/01-start-page-1807.png` (Data Pump), `re/original-observation/12-start-menus-erros/02-start-sql-development-1808.png` (SQL Development), `re/original-observation/12-start-menus-erros/03-start-database-design-1808.png` (Database Design), `re/original-observation/12-start-menus-erros/04-start-more-menu-1808.png` e `re/original-observation/12-start-menus-erros/06-overflow-reopened-1808.png` (overflow de categorias "..."), `re/original-observation/12-start-menus-erros/05-start-database-sync-1808.png` (Database Sync), `re/original-observation/12-start-menus-erros/07-start-administration-1808.png` (Administration), `re/original-observation/12-start-menus-erros/08-start-data-analysis-1808.png` (Data Analysis).
+- **[C] Painel Error List e Status Bar:** sublinhado de erro em tempo real, painel Error List aberto com contadores e colunas Description, Location, Line, Column observados em `re/original-observation/12-start-menus-erros/09-error-query-typed-1809.png`, `re/original-observation/12-start-menus-erros/10-error-result-1809.png` (erro 1146) e `re/original-observation/12-start-menus-erros/11-syntax-error-1809.png` (erro 1064). Status bar com status de execução, tempo ("00:00:00.346") e identificador do servidor/usuário/banco ("10.0.2.2 (8.4) obs sample").
+- **[C] Diálogo About:** Help > About... em `re/original-observation/12-start-menus-erros/17-about-1810.png` e retorno ao shell em `re/original-observation/12-start-menus-erros/18-after-about-1810.png`.
 
-## 1. Layout geral (janela principal, mín. 1024x640, padrão 1440x900)
+Legenda: **[C]** = confirmado por evidência visual da VM (`re/original-observation/...`) ou REA (`re/ui-strings/ui-text.txt`, mapa de atalhos `REA shortcuts`); **[I]** = inferido/decisão de design sem evidência. Itens sem marca seguem como [I] salvo indicação.
+
+## 1. Layout geral (janela principal, mín. 1024x640, padrão 1440x900) [C: re/original-observation/00-shell/first-run.png]
 
 ```
 +--------------------------------------------------------------------------+
@@ -28,19 +35,22 @@ Legenda: **[C]** = confirmado por evidência REA (`re/ui-strings/ui-text.txt`, m
 
 Regiões: MenuBar, ToolBars, DockLeft (Database Explorer; também Properties/Projects como abas empilhadas), DocumentArea, DockBottom, StatusBar. Painéis podem ser: fixados (pin), auto-ocultar (borda com aba vertical), flutuantes (janela separada) — v1 exige fixado + auto-ocultar; flutuante é P2.
 
-## 2. Barra de menus
+## 2. Barra de menus [C: re/original-observation/05-menus/ e re/original-observation/12-start-menus-erros/]
 
-| Menu | Itens (atalho) |
-|---|---|
-| File | New > SQL Document (Ctrl+N) / Database Connection (REA shortcuts: Ctrl+D, N [C]; Ctrl+Shift+N = New Project no original, aqui mantido para conexão [I]); Open File… (Ctrl+O); Recent Files >; Save (Ctrl+S); Save As…; Save All (Ctrl+Shift+S); Close (Ctrl+W); Close All Documents [C]; Close All But This [C]; Close All Unmodified [C]; Recently Closed Documents [C]; Exit (Ctrl+Q) |
-| Edit | Undo (Ctrl+Z), Redo (Ctrl+Y / Ctrl+Shift+Z), Cut/Copy/Paste, Select All (Ctrl+A), Find (Ctrl+F), Replace (Ctrl+H), Find in Files (Ctrl+Shift+F), Go To Line (Ctrl+G [C]), Comment (Ctrl+/), Uncomment, Format Document (Ctrl+K, Ctrl+D [C]) / Format Selection (Ctrl+K, Ctrl+F [C]) / Format Current Statement (Ctrl+K, Ctrl+S [C]) |
-| View | Database Explorer (REA shortcuts: Ctrl+Alt+L [C]), Output (Ctrl+Alt+O [C]), Error List (REA shortcuts: Ctrl+Alt+E [C]), Properties (F4 [C]), Full Screen (F11), Theme > Auto/Light/Dark, Zoom In/Out/Reset (Ctrl+= / Ctrl+- / Ctrl+0), Reset Layout |
-| Database | New Connection…, Connect, Disconnect, Edit Connection (F2 na árvore), Refresh (F5), Set as Active Database |
-| SQL | New SQL (Ctrl+N), Execute (F5 / Ctrl+Enter), Execute Current Statement [C] (REA shortcuts: F8/F4/Alt+F9 conforme esquema; adotado F8), Execute Selection [C] (Ctrl+F8), Execute To Cursor [C] (Ctrl+Shift+F10), Stop/Cancel (REA shortcuts: Alt+Pause; Shift+F5 e Esc em execução [I]), Explain Plan (REA shortcuts: Ctrl+L / Alt+F9; rótulo real "Display Estimated Execution Plan" [C]), Toggle Results (Ctrl+Alt+Down) |
-| Data | Export Data… (P1), Import Data… (P1), Refresh Result (F5 no grid), Copy As > CSV/JSON/SQL INSERT |
-| Tools | Options… (Ctrl+,), Connection Manager… |
-| Window | Next Tab (Ctrl+Tab / Ctrl+PgDn), Previous Tab (Ctrl+Shift+Tab / Ctrl+PgUp), Close Others, Windows… |
-| Help | Documentation (F1 [C], "ShowContents"), Keyboard Shortcuts (Ctrl+K Ctrl+S), About |
+Barra de menus superior com os 10 menus canônicos do dbForge observados na VM de referência:
+
+| Menu | Evidência VM | Itens observados / especificados |
+|---|---|---|
+| File | `re/original-observation/05-menus/file.png`, `re/original-observation/12-start-menus-erros/12-menu-file-1809.png` | New > SQL Document (Ctrl+N) / Database Connection (REA shortcuts: Ctrl+D, N [C]; Ctrl+Shift+N = New Project no original, aqui mantido para conexão [I]); Open File… (Ctrl+O [C]); Close (Ctrl+F4 no original [C: 12-menu-file-1809.png], Ctrl+W Linux [I]); Open Project… (Ctrl+Shift+O [C]); Close Project; Save (Ctrl+S [C]); Save As… [C]; Save All (Ctrl+Shift+S [C]); Print… (Ctrl+P [C]); Recent Files >; Recent Projects >; Exit (Ctrl+Q [I]) |
+| Edit | `re/original-observation/05-menus/edit.png`, `re/original-observation/12-start-menus-erros/13-menu-edit-1809.png` | Undo (Ctrl+Z [C]), Redo (Ctrl+Y [C] / Ctrl+Shift+Z [I]), Cut (Ctrl+X [C]), Copy (Ctrl+C [C]), Paste (Ctrl+V [C]), Duplicate (Ctrl+D [C]), Delete [C], Select All (Ctrl+A [C]), Go To... (Ctrl+G [C]), Find and Replace > [C], Advanced > [C], Bookmarks > [C], Outlining > [C], Code Completion > [C], Format Document (Ctrl+K, Ctrl+D [C]) |
+| View | `re/original-observation/05-menus/view.png`, `re/original-observation/12-start-menus-erros/14-menu-view-1809.png` | Query Builder [C], Text [C], Data [C], Profiler [C], Pivot Table [C], Start Page (Ctrl+W,S [C]), Database Explorer (Ctrl+W,L [C] / REA shortcuts: Ctrl+Alt+L [C]), Project Explorer (Ctrl+W,J [C]), Object Viewer [C], AI Assistant Chat (Ctrl+\,C [C]), Schema View (Ctrl+W,C [C]), Data Viewer (Ctrl+W,R [C]), Document Outline (Ctrl+W,U [C]), Code Snippets (Ctrl+W,T [C]), Output (Ctrl+W,O [C] / Ctrl+Alt+O [C]), Error List (Ctrl+W,E [C] / Ctrl+Alt+E [C]), Properties (Ctrl+W,P [C] / F4 [C]), Other Windows > [C], Toolbars > [C] |
+| Database | `re/original-observation/05-menus/database.png` | New Connection…, Connect, Disconnect, Edit Connection (F2 na árvore), Refresh (F5), Set as Active Database |
+| SQL | `re/original-observation/05-menus/sql.png` | New SQL (Ctrl+N), Execute (F5 / Ctrl+Enter), Execute Current Statement [C] (REA shortcuts: F8 [C]), Execute Selection [C] (Ctrl+F8), Execute To Cursor [C] (Ctrl+Shift+F10 [C]), Run To Cursor (Ctrl+F10 [C]), Stop/Cancel (REA shortcuts: Alt+Pause [C]; Shift+F5 [I]), Display Estimated Execution Plan (Ctrl+L [C]), Toggle Results (Ctrl+Alt+Down) |
+| Comparison | `re/original-observation/05-menus/comparison.png`, `re/original-observation/p2-04-schema-compare/03-menu-comparison-1917.png` | New Schema Comparison… [C], New Data Comparison… [C], Edit Comparison… [C], Objects Filter (Ctrl+L [C: p2-04/22]), Refresh (F5 [C]), Stop Execution [C], View Schema Update Script [C], Generate Comparison Report… [C], Synchronize… (F8 [C]) |
+| Debug | `re/original-observation/05-menus/debug.png` | Start Debugging, Step Into, Step Over, Step Out, Toggle Breakpoint |
+| Tools | `re/original-observation/05-menus/tools.png` | Options… (Ctrl+, [I]), Connection Manager… [C], Data Pump >, Generate Data… |
+| Window | `re/original-observation/05-menus/window.png`, `re/original-observation/12-start-menus-erros/15-menu-window-1810.png` | Float [C], Pin Tab [C], New Horizontal Tab Group [C], New Vertical Tab Group [C], Close All Documents [C], Reset Window Layout [C], lista numerada de abas abertas [C: 15-menu-window-1810.png], Windows… [C] |
+| Help | `re/original-observation/05-menus/help.png`, `re/original-observation/12-start-menus-erros/16-menu-help-1810.png` | Contents… (F1 [C]), Deactivate…, Getting Started, Demos and Video Tutorials, Leave Feedback…, Suggest a Feature…, Check for Updates…, About… [C: 17-about-1810.png] |
 
 Itens indisponíveis ficam **desabilitados** (nunca ocultos) com tooltip do motivo ("Requer conexão ativa"). Itens futuros (Schema Compare, Diagram…) aparecem desabilitados com marca "Em breve" apenas se a matriz de paridade os listar; caso contrário omitidos.
 
@@ -61,44 +71,58 @@ Resumo (detalhe em 03): cabeçalho "Database Explorer" + botões (New Connection
 
 ## 5. Documentos em abas
 
-- Tipos: SQL Document, Table Data, Object Editor (P1), Start Page, Connection Properties (modal, não aba).
+- Tipos: SQL Document, Table Data, Object Editor (P1), Start Page [C: `re/original-observation/12-start-menus-erros/01-start-page-1807.png`], Connection Properties (modal, não aba).
 - Aba: [ícone tipo] título [•modificado] [x fechar]. Título SQL: `SQL 1` → após salvar nome do arquivo; tooltip com caminho completo e conexão. Rótulo de cor da conexão como faixa de 2px no topo da aba.
-- Alterações não salvas: bolinha "•" no lugar do x (x aparece em hover). Fechar com alterações → diálogo "Save changes to SQL 1?" [Save] [Don't Save] [Cancel].
+- Alterações não salvas: asterisco `*` no título (ex.: `SQL8.sql*` em `re/original-observation/12-start-menus-erros/15-menu-window-1810.png`); diálogo ao fechar sem salvar: "Document '{0}' was modified. Do you want to save changes?" [Save] [Discard] [Cancel].
 - Interações: clique do meio fecha; arrastar reordena; arrastar para fora da barra = dividir (P2); menu de contexto da aba: Close, Close Others, Close All, Close to the Right, Copy Full Path, Reveal in File Manager (xdg-open na pasta), Pin Tab.
 - Overflow: botão [v] lista todas as abas; scroll horizontal com roda do mouse.
-- Estado vazio: Start Page (ações: New SQL, New Connection, Recent Connections, Recent Files, dicas).
+- Estado inicial / Start Page categorizada [C: `re/original-observation/12-start-menus-erros/01-start-page-1807.png` a `re/original-observation/12-start-menus-erros/08-start-data-analysis-1808.png`]:
+  - Cabeçalho: logo TuxSQL, edição, ícones sociais, aba fixável.
+  - Painel esquerdo: "Recent Files" com busca e alternância lista/detalhes.
+  - Painel direito: abas de categoria com overflow `...` (`re/original-observation/12-start-menus-erros/04-start-more-menu-1808.png`, `re/original-observation/12-start-menus-erros/06-overflow-reopened-1808.png`):
+    - **SQL Development** (`re/original-observation/12-start-menus-erros/02-start-sql-development-1808.png`): SQL Editor, Query Builder, Execute Script..., AI Assistant.
+    - **Database Design** (`re/original-observation/12-start-menus-erros/03-start-database-design-1808.png`): New Database Diagram, New Schema Comparison..., Find Database Object..., Link Database to Source Control...
+    - **Database Sync** (`re/original-observation/12-start-menus-erros/05-start-database-sync-1808.png`): New Schema Comparison..., Create Scripts Folder...
+    - **Administration** (`re/original-observation/12-start-menus-erros/07-start-administration-1808.png`): Manage Server Security, Monitor Sessions, Backup Database..., Perform Table Maintenance..., Find Invalid Objects...
+    - **Data Pump** (`re/original-observation/12-start-menus-erros/01-start-page-1807.png`): Export Data..., Import External Data..., New Data Comparison..., Copy Databases.
+    - **Data Analysis** (`re/original-observation/12-start-menus-erros/08-start-data-analysis-1808.png`): Master-Detail Browser, Design New Report..., Export Data...
 - Sessão: ao reabrir restaura abas, conteúdo de SQL não salvos (rascunhos em `$XDG_STATE_HOME/tuxsql/drafts`), posição do cursor.
 
 ## 6. Painéis inferiores
 
 Abas: **Output**, **Error List**, **Find Results** (P1).
 - **Output:** log somente leitura cronológico, seletor "Show output from: All / Execution / Connections / App". Linha: `[HH:MM:SS] origem  mensagem`. Cores semânticas (info normal, warning âmbar, erro vermelho, sucesso verde). Botões: Clear, Copy, Word wrap, Auto-scroll. Nunca registra senhas.
-- **Error List:** tabela (Severidade ícone | # | Mensagem | Documento | Linha | Coluna). Filtros por severidade (Errors/Warnings/Info com contadores). Duplo clique navega ao documento/posição. Vazio: "Nenhum erro ou aviso." com ícone check.
-- Aba mostra badge de contagem (ex.: Error List (3)). Em novo erro de execução, o painel abre automaticamente na aba correspondente se estiver colapsado (configurável).
-- Resize por splitter; atalho Ctrl+J alterna visibilidade.
+- **Error List** [C: `re/original-observation/12-start-menus-erros/09-error-query-typed-1809.png`, `re/original-observation/12-start-menus-erros/10-error-result-1809.png`, `re/original-observation/12-start-menus-erros/11-syntax-error-1809.png`]:
+  - Abertura automática ao executar consulta com erro de execução (ex.: erro MySQL 1146 "Table 'sample.tabela_inexistente' doesn't exist" em `re/original-observation/12-start-menus-erros/10-error-result-1809.png`) ou erro de sintaxe (ex.: erro MySQL 1064 em `re/original-observation/12-start-menus-erros/11-syntax-error-1809.png`).
+  - Identificador com erro no editor SQL recebe sublinhado ondulado vermelho em tempo real (`re/original-observation/12-start-menus-erros/09-error-query-typed-1809.png`, `re/original-observation/12-start-menus-erros/10-error-result-1809.png`).
+  - Barra de contagem no topo da grade: `{n} Errors | {n} Warnings | {n} Messages | {n} In Active Document` e `{n} of {m} items displayed` (`re/original-observation/12-start-menus-erros/10-error-result-1809.png`).
+  - Colunas da grade: `Description` | `Location` | `Line` | `Column`.
+  - Duplo clique na linha navega diretamente ao documento e posição do cursor.
+  - Vazio: "Nenhum erro ou aviso." com ícone check.
+- Resize por splitter; atalho Ctrl+W,E [C] / Ctrl+Alt+E [C] alterna Error List.
 
-## 7. Status bar
+## 7. Status bar [C: re/original-observation/12-start-menus-erros/10-error-result-1809.png]
 
 Segmentos (esq→dir), todos clicáveis quando indicado:
-1. Estado: "Ready" | "Connecting…" (spinner) | "Executing… 00:03.2" | "Error".
-2. Conexão ativa (nome; clique abre seletor).
-3. Database ativa.
-4. Ln/Col (clique → Go To Line); seleção "(12 selected)".
+1. Estado de execução: "Ready" | "Executing…" | "Query completed with errors." (com ícone vermelho de erro, `re/original-observation/12-start-menus-erros/10-error-result-1809.png`) | "Query executed successfully.".
+2. Tempo de execução: "00:00:00.346" [C: `re/original-observation/12-start-menus-erros/10-error-result-1809.png`].
+3. Conexão / Servidor / Banco: "10.0.2.2 (8.4)" servidor, "obs" usuário, "sample" database ativa [C: `re/original-observation/12-start-menus-erros/10-error-result-1809.png`].
+4. Posição no editor: `Ln 1    Col 15    Ch 15` [C REA ui-text / `re/original-observation/12-start-menus-erros/10-error-result-1809.png`].
 5. Encoding (UTF-8; clique muda), Fim de linha (LF/CRLF; padrão LF no Linux).
-6. Última execução: "00:00.042 · 120 rows".
-7. Indicador de tema/zoom (opcional).
-Cor de fundo: neutra; durante execução azul de acento; em erro persistente (conexão perdida) âmbar/vermelho até resolver.
+6. Linhas afetadas / linhas retornadas no grid ("120 rows") [I].
+Cor de fundo: neutra; durante execução azul de acento; em erro ícone vermelho na status bar.
 
-## 8. Estados globais
+## 8. Estados globais e Diálogo About
 
 | Estado | Comportamento |
 |---|---|
 | Loading inicial | Splash simples (logo texto + barra) ≤2s; depois janela com skeletons no Explorer |
-| Sem conexões | Explorer mostra ilustração ASCII/ícone + "Nenhuma conexão" + botão primário "New Connection" |
-| Erro de operação | Toast no canto inferior direito (6s, persistente se erro) + linha no Output; erros bloqueantes viram diálogo modal |
+| Sem conexões | Explorer mostra ilustração ASCII/ícone + "Nenhuma conexão" + botão primário "New Connection" [C: `re/original-observation/00-shell/first-run.png`] |
+| Erro de operação | Toast no canto inferior direito (6s, persistente se erro) + linha no Output / Error List aberto automaticamente [C: `re/original-observation/12-start-menus-erros/10-error-result-1809.png`] |
 | Sucesso | Toast verde curto (3s) para ações explícitas (connect, save); execução SQL reporta na status bar/aba Messages, sem toast |
 | Operação longa | Barra de progresso fina (2px) sob a toolbar + botão Cancel |
 | Desconexão inesperada | Banner amarelo no topo do documento: "Conexão perdida. [Reconectar] [Fechar]" |
+| Diálogo About [C] | Acionado via Help > About... (`re/original-observation/12-start-menus-erros/17-about-1810.png`): modal centralizado exibindo nome da aplicação, versão ("Version 2026.2.82"), edição ("Enterprise Edition"), contagem regressiva de licença/trial, links Devart e botões `View System Info` e `Close`. Retorno limpo ao shell em `re/original-observation/12-start-menus-erros/18-after-about-1810.png`. |
 
 Toasts: máx. 3 empilhados, largura 360, ação opcional ("Ver detalhes" abre Output).
 
@@ -220,8 +244,8 @@ Fonte: REA ui-text [C]. Sem `&`; frases longas parafraseadas; `{0}` mantido.
 
 ## Pendências [I]
 
-- Nomes dos menus View, Tools, Window, SQL: não achados como rótulos isolados no ui-text; permanecem [I].
-- Atalhos globais de design (Ctrl+J, Ctrl+Shift+P paleta de comandos, Ctrl+Enter, Ctrl+Q, Ctrl+, , F6 regiões): sem equivalente no mapa REA.
-- Status bar (segmentos UTF-8/LF/tempo/linhas): só "Ln/Col/Ch" e "Elapsed Time" confirmados.
-- Overflow "»", badge de contagem, Toasts, tema Auto/Light/Dark, drafts XDG: decisões de design.
+- Menus e estrutura geral: 10 menus canônicos, Start Page categorizada, Error List e Status Bar confirmados pelas capturas em `re/original-observation/00-shell/`, `re/original-observation/05-menus/` e `re/original-observation/12-start-menus-erros/`.
+- Atalhos globais de design (Ctrl+J, Ctrl+Shift+P paleta de comandos, Ctrl+Enter, Ctrl+Q, Ctrl+, , F6 regiões): decisões de design do clone Linux sem equivalente direto no mapa REA shortcuts.
+- Status bar completa (segmentos UTF-8/LF/linhas): "Ln/Col/Ch", tempo e servidor confirmados [C]; chaveamento manual de codificação é proposta do clone [I].
+- Overflow "»", badge de contagem de toasts, tema Auto/Light/Dark, drafts XDG: decisões de design do clone Linux.
 - Mnemônicos específicos por menu (letras com `&`) não copiados; atribuição [I].

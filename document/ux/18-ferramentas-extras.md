@@ -1,12 +1,12 @@
 # UX 18 — Ferramentas extras
 
 > Fidelidade REA & Observação VM: rótulos conferidos contra REA ui-text e **observação direta da VM de referência `dbforge-ref`** (dbForge Studio for MySQL v2026.2.82, capturas em `re/original-observation/10-tools-options/`, `re/original-observation/12-start-menus-erros/` e `re/original-observation/05-data-generator/`).
-- **[C] Menu Tools e Utilitários (`10-tools-options/01-tools-menu-1802.png`):** SQL Formatter, Snippets Manager, Skin, Import and Export Settings, Options.
-- **[C] Snippets Manager (`10-tools-options/26-snippets-manager-1804.png`):** Janela completa com árvore de snippets categorizados (Alter, Create, Begin, Case...), editor de template, variáveis `$database_name$` e literais CARET, DATE, TIME, USER, DB, SERVER.
-- **[C] SQL Formatter Wizard (`10-tools-options/27-sql-formatter-1805.png`, `28-formatter-cancel-1805.png`):** Assistente modal de formatação em lote nos modos Files e Directories.
-- **[C] Start Page Categorizada (`12-start-menus-erros/01-start-page-1807.png` a `08-start-data-analysis-1808.png`):** Painel Recent Files à esquerda e abas de categorias à direita: SQL Development (`02`), Database Design (`03`), Database Sync (`05`), Administration (`07`), Data Pump (`01`), Data Analysis (`08`).
-- **[C] Document Outline (`12-start-menus-erros/14-menu-view-1809.png`):** Listado no menu View (`Ctrl+W, U`).
-- **[C] Menu Database e Ferramentas (`05-data-generator/02-menu-database-1747.png`):** Atalhos de acorde Find Object (`Ctrl+D, F`), Security Manager (`Ctrl+D, Q`), Session Manager (`Ctrl+D, S`), Server Variables (`Ctrl+D, V`), Service Control (`Ctrl+D, R`).
+- **[C] Menu Tools e Utilitários (`re/original-observation/10-tools-options/01-tools-menu-1802.png`):** SQL Formatter, Snippets Manager, Skin, Import and Export Settings, Options.
+- **[C] Snippets Manager (`re/original-observation/10-tools-options/26-snippets-manager-1804.png`):** Janela completa com árvore de snippets categorizados (Alter, Create, Begin, Case...), editor de template, variáveis `$database_name$` e literais CARET, DATE, TIME, USER, DB, SERVER.
+- **[C] SQL Formatter Wizard (`re/original-observation/10-tools-options/27-sql-formatter-1805.png`, `re/original-observation/10-tools-options/28-formatter-cancel-1805.png`):** Assistente modal de formatação em lote nos modos Files e Directories.
+- **[C] Start Page Categorizada (`re/original-observation/12-start-menus-erros/01-start-page-1807.png` a `re/original-observation/12-start-menus-erros/08-start-data-analysis-1808.png`):** Painel Recent Files à esquerda e abas de categorias à direita: SQL Development (`re/original-observation/12-start-menus-erros/02-start-sql-development-1808.png`), Database Design (`re/original-observation/12-start-menus-erros/03-start-database-design-1808.png`), Database Sync (`re/original-observation/12-start-menus-erros/05-start-database-sync-1808.png`), Administration (`re/original-observation/12-start-menus-erros/07-start-administration-1808.png`), Data Pump (`re/original-observation/12-start-menus-erros/01-start-page-1807.png`), Data Analysis (`re/original-observation/12-start-menus-erros/08-start-data-analysis-1808.png`).
+- **[C] Document Outline (`re/original-observation/12-start-menus-erros/14-menu-view-1809.png`):** Listado no menu View (`Ctrl+W, U`).
+- **[C] Menu Database e Ferramentas (`re/original-observation/05-data-generator/02-menu-database-1747.png`):** Atalhos de acorde Find Object (`Ctrl+D, F`), Security Manager (`Ctrl+D, Q`), Session Manager (`Ctrl+D, S`), Server Variables (`Ctrl+D, V`), Service Control (`Ctrl+D, R`).
 
 Reusa `01-shell.md`, `03`, `06`, `07`.
 

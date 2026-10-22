@@ -36,10 +36,12 @@ export function registerExtraToolsIpc(deps: IpcDeps): void {
     const connectionId = await driver.connect(await deps.resolveConnectionConfig(record))
     try {
       await driver.setDatabase(connectionId, database)
-      for (const statement of statements) {
-        try { await driver.executeSql(connectionId, statement); succeeded++ }
-        catch (error) { errors.push(error instanceof Error ? error.message : 'Schema update failed.'); break }
-      }
+      await driver.withSplitterCompatibleSqlMode(connectionId, async (execute) => {
+        for (const statement of statements) {
+          try { await execute(statement); succeeded++ }
+          catch (error) { errors.push(error instanceof Error ? error.message : 'Schema update failed.'); break }
+        }
+      })
     } finally { await driver.disconnect(connectionId) }
     if (!errors.length) await updates.remove(selected.map((item) => item.id))
     return { succeeded, failed: errors.length, errors }

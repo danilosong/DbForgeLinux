@@ -24,12 +24,31 @@ describe.skipIf(!enabled)('MysqlDriver integration', () => {
     try { await driver.executeSql(id, `DROP DATABASE IF EXISTS \`${database}\``) } finally { await driver.disconnect(id) }
   })
 
+  it.skipIf(process.env.MYSQL_EXPECT_TLS_FALLBACK === '1')('connects with preferred TLS against the local server certificate', async () => {
+    const result = await driver.testConnection({ ...config, ssl: { mode: 'preferred' } })
+    expect(result.tlsVersion).toBeTruthy()
+    expect(result.tlsVerified).toBe(false)
+  })
+
+  it.skipIf(process.env.MYSQL_EXPECT_TLS_FALLBACK === '1')('connects with required TLS without certificate verification', async () => {
+    const result = await driver.testConnection({ ...config, ssl: { mode: 'required' } })
+    expect(result.tlsVersion).toBeTruthy()
+    expect(result.tlsVerified).toBe(false)
+  })
+
+  it.skipIf(process.env.MYSQL_EXPECT_TLS_FALLBACK === '1')('rejects an untrusted server certificate in verified TLS modes', async () => {
+    await expect(driver.testConnection({ ...config, ssl: { mode: 'verify-identity' } })).rejects.toThrow()
+    await expect(driver.testConnection({ ...config, ssl: { mode: 'verify-ca' } })).rejects.toThrow('CA obrigatório')
+  })
+
   it('testa conexão, lista databases/tabelas e retorna resultados múltiplos', async () => {
     const connectionTest = await driver.testConnection(config)
     expect(connectionTest.serverVersion).toBeTruthy()
     if (process.env.MYSQL_EXPECT_TLS_FALLBACK === '1') {
       expect(connectionTest.serverVersion).toMatch(/mariadb/i)
       expect(connectionTest.tlsVersion).toBeUndefined()
+    } else {
+      expect(connectionTest.tlsVersion).toBeTruthy()
     }
     id = await driver.connect(config)
     await driver.executeSql(id, `CREATE DATABASE \`${database}\`; CREATE TABLE \`${database}\`.\`${itemsTable}\` (id INT PRIMARY KEY, name VARCHAR(40)); INSERT INTO \`${database}\`.\`${itemsTable}\` VALUES (1, 'one');`)

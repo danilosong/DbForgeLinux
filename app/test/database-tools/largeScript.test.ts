@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdtemp, open, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { executeLargeScript } from '../../src/modules/database-tools/largeScript.js'
@@ -57,6 +57,50 @@ describe('large script streaming', () => {
       const ran: string[] = []
       await executeLargeScript({ path, encoding: 'utf8', databaseSelected: false, execute: async (sql) => { ran.push(sql) }, onProgress: () => undefined, onError: async () => 'stop' })
       expect(ran).toEqual(['CREATE PROCEDURE p() BEGIN SELECT 1; SELECT 2; END', 'SELECT 3'])
+    } finally { await rm(dir, { recursive: true, force: true }) }
+  })
+  it('streams a 50 MB single-line extended insert within measured memory bounds', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tuxsql-large-script-'))
+    try {
+      const path = join(dir, 'extended.sql')
+      const handle = await open(path, 'w')
+      const block = 'x'.repeat(1024 * 1024)
+      try {
+        await handle.write("INSERT INTO t VALUES ('")
+        for (let index = 0; index < 50; index++) await handle.write(block)
+        await handle.write("');")
+      } finally { await handle.close() }
+      const before = process.memoryUsage()
+      let actualLength = 0
+      await executeLargeScript({ path, encoding: 'utf8', databaseSelected: false, execute: async (sql) => { actualLength = sql.length; expect(sql.startsWith("INSERT INTO t VALUES ('x")).toBe(true); expect(sql.endsWith("x');")).toBe(true) }, onProgress: () => undefined, onError: async () => 'stop' })
+      const after = process.memoryUsage()
+      expect(actualLength).toBeGreaterThan(50 * 1024 * 1024)
+      expect(actualLength).toBeLessThan(50 * 1024 * 1024 + 64)
+      expect(after.heapUsed - before.heapUsed).toBeLessThan(200 * 1024 * 1024)
+    } finally { await rm(dir, { recursive: true, force: true }) }
+  }, 60_000)
+  it('rejects an oversized statement with file position and without SQL text', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tuxsql-large-script-'))
+    try {
+      const path = join(dir, 'too-large.sql')
+      await writeFile(path, `INSERT INTO t VALUES ('${'SENSITIVE_LITERAL'.repeat(200)}');`)
+      await expect(executeLargeScript({ path, encoding: 'utf8', databaseSelected: false, maxStatementBytes: 1024, execute: async () => { throw new Error('must not execute') }, onProgress: () => undefined, onError: async () => 'stop' }))
+        .rejects.toThrow(new RegExp(`Statement maior que o limite configurado.*${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.*linha 1, coluna`))
+    } finally { await rm(dir, { recursive: true, force: true }) }
+  })
+  it('destroys the input stream and returns when the signal aborts during execution', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tuxsql-large-script-'))
+    try {
+      const path = join(dir, 'cancel.sql'); await writeFile(path, 'SELECT 1;SELECT 2;')
+      const controller = new AbortController(); let statements = 0
+      const resultPromise = executeLargeScript({ path, encoding: 'utf8', databaseSelected: false, signal: controller.signal, execute: async () => {
+        statements++
+        await new Promise<void>((resolve) => controller.signal.addEventListener('abort', () => resolve(), { once: true }))
+      }, onProgress: () => undefined, onError: async () => 'stop' })
+      setTimeout(() => controller.abort(), 10)
+      const result = await resultPromise
+      expect(result.stopped).toBe(true)
+      expect(statements).toBe(1)
     } finally { await rm(dir, { recursive: true, force: true }) }
   })
 })

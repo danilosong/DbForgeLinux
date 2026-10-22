@@ -2,12 +2,32 @@
 
 Reusa `01-shell.md`, `03` (CodeEditor), `02` (credenciais/cofre). **[C]** CONFIRMADO / **[I]** INFERIDO.
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (AI Assistant) e https://www.devart.com/tuxsql/mysql/studio/ai-assistant.html. Citações por redirecionamento; páginas individuais não abertas. Original usa Copilot embutido com Chromium (CefGlue, inventário); no clone o chat é nativo (sem CEF).
+> [!WARNING]
+> **Status de Verificação:** **NÃO VERIFICÁVEL NA VM ATUAL ALÉM DA CASCA DESLOGADA (exige login e conta em nuvem Devart; requisições de modelo e chat bloqueadas sem autenticação).**
+> Toda e qualquer interação ativa de chat, envio de prompt, streaming de resposta ou completions requer login corporativo Devart Cloud e assinatura PRO. A especificação técnica deste documento cobre:
+> 1. A casca visual observada deslogada na VM (`re/original-observation/11-ai-assistant/` e `re/original-observation/10-tools-options/23-ai-assistant-1804.png`) **[C]**.
+> 2. O catálogo de mensagens e comandos REA ui-text extraídos dos assemblies (`re/ui-strings/ui-text.txt`) **[C]**.
+> 3. O modelo arquitetural e de UX adotado pelo clone TuxSQL para integração com LLMs locais (Ollama) e provedores remotos (OpenAI, Anthropic, Gemini) sem telemetria nem dependência do serviço de nuvem proprietário da Devart **[I]**.
 
-**Fidelidade REA (ui-text):** no original o AI Assistant é um **serviço em nuvem Devart** com Sign In, termos ("Devart AI Terms of Services" / "Devart AI Policy"), cota de tokens por licença/trial e histórico de chats em arquivo local. **Não há** seletor de provedor/endpoint/API key na evidência REA; a configuração multi-provedor (§4) é adaptação do clone **[I]**. Fonte dos rótulos: **REA ui-text**; atalhos: **REA shortcuts** (não existe comando de atalho para AI Assistant).
+**Evidências Reais Observadas da Casca Deslogada (10 PNGs em `re/original-observation/11-ai-assistant/` + Options):**
+1. `re/original-observation/11-ai-assistant/01-ai-assistant-click-1806.png`: Botão "AI Assistant" no topo direito da barra de título com selo "1" abre menu com 4 opções: `Sign In`, `Open Chat Window`, `Discover All Features`, `Send Feedback`.
+2. `re/original-observation/11-ai-assistant/02-open-chat-window-1806.png`: Painel acoplado à direita "AI Assistant Chat" (com botões de fixar e fechar), exibindo tela de boas-vindas: logotipo `dbForge AI Assistant`, botões primários `Sign In` (azul) e `Get AI Assistant [PRO]`, além de 4 cartões tipo acordeão (chevron).
+3. `re/original-observation/11-ai-assistant/03-card-1-expanded-1806.png`: Cartão 1 expandido: "Convert Natural Language to SQL" — *"Easily turn your ideas into fully functional SQL queries—no coding skills required."*
+4. `re/original-observation/11-ai-assistant/04-cards-expanded-1806.png`: Cartão 4 expandido: "Error Analysis & Recommendations" — *"Get practical, step-by-step assistance to identify and fix issues across your database."*
+5. `re/original-observation/11-ai-assistant/05-card-2-expanded-1806.png`: Cartão 2 expandido: "Schema-Aware Code & Explanations" — *"Get intelligent code suggestions and explanations aware of your database schema."*
+6. `re/original-observation/11-ai-assistant/06-card-3-expanded-1807.png`: Cartão 3 expandido: "SQL Troubleshooting" — *"Quickly spot and fix errors with AI-powered debugging, query optimization, and performance improvements."* Link "Discover all features" no rodapé. Área inferior vazia sem caixa de entrada de chat para usuário não logado.
+7. `re/original-observation/11-ai-assistant/07-editor-context-1807.png`: Menu de contexto do editor SQL exibe item de submenu `AI Assistant >`.
+8. `re/original-observation/11-ai-assistant/08-ctx-ai-assistant-submenu-1807.png`: Submenu contextual do AI Assistant exibindo unicamente a ação `Sign In` (bloqueio de recursos sem login).
+9. `re/original-observation/11-ai-assistant/09-ctx-settings-submenu-1807.png`: Submenu `Settings >` contendo atalho para o diálogo `Options...`.
+10. `re/original-observation/11-ai-assistant/10-final-1807.png`: Área de trabalho com painel lateral acoplado em repouso.
+11. `re/original-observation/10-tools-options/23-ai-assistant-1804.png`: Diálogo Tools > Options > AI Assistant > General: seletor "Default model" desabilitado com aviso explicativo *"Default model selection is not available. Sign in to AI Assistant to select a default model."* e opção `[x] Auto-Attach Active Document`.
 
-## 1. Painel AI Assistant [C: painel dock; título "AI Assistant" / "AI Assistant Chat" — REA ui-text]
-Dock direito (menu **AI Assistant** > **Open Chat Window** [C REA ui-text]; sem atalho no mapa REA shortcuts → Ctrl+Alt+I é proposta do clone [I]); conversas múltiplas listadas em **All Chats** [C], botão **New chat** [C], **Chat Settings** [C]; lista vazia: "Você ainda não tem chats" ("You have no chats yet.") [C]. Excluir chat confirma "Tem certeza que deseja excluir o chat '{0}'?" [C]. 
+---
+
+## 1. Painel AI Assistant [C: re/original-observation/11-ai-assistant/02-open-chat-window-1806.png]
+Dock direito (menu **AI Assistant** > **Open Chat Window** [C: `re/original-observation/11-ai-assistant/01-ai-assistant-click-1806.png`]; atalho Ctrl+\,C observado no menu View em `re/original-observation/12-start-menus-erros/14-menu-view-1809.png` [C]; Ctrl+Alt+I mantido como alternativa Linux [I]).
+- Estado Deslogado Original: boas-vindas com botões `Sign In` e `Get AI Assistant PRO` e 4 cartões colapsáveis (`re/original-observation/11-ai-assistant/02-open-chat-window-1806.png` a `re/original-observation/11-ai-assistant/06-card-3-expanded-1807.png`).
+- Estado Ativo Clone TuxSQL: conversas múltiplas em **All Chats** [C REA ui-text], botão **New chat** [C REA ui-text], **Chat Settings** [C REA ui-text]; lista vazia: "Você ainda não tem chats" ("You have no chats yet.") [C REA ui-text]. Excluir chat confirma "Tem certeza que deseja excluir o chat '{0}'?" [C REA ui-text].
 ```
 + AI Assistant -------------------------- [+ New chat] [⋯] [x] --+
 | Contexto: [☑ Schema de prod-db/shop ▾] [☑ Documento atual]       |
@@ -25,20 +45,25 @@ Dock direito (menu **AI Assistant** > **Open Chat Window** [C REA ui-text]; sem 
 +------------------------------------------------------------------+
 ```
 
-## 2. Capacidades [C]
-Natural language → SQL [C]; explicar SQL selecionado/script [C]; encontrar/corrigir erros [C]; otimizar consultas e sugerir índices [C]; gerar comentários/documentação; converter dialeto (MySQL↔MariaDB); gerar dados de exemplo / DDL a partir de descrição [I]. Comandos reais [C REA ui-text]: **Explain SQL**, **Fix SQL**, **Explain In Current Chat**, **Explain In New Chat**, **Send Selection To New Chat**, **Convert Natural Language to SQL**, "Get AI suggestions to optimize and speed up your SQL queries" (otimizar). Anexos: "Attach a document to provide the AI with additional context" e "Attach a {0} to provide the AI with context about the data schema" [C]. Sem schema anexado a IA avisa para anexar o database [C]. Add comments / Ask… e botão **Fix with AI** no painel de erro são extensões do clone [I].
+## 2. Capacidades [C: re/original-observation/11-ai-assistant/03-card-1-expanded-1806.png a 06-card-3-expanded-1807.png]
+- **Convert Natural Language to SQL** [C: `re/original-observation/11-ai-assistant/03-card-1-expanded-1806.png`]: conversão de pedidos em linguagem natural para queries SQL executáveis.
+- **Schema-Aware Code & Explanations** [C: `re/original-observation/11-ai-assistant/05-card-2-expanded-1806.png`]: sugestões e explicações conscientes do schema do banco ativo.
+- **SQL Troubleshooting** [C: `re/original-observation/11-ai-assistant/06-card-3-expanded-1807.png`]: depuração assistida por IA, otimização de consultas e sugestões de índices.
+- **Error Analysis & Recommendations** [C: `re/original-observation/11-ai-assistant/04-cards-expanded-1806.png`]: passo a passo para identificar e corrigir falhas em statements ou objetos.
+- Comandos reais [C REA ui-text]: **Explain SQL**, **Fix SQL**, **Explain In Current Chat**, **Explain In New Chat**, **Send Selection To New Chat**, **Convert Natural Language to SQL**, "Get AI suggestions to optimize and speed up your SQL queries". Anexos: "Attach a document to provide the AI with additional context" e "Attach a {0} to provide the AI with context about the data schema" [C]. Sem schema anexado a IA avisa para anexar o database [C]. Add comments / Ask… e botão **Fix with AI** no painel de erro são extensões do clone [I].
 
 ## 3. Contexto e privacidade (crítico)
 - **Contexto de schema** [C: anexar estrutura]: seletor de escopo (database ativo / tabelas escolhidas), enviado como **metadados apenas (nomes, tipos, chaves, comentários)** — nunca linhas de dados por padrão. Indicador permanente "Enviando: 24 tabelas (somente estrutura)" com [Ver o que é enviado] (modal com o payload em texto).
 - Dados de resultado/seleção só quando marcados explicitamente, com aviso "Pode conter dados sensíveis".
-- Primeiro uso [C]: diálogo de consentimento com checkbox "Concordo com os Devart AI Terms of Services e Devart AI Policy" (links tos/policy) e botão **Sign In** [C REA ui-text]; no clone: provedor, o que é enviado, link da política [I]; recusar mantém o painel desabilitado.
+- Primeiro uso [C]: diálogo de consentimento com checkbox "Concordo com os Devart AI Terms of Services e Devart AI Policy" (links tos/policy) e botão **Sign In** [C REA ui-text / `re/original-observation/11-ai-assistant/01-ai-assistant-click-1806.png`]; no clone: provedor, o que é enviado, link da política [I]; recusar mantém o painel desabilitado.
 - Redação opcional (Options > AI): mascarar literais string/numéricos em SQL enviado; ignorar tabelas/colunas listadas (ex.: `users.password`); conexões marcadas Prod/"sensível" bloqueiam envio de schema (configurável).
 - Chaves/credenciais do provedor no cofre do SO; nunca em logs. Histórico das conversas local (`$XDG_DATA_HOME/tuxsql/ai`), apagável (Clear all).
 
-## 4. Provedores e configuração
-Options > AI Assistant: Provedor (OpenAI-compatível / Anthropic / Gemini / **Local (Ollama/endpoint HTTP)** [I]), Endpoint URL, Modelo (campo + lista), API key (PasswordInput; [Test] mostra OK/erro), temperatura, limite de contexto/tokens, timeout, proxy do sistema. Local sem rede é recomendado para dados sensíveis. [Test] estados: loading/ sucesso verde com latência / erro vermelho com causa (401, rede, modelo inexistente).
+## 4. Provedores e configuração [C: re/original-observation/10-tools-options/23-ai-assistant-1804.png]
+- Na referência original, a tela Tools > Options > AI Assistant > General exibe aviso bloqueante para conta não autenticada: *"Default model selection is not available. Sign in to AI Assistant to select a default model."* e checkbox `[x] Auto-Attach Active Document` [C: `re/original-observation/10-tools-options/23-ai-assistant-1804.png`].
+- No TuxSQL (adaptação livre Linux [I]): opções de provedores flexíveis: Local (Ollama/endpoint HTTP local sem dependência de nuvem), OpenAI, Anthropic, Gemini. Configuração de Endpoint URL, Modelo, API Key no cofre local, temperatura, limite de tokens e timeout. Suporte a teste de conexão com feedback visual de latência.
 
-## 5. Interações e blocos de resposta
+## 5. Interações e blocos de resposta [I]
 - Streaming de tokens com cursor; [Stop ■] cancela; indicador "Pensando…".
 - Blocos de código SQL realçados (Monaco compacto): ações **Copy**, **Insert at cursor**, **Replace selection**, **Open in new SQL**, **Run** (executa na conexão ativa — **nunca automático**; statements que não são SELECT/SHOW/EXPLAIN exigem confirmação mostrando o SQL; Prod/read-only reforçado), **Explain plan**.
 - Mensagens: copiar, regenerar, 👍/👎 (local, opcional), editar mensagem anterior e reenviar [I].
@@ -49,11 +74,14 @@ Options > AI Assistant: Provedor (OpenAI-compatível / Anthropic / Gemini / **Lo
 ## 6. Estados
 | Estado | Comportamento |
 |---|---|
-| Não configurado / sem login | EmptyState "Configure um provedor" + [Abrir Options] [I]; original: "Default model selection is not available. Sign in…" + **Sign In** [C] |
+| Não configurado / sem login | EmptyState "Configure um provedor" + [Abrir Options] [I]; original: "Default model selection is not available. Sign in…" + **Sign In** [C: `re/original-observation/10-tools-options/23-ai-assistant-1804.png`, `re/original-observation/11-ai-assistant/02-open-chat-window-1806.png`] |
 | Sem conexão | funciona sem schema; chip "Sem contexto de banco" |
 | Enviando/streaming | botão vira Stop; input desabilitado opcionalmente |
-| Erro (rede/limite/auth/conteúdo) | mensagem inline vermelha com causa + [Tentar de novo] [Editar configurações]. Mensagens reais [C]: "Não foi possível conectar ao serviço do AI Assistant; verifique internet e firewall"; cota esgotada ("You've used all available AI Assistant tokens… balance resets on {0}"); trial/assinatura expirada com link renovar; conteúdo impróprio: aviso para manter a conversa respeitosa e focada em bancos de dados |
-| Arquivo de histórico | corrompido/sem permissão/em uso por outro processo/não criável: mensagens inline [C]; "Foi criado um novo arquivo para guardar seus chats" [C]; histórico perdido avisado [C] |
+| Erro (rede/limite/auth/conteúdo) | mensagem inline vermelha com causa + [Tentar de novo] [Editar configurações]. Mensagens reais [C REA ui-text]: "Não foi possível conectar ao serviço do AI Assistant; verifique internet e firewall"; cota esgotada ("You've used all available AI Assistant tokens… balance resets on {0}"); trial/assinatura expirada com link renovar; conteúdo impróprio: aviso para manter a conversa respeitosa e focada em bancos de dados |
+| Arquivo de histórico | corrompido/sem permissão/em uso por outro processo/não criável: mensagens inline [C REA ui-text]; "Foi criado um novo arquivo para guardar seus chats" [C REA ui-text]; histórico perdido avisado [C REA ui-text] |
+| Resposta longa | colapsável "Mostrar mais" |
+| Offline | banner âmbar; fila não mantida |
+| Sucesso | resposta + ações |
 | Resposta longa | colapsável "Mostrar mais" |
 | Offline | banner âmbar; fila não mantida |
 | Sucesso | resposta + ações |
@@ -109,8 +137,9 @@ Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas paraf
 | Copy With Headers | Ações de copiar resultado (contexto) | `grid.copyWithHeaders` |
 
 ## Pendências [I]
-- Atalho para abrir o painel AI Assistant (Ctrl+Alt+I) e demais atalhos §7: sem evidência no mapa REA shortcuts.
-- Multi-provedor (OpenAI/Anthropic/Gemini/Ollama), endpoint, API key, temperatura, timeout: sem evidência; original é serviço Devart com Sign In.
+- **Limite de Verificação na VM:** Toda a interação conversacional (chat, streaming, envio de mensagens, seletores de modelo em conta logada e ações ativas) é **NÃO VERIFICÁVEL NA VM ATUAL** por exigir login corporativo Devart Cloud e assinatura PRO; apenas a casca deslogada foi observada e confirmada (`re/original-observation/11-ai-assistant/` e `re/original-observation/10-tools-options/23-ai-assistant-1804.png`).
+- Atalho para abrir o painel AI Assistant (Ctrl+Alt+I) e demais atalhos §7: sem evidência no mapa REA shortcuts (no original observado Ctrl+\,C no menu View em `re/original-observation/12-start-menus-erros/14-menu-view-1809.png`).
+- Multi-provedor (OpenAI/Anthropic/Gemini/Ollama), endpoint, API key, temperatura, timeout: adaptação arquitetural do clone Linux sem dependência da nuvem Devart.
 - Ações Copy/Insert/Replace/Run/Explain plan nos blocos de código e comandos `/` e `@`: não localizados no ui-text.
 - Botão "Fix with AI" no painel de erro, validação local de sintaxe da resposta, 👍/👎 e edição de mensagem: propostas do clone.
 - Textos do rating/NPS do original ("How likely are you to recommend…") existem; decidir se o clone omite (sem telemetria).

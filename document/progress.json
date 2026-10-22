@@ -13,9 +13,9 @@
     },
     {
       "label": "Specs de UX verificadas contra evidência",
-      "value": 79,
-      "detail": "15 de 19"
+      "value": 95,
+      "detail": "18 de 19"
     }
   ],
-  "note": "Cobertura medida contra mais de 800 capturas reais do produto de referência (VM). Specs de UX só contam como verificados quando citam capturas existentes (15 de 19)."
+  "note": "Cobertura medida contra mais de 800 capturas reais do produto de referência (VM). Specs de UX só contam como verificados quando citam capturas existentes (18 de 19; o AI Assistant só tem a casca deslogada)."
 }

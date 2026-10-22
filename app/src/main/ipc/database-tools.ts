@@ -67,7 +67,7 @@ export function registerDatabaseToolsIpc(deps: IpcDeps): void {
     const controller = new AbortController(); runningScripts.set(requestId, controller)
     try {
       if (database) await driver.setDatabase(connectionId, database)
-      const report = await executeLargeScript({ path, encoding, databaseSelected: Boolean(database), signal: controller.signal, execute: (sql) => driver.executeSql(connectionId, sql, `${requestId}:${Date.now()}`).then(() => undefined), onProgress: (progress) => event.sender.send('database-tools:large-progress', { requestId, progress }), onError: async (error) => new Promise<ScriptErrorAction>((resolve) => { scriptErrorResolvers.set(requestId, resolve); event.sender.send('database-tools:large-error', { requestId, error }); controller.signal.addEventListener('abort', () => { scriptErrorResolvers.delete(requestId); resolve('stop') }, { once: true }) }) })
+      const report = await driver.withSplitterCompatibleSqlMode(connectionId, (execute) => executeLargeScript({ path, encoding, databaseSelected: Boolean(database), signal: controller.signal, execute: (sql) => execute(sql, `${requestId}:${Date.now()}`).then(() => undefined), onProgress: (progress) => event.sender.send('database-tools:large-progress', { requestId, progress }), onError: async (error) => new Promise<ScriptErrorAction>((resolve) => { scriptErrorResolvers.set(requestId, resolve); event.sender.send('database-tools:large-error', { requestId, error }); controller.signal.addEventListener('abort', () => { scriptErrorResolvers.delete(requestId); resolve('stop') }, { once: true }) }) }))
       return { statements: report.statements, failures: report.errors, skipped: report.skipped, stopped: report.stopped }
     } finally { runningScripts.delete(requestId) }
   })
@@ -244,7 +244,7 @@ export function registerDatabaseToolsIpc(deps: IpcDeps): void {
     const file = selectedRestoreFiles.get(selectionId); if (!file || file.length > 50 * 1024 * 1024) throw new Error('Select a backup file again before restoring.')
     if (!['abort', 'ignore', 'log'].includes(errorPolicy) || !jobId || restoreJobs.has(jobId)) throw new Error('Invalid restore job request.')
     const controller = new AbortController(); const job = { controller, connectionId, executionId: `${jobId}:0` }; restoreJobs.set(jobId, job); let statementIndex = 0
-    try { const script = await decodeBackupFile(file, password || undefined); await driver.setDatabase(connectionId, database); const report = await restoreBackup(database, confirmation, script, async (statement) => { job.executionId = `${jobId}:${++statementIndex}`; await driver.executeSql(connectionId, statement, job.executionId) }, errorPolicy !== 'abort', controller.signal, (progress) => event.sender.send('database-tools:restore:progress', { jobId, progress })); selectedRestoreFiles.delete(selectionId); selectedRestorePaths.delete(selectionId); return report }
+    try { const script = await decodeBackupFile(file, password || undefined); await driver.setDatabase(connectionId, database); const report = await driver.withSplitterCompatibleSqlMode(connectionId, (execute) => restoreBackup(database, confirmation, script, async (statement) => { job.executionId = `${jobId}:${++statementIndex}`; await execute(statement, job.executionId) }, errorPolicy !== 'abort', controller.signal, (progress) => event.sender.send('database-tools:restore:progress', { jobId, progress }))); selectedRestoreFiles.delete(selectionId); selectedRestorePaths.delete(selectionId); return report }
     finally { restoreJobs.delete(jobId) }
   })
   ipcMain.handle('database-tools:restore:cancel', (_event, jobId: string) => { const job = restoreJobs.get(jobId); if (job) { job.controller.abort(); void driver.cancelQuery(job.connectionId, job.executionId).catch(() => undefined) } })
@@ -260,7 +260,7 @@ export function registerDatabaseToolsIpc(deps: IpcDeps): void {
     assertTarget(connectionId, database)
     if (confirmation !== database) throw new Error(`Restore requires typing the destination database name: ${database}.`)
     await driver.setDatabase(connectionId, database)
-    return restoreBackup(database, confirmation, script, async (statement) => { await driver.executeSql(connectionId, statement) }, continueOnError)
+    return driver.withSplitterCompatibleSqlMode(connectionId, (execute) => restoreBackup(database, confirmation, script, async (statement) => { await execute(statement) }, continueOnError))
   })
   ipcMain.handle('database-tools:copy', async (_event, sourceConnectionId: string, sourceDatabase: string, targetConnectionId: string, targetDatabase: string, confirmation: string, includeData: boolean, dropIfExists = false) => {
     assertTarget(sourceConnectionId, sourceDatabase); assertTarget(targetConnectionId, targetDatabase)
@@ -277,7 +277,7 @@ export function registerDatabaseToolsIpc(deps: IpcDeps): void {
         for (const statement of buildDropObjectStatements(targetDatabase, objects)) await driver.executeSql(targetConnectionId, statement)
       } finally { await driver.executeSql(targetConnectionId, 'SET FOREIGN_KEY_CHECKS=1') }
     }
-    const report = await restoreBackup(targetDatabase, targetDatabase, backup.sql, async (statement) => { await driver.executeSql(targetConnectionId, statement) })
+    const report = await driver.withSplitterCompatibleSqlMode(targetConnectionId, (execute) => restoreBackup(targetDatabase, targetDatabase, backup.sql, async (statement) => { await execute(statement) }))
     return { ...report, rows: backup.rows, skipped: backup.skipped }
   })
 }

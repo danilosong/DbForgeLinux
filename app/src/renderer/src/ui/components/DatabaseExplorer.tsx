@@ -34,6 +34,24 @@ interface Props {
   onContextAction(action: string, context: ExplorerContext): void
 }
 
+function connectionSecurityLabel(connection: ConnectionSummary, record: ConnectionRecord, locale: string): { compact: string; text: string; alert: boolean } {
+  const portuguese = locale === 'pt-BR'
+  if (connection.tlsVersion) {
+    const text = portuguese
+      ? connection.tlsVerified ? `criptografada e verificada · ${connection.tlsVersion}` : `criptografada (certificado não verificado) · ${connection.tlsVersion}`
+      : connection.tlsVerified ? `encrypted and verified · ${connection.tlsVersion}` : `encrypted (certificate not verified) · ${connection.tlsVersion}`
+    return { compact: connection.tlsVerified ? (portuguese ? 'TLS verificado' : 'TLS verified') : (portuguese ? 'TLS sem verificação' : 'TLS unverified'), text, alert: false }
+  }
+  if (connection.sshTunnel) return { compact: portuguese ? 'Túnel SSH' : 'SSH tunnel', text: portuguese ? 'tráfego protegido pelo túnel SSH' : 'traffic protected by SSH tunnel', alert: false }
+  if (connection.httpTunnel && connection.httpTunnelSecure) return { compact: portuguese ? 'Túnel HTTPS' : 'HTTPS tunnel', text: portuguese ? 'tráfego criptografado pelo túnel HTTPS' : 'traffic encrypted by HTTPS tunnel', alert: false }
+  if (connection.httpTunnel && connection.httpTunnelRemote) return { compact: portuguese ? 'SEM criptografia' : 'NO ENCRYPTION', text: portuguese ? 'túnel HTTP remoto sem TLS — credenciais e tráfego podem ser lidos' : 'remote HTTP tunnel has no TLS — credentials and traffic can be read', alert: true }
+  if (connection.httpTunnel) return { compact: portuguese ? 'Sem TLS MySQL' : 'MySQL TLS off', text: portuguese ? 'TLS do MySQL ausente; túnel HTTP local em uso' : 'MySQL TLS is off; local HTTP tunnel in use', alert: false }
+  const host = record.host.trim().toLowerCase().replace(/^\[|\]$/g, '')
+  const loopback = Boolean(record.socketPath) || host === 'localhost' || host === '::1' || /^127(?:\.\d{1,3}){3}$/.test(host)
+  const text = portuguese ? 'SEM criptografia — a senha trafega em texto puro' : 'NO ENCRYPTION — the password travels in plain text'
+  return { compact: portuguese ? 'SEM criptografia' : 'NO ENCRYPTION', text: loopback ? `${text} (loopback)` : text, alert: !loopback }
+}
+
 const kinds: Array<{ kind: DatabaseObjectKind; icon: string }> = [
   { kind: 'table', icon: '▤' }, { kind: 'view', icon: '◫' },
   { kind: 'procedure', icon: 'ƒ' }, { kind: 'function', icon: 'λ' },
@@ -41,7 +59,7 @@ const kinds: Array<{ kind: DatabaseObjectKind; icon: string }> = [
 ]
 
 export function DatabaseExplorer(props: Props): React.JSX.Element {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const { records, active, databases, objects, loadingObjects, connecting, errors, onNew, onManage, onConnect, onDisconnect, onExpand, onLoadObjects, onSelectDatabase, onCreateObject, onEdit, onSelectObject, onContextAction } = props
   const [filter, setFilter] = useState('')
   const [regexFilter, setRegexFilter] = useState(false)
@@ -118,11 +136,12 @@ export function DatabaseExplorer(props: Props): React.JSX.Element {
           const isConnecting = connecting.includes(record.id)
           const isExpanded = expanded.includes(record.id)
           const status = isConnecting ? 'connecting' : connection ? 'connected' : errors[record.id] ? 'error' : 'disconnected'
+          const securityLabel = connection ? connectionSecurityLabel(connection, record, locale) : undefined
           return <div role="treeitem" aria-expanded={isExpanded} key={record.id} className={`connection-node state-${status}`}>
             <div className="node-line" onContextMenu={(event) => connection && showContextMenu(event, { connection, target: 'server' })} style={{ borderLeftColor: record.color ?? (record.environment === 'prod' ? '#c62828' : record.environment === 'test' ? '#ed6c02' : record.environment === 'dev' ? '#2e7d32' : 'transparent') }}>
               <button className="node-expander" onClick={() => toggleRecord(record)} aria-label={isExpanded ? 'Recolher conexão' : 'Expandir conexão'}>{isExpanded ? '▾' : '▸'}</button>
               <span className={`connection-dot ${status}`} title={status} aria-label={status}>{status === 'connecting' ? '◌' : status === 'error' ? '!' : '●'}</span>
-              <button className="node-name" onClick={() => { setSelectedConnectionId(record.id); if (connection) toggleRecord(record); else onConnect(record) }} onDoubleClick={() => connection ? undefined : onEdit(record)} title={errors[record.id] ?? `${record.user}@${record.host}:${record.port}`}>{record.name}</button>{record.environment !== 'none' && <span data-shape={record.environmentShape ?? ({ dev: 'square', test: 'diamond', prod: 'circle', sandbox: 'triangle', custom: 'triangle' }[record.environment])} className={`environment-badge env-${record.environment}`} style={{ '--environment-color': record.color ?? (record.environment === 'prod' ? '#c62828' : record.environment === 'test' ? '#ed6c02' : record.environment === 'sandbox' ? '#1565c0' : '#2e7d32') } as React.CSSProperties}>{t(`conn.environment.${record.environment}`)}</span>}
+              <button className="node-name" onClick={() => { setSelectedConnectionId(record.id); if (connection) toggleRecord(record); else onConnect(record) }} onDoubleClick={() => connection ? undefined : onEdit(record)} title={errors[record.id] ?? `${record.user}@${record.host}:${record.port}`}>{record.name}</button>{securityLabel && <span className={`connection-security ${securityLabel.alert ? 'unsafe' : ''}`} role={securityLabel.alert ? 'alert' : undefined} title={securityLabel.text}>{securityLabel.compact}</span>}{record.environment !== 'none' && <span data-shape={record.environmentShape ?? ({ dev: 'square', test: 'diamond', prod: 'circle', sandbox: 'triangle', custom: 'triangle' }[record.environment])} className={`environment-badge env-${record.environment}`} style={{ '--environment-color': record.color ?? (record.environment === 'prod' ? '#c62828' : record.environment === 'test' ? '#ed6c02' : record.environment === 'sandbox' ? '#1565c0' : '#2e7d32') } as React.CSSProperties}>{t(`conn.environment.${record.environment}`)}</span>}
               <button className="node-menu" title={connection ? 'Disconnect' : 'Connect'} onClick={() => { setSelectedConnectionId(record.id); if (connection) onDisconnect(connection); else onConnect(record) }}>{connection ? '⏻' : '⋯'}</button>
             </div>
             {errors[record.id] && <div className="node-error" role="alert">{errors[record.id]}</div>}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createDefaultConnection } from '../src/shared/connectionDefaults.js'
-import { buildMysqlOptions, buildSshOptions, buildSslOptions } from '../src/main/db/connectionOptions.js'
+import { buildMysqlOptions, buildSshOptions, buildSslOptions, isLoopbackMysqlTarget } from '../src/main/db/connectionOptions.js'
 
 describe('connection option builders', () => {
   it('keeps the observed connection defaults at 15s, unlimited execution and 240s ping', () => {
@@ -27,6 +27,28 @@ describe('connection option builders', () => {
       minVersion: 'TLSv1.2',
       servername: 'db.example.test'
     })
+  })
+
+  it('keeps preferred TLS encrypted while allowing self-signed server certificates', async () => {
+    const options = await buildSslOptions(createDefaultConnection('tls-default').ssl, 'db.example.test')
+    expect(options).toMatchObject({ rejectUnauthorized: false })
+    expect(options).not.toHaveProperty('servername')
+  })
+
+  it('keeps required TLS encrypted without certificate verification', async () => {
+    await expect(buildSslOptions({ mode: 'required' }, 'db.example.test')).resolves.toMatchObject({ rejectUnauthorized: false })
+  })
+
+  it('verifies CA-only and identity modes, including hostname for identity mode', async () => {
+    await expect(buildSslOptions({ mode: 'verify-ca', caPath: '/ca.pem' }, 'db.example.test', async (path) => Buffer.from(path))).resolves.toMatchObject({ rejectUnauthorized: true, ca: Buffer.from('/ca.pem') })
+    await expect(buildSslOptions({ mode: 'verify-identity' }, 'db.example.test')).resolves.toMatchObject({ rejectUnauthorized: true, servername: 'db.example.test' })
+  })
+
+  it('allows plaintext fallback only for loopback and unix sockets', () => {
+    for (const host of ['localhost', '127.0.0.1', '127.23.4.5', '::1', '[::1]']) expect(isLoopbackMysqlTarget(host)).toBe(true)
+    expect(isLoopbackMysqlTarget('db.example.test')).toBe(false)
+    expect(isLoopbackMysqlTarget('192.168.1.10')).toBe(false)
+    expect(isLoopbackMysqlTarget('database.invalid', '/run/mysql.sock')).toBe(true)
   })
 
   it('requires a CA for certificate verification and omits SSL when disabled', async () => {

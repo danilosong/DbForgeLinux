@@ -43,7 +43,7 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'database-tools:maintenance': [id, ident, enumOf('ANALYZE', 'OPTIMIZE', 'CHECK', 'REPAIR', 'CHECKSUM'), strings],
   'database-tools:restore': [id, ident, text, sql, opt(bool)], 'database-tools:copy': [id, ident, id, ident, text, bool, opt(bool)],
   'database-tools:schedule:list': [], 'database-tools:schedule:failed': [], 'database-tools:schedule:save': [object], 'database-tools:schedule:delete': [id],
-  'db:test': [object], 'db:connect': [object], 'db:disconnect': [id], 'db:databases': [id], 'db:execute': [id, sql, opt(id), opt(ident)],
+  'db:test': [object], 'db:connect': [object], 'db:disconnect': [id], 'db:databases': [id], 'db:execute': [id, sql, opt(id), opt(ident), opt(bool)],
   'grid-editing:describe': [id, sql, opt(ident)], 'grid-editing:preview': [object, objects], 'grid-editing:apply': [id, object, objects, bool],
   'grid-data:master-detail': [id, object, object],
   'db:result-read': [id, integer, integer], 'db:result-dispose': [id], 'db:cancel': [id, id], 'db:transaction-begin': [id], 'db:transaction-commit': [id], 'db:transaction-rollback': [id],

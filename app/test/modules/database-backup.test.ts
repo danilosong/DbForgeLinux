@@ -68,6 +68,12 @@ describe('database backup and restore', () => {
     await expect(restoreBackup('shop', 'shop', 'CREATE EVENT cleanup ON SCHEDULE EVERY 1 SECOND DO DROP TABLE customers;', async (statement) => { executed.push(statement) })).rejects.toThrow('not allowed')
     expect(executed).toEqual([])
   })
+  it('accepts mysqldump-style escaped apostrophes when the executor normalizes session mode', async () => {
+    const executed: string[] = []
+    const payload = "INSERT INTO `shop`.`names` VALUES ('O" + String.fromCharCode(92) + "'Brien');"
+    await restoreBackup('shop', 'shop', payload, async (statement) => { executed.push(statement) })
+    expect(executed).toEqual([payload.replace(/;$/, '')])
+  })
   it('omits scheduled events from portable backups so restoring cannot enable server jobs', async () => {
     const database = { ...model, events: [{ kind: 'event' as const, name: 'cleanup', createSql: 'CREATE EVENT cleanup ON SCHEDULE EVERY 1 DAY DO SELECT 1;' }] }
     const backup = await createBackupSql(database, false, async () => [])

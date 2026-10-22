@@ -3,17 +3,27 @@ import { createRequire } from 'node:module'
 import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { resolve } from 'node:path'
+import { createWindowWebPreferences, registerDevToolsShortcutGuard, shouldEnableDevTools, isDevToolsShortcut } from '../../main/windowOptionsPolicy.js'
 
 const nodeRequire = createRequire(resolve(process.cwd(), 'package.json'))
 const chromeCandidates = [process.env.TUXSQL_CHROME_PATH, '/usr/bin/google-chrome', '/usr/bin/chromium', '/usr/bin/chromium-browser'].filter((candidate): candidate is string => Boolean(candidate))
+const embeddedWindowPolicy = `
+const shouldEnableDevTools = (${shouldEnableDevTools.toString()})
+const createWindowWebPreferences = (${createWindowWebPreferences.toString()})
+const isDevToolsShortcut = (${isDevToolsShortcut.toString()})
+const registerDevToolsShortcutGuard = (${registerDevToolsShortcutGuard.toString()})
+`
 const electronPrinterBootstrap = `
+${embeddedWindowPolicy}
 const { app, BrowserWindow } = require('electron')
 const { pathToFileURL } = require('node:url')
 const { writeFile } = require('node:fs/promises')
 const [htmlPath, pdfPath] = process.argv.slice(2)
 app.disableHardwareAcceleration()
 app.whenReady().then(async () => {
-  const window = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } })
+  const webPreferences = createWindowWebPreferences({}, { isPackaged: app.isPackaged, devToolsOverride: process.env.TUXSQL_DEVTOOLS })
+  const window = new BrowserWindow({ show: false, webPreferences })
+  registerDevToolsShortcutGuard(window.webContents, { isPackaged: app.isPackaged, devToolsOverride: process.env.TUXSQL_DEVTOOLS })
   try {
     await window.loadURL(pathToFileURL(htmlPath).href)
     await writeFile(pdfPath, await window.webContents.printToPDF({ printBackground: true, pageSize: 'A4' }))

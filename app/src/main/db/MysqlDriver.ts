@@ -3,10 +3,11 @@ import * as mysqlCore from 'mysql2'
 import type { Pool as CorePool, PoolConnection as CorePoolConnection } from 'mysql2'
 import type { ConnectionTestResult, DatabaseObject, QueryResult } from '../../shared/contracts.js'
 import type { DbDriver, DbTransaction, DriverConnectionConfig, SqlValue } from './DbDriver.js'
-import { buildMysqlOptions } from './connectionOptions.js'
+import { buildMysqlOptions, isLoopbackMysqlTarget } from './connectionOptions.js'
 import { createSshTunnel, type ActiveSshTunnel } from './SshTunnel.js'
 import { createHttpTunnel, type ActiveHttpTunnel } from './HttpTunnel.js'
 import { splitSqlStatements } from '../../shared/sqlStatements.js'
+import { withSplitterCompatibleSqlMode } from './splitterSqlMode.js'
 
 interface ManagedConnection {
   pool: Pool
@@ -16,6 +17,8 @@ interface ManagedConnection {
   config: DriverConnectionConfig
   currentDatabase?: string
   transactionConnection?: PoolConnection
+  tlsVersion?: string
+  tlsVerified: boolean
 }
 
 export interface DedicatedMysqlSession {
@@ -26,8 +29,18 @@ export interface DedicatedMysqlSession {
   cancel(): void
 }
 
-function isOptionalTlsUnsupported(error: unknown): boolean {
+function isTlsUnavailable(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === 'HANDSHAKE_NO_SSL_SUPPORT'
+}
+
+function withoutPreferredTls(config: DriverConnectionConfig): DriverConnectionConfig {
+  return { ...config, ssl: { ...config.ssl, mode: 'disabled' } }
+}
+
+function assertRemoteTlsAvailable(error: unknown, config: DriverConnectionConfig): void {
+  if (config.ssl.mode === 'preferred' && isTlsUnavailable(error) && !isLoopbackMysqlTarget(config.host, config.socketPath)) {
+    throw new Error('This server does not offer TLS. To connect without encryption, choose SSL mode: Disabled (the password will be sent in plain text).', { cause: error })
+  }
 }
 
 /** Converts common connection failures to stable, secret-free TuxSQL diagnostics. */
@@ -48,10 +61,6 @@ export function mapMysqlConnectionError(error: unknown, host: string, hasPasswor
   return error instanceof Error ? error : new Error('Could not connect to the MySQL server.')
 }
 
-function withoutPreferredTls(config: DriverConnectionConfig): DriverConnectionConfig {
-  return { ...config, ssl: { ...config.ssl, mode: 'disabled' } }
-}
-
 function getCoreConnection(pool: CorePool): Promise<CorePoolConnection> {
   return new Promise((resolve, reject) => {
     pool.getConnection((error, connection) => error ? reject(error) : resolve(connection))
@@ -61,6 +70,18 @@ function getCoreConnection(pool: CorePool): Promise<CorePoolConnection> {
 function runCoreQuery(connection: CorePoolConnection, sql: string, values: readonly unknown[] = []): Promise<void> {
   return new Promise((resolve, reject) => {
     connection.query(sql, [...values], (error) => error ? reject(error) : resolve())
+  })
+}
+
+function queryResults(raw: MysqlQueryResult | RowDataPacket[], sql: string, executionTimeMs: number): QueryResult[] {
+  const results = Array.isArray(raw) && splitSqlStatements(sql).length > 1 ? raw : [raw]
+  return results.map((result, index) => {
+    if (Array.isArray(result)) {
+      const rows = result as Array<Record<string, unknown>>
+      return { columns: rows[0] ? Object.keys(rows[0]) : [], rows, affectedRows: 0, insertId: 0, warningStatus: 0, executionTimeMs: index === 0 ? executionTimeMs : 0, fetchTimeMs: 0 }
+    }
+    const packet = result as unknown as { affectedRows?: number; insertId?: number; warningStatus?: number }
+    return { columns: [], rows: [], affectedRows: packet.affectedRows ?? 0, insertId: packet.insertId ?? 0, warningStatus: packet.warningStatus ?? 0, executionTimeMs: index === 0 ? executionTimeMs : 0, fetchTimeMs: 0 }
   })
 }
 
@@ -84,7 +105,8 @@ export class MysqlDriver implements DbDriver {
       try {
         connection = await mysql.createConnection(options)
       } catch (error) {
-        if (config.ssl.mode !== 'preferred' || !isOptionalTlsUnsupported(error)) throw error
+        if (config.ssl.mode !== 'preferred' || !isTlsUnavailable(error)) throw error
+        assertRemoteTlsAvailable(error, config)
         options = await buildMysqlOptions(withoutPreferredTls(config), tunnel ?? httpTunnel)
         connection = await mysql.createConnection(options)
       }
@@ -95,8 +117,11 @@ export class MysqlDriver implements DbDriver {
         serverVersion: rows[0]?.version ?? 'unknown',
         elapsedMs: Date.now() - startedAt,
         tlsVersion: tlsRows[0]?.Value || undefined,
+        tlsVerified: Boolean(tlsRows[0]?.Value) && (config.ssl.mode === 'verify-ca' || config.ssl.mode === 'verify-identity'),
         sshTunnel: Boolean(tunnel),
         httpTunnel: Boolean(httpTunnel),
+        httpTunnelSecure: isSecureRemoteHttpTunnel(config),
+        httpTunnelRemote: isRemoteHttpTunnel(config),
         databases: databaseRows.map((row) => row.Database).filter((name) => config.showAllDatabases || !['information_schema', 'mysql', 'performance_schema', 'sys'].includes(name))
       }
     } catch (error) {
@@ -125,19 +150,20 @@ export class MysqlDriver implements DbDriver {
         })
         return { core, promise: core.promise() }
       }
-      let pools = createPool()
+      const pools = createPool()
       corePool = pools.core
       pool = pools.promise
       let connection: PoolConnection
       try {
         connection = await pool.getConnection()
       } catch (error) {
-        if (config.ssl.mode !== 'preferred' || !isOptionalTlsUnsupported(error)) throw error
+        if (config.ssl.mode !== 'preferred' || !isTlsUnavailable(error)) throw error
+        assertRemoteTlsAvailable(error, config)
         await pool.end()
         options = await buildMysqlOptions(withoutPreferredTls(config), tunnel ?? httpTunnel)
-        pools = createPool()
-        corePool = pools.core
-        pool = pools.promise
+        const fallback = createPool()
+        corePool = fallback.core
+        pool = fallback.promise
         connection = await pool.getConnection()
       }
       try {
@@ -145,8 +171,9 @@ export class MysqlDriver implements DbDriver {
       } finally {
         connection.release()
       }
+      const [tlsRows] = await pool.query<Array<RowDataPacket & { Value: string }>>("SHOW STATUS LIKE 'Ssl_version'")
       const id = crypto.randomUUID()
-      this.pools.set(id, { pool, corePool, tunnel, httpTunnel, config, currentDatabase: config.database })
+      this.pools.set(id, { pool, corePool, tunnel, httpTunnel, config, currentDatabase: config.database, tlsVersion: tlsRows[0]?.Value || undefined, tlsVerified: Boolean(tlsRows[0]?.Value) && (config.ssl.mode === 'verify-ca' || config.ssl.mode === 'verify-identity') })
       return id
     } catch (error) {
       if (pool) await pool.end()
@@ -163,6 +190,11 @@ export class MysqlDriver implements DbDriver {
     await managed.pool.end()
     if (managed.tunnel) await managed.tunnel.close()
     if (managed.httpTunnel) await managed.httpTunnel.close()
+  }
+
+  connectionSecurity(connectionId: string): { tlsVersion?: string; tlsVerified: boolean; sshTunnel: boolean; httpTunnel: boolean; httpTunnelSecure: boolean; httpTunnelRemote: boolean } {
+    const connection = this.requireConnection(connectionId)
+    return { tlsVersion: connection.tlsVersion, tlsVerified: connection.tlsVerified, sshTunnel: Boolean(connection.tunnel), httpTunnel: Boolean(connection.httpTunnel), httpTunnelSecure: isSecureRemoteHttpTunnel(connection.config), httpTunnelRemote: isRemoteHttpTunnel(connection.config) }
   }
 
   /** Opens one pinned server session for protocols that depend on connection-scoped locks or variables. */
@@ -239,33 +271,33 @@ export class MysqlDriver implements DbDriver {
         ;[raw] = await managed.pool.query({ sql, rowsAsArray: false, ...(timeout > 0 ? { timeout: timeout * 1000 } : {}) })
       }
     } finally { this.executions.delete(activeExecutionId); if (ownsConnection) connection.release() }
-    const results = Array.isArray(raw) && splitSqlStatements(sql).length > 1 ? raw : [raw]
-    const executionTimeMs = performance.now() - startedAt
-    return results.map((result, index) => {
-      if (Array.isArray(result)) {
-        const rows = result as Array<Record<string, unknown>>
-        return {
-          columns: rows[0] ? Object.keys(rows[0]) : [],
-          rows,
-          affectedRows: 0,
-          insertId: 0,
-          warningStatus: 0,
-          executionTimeMs: index === 0 ? executionTimeMs : 0,
-          fetchTimeMs: 0
+    return queryResults(raw, sql, performance.now() - startedAt)
+  }
+
+  /** Pins batch execution to one connection whose SQL mode matches our script splitter. */
+  async withSplitterCompatibleSqlMode<T>(connectionId: string, operation: (execute: (sql: string, executionId?: string) => Promise<QueryResult[]>) => Promise<T>): Promise<T> {
+    const managed = this.requireConnection(connectionId)
+    if (managed.config.advanced.readOnly) throw new Error('A sessão está marcada como somente leitura.')
+    const connection = managed.transactionConnection ?? await managed.pool.getConnection()
+    const ownsConnection = !managed.transactionConnection
+    try {
+      await this.initializeSession(connection, managed.config)
+      if (managed.currentDatabase) await connection.query(`USE ${quoteIdentifier(managed.currentDatabase)}`)
+      const readMode = async (): Promise<string> => {
+        const [rows] = await connection.query<Array<RowDataPacket & { sqlMode: string }>>('SELECT @@SESSION.sql_mode AS sqlMode')
+        return String(rows[0]?.sqlMode ?? '')
+      }
+      const setMode = async (mode: string): Promise<void> => { await connection.query('SET SESSION sql_mode = ?', [mode]) }
+      return await withSplitterCompatibleSqlMode(readMode, setMode, async () => operation(async (sql, executionId = crypto.randomUUID()) => {
+        const startedAt = performance.now()
+        this.executions.set(executionId, { connectionId, threadId: connection.threadId })
+        try {
+          const [raw] = await connection.query({ sql, rowsAsArray: false, ...(managed.config.advanced.commandTimeoutSeconds > 0 ? { timeout: managed.config.advanced.commandTimeoutSeconds * 1000 } : {}) })
+          return queryResults(raw as MysqlQueryResult | RowDataPacket[], sql, performance.now() - startedAt)
         }
-      }
-      const header = result as MysqlQueryResult
-      const packet = header as unknown as { affectedRows?: number; insertId?: number; warningStatus?: number }
-      return {
-        columns: [],
-        rows: [],
-        affectedRows: packet.affectedRows ?? 0,
-        insertId: packet.insertId ?? 0,
-        warningStatus: packet.warningStatus ?? 0,
-        executionTimeMs: index === 0 ? executionTimeMs : 0,
-        fetchTimeMs: 0
-      }
-    })
+        finally { this.executions.delete(executionId) }
+      }))
+    } finally { if (ownsConnection) connection.release() }
   }
 
   async cancelQuery(connectionId: string, executionId: string): Promise<void> {
@@ -474,6 +506,22 @@ export class MysqlDriver implements DbDriver {
 }
 
 export type MysqlConnection = PoolConnection
+
+function httpTunnelUrl(config: DriverConnectionConfig): URL | undefined {
+  if (!config.http.enabled) return undefined
+  try { return new URL(config.http.url) } catch { return undefined }
+}
+
+function isSecureRemoteHttpTunnel(config: DriverConnectionConfig): boolean {
+  return httpTunnelUrl(config)?.protocol === 'https:'
+}
+
+function isRemoteHttpTunnel(config: DriverConnectionConfig): boolean {
+  const endpoint = httpTunnelUrl(config)
+  if (!endpoint) return false
+  const host = endpoint.hostname.toLowerCase().replace(/^\[|\]$/g, '')
+  return !(host === 'localhost' || host === '::1' || /^127(?:\.\d{1,3}){3}$/.test(host))
+}
 
 function quoteIdentifier(identifier: string): string {
   return `\`${identifier.replace(/`/g, '``')}\``

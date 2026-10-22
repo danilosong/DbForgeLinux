@@ -12,6 +12,7 @@ import { requestSshKeyboardInteractive } from './ipc/keyboard-interactive.js'
 import { isTrustedRendererNavigation } from './security/windowPolicy.js'
 import { migrateLegacyUserData } from './legacyData.js'
 import { runScheduledBackup } from './ipc/scheduledBackup.js'
+import { createTuxSqlBrowserWindow } from './windowOptions.js'
 
 const driver = new MysqlDriver()
 let vault: PasswordVault
@@ -58,7 +59,7 @@ if (scheduledBackupId !== undefined) {
 }
 function resolveSecret(ref:string|undefined):Promise<string|null>{return ref?vault.get(ref):Promise.resolve(null)}
 function createWindow():void {
- const window=new BrowserWindow({width:1440,height:900,minWidth:1024,minHeight:640,autoHideMenuBar:true,webPreferences:{preload:join(__dirname,'../preload/index.js'),contextIsolation:true,nodeIntegration:false,sandbox:true}})
+ const window=createTuxSqlBrowserWindow({width:1440,height:900,minWidth:1024,minHeight:640,autoHideMenuBar:true,webPreferences:{preload:join(__dirname,'../preload/index.js')}})
  mainWindow=window
  const rendererUrl=process.env.ELECTRON_RENDERER_URL
  window.webContents.setWindowOpenHandler(()=>({action:'deny'}))

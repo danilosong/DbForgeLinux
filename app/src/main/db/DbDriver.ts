@@ -15,6 +15,7 @@ export interface DriverConnectionConfig extends ConnectionRecord {
 export interface DbDriver {
   testConnection(config: DriverConnectionConfig): Promise<ConnectionTestResult>
   connect(config: DriverConnectionConfig): Promise<string>
+  connectionSecurity?(connectionId: string): { tlsVersion?: string; tlsVerified: boolean; sshTunnel: boolean; httpTunnel: boolean; httpTunnelSecure: boolean; httpTunnelRemote: boolean }
   disconnect(connectionId: string): Promise<void>
   listDatabases(connectionId: string): Promise<string[]>
   listTables(connectionId: string, database: string): Promise<string[]>

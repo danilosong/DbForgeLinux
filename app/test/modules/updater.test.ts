@@ -42,8 +42,8 @@ async function fixture(): Promise<{ root: string; infoPath: string; commit: stri
   return { root, infoPath, commit }
 }
 
-function service(root: string, infoPath: string, options: { buildFails?: boolean; dirty?: boolean; release?: boolean; isBusy?: boolean; releaseDownloadFails?: boolean; gitMissing?: boolean; releaseNotPublished?: boolean } = {}): UpdateService {
-  const settings = { ...preferences, channel: options.release ? 'release' as const : 'auto' as const }
+function service(root: string, infoPath: string, options: { buildFails?: boolean; dirty?: boolean; release?: boolean; channel?: UpdatePreferences['channel']; isBusy?: boolean; releaseDownloadFails?: boolean; gitMissing?: boolean; releaseNotPublished?: boolean } = {}): UpdateService {
+  const settings = { ...preferences, channel: options.channel ?? (options.release ? 'release' as const : 'dev' as const) }
   return new UpdateService({
     appVersion: '0.1.0', buildInfoPath: infoPath, settings: async () => settings, isBusy: () => options.isBusy ?? false,
     release: {
@@ -70,6 +70,42 @@ function service(root: string, infoPath: string, options: { buildFails?: boolean
 }
 
 describe('development updater', () => {
+  it('does not run development Git commands while the channel is automatic, even when repo metadata exists', async () => {
+    const { infoPath } = await fixture()
+    let gitCalls = 0
+    const updater = new UpdateService({
+      appVersion: '0.1.0', buildInfoPath: infoPath, settings: async () => ({ ...preferences, channel: 'auto' }),
+      isBusy: () => false,
+      release: { check: async () => ({ version: '0.2.0', notes: [] }), download: async () => undefined, cancel: () => undefined, install: () => undefined, openReleasePage: async () => undefined },
+      runCommand: async (file) => { if (file === 'git') gitCalls++; return '' }
+    })
+
+    const checked = await updater.check()
+
+    expect(checked.phase).toBe('available')
+    expect(checked.channel).toBe('release')
+    expect(gitCalls).toBe(0)
+  })
+
+  it('blocks the development channel when release build metadata has no repository path', async () => {
+    const { infoPath } = await fixture()
+    const info = JSON.parse(await readFile(infoPath, 'utf8')) as Record<string, unknown>
+    delete info.repoPath
+    await writeFile(infoPath, JSON.stringify(info))
+    let commandCalls = 0
+    const updater = new UpdateService({
+      appVersion: '0.1.0', buildInfoPath: infoPath, settings: async () => ({ ...preferences, channel: 'dev' }),
+      isBusy: () => false,
+      release: { check: async () => null, download: async () => undefined, cancel: () => undefined, install: () => undefined, openReleasePage: async () => undefined },
+      runCommand: async () => { commandCalls++; return '' }
+    })
+
+    const checked = await updater.check()
+
+    expect(checked.phase).toBe('blocked')
+    expect(commandCalls).toBe(0)
+  })
+
   it('lists new commits and atomically swaps a validated build', async () => {
     const { root, infoPath } = await fixture()
     const updater = service(root, infoPath)
