@@ -4,7 +4,7 @@ import { generateValue, inferKind, isUniqueColumn, passesSimpleCheck, relevantCh
 import type { DataGenerationJob, DataGenerationPreviewJob, DataGenerationReport, GeneratorSpec } from './types.js'
 
 export type { DataGenerationJob, DataGenerationPreviewJob, DataGenerationReport, GeneratorKind, GeneratorSpec, Locale } from './types.js'
-export { dataDomainProfiles, generatorForDomainProfile, type DataDomainProfile } from './profiles.js'
+export { dataDomainProfiles, generatorForDomainProfile, generatorSpecForDomainProfile, type DataDomainProfile } from './profiles.js'
 
 function quoteId(name: string): string {
   if (!name || name.includes('\0')) throw new Error('Invalid identifier.')
@@ -198,13 +198,24 @@ export async function generateData(job: DataGenerationJob): Promise<DataGenerati
   if (counts.some((count) => !Number.isInteger(count) || count < 0)) throw new Error('Each row count must be a non-negative integer.')
   const report: DataGenerationReport = { generated: 0, inserted: 0, tables: {} }
   const samples = new Map<string, unknown[]>()
-  const batchSize = Math.max(1, job.batchSize ?? 250)
+  const batchSize = job.batchSize ?? 250
+  if (!Number.isInteger(batchSize) || batchSize < 1 || batchSize > 10000) throw new Error('The batch size must be between 1 and 10000 rows.')
+  if (job.disableForeignKeyChecks) {
+    const expected = `DISABLE FOREIGN_KEY_CHECKS ${job.database}.${JSON.stringify([...(job.tables ?? job.schema.tables.map((table) => table.name))].sort())}`
+    if (job.foreignKeyChecksConfirmation !== expected) throw new Error('Disabling foreign-key checks requires the exact confirmation phrase.')
+  }
   const locale = job.locale ?? 'en-US'
   const seed = job.seed ?? 1
   const truncateNames = new Set(job.truncateTables ?? [])
   if ([...truncateNames].some((name) => !selected.has(name))) throw new Error('Only selected tables can be cleared before generation.')
   const truncateOrder = [...tables].reverse().filter((table) => truncateNames.has(table.name))
+  const priorForeignKeyChecks = job.disableForeignKeyChecks ? Number((await job.driver.queryRows(job.connectionId, 'SELECT @@SESSION.FOREIGN_KEY_CHECKS AS enabled'))[0]?.enabled) : undefined
+  if (job.disableForeignKeyChecks && priorForeignKeyChecks !== 0 && priorForeignKeyChecks !== 1) throw new Error('Could not determine the current FOREIGN_KEY_CHECKS setting.')
   await job.driver.withTransaction(job.connectionId, async (transaction) => {
+    let operationError: unknown
+    let restoreError: Error | undefined
+    try {
+    if (job.disableForeignKeyChecks) await transaction.execute('SET SESSION FOREIGN_KEY_CHECKS = 0')
     for (const table of truncateOrder) await transaction.execute(`DELETE FROM ${tableName(job.database, table.name)}`)
     for (const [tableIndex, table] of tables.entries()) {
       const total = counts[tableIndex]
@@ -223,6 +234,18 @@ export async function generateData(job: DataGenerationJob): Promise<DataGenerati
       if (batch.length) { const inserted = await insertRows(transaction, job.database, table, batch); stats.inserted += inserted; report.inserted += inserted }
       job.onProgress?.({ table: table.name, generated: stats.generated, inserted: stats.inserted, total })
     }
+    } catch (error) { operationError = error }
+    finally {
+      if (job.disableForeignKeyChecks) {
+        try { await transaction.execute(`SET SESSION FOREIGN_KEY_CHECKS = ${priorForeignKeyChecks}`) }
+        catch {
+          await job.driver.disconnect(job.connectionId).catch(() => undefined)
+          restoreError = new Error('Could not restore FOREIGN_KEY_CHECKS; the database connection was closed to prevent reuse with checks disabled.')
+        }
+      }
+    }
+    if (restoreError) throw restoreError
+    if (operationError) throw operationError
   }, job.signal)
   return report
 }

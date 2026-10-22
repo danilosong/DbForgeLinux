@@ -20,8 +20,7 @@ try {
   const page = await app.firstWindow()
   await page.locator('.workbench').waitFor()
   const chooseTheme = async (theme) => {
-    await page.locator('summary').filter({ hasText: 'View' }).click()
-    await page.getByRole('button', { name: theme === 'light' ? /^(Theme: Light|Tema: Claro)$/ : /^(Theme: Dark|Tema: Escuro)$/ }).click()
+    await page.evaluate((mode) => { document.documentElement.dataset.theme = mode; document.documentElement.style.colorScheme = mode }, theme)
     await page.locator('.workbench').waitFor()
   }
   const openMenuAction = async (menu, label, nestedLabel) => {
@@ -39,8 +38,15 @@ try {
       }, { menuName: menu, actionLabel: label, nestedName: nestedLabel })
       return
     }
-    await page.locator('summary').filter({ hasText: new RegExp(`^${menu}$`) }).click()
-    await page.locator('.menu-popup .menu-action').filter({ hasText: label }).last().click()
+    await page.evaluate(({ menuName, actionLabel }) => {
+      const summary = [...document.querySelectorAll('summary')].find((item) => item.textContent?.trim() === menuName)
+      const menuElement = summary?.parentElement
+      if (!(menuElement instanceof HTMLDetailsElement)) throw new Error(`Menu not found: ${menuName}`)
+      menuElement.open = true
+      const action = [...menuElement.querySelectorAll('.menu-action')].find((item) => item.textContent?.includes(actionLabel))
+      if (!(action instanceof HTMLButtonElement)) throw new Error(`Menu action not found: ${actionLabel}`)
+      action.click()
+    }, { menuName: menu, actionLabel: label })
   }
 
   await chooseTheme('light')
@@ -56,15 +62,21 @@ try {
   await page.screenshot({ path: join(profilerEvidence, 'plan-diagram-light.png') })
   await chooseTheme('dark')
   await page.screenshot({ path: join(profilerEvidence, 'plan-diagram-dark.png') })
-  const closeProfiler = page.locator('.panel-dialog-backdrop .panel-dialog-close').last()
+  await profiler.getByRole('button', { name: 'Session Statistics' }).click()
+  await profiler.getByRole('cell', { name: 'Questions', exact: true }).waitFor()
+  await page.screenshot({ path: join(profilerEvidence, 'session-statistics-dark.png') })
+  await chooseTheme('light')
+  await page.screenshot({ path: join(profilerEvidence, 'session-statistics-light.png') })
+  const profilerDialog = page.locator('.panel-dialog-backdrop').filter({ has: profiler })
+  const closeProfiler = profilerDialog.getByRole('button', { name: /Close/ })
   if (await closeProfiler.count()) await closeProfiler.click({ force: true })
 
   await chooseTheme('light')
   await openMenuAction('Database', 'Database documentation', 'Tasks')
   const documenter = page.locator('.documenter-panel')
   await documenter.waitFor()
-  await documenter.locator('fieldset').first().locator('input[type="checkbox"]').check().catch(() => undefined)
-  await documenter.locator('select').last().selectOption('ocean').catch(() => undefined)
+  await documenter.getByRole('checkbox', { name: 'Cover page', exact: true }).check().catch(() => undefined)
+  await documenter.getByLabel('Cover palette', { exact: true }).selectOption('ocean').catch(() => undefined)
   await page.screenshot({ path: join(documenterEvidence, 'cover-designer-light.png') })
   await chooseTheme('dark')
   await page.screenshot({ path: join(documenterEvidence, 'cover-designer-dark.png') })

@@ -2,6 +2,10 @@ import { ipcRenderer } from 'electron'
 import type { SourceControlApi } from '../../shared/contracts/source-control.js'
 
 export const sourceControlApi: SourceControlApi = {
+  legacyVcsAvailability: (system) => ipcRenderer.invoke('source-control:legacy-availability', system),
+  legacyVcsStatus: (system, path) => ipcRenderer.invoke('source-control:legacy-status', system, path),
+  legacyVcsLog: (system, path, limit) => ipcRenderer.invoke('source-control:legacy-log', system, path, limit),
+  legacyVcsDiff: (system, path, file) => ipcRenderer.invoke('source-control:legacy-diff', system, path, file),
   chooseRepository: () => ipcRenderer.invoke('source-control:choose-repository'),
   chooseProjectFolder: () => ipcRenderer.invoke('source-control:choose-project-folder'),
   cloneSourceRepository: (url, parent, folderName) => ipcRenderer.invoke('source-control:clone-repository', url, parent, folderName),
@@ -31,7 +35,7 @@ export const sourceControlApi: SourceControlApi = {
   closeSourceProject: (root) => ipcRenderer.invoke('source-control:close-project', root),
   sourceProjectFiles: (root) => ipcRenderer.invoke('source-control:project-files', root),
   readSourceProjectScripts: (root, files) => ipcRenderer.invoke('source-control:read-scripts', root, files),
-  applySourceProjectScripts: (connectionId, database, scripts, confirmed) => ipcRenderer.invoke('source-control:apply-scripts', connectionId, database, scripts, confirmed),
+  applySourceProjectScripts: (connectionId, database, scripts, confirmation) => ipcRenderer.invoke('source-control:apply-scripts', connectionId, database, scripts, confirmation),
   addSourceProjectFile: (root) => ipcRenderer.invoke('source-control:add-file', root),
   writeSourceProjectScript: (root, file, contents) => ipcRenderer.invoke('source-control:write-script', root, file, contents),
   exportDatabaseSchema: (connectionId, database, folder) => ipcRenderer.invoke('source-control:export-schema', connectionId, database, folder)

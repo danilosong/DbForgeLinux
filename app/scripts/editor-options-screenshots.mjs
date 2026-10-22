@@ -1,18 +1,17 @@
 /* global process, console, setTimeout, clearTimeout */
-import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { once } from 'node:events'
 import { _electron as electron } from 'playwright'
 
-const appPath = join(process.cwd(), 'dist', 'linux-unpacked', existsSync(join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql')) ? 'tuxsql' : 'electron')
+const appPath = join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql')
 const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-editor-options-ui-'))
 const evidenceRoot = join(process.cwd(), '..', 'document', 'evidence', 'ui', '04-editor-options')
 let app
 try {
   await mkdir(evidenceRoot, { recursive: true })
-  app = await electron.launch({ executablePath: appPath, args: [], env: { ...process.env, HOME: dataRoot, LANGUAGE: 'en', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
+  app = await electron.launch({ executablePath: appPath, args: [join(process.cwd(), 'out', 'main', 'index.js')], cwd: process.cwd(), env: { ...process.env, HOME: dataRoot, LANGUAGE: 'en', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
   const page = await app.firstWindow()
   await page.locator('.workbench').waitFor()
   const setTheme = async (theme) => {

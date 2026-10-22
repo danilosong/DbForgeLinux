@@ -4,6 +4,7 @@ import { MysqlDriver } from '../../src/main/db/MysqlDriver.js'
 import { applySecurityPlan, buildSecurityPlan, getUserSecurityDetails } from '../../src/modules/security/index.js'
 import { killSessions } from '../../src/modules/sessions/index.js'
 import { explainQuery } from '../../src/modules/profiler/index.js'
+import { describeStatusVariable, statusDescriptions } from '../../src/modules/profiler/statusDescriptions.js'
 import type { SqlClient } from '../../src/modules/sql.js'
 import { mysqlTestPrefix, mysqlTestUser } from '../mysqlTestNames.js'
 
@@ -65,6 +66,13 @@ describe.skipIf(!enabled)('security, sessions and profiler integration', () => {
     const killed = await killSessions(security, [workerId], 'session', { confirm: true })
     expect(killed).toEqual([{ id: workerId, success: true }])
     await sleepingQuery
+  }, 30000)
+
+  it('has an explicit description for every status variable exposed by the MySQL test server', async () => {
+    ownerConnection = await driver.connect(config)
+    const rows = await driver.queryRows(ownerConnection, 'SHOW GLOBAL STATUS') as Array<{ Variable_name: string }>
+    const undescribed = rows.map((row) => row.Variable_name).filter((name) => !Object.hasOwn(statusDescriptions, name) || describeStatusVariable(name) === 'Server-reported status counter; its unit and scope depend on this variable.')
+    expect(undescribed, `Add descriptions for these MySQL status variables: ${undescribed.join(', ')}`).toEqual([])
   }, 30000)
 })
 

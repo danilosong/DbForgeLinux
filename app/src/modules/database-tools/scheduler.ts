@@ -102,6 +102,16 @@ export function cronToSystemdCalendar(expression: string): string[] | null {
   return [systemWeekday === '*' ? `${date} ${time}` : `${systemWeekday} ${date} ${time}`]
 }
 
+/**
+ * Sandboxing for the backup user unit, each line verified with the packaged Electron binary on
+ * Ubuntu 26.04 (real backup over TCP + keyring bus). Mount-namespace options (ProtectHome,
+ * ProtectSystem, PrivateTmp) are silently ignored by user managers where unprivileged user
+ * namespaces are restricted; SystemCallFilter=@system-service intermittently kills the GPU
+ * process, MemoryDenyWriteExecute breaks the V8 JIT and RestrictNamespaces breaks the Chromium
+ * sandbox. Full table: document/security-linux-hardening.md.
+ */
+const backupServiceHardening = ['NoNewPrivileges=yes', 'RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK', 'LockPersonality=yes', 'RestrictRealtime=yes', 'RestrictSUIDSGID=yes', 'SystemCallArchitectures=native', 'UMask=0077'].map((line) => `${line}\n`).join('')
+
 export interface BackupScheduleBackendOptions {
   homeDirectory: string
   executablePath: string
@@ -159,7 +169,7 @@ export class BackupScheduleBackendManager {
   private async installSystemd(schedule: BackupSchedule, cron: string): Promise<void> {
     const base = this.unitBase(schedule.id); await mkdir(this.userUnitDirectory, { recursive: true, mode: 0o700 })
     const executable = [this.options.executablePath, ...(this.options.appPath ? [this.options.appPath] : []), '--no-sandbox', '--run-backup-schedule', schedule.id].map(systemdEscape).join(' ')
-    const service = `[Unit]\nDescription=TuxSQL scheduled backup for ${schedule.id}\n\n[Service]\nType=oneshot\nExecStart=${executable}\nStandardOutput=journal\nStandardError=journal\n`
+    const service = `[Unit]\nDescription=TuxSQL scheduled backup for ${schedule.id}\n\n[Service]\nType=oneshot\nExecStart=${executable}\nStandardOutput=journal\nStandardError=journal\n${backupServiceHardening}`
     const calendars = cronToSystemdCalendar(cron)
     if (!calendars) throw new Error('This schedule requires cron because systemd cannot represent its weekday range.')
     const timer = `[Unit]\nDescription=TuxSQL scheduled backup timer for ${schedule.id}\n\n[Timer]\n${calendars.map((calendar) => `OnCalendar=${calendar}`).join('\n')}\nPersistent=true\nUnit=${base}.service\n\n[Install]\nWantedBy=timers.target\n`
@@ -200,3 +210,5 @@ export class BackupScheduleBackendManager {
 }
 
 export function scheduledBackupPath(directory: string, database: string, date: Date): string { const safe = database.replace(/[^A-Za-z0-9_.-]/g, '_'); return join(directory, `${safe}-${date.toISOString().replace(/[:.]/g, '-')}.sql`) }
+/** True only for names scheduledBackupPath produces, so retention never touches other files in a shared folder. */
+export function isScheduledBackupFileName(name: string, database: string): boolean { const safe = database.replace(/[^A-Za-z0-9_.-]/g, '_'); return name.startsWith(`${safe}-`) && /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z\.sql$/.test(name.slice(safe.length + 1)) }

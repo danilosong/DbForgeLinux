@@ -7,6 +7,7 @@ import { inspectDatabase } from '../schema/index.js'
 import { generateDocumentationBatch, type DocumentationBatchItem } from './automation.js'
 import { printDocumentationPdfHeadless } from './headlessPdf.js'
 import { inspectDocumenterAccounts } from './accounts.js'
+import { connectDocumenterCliMysql } from './cliConnection.js'
 
 const help = `TuxSQL Documenter CLI
 
@@ -18,6 +19,8 @@ Required environment:
   TUXSQL_DOCUMENTER_OUTPUT  Default output directory (optional when every task sets outputDirectory)
   TUXSQL_DB_PASSWORD   Password (optional; leave unset for passwordless accounts)
   TUXSQL_DB_PORT       Port (default: 3306)
+  TUXSQL_DB_SSL        disabled|preferred|required|verify-ca|verify-identity (default: preferred for loopback, required for remote hosts; loopback may fall back if TLS is unsupported)
+  TUXSQL_DB_SSL_CA     CA certificate file for verify-ca/verify-identity
 
 The JSON manifest is an array of tasks. Each task needs database and may set
 outputDirectory, title, author, copyright, logo, created, folderName,
@@ -69,16 +72,21 @@ async function main(): Promise<void> {
   const port = Number(process.env.TUXSQL_DB_PORT ?? '3306')
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new Error('TUXSQL_DB_PORT must be a valid port number.')
   const password = process.env.TUXSQL_DB_PASSWORD
+  const connectReadOnly = async (database: string) => {
+    const connection = await connectDocumenterCliMysql((options) => mysql.createConnection(options), host, port, user, password, database, process.env)
+    try { await connection.query('SET SESSION TRANSACTION READ ONLY'); return connection }
+    catch (error) { await connection.end(); throw error }
+  }
   const results = await generateDocumentationBatch(tasks, {
     inspect: async (database) => {
-      const connection = await mysql.createConnection({ host, port, user, password, database, connectTimeout: 10_000, multipleStatements: false })
+      const connection = await connectReadOnly(database)
       try { return await inspectDatabase(async (sql, parameters = []) => {
         const [rows] = await connection.query(sql, [...parameters] as QueryValues)
         return Array.isArray(rows) ? rows as Array<Record<string, unknown>> : []
       }, database) } finally { await connection.end() }
     },
     inspectAccounts: async (database) => {
-      const connection = await mysql.createConnection({ host, port, user, password, database, connectTimeout: 10_000, multipleStatements: false })
+      const connection = await connectReadOnly(database)
       try {
         return await inspectDocumenterAccounts(async (sql, parameters = []) => {
           const [rows] = await connection.query(sql, [...parameters] as QueryValues)

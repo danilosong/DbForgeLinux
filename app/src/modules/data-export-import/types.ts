@@ -1,8 +1,8 @@
 import type { Writable } from 'node:stream'
 import type { DbDriver } from '../../main/db/DbDriver.js'
 
-export type ExportFormat = 'csv' | 'text' | 'json' | 'xml' | 'sql' | 'html' | 'xlsx' | 'pdf'
-export type ImportFormat = 'csv' | 'text' | 'json' | 'xml' | 'xlsx' | 'sql'
+export type ExportFormat = 'csv' | 'text' | 'json' | 'xml' | 'sql' | 'html' | 'xlsx' | 'pdf' | 'dbf'
+export type ImportFormat = 'csv' | 'text' | 'json' | 'xml' | 'xlsx' | 'sql' | 'dbf' | 'access'
 export type ImportMode = 'append' | 'update' | 'delete' | 'upsert' | 'repopulate'
 export type Row = Record<string, unknown>
 
@@ -69,6 +69,6 @@ export interface ImportJob {
 }
 
 export interface ExportReport { rows: number; bytes: number }
-export interface ImportReport { read: number; inserted: number; updated: number; deleted: number; errors: number; rowErrors: Array<{ row: number; message: string }> }
+export interface ImportReport { read: number; inserted: number; updated: number; deleted: number; errors: number; rowErrors: Array<{ row: number; message: string }>; serverWarnings: string[] }
 
 export interface ImportPreview { columns: string[]; rows: Row[] }

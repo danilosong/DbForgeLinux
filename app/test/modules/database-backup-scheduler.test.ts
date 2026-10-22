@@ -1,8 +1,8 @@
-import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, stat, utimes, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, expect, it } from 'vitest'
-import { BackupScheduleBackendManager, BackupScheduleRunStateStore, BackupScheduleStore, cronToSystemdCalendar, nextCronRun, validateBackupSchedule, validateCron, type ScheduleCommandRunner } from '../../src/modules/database-tools/scheduler.js'
+import { BackupScheduleBackendManager, BackupScheduleRunStateStore, BackupScheduleStore, cronToSystemdCalendar, nextCronRun, validateBackupSchedule, validateCron, scheduledBackupPath, type ScheduleCommandRunner } from '../../src/modules/database-tools/scheduler.js'
 import { runScheduledBackup } from '../../src/main/ipc/scheduledBackup.js'
 
 const baseSchedule = (directory: string) => ({ connectionId: 'connection-a', database: 'sample', directory, cron: '0 2 * * *', retention: 7, enabled: true })
@@ -67,6 +67,8 @@ describe('Linux scheduled backups', () => {
       expect(service).toContain(uuid)
       expect(service).toContain('StandardOutput=journal')
       expect(service).toContain('StandardError=journal')
+      for (const directive of ['NoNewPrivileges=yes', 'RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK', 'LockPersonality=yes', 'RestrictSUIDSGID=yes', 'UMask=0077']) expect(service).toContain(`\n${directive}\n`)
+      expect(service).not.toMatch(/SystemCallFilter|MemoryDenyWriteExecute|RestrictNamespaces/)
       expect(service).not.toMatch(/password|secret|credential/i)
       expect(timer).toContain('Persistent=true')
       expect(timer).toContain('OnCalendar=*-*-* 2:0:00')
@@ -139,6 +141,32 @@ describe('Linux scheduled backups', () => {
       expect(file).toMatch(/^sample-.*\.sql$/)
       expect((await stat(join(output, file!))).mode & 0o777).toBe(0o600)
       expect(await readFile(join(output, file!), 'utf8')).toContain('-- TuxSQL database backup')
+    } finally { await rm(root, { recursive: true, force: true }) }
+  })
+
+  it('retention only deletes backups this scheduler wrote, never other user files in the folder', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'tuxsql-scheduled-retention-')); const output = join(root, 'backups')
+    const store = new BackupScheduleStore(join(root, 'profile', 'backup-schedules.json'))
+    const now = new Date(2026, 4, 4, 2, 0, 0)
+    const schedule = await store.save({ ...baseSchedule(output), retention: 1 })
+    await mkdir(output, { recursive: true })
+    const old = new Date(2020, 0, 1)
+    await writeFile(join(output, 'sample-notes.sql'), 'hand-written'); await utimes(join(output, 'sample-notes.sql'), old, old)
+    await writeFile(join(output, 'sample-migration-v2.sql'), 'hand-written'); await utimes(join(output, 'sample-migration-v2.sql'), old, old)
+    const previous = scheduledBackupPath(output, 'sample', new Date(2026, 4, 3, 2, 0, 0))
+    await writeFile(previous, '-- TuxSQL database backup'); await utimes(previous, old, old)
+    const driver = { connect: async () => 'managed', setDatabase: async () => undefined, queryRows: async (_id: string, sql: string) => sql.includes('information_schema.SCHEMATA') ? [{ charset: 'utf8mb4', collation: 'utf8mb4_0900_ai_ci' }] : [], disconnect: async () => undefined }
+    const write = process.stdout.write.bind(process.stdout)
+    process.stdout.write = (() => true) as typeof process.stdout.write
+    try {
+      await runScheduledBackup({ connectionStore: { list: async () => [{ id: 'connection-a', name: 'example', user: 'db-user' }] } as never, userDataDir: join(root, 'profile'), driver: driver as never, resolveConnectionConfig: async () => ({ user: 'db-user' }) as never }, schedule.id, now)
+    } finally { process.stdout.write = write }
+    try {
+      const files = (await readdir(output)).sort()
+      expect(files).toContain('sample-notes.sql')
+      expect(files).toContain('sample-migration-v2.sql')
+      expect(files).not.toContain(previous.slice(output.length + 1))
+      expect(files.filter((name) => /^sample-\d{4}-/.test(name))).toHaveLength(1)
     } finally { await rm(root, { recursive: true, force: true }) }
   })
 

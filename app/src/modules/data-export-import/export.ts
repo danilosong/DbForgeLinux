@@ -3,6 +3,7 @@ import type { Row } from './types.js'
 import type { ExportJob, ExportReport } from './types.js'
 import { csvField, encodeText, htmlEscape, quoteIdentifier, quoteQualifiedIdentifier, sqlLiteral, xmlEscape } from './encoding.js'
 import { writeXlsx } from './xlsx.js'
+import { encodeDbf } from './dbf.js'
 
 async function write(job: ExportJob, value: string | Buffer): Promise<number> {
   const data = Buffer.isBuffer(value) ? value : encodeText(value, job.options?.encoding ?? 'utf8')
@@ -20,7 +21,24 @@ export async function exportData(job: ExportJob): Promise<ExportReport> {
   const progress = (): void => job.onProgress?.({ phase: 'writing', rows, bytes })
   const add = async (value: string | Buffer): Promise<void> => { bytes += await write(job, value) }
   try {
-    if (job.format === 'xlsx') {
+    if (job.format === 'dbf') {
+      const dbfRows: Row[] = []
+      let estimatedBytes = 0
+      for await (const sourceRow of source) {
+        if (job.signal?.aborted) throw new DOMException('The operation was canceled.', 'AbortError')
+        const row = { ...sourceRow }
+        estimatedBytes += Object.values(row).reduce<number>((sum, value) => sum + Buffer.byteLength(value === null || value === undefined ? '' : Buffer.isBuffer(value) ? value.toString('hex') : value instanceof Date ? value.toISOString() : String(value), 'utf8') + 1, 0)
+        if (estimatedBytes > 48 * 1024 * 1024) throw new Error('DBF export exceeds the 48 MB in-memory safety limit.')
+        dbfRows.push(row); rows++
+        if (rows % 500 === 0) progress()
+      }
+      columns = Object.keys(dbfRows[0] ?? {})
+      if (!columns.length) throw new Error('DBF export requires at least one result row to determine its columns.')
+      const data = encodeDbf(columns, dbfRows)
+      if (data.byteLength > 64 * 1024 * 1024) throw new Error('DBF export exceeds the 64 MB output limit.')
+      bytes = data.byteLength
+      if (!job.destination.write(data)) await once(job.destination, 'drain')
+    } else if (job.format === 'xlsx') {
       const result = await writeXlsx(source, job.destination, job.signal)
       rows = result.rows; bytes = result.bytes
     } else {

@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { defaultSettings } from '../src/modules/options/types.js'
 
 const electron = vi.hoisted(() => ({ getAllWindows: vi.fn(() => [] as Array<{ webContents: { id: number }; isDestroyed: () => boolean }>) }))
 vi.mock('electron', () => ({ BrowserWindow: { getAllWindows: electron.getAllWindows }, ipcMain: {} }))
@@ -25,8 +26,10 @@ describe('IPC runtime guard', () => {
   })
 
   it('rejects malformed arguments, unsafe paths, wrong enums and missing confirmations', () => {
+    expect(() => validateIpcArguments('options:save', [defaultSettings])).not.toThrow()
+    expect(() => validateIpcArguments('db:execute', ['c', 'SELECT 1', 'e', 'db', false, { commandTimeoutSeconds: 5, profileCommandTimeoutSeconds: 3, resultRowLimit: 1000 }])).not.toThrow()
     expect(() => validateIpcArguments('db:execute', ['connection', 12])).toThrow(/must be a string/)
-    expect(() => validateIpcArguments('db:execute', ['connection', 'SELECT 1', 'x', 'demo', true, 'extra'])).toThrow(/expects/)
+    expect(() => validateIpcArguments('db:execute', ['connection', 'SELECT 1', 'x', 'demo', true, {}, 'extra'])).toThrow(/expects/)
     expect(() => validateIpcArguments('service-control:action', ['mysqld.service', 'delete', 'DELETE mysqld.service'])).toThrow(/allowed value/)
     expect(() => validateIpcArguments('service-control:action', ['mysqld.service', 'stop'])).toThrow(/expects 3 to 3 arguments/)
     expect(() => validateIpcArguments('file:open-sql-path', ['../../etc/passwd'])).toThrow(/absolute path/)
@@ -54,6 +57,18 @@ describe('IPC runtime guard', () => {
     expect(() => validateIpcArguments('tasks:recent:record', [{ kind: 'backup', title: 'Nightly', detail: 'shop' }])).not.toThrow()
     expect(() => validateIpcArguments('tasks:recent:record', [{ kind: 'backup', title: 'Nightly', detail: 'shop', password: 'secret' }])).toThrow(/not allowed/)
     expect(() => validateIpcArguments('tasks:recent:record', [{ kind: 'shell', title: 'Nightly', detail: 'shop' }])).toThrow(/metadata is invalid/)
+  })
+
+  it('accepts the Data Generator panel payload and bounds its optional controls', () => {
+    const panelPayload = { connectionId: 'c', database: 'd', tables: ['t'], rowsPerTable: 1, generators: {}, seed: 1, confirmed: true, batchSize: 250 }
+    expect(() => validateIpcArguments('data-generator:generate', [panelPayload])).not.toThrow()
+    expect(() => validateIpcArguments('data-generator:generate', [{ ...panelPayload, disableForeignKeyChecks: true, foreignKeyChecksConfirmation: 'DISABLE FOREIGN_KEY_CHECKS FOR d.t' }])).not.toThrow()
+    expect(() => validateIpcArguments('data-generator:generate', [{ ...panelPayload, batchSize: 0 }])).toThrow(/batch size/)
+    expect(() => validateIpcArguments('data-generator:generate', [{ ...panelPayload, allowProduction: true, productionConfirmation: 'd' }])).not.toThrow()
+    expect(() => validateIpcArguments('data-generator:generate', [{ ...panelPayload, allowProduction: 'yes' }])).toThrow(/allowProduction/)
+    expect(() => validateIpcArguments('data-generator:generate', [{ ...panelPayload, batchSize: 10_001 }])).toThrow(/batch size/)
+    expect(() => validateIpcArguments('data-generator:generate', [{ ...panelPayload, disableForeignKeyChecks: 'yes' }])).toThrow(/must be boolean/)
+    expect(() => validateIpcArguments('data-generator:generate', [{ ...panelPayload, foreignKeyChecksConfirmation: 'x'.repeat(4097) }])).toThrow(/confirmation is invalid/)
   })
 
   it('allows explicit NULL routine parameters while rejecting other debugger argument types', () => {

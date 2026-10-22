@@ -62,7 +62,7 @@ export function ResultGrid({ result, index, onLoadMore, fetchRows, currentConnec
   const visiblePage = useRef(0)
   const remote = Boolean(result.resultStoreId && fetchRows)
   const totalRows = (result.rowCount ?? result.rows.length) + savedInserts.size - savedDeletes.size
-  const editable = !gridPreferences.readOnlyByDefault && result.editable?.keyColumns.length ? result.editable : undefined
+  const editable = !result.truncated && !gridPreferences.readOnlyByDefault && result.editable?.keyColumns.length ? result.editable : undefined
   const changes = [...pending.values(), ...newRows.map((values) => ({ kind: 'insert' as const, values }))]
   const allColumns = order.length ? [...order, ...result.columns.filter((column) => !order.includes(column))] : result.columns
   const columns = allColumns.filter((column) => !hiddenColumns.has(column))
@@ -153,9 +153,10 @@ export function ResultGrid({ result, index, onLoadMore, fetchRows, currentConnec
   }
   function insertRow(): void { if (editable) setNewRows((current) => [...current, {}]) }
   function cancelChanges(): void { setPending(new Map()); setNewRows([]); setEditing(undefined); setEditError(''); setPreview(null) }
-  async function collectRows(maxRows: number): Promise<Array<Record<string, unknown>>> {
-    const count = result.rowCount ?? result.rows.length
-    if (count > maxRows) throw new Error(t('grid.limit.rows', [maxRows.toLocaleString()]))
+  async function collectRows(maxRows: number, allowTruncatedPrefix = false): Promise<Array<Record<string, unknown>>> {
+    const availableCount = result.rowCount ?? result.rows.length
+    if (availableCount > maxRows && !allowTruncatedPrefix) throw new Error(t('grid.limit.rows', [maxRows.toLocaleString()]))
+    const count = Math.min(availableCount, maxRows)
     if (!remote || !fetchRows) return rows
     const collected: Array<Record<string, unknown>> = []
     for (let offset = 0; offset < count; offset += RESULT_PAGE_LIMIT) collected.push(...await fetchRows(offset, Math.min(RESULT_PAGE_LIMIT, count - offset)))
@@ -163,14 +164,14 @@ export function ResultGrid({ result, index, onLoadMore, fetchRows, currentConnec
   }
   async function copyFormat(format: CopyAsFormat, withHeaders = true): Promise<void> {
     try {
-      const selected = selectedRows.length ? selectedRows.map((rowIndex) => rowAt(rowIndex)).filter((row): row is Record<string, unknown> => Boolean(row)) : await collectRows(20_000)
+      const selected = selectedRows.length ? selectedRows.map((rowIndex) => rowAt(rowIndex)).filter((row): row is Record<string, unknown> => Boolean(row)) : await collectRows(20_000, result.truncated)
       const text = formatGridCopy(selected, columns, format, editable, withHeaders)
       if (text.length > 8_000_000) throw new Error(t('grid.limit.text'))
-      await navigator.clipboard.writeText(text); setGridMessage(t('grid.copied', [String(selected.length)]))
+      await navigator.clipboard.writeText(text); setGridMessage(result.truncated ? t('grid.truncatedCopied', [String(selected.length), String(result.rowCount ?? result.rows.length)]) : t('grid.copied', [String(selected.length)]))
     } catch (error) { setGridMessage(error instanceof Error ? error.message : t('grid.copy.error')) }
   }
   async function exportCsv(): Promise<void> {
-    try { const exportRows = selectedRows.length ? selectedRows.map((rowIndex) => rowAt(rowIndex)).filter((row): row is Record<string, unknown> => Boolean(row)) : await collectRows(20_000); const csv = formatGridCopy(exportRows, columns, 'csv', editable, true); const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); link.download = `result-${index + 1}.csv`; link.click(); URL.revokeObjectURL(link.href) }
+    try { const exportRows = selectedRows.length ? selectedRows.map((rowIndex) => rowAt(rowIndex)).filter((row): row is Record<string, unknown> => Boolean(row)) : await collectRows(20_000, result.truncated); const csv = formatGridCopy(exportRows, columns, 'csv', editable, true); const link = document.createElement('a'); link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' })); link.download = `result-${index + 1}.csv`; link.click(); URL.revokeObjectURL(link.href); if (result.truncated) setGridMessage(t('grid.truncatedExported', [String(exportRows.length), String(result.rowCount ?? result.rows.length)])) }
     catch (error) { setGridMessage(error instanceof Error ? error.message : t('grid.copy.error')) }
   }
   async function sortColumn(column: string): Promise<void> {
@@ -209,12 +210,12 @@ export function ResultGrid({ result, index, onLoadMore, fetchRows, currentConnec
     return indices.map((rowIndex) => rowAt(rowIndex)).filter((row): row is Record<string, unknown> => Boolean(row))
   }
   async function contextCopy(format: CopyAsFormat): Promise<void> {
-    try { const selected = contextRows(); await navigator.clipboard.writeText(formatGridCopy(selected, columns, format, editable, true)); setGridMessage(t('grid.copied', [String(selected.length)])) }
+    try { const selected = contextRows(); await navigator.clipboard.writeText(formatGridCopy(selected, columns, format, editable, true)); setGridMessage(result.truncated ? t('grid.truncatedCopied', [String(selected.length), String(result.rowCount ?? result.rows.length)]) : t('grid.copied', [String(selected.length)])) }
     catch (error) { setGridMessage(error instanceof Error ? error.message : t('grid.copy.error')) }
     setContextMenu(undefined)
   }
   async function contextScript(kind: GridScriptKind): Promise<void> {
-    try { const selected = contextRows(); const sql = generateGridScript(selected, columns, kind, editable, contextMenu?.column); await navigator.clipboard.writeText(sql); setGridMessage(t('grid.copied', [String(selected.length)])) }
+    try { const selected = contextRows(); const sql = generateGridScript(selected, columns, kind, editable, contextMenu?.column); await navigator.clipboard.writeText(sql); setGridMessage(result.truncated ? t('grid.truncatedCopied', [String(selected.length), String(result.rowCount ?? result.rows.length)]) : t('grid.copied', [String(selected.length)])) }
     catch (error) { setGridMessage(error instanceof Error ? error.message : t('grid.copy.error')) }
     setContextMenu(undefined)
   }
@@ -276,6 +277,7 @@ export function ResultGrid({ result, index, onLoadMore, fetchRows, currentConnec
   }
 
   return <section className="grid-result" tabIndex={0} aria-label={`Result ${index + 1}`} data-testid="result-grid" aria-busy={cardView ? cardLoading : remote && !remoteSortedRows && remoteRows.size === 0} onKeyDown={(event) => { if (event.key === 'F5') { event.preventDefault(); void refreshCurrentPage() } else if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'q' && selectedCell) { event.preventDefault(); const row = rowAt(selectedCell.row); if (row) setColumnConditions((current) => ({ ...current, [selectedCell.column]: { operator: 'eq', value: row[selectedCell.column] } })) } else if ((event.ctrlKey || event.metaKey) && event.key === '0' && selectedCell) { event.preventDefault(); updateCell(selectedCell.row, selectedCell.column, null) } }}>
+    {result.truncated && <div className="grid-truncated-notice" role="status">{t('grid.truncated', [String(result.rowCount ?? result.rows.length)])}</div>}
     {result.editable && !editable && <div className="grid-edit-readonly" title={result.editable.reason ?? 'A unique key is required to edit rows.'}>Read only · {result.editable.reason ?? 'A unique key is required to edit rows.'}</div>}
     {editable && <div className="grid-edit-toolbar"><button onClick={insertRow}>Insert Row</button><button onClick={deleteSelected} disabled={!selectedRows.length}>Delete Row</button><button onClick={() => selectedCell && updateCell(selectedCell.row, selectedCell.column, null)} disabled={!selectedCell}>Set NULL</button><button onClick={() => void showPreview()} disabled={!changes.length}>Preview SQL</button><button onClick={() => void postChanges()} disabled={!changes.length}>Post / Apply</button><button onClick={cancelChanges} disabled={!changes.length}>Cancel</button>{editError && <span role="status" className="grid-edit-error">{editError}</span>}</div>}
     <div className="grid-tools"><details><summary>{t('grid.columns', [String(columns.length), String(allColumns.length)])}</summary><div className="grid-column-menu">{allColumns.map((column) => <label key={column}><input type="checkbox" checked={!hiddenColumns.has(column)} onChange={(event) => setHiddenColumns((current) => { const next = new Set(current); if (event.target.checked) next.delete(column); else next.add(column); return next })} />{column}</label>)}</div></details><button disabled={!columns.length || statsBusy} onClick={() => void showColumnStats(selectedCell?.column ?? columns[0] ?? '')}>{statsBusy ? t('grid.calculating') : t('grid.stats.title')}</button><button disabled={!columns.length} onClick={() => void buildQuickPivot(columns[0] ?? '', columns[1] ?? columns[0] ?? '')}>{t('grid.pivot.title')}</button><button disabled={!totalRows} aria-pressed={cardView} onClick={() => { setCardView((current) => !current); void openCard(selectedRows[0] ?? 0) }}>{t('grid.cardView')}</button><button disabled={!editable || !currentConnection || selectedRows.length !== 1} onClick={() => { const index = selectedRows[0]; if (index !== undefined) { setDetailMasterIndex(index); void toggleDetails(index) } }}>{t('grid.masterDetail')}</button><select aria-label={t('grid.copyAs')} value={copyFormatKind} onChange={(event) => setCopyFormatKind(event.target.value as CopyAsFormat)}><option value="csv">CSV</option><option value="xml">XML</option><option value="html">HTML</option><option value="json">JSON</option><option value="excel">Excel</option><option value="insert">SQL INSERT</option><option value="markdown">Markdown</option></select><button onClick={() => void copyFormat(copyFormatKind)} disabled={copyFormatKind === 'insert' && !editable}>{t('grid.copyAs')}</button><button onClick={() => void copyFormat('csv', true)}>{t('grid.copyHeaders')}</button><button onClick={() => setSearchVisible((visible) => !visible)} aria-pressed={searchVisible}>{t('grid.context.autoSearch')}</button></div>

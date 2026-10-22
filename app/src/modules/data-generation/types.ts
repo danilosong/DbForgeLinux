@@ -29,6 +29,8 @@ export interface DataGenerationJob {
   locale?: Locale
   seed?: number | string
   batchSize?: number
+  disableForeignKeyChecks?: boolean
+  foreignKeyChecksConfirmation?: string
   signal?: AbortSignal
   onProgress?: (progress: { table: string; generated: number; inserted: number; total: number }) => void
 }

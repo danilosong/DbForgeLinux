@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { editor as MonacoEditor, IRange } from 'monaco-editor'
 import type * as MonacoApi from 'monaco-editor'
 import type { ConnectionRecord, ConnectionSummary, ConnectionTestResult, DatabaseObject, DatabaseObjectKind, EditorMetadata, EditorObjectMetadata, ObjectEditorTarget, QueryResult, SqlExecutionHistoryEntry } from '../../../shared/contracts'
@@ -6,7 +6,8 @@ import type { CodeAnalysisFinding } from '../../../shared/contracts/code-analysi
 import type { UpdateStatus } from '../../../shared/contracts/updater.js'
 import { splitSqlStatements, statementAtOffset } from '../../../shared/sqlStatements'
 import { formatServerWarnings } from '../../../modules/sql/serverWarnings.js'
-import { findDangerousStatements } from '../../../modules/options/executionWarnings.js'
+import { findDangerousStatements, isDestructiveStatement } from '../../../modules/options/executionWarnings.js'
+import { effectiveCommandTimeoutSeconds } from '../../../modules/options/sqlExecution.js'
 import { applyKeywordCaseAtOffset, buildSqlSuggestions } from '../../../modules/editor/completion.js'
 import { getActiveSqlSignature } from '../../../modules/editor/signatureHelp.js'
 import { formatSql } from '../../../modules/editor/formatter.js'
@@ -195,6 +196,17 @@ export default function App(): React.JSX.Element {
   const [vaultWarning, setVaultWarning] = useState('')
   const [backupScheduleWarning, setBackupScheduleWarning] = useState(false)
   const theme = themeMode === 'auto' ? (systemDark ? 'dark' : 'light') : themeMode === 'blue' || themeMode === 'office' ? 'light' : themeMode
+  useEffect(() => {
+    const handleModuleErrors = (event: Event): void => {
+      const items = (event as CustomEvent<unknown>).detail
+      if (!Array.isArray(items)) return
+      const messages = items.filter((item): item is string => typeof item === 'string').slice(0, 500)
+      if (!messages.length) return
+      setErrors(messages); setErrorDocumentId(''); setActiveDocumentOnly(false); setPanelTab('Error List'); setPanelVisible(true)
+    }
+    window.addEventListener('tuxsql:module-errors', handleModuleErrors)
+    return () => window.removeEventListener('tuxsql:module-errors', handleModuleErrors)
+  }, [])
   function applyEditorTheme(api: typeof MonacoApi, settings: AppSettings, mode: ThemeMode): void {
     api.editor.defineTheme('tuxsql-user-colors', {
       base: mode === 'dark' || mode === 'high-contrast' ? 'vs-dark' : 'vs',
@@ -241,6 +253,10 @@ export default function App(): React.JSX.Element {
     ?? [...documents].reverse().find((tab) => !tab.objectEditor && !tab.databaseEditor && !tab.panelId && tab.id !== 'start')
   const navigationSqlText = navigationSqlDocument ? sqlByDocument[navigationSqlDocument.id] ?? '' : ''
   const navigationMatches = useMemo(() => findMatches, [findMatches])
+  const loadConnections = useCallback(async (): Promise<void> => {
+    try { setRecords(await window.tuxsql.getConnections()); setLoadError('') }
+    catch (error) { setLoadError(error instanceof Error ? error.message : t('ui.app.msg.d584912ffc')) }
+  }, [t])
 
   useEffect(() => {
     log('Startup', `Renderer ready · ${performance.now().toFixed(0)} ms since navigation.`)
@@ -287,7 +303,7 @@ export default function App(): React.JSX.Element {
     const onChange = (event: MediaQueryListEvent): void => setSystemDark(event.matches)
     media.addEventListener('change', onChange)
     return () => { readyActive = false; window.cancelAnimationFrame(frame); media.removeEventListener('change', onChange); window.removeEventListener('tuxsql:settings-changed', onSettingsChanged); window.removeEventListener('tuxsql:close-panel', onClosePanel); window.removeEventListener('tuxsql:task:reopen', onReopenTask); window.removeEventListener('tuxsql:grid:send-to-panel', onGridSendToPanel) }
-  }, [])
+  }, [loadConnections])
 
   useEffect(() => {
     if (!nonCriticalReady) return
@@ -371,11 +387,6 @@ export default function App(): React.JSX.Element {
     void window.tuxsql.getEditorMetadata(currentConnection.id, currentConnection.database).then((value) => { if (!cancelled) setEditorMetadata(value) }).catch((error: unknown) => { if (!cancelled) { setEditorMetadata({ ...emptyEditorMetadata, database: currentConnection.database ?? '' }); log('Editor', error instanceof Error ? error.message : t('ui.app.msg.fb04dcc335'), 'warning') } }).finally(() => { if (!cancelled) setMetadataLoading(false) })
     return () => { cancelled = true }
   }, [currentConnection?.id, currentConnection?.database, t])
-
-  async function loadConnections(): Promise<void> {
-    try { setRecords(await window.tuxsql.getConnections()); setLoadError('') }
-    catch (error) { setLoadError(error instanceof Error ? error.message : t('ui.app.msg.d584912ffc')) }
-  }
 
   function log(origin: string, message: string, tone = 'info'): void {
     const timestamp = new Date().toLocaleTimeString('pt-BR', { hour12: false })
@@ -862,6 +873,11 @@ export default function App(): React.JSX.Element {
 
   async function runSql(mode: 'auto' | 'current' = 'auto', queryOverride?: string): Promise<void> {
     if (!currentConnection || (!activeSql && queryOverride === undefined)) return
+    const displaySqlError = (error: unknown): string => {
+      const message = error instanceof Error ? error.message : ''
+      const timeout = /^Query cancelled after (\d+) s \(command timeout\)$/.exec(message)
+      return timeout ? t('execution.commandTimeoutCancelled', [timeout[1] ?? '']) : message || t('ui.app.queryFailed')
+    }
     const source = sqlByDocument[selectedDocument] ?? ''
     const selection = editorRef.current?.getSelection()
     const selectedText = selection && !selection.isEmpty() ? editorRef.current?.getModel()?.getValueInRange(selection) : ''
@@ -874,9 +890,14 @@ export default function App(): React.JSX.Element {
     const statements = splitSqlStatements(sql)
     const splitterCompatible = /\\['"`]/.test(sql)
     const settingsForWarnings = appSettingsRef.current
+    const executionOptions = {
+      commandTimeoutSeconds: effectiveCommandTimeoutSeconds(settingsForWarnings.execution.commandTimeoutSeconds, settingsForWarnings.connections.commandTimeoutSeconds),
+      profileCommandTimeoutSeconds: currentRecord?.advanced.commandTimeoutSeconds ?? 0,
+      resultRowLimit: settingsForWarnings.execution.resultRowLimit || (currentRecord?.environment === 'prod' ? 100000 : 0)
+    }
     const warningCategory = settingsForWarnings.execution.warningCategories[currentRecord?.environment ?? 'none']
     const categoryWarnings = settingsForWarnings.execution.showWarnings ? findDangerousStatements(sql, settingsForWarnings.execution.warningScriptLimitKb).filter(({ kind }) => warningCategory[kind]) : []
-    const destructive = statements.some(({ sql: statement }) => /\b(DROP|TRUNCATE)\b/i.test(statement) || (/\b(DELETE|UPDATE)\b/i.test(statement) && !/\bWHERE\b/i.test(statement)))
+    const destructive = statements.some(({ sql: statement }) => isDestructiveStatement(statement))
     if (destructive) {
       if (currentRecord?.environment === 'prod') {
         const databaseName = currentConnection.database ?? t('conn.database.none')
@@ -899,7 +920,7 @@ export default function App(): React.JSX.Element {
     const collectWarnings = async (results: QueryResult[], statementNumber: number, requestId: string): Promise<void> => {
       if (!appSettingsRef.current.execution.showWarnings || !results.some((result) => result.warningStatus > 0)) return
       try {
-        const warningResults = await window.tuxsql.executeSql(currentConnection.id, 'SHOW WARNINGS', `${requestId}:warnings`, currentConnection.database)
+        const warningResults = await window.tuxsql.executeSql(currentConnection.id, 'SHOW WARNINGS', `${requestId}:warnings`, currentConnection.database, false, executionOptions)
         serverWarnings.push(...formatServerWarnings(warningResults.flatMap((result) => result.rows), statementNumber))
       } catch (warningError) {
         log('Execution', warningError instanceof Error ? `Could not read server warnings: ${warningError.message}` : 'Could not read server warnings.', 'warning')
@@ -909,7 +930,7 @@ export default function App(): React.JSX.Element {
       const canBatchScript = statements.length >= 100 && currentRecord?.advanced.multipleStatements && statements.every(({ sql: statement }) => !/^\s*(SELECT|WITH)\b/i.test(statement))
       if (canBatchScript) {
         const requestId = `${token}:batch`; setExecutionId(requestId)
-        const batchResults = await window.tuxsql.executeSql(currentConnection.id, statements.map(({ sql: statement }) => statement).join(';\n') + ';', requestId, currentConnection.database, splitterCompatible)
+        const batchResults = await window.tuxsql.executeSql(currentConnection.id, statements.map(({ sql: statement }) => statement).join(';\n') + ';', requestId, currentConnection.database, splitterCompatible, executionOptions)
         logSql(sql, batchResults, performance.now() - startedAt)
         next.push(...batchResults)
         await collectWarnings(batchResults, statements.length, requestId)
@@ -923,11 +944,11 @@ export default function App(): React.JSX.Element {
           setExecutionId(requestId)
           const statementStartedAt = performance.now()
           let statementResults: QueryResult[]
-          try { statementResults = await window.tuxsql.executeSql(currentConnection.id, statement.sql, requestId, currentConnection.database, splitterCompatible) }
+          try { statementResults = await window.tuxsql.executeSql(currentConnection.id, statement.sql, requestId, currentConnection.database, splitterCompatible, executionOptions) }
           catch (statementError) {
             const code = statementError && typeof statementError === 'object' ? String((statementError as { code?: unknown }).code ?? '') : ''
-            if (code === 'ER_QUERY_INTERRUPTED' || code === '1317' || (statementError instanceof Error && statementError.name === 'AbortError')) throw statementError
-            const reason = maskSecrets(statementError instanceof Error ? statementError.message : 'Statement failed.')
+            if (code === 'TUXSQL_COMMAND_TIMEOUT' || /^Query cancelled after \d+ s \(command timeout\)$/.test(statementError instanceof Error ? statementError.message : '') || code === 'ER_QUERY_INTERRUPTED' || code === '1317' || (statementError instanceof Error && statementError.name === 'AbortError')) throw statementError
+            const reason = maskSecrets(displaySqlError(statementError))
             logSql(statement.sql, [], performance.now() - statementStartedAt, true)
             if (!ignoreAllErrors && settingsForWarnings.documents.stopOnFirstError) {
               const documentName = documents.find((tab) => tab.id === selectedDocument)?.label ?? 'SQL'
@@ -982,7 +1003,7 @@ export default function App(): React.JSX.Element {
         await persistExecutionHistory(sql, startedAt, false, next.reduce((sum, result) => sum + (result.rowCount ?? result.rows.length), 0), t('ui.app.msg.5b6cd91499'))
         return
       }
-      const message = error instanceof Error ? error.message : t('ui.app.queryFailed')
+      const message = displaySqlError(error)
       const detail = error && typeof error === 'object' ? error as { code?: string; errno?: number; lineNumber?: number; columnNumber?: number } : {}
       const match = /at (?:line )?(\d+)(?:,? column (\d+))?/i.exec(message)
       const line = detail.lineNumber ?? Number(match?.[1] ?? 0)
@@ -1619,7 +1640,7 @@ export default function App(): React.JSX.Element {
               signatureHelpTriggerCharacters: ['(', ','],
               signatureHelpRetriggerCharacters: [','],
               provideSignatureHelp: (model, position) => {
-                const signature = getActiveSqlSignature(model.getValue(), model.getOffsetAt(position))
+                const signature = getActiveSqlSignature(model.getValue(), model.getOffsetAt(position), metadataRef.current.routines, (message) => t(message))
                 if (!signature) return undefined
                 return {
                   value: {

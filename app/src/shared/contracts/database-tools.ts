@@ -27,7 +27,10 @@ export interface DatabaseToolsApi {
   formatSqlFiles(paths: string[], backup: boolean, recursive: boolean, formatOptions: import('../../modules/editor/formatter.js').SqlFormatOptions): Promise<import('../../modules/editor/batchFormatter.js').BatchFormatResult[]>
   previewSqlFiles(paths: string[], recursive: boolean, formatOptions: import('../../modules/editor/formatter.js').SqlFormatOptions): Promise<Array<{ path: string; formatted: string; changed: boolean }>>
   selectLargeScript(): Promise<{ path: string; name: string; size: number } | null>
-  executeLargeScript(connectionId: string, database: string, path: string, encoding: import('../../modules/database-tools/largeScript.js').ScriptEncoding, requestId: string): Promise<{ statements: number; skipped: number; stopped: boolean; failures: import('../../modules/database-tools/largeScript.js').ScriptError[] }>
+  /** Dry run over the approved file: counts risky statements without touching the server. */
+  scanLargeScript(database: string, path: string, encoding: import('../../modules/database-tools/largeScript.js').ScriptEncoding): Promise<import('../../modules/database-tools/largeScript.js').ScriptScan>
+  /** On a Production connection `productionConfirmation` must be the database name (or PRODUCTION with none selected). */
+  executeLargeScript(connectionId: string, database: string, path: string, encoding: import('../../modules/database-tools/largeScript.js').ScriptEncoding, requestId: string, productionConfirmation?: string): Promise<{ statements: number; skipped: number; stopped: boolean; failures: import('../../modules/database-tools/largeScript.js').ScriptError[] }>
   cancelLargeScript(requestId: string): Promise<void>
   respondLargeScriptError(requestId: string, action: import('../../modules/database-tools/largeScript.js').ScriptErrorAction): Promise<void>
   maintainTables(connectionId: string, database: string, operation: 'ANALYZE' | 'OPTIMIZE' | 'CHECK' | 'REPAIR' | 'CHECKSUM', tables: string[]): Promise<Array<{ table: string; status: string; message: string }>>

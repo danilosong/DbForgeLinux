@@ -11,6 +11,8 @@ import { fileURLToPath } from 'node:url'
 import { describeGridResult } from './grid-editing.js'
 import { createTuxSqlBrowserWindow } from '../windowOptions.js'
 import { validateSystemOpenPath, type SystemOpenKind } from '../security/systemOpenPath.js'
+import { effectiveCommandTimeoutSeconds, validateSqlExecutionOptions } from '../../modules/options/sqlExecution.js'
+import { spoolLimitedRows } from '../../modules/options/streamResult.js'
 const openedSqlFiles = new Map<number, Set<string>>()
 export function registerSqlIpc({driver,resolveConnectionConfig,userDataDir}:IpcDeps):void {
  ipcMain.handle('file:open-in-system',async(_event,path:string,kind:SystemOpenKind)=>{
@@ -29,22 +31,23 @@ export function registerSqlIpc({driver,resolveConnectionConfig,userDataDir}:IpcD
  ipcMain.handle('db:test',async(_e,r:ConnectionRecord)=>driver.testConnection(await resolveConnectionConfig(r)))
  ipcMain.handle('db:connect',async(_e,r:ConnectionRecord)=>{const id=await driver.connect(await resolveConnectionConfig(r));const security=driver.connectionSecurity?.(id);return {id,recordId:r.id,name:r.name,host:r.host,port:r.port,user:r.user,database:r.database,environment:r.environment,environmentShape:r.environmentShape,color:r.color,...security}})
  ipcMain.handle('db:disconnect',async(_e,id:string)=>{editorMetadataCache.invalidate(id);await driver.disconnect(id)}); ipcMain.handle('db:databases',(_e,id:string)=>driver.listDatabases(id))
- ipcMain.handle('db:execute',async(event,id:string,sql:string,executionId?:string,database?:string,splitterCompatible=false)=>{
+ ipcMain.handle('db:execute',async(event,id:string,sql:string,executionId?:string,database?:string,splitterCompatible=false,rawOptions?:unknown)=>{
+  const options=validateSqlExecutionOptions(rawOptions??{commandTimeoutSeconds:0,profileCommandTimeoutSeconds:0,resultRowLimit:0})
+  const timeoutSeconds=effectiveCommandTimeoutSeconds(options.commandTimeoutSeconds,options.profileCommandTimeoutSeconds)
   await spoolCleanup
-  const smallLimit=/\bLIMIT\s+(?:\d+\s*,\s*)?(\d+)\b/i.exec(sql)?.[1]
-  const useDiskSpool=!splitterCompatible&&/^\s*(SELECT|WITH)\b/i.test(sql.trim())&&!sql.includes(';')&&!(smallLimit&&Number(smallLimit)<=1000)
+  const useDiskSpool=/^\s*(SELECT|WITH)\b/i.test(sql.trim())&&!sql.includes(';')
   if(useDiskSpool){
    const eid=executionId??randomUUID();if(streamedJobs.has(eid))throw new Error('Execution identifier is already in use.')
    const controller=new AbortController();streamedJobs.set(eid,{connectionId:id,senderId:event.sender.id,controller})
    const spool=await resultSpools.create();resultOwners.set(spool.id,event.sender.id)
    if(!spoolSenders.has(event.sender.id)){spoolSenders.add(event.sender.id);event.sender.once('destroyed',()=>{spoolSenders.delete(event.sender.id);for(const [rid,owner] of resultOwners)if(owner===event.sender.id){resultOwners.delete(rid);void resultSpools.dispose(rid)}})}
-   try{let columns:string[]=[];const startedAt=performance.now();let firstRowAt:number|undefined;for await(const row of driver.streamRows(id,sql,[],controller.signal,undefined,eid)){firstRowAt??=performance.now();if(!columns.length)columns=Object.keys(row);await spool.append(row)}const completedAt=performance.now();const executionTimeMs=(firstRowAt??completedAt)-startedAt;const fetchTimeMs=firstRowAt===undefined?0:completedAt-firstRowAt
-    const editable = await describeGridResult(driver, id, sql, database)
-    return [{columns,rows:[],resultStoreId:spool.id,rowCount:spool.rowCount,affectedRows:0,insertId:0,warningStatus:0,executionTimeMs,fetchTimeMs,editable}]
+   try{const startedAt=performance.now();let firstRowAt:number|undefined;const rows=driver.streamRows(id,sql,[],controller.signal,timeoutSeconds,eid,splitterCompatible);const measuredRows={async *[Symbol.asyncIterator](){for await(const row of rows){firstRowAt??=performance.now();yield row}}};const summary=await spoolLimitedRows(measuredRows,options.resultRowLimit,(row)=>spool.append(row));const completedAt=performance.now();const executionTimeMs=(firstRowAt??completedAt)-startedAt;const fetchTimeMs=firstRowAt===undefined?0:completedAt-firstRowAt
+    const editable = summary.truncated ? undefined : await describeGridResult(driver, id, sql, database)
+    return [{columns:summary.columns,rows:[],resultStoreId:spool.id,rowCount:summary.rowCount,truncated:summary.truncated,affectedRows:0,insertId:0,warningStatus:0,executionTimeMs,fetchTimeMs,editable}]
    }catch(error){await resultSpools.dispose(spool.id);resultOwners.delete(spool.id);throw error}
    finally{streamedJobs.delete(eid)}
   }
-  const result=splitterCompatible?await driver.withSplitterCompatibleSqlMode(id,(execute)=>execute(sql,executionId)):await driver.executeSql(id,sql,executionId);if(/^\s*SELECT\b/i.test(sql.trim())){const editable=await describeGridResult(driver,id,sql,database);for(const item of result)if(item.columns.length)item.editable=editable}if(/\b(CREATE|ALTER|DROP|TRUNCATE|RENAME|GRANT|REVOKE)\b/i.test(sql))editorMetadataCache.invalidate(id);return result
+  const result=splitterCompatible?await driver.withSplitterCompatibleSqlMode(id,(execute)=>execute(sql,executionId,timeoutSeconds)):await driver.executeSql(id,sql,executionId,timeoutSeconds);if(/^\s*SELECT\b/i.test(sql.trim())){const editable=await describeGridResult(driver,id,sql,database);for(const item of result)if(item.columns.length)item.editable=editable}if(/\b(CREATE|ALTER|DROP|TRUNCATE|RENAME|GRANT|REVOKE)\b/i.test(sql))editorMetadataCache.invalidate(id);return result
  });
  ipcMain.handle('db:result-read',async(event,rid:string,offset:number,limit:number)=>{await spoolCleanup;if(resultOwners.get(rid)!==event.sender.id)throw new Error('Resultado expirado ou sem acesso.');const spool=resultSpools.get(rid);if(!spool)throw new Error('Resultado expirado.');return spool.read(offset,limit)})
  ipcMain.handle('db:result-dispose',async(event,rid:string)=>{if(resultOwners.get(rid)!==event.sender.id)return;resultOwners.delete(rid);await resultSpools.dispose(rid)})

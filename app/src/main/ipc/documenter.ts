@@ -9,7 +9,7 @@ import { createTuxSqlBrowserWindow } from '../windowOptions.js'
 interface GenerateInput {
   connectionId: string; database: string; title?: string; author?: string; copyright?: string; logo?: string; created?: string
   folderName?: string; descriptions?: Record<string, string>; includeDiagram?: boolean; includeUsers?: boolean
-  coverPage?: boolean; breadcrumbs?: boolean; palette?: DocumenterPalette; excludedTables?: string[]; excludedColumns?: string[]; excludedIndexes?: string[]
+  coverPage?: boolean; breadcrumbs?: boolean; palette?: DocumenterPalette; coverAccent?: string; coverSurface?: string; excludedTables?: string[]; excludedColumns?: string[]; excludedIndexes?: string[]
   pdfOrientation?: 'portrait' | 'landscape'; pdfFontScale?: number; pdfPageNumbers?: boolean
   formats: DocumentFormat[]; outputDirectory: string; confirmed: boolean
 }
@@ -30,6 +30,7 @@ export function registerDocumenterIpc({ driver }: IpcDeps): void {
     if (!input.outputDirectory.trim()) throw new Error('Documentation has not been saved. The path is invalid.')
     for (const list of [input.excludedTables, input.excludedColumns, input.excludedIndexes]) if (list !== undefined && (!Array.isArray(list) || list.length > 20_000 || list.some((item) => typeof item !== 'string' || item.length > 512))) throw new Error('The detailed documentation selection is invalid.')
     if (input.palette !== undefined && !['default', 'bootstrap', 'cerulean', 'cyborg', 'default-dark', 'flatly', 'journal', 'paper', 'yeti', 'metro-light', 'ocean', 'forest'].includes(input.palette)) throw new Error('The cover palette is invalid.')
+    for (const color of [input.coverAccent, input.coverSurface]) if (color !== undefined && !/^#[\da-f]{6}$/i.test(color)) throw new Error('Cover colors must use six-digit hexadecimal values.')
     if (input.pdfOrientation !== undefined && !['portrait', 'landscape'].includes(input.pdfOrientation)) throw new Error('The PDF orientation is invalid.')
     if (input.pdfFontScale !== undefined && (!Number.isFinite(input.pdfFontScale) || input.pdfFontScale < 50 || input.pdfFontScale > 200)) throw new Error('The PDF scale must be between 50% and 200%.')
     if (input.pdfPageNumbers !== undefined && typeof input.pdfPageNumbers !== 'boolean') throw new Error('The PDF page numbering option is invalid.')

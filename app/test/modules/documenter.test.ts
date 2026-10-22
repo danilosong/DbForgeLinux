@@ -103,6 +103,12 @@ describe('documenter', () => {
     expect(output.markdown).toContain("'reader'@'%'")
     expect(generateDocumentation(model, { includeUsers: false, accounts: [{ grantee: 'reader', globalPrivileges: ['SELECT'], scopedPrivileges: [] }] }).html).not.toContain('Users and privileges')
   })
+  it('applies valid editable cover colors to HTML and ignores invalid colors', () => {
+    const output = generateDocumentation(model, { coverAccent: '#123abc', coverSurface: '#abcdef' })
+    expect(output.html).toContain('--cover-accent:#123abc')
+    expect(output.html).toContain('--cover-surface:#abcdef')
+    expect(generateDocumentation(model, { coverAccent: 'red' }).html).toContain('--cover-accent:#2563eb')
+  })
   it('groups information-schema grants without requesting authentication data', async () => {
     const query = vi.fn(async (sql: string, parameters?: unknown[]) => {
       expect(sql).not.toMatch(/authentication_string|password/i)

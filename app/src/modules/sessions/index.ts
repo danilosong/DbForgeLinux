@@ -91,15 +91,33 @@ export async function getServerStatus(client: SqlClient, scope: 'GLOBAL' | 'SESS
   return Object.fromEntries(rows.map((row) => [String(row.Variable_name ?? row.Variable ?? row.variable_name ?? row.name), String(row.Value ?? row.variable_value ?? row.value ?? '')]))
 }
 
-export async function setServerVariable(client: SqlClient, name: string, value: string | number | boolean, scope: 'GLOBAL' | 'SESSION', options: { confirm: true; dynamic: boolean; persist?: boolean; type?: VariableInfo['type']; enumValues?: string[]; min?: number; max?: number }): Promise<void> {
-  if (options.confirm !== true) throw new Error(`${scope === 'GLOBAL' ? 'SET GLOBAL' : 'SET SESSION'} requires explicit confirmation.`)
+/** `persist` survives a restart (SET PERSIST); `persist-only` only writes mysqld-auto.cnf, which is how static variables change. */
+export type VariableApplyMode = 'set' | 'persist' | 'persist-only'
+export interface VariableSqlOptions { dynamic: boolean; mode?: VariableApplyMode; persist?: boolean; type?: VariableInfo['type']; enumValues?: string[]; min?: number; max?: number }
+
+/** Builds the exact statement that is both previewed and executed, so the user confirms what runs. */
+export function serverVariableSql(name: string, value: string | number | boolean, scope: 'GLOBAL' | 'SESSION', options: VariableSqlOptions): string {
   if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) throw new Error('Variable name is invalid.')
-  if (!options.dynamic || staticVariables.has(name.toLowerCase())) throw new Error(`Variable ${name} is static and requires a restart.`)
-  if (options.persist && scope !== 'GLOBAL') throw new Error('SET PERSIST only accepts global variables.')
+  const mode = options.mode ?? (options.persist ? 'persist' : 'set')
+  if (mode !== 'set' && scope !== 'GLOBAL') throw new Error('SET PERSIST only accepts global variables.')
+  if (mode !== 'persist-only' && (!options.dynamic || staticVariables.has(name.toLowerCase()))) throw new Error(`Variable ${name} is static and requires a restart.`)
   validateVariableValue(value, options)
-  const sqlValue = encodeVariableValue(value, options.type)
-  const command = options.persist ? 'SET PERSIST' : `SET ${scope}`
-  await client.execute(`${command} ${name} = ${sqlValue}`)
+  const command = mode === 'persist' ? 'SET PERSIST' : mode === 'persist-only' ? 'SET PERSIST_ONLY' : `SET ${scope}`
+  return `${command} ${name} = ${encodeVariableValue(value, options.type)}`
+}
+
+/** Server-wide changes (SET GLOBAL, PERSIST, PERSIST_ONLY) need the variable name typed back; SET SESSION only touches the caller's own session. */
+export function variableChangeNeedsTypedConfirmation(scope: 'GLOBAL' | 'SESSION', mode: VariableApplyMode = 'set'): boolean {
+  return scope === 'GLOBAL' || mode !== 'set'
+}
+
+export async function setServerVariable(client: SqlClient, name: string, value: string | number | boolean, scope: 'GLOBAL' | 'SESSION', options: VariableSqlOptions & { confirm: true; confirmation?: string }): Promise<void> {
+  if (options.confirm !== true) throw new Error(`${scope === 'GLOBAL' ? 'SET GLOBAL' : 'SET SESSION'} requires explicit confirmation.`)
+  const sql = serverVariableSql(name, value, scope, options)
+  if (variableChangeNeedsTypedConfirmation(scope, options.mode ?? (options.persist ? 'persist' : 'set')) && options.confirmation !== name) {
+    throw new Error(`Type the variable name ${name} to confirm this server-wide change.`)
+  }
+  await client.execute(sql)
 }
 
 export function compareVariableSnapshots(before: VariableSnapshot, after: VariableSnapshot): VariableChange[] {

@@ -68,6 +68,9 @@ export class UpdateService {
     return this.update({ phase: 'downloading', progress }, `Download progress: ${progress}%.`)
   }
   setError(message: string): UpdateStatus {
+    if (this.state.channel === 'release' && isReleaseNotPublished({ message })) {
+      return this.update({ phase: 'up-to-date', channel: 'release', summary: [], progress: undefined, message: undefined })
+    }
     const safe = sanitize(message).slice(0, 2000)
     return this.update({ phase: 'error', message: safe, progress: undefined }, safe)
   }
@@ -120,7 +123,10 @@ export class UpdateService {
     } catch (error) {
       if (controller.signal.aborted) return this.update({ phase: 'idle', message: 'Update check cancelled.' }, 'Update check cancelled.')
       if (error instanceof UpdateRequirementError) return this.update({ phase: 'blocked', message: error.message }, error.message)
-      if (isReleaseNotPublished(error)) return this.update({ phase: 'up-to-date', channel: 'release', summary: [], progress: undefined, message: undefined }, 'No release has been published yet.')
+      // A repository without its first GitHub release is a normal, quiet state.
+      // electron-updater can emit a second error event for the same missing feed,
+      // so keep this branch free of diagnostic log entries as well.
+      if (isReleaseNotPublished(error)) return this.update({ phase: 'up-to-date', channel: 'release', summary: [], progress: undefined, message: undefined })
       const message = textError(error)
       this.update({ phase: 'error', message }, message)
       return this.status()

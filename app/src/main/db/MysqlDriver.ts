@@ -7,7 +7,8 @@ import { buildMysqlOptions, isLoopbackMysqlTarget } from './connectionOptions.js
 import { createSshTunnel, type ActiveSshTunnel } from './SshTunnel.js'
 import { createHttpTunnel, type ActiveHttpTunnel } from './HttpTunnel.js'
 import { splitSqlStatements } from '../../shared/sqlStatements.js'
-import { withSplitterCompatibleSqlMode } from './splitterSqlMode.js'
+import { withSplitterCompatibleSqlMode, withoutNoBackslashEscapes } from './splitterSqlMode.js'
+import { effectiveCommandTimeoutSeconds } from '../../modules/options/sqlExecution.js'
 
 interface ManagedConnection {
   pool: Pool
@@ -19,6 +20,7 @@ interface ManagedConnection {
   transactionConnection?: PoolConnection
   tlsVersion?: string
   tlsVerified: boolean
+  serverFlavor: 'mysql' | 'mariadb'
 }
 
 export interface DedicatedMysqlSession {
@@ -35,6 +37,11 @@ function isTlsUnavailable(error: unknown): boolean {
 
 function withoutPreferredTls(config: DriverConnectionConfig): DriverConnectionConfig {
   return { ...config, ssl: { ...config.ssl, mode: 'disabled' } }
+}
+
+function queryTimedOut(error: unknown): boolean {
+  const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : ''
+  return ['ER_QUERY_TIMEOUT', 'ER_STATEMENT_TIMEOUT'].includes(code)
 }
 
 function assertRemoteTlsAvailable(error: unknown, config: DriverConnectionConfig): void {
@@ -73,6 +80,22 @@ function runCoreQuery(connection: CorePoolConnection, sql: string, values: reado
   })
 }
 
+/**
+ * Queues the profile's session settings on a freshly opened pooled connection, ahead of any
+ * caller query. A failure closes the connection so nothing runs without them (fail closed).
+ */
+function queueSessionInitialization(connection: CorePoolConnection, config: DriverConnectionConfig): void {
+  const statements: Array<[string, unknown[]]> = []
+  if (config.advanced.readOnly) statements.push(['SET SESSION TRANSACTION READ ONLY', []])
+  if (config.advanced.sqlMode) statements.push(['SET SESSION sql_mode = ?', [config.advanced.sqlMode]])
+  if (config.advanced.collation && /^[a-zA-Z0-9_]+$/.test(config.advanced.collation)) statements.push([`SET collation_connection = '${config.advanced.collation}'`, []])
+  for (const command of config.advanced.initCommands.split(';').map((item) => item.trim()).filter(Boolean)) statements.push([command, []])
+  for (const [sql, values] of statements) connection.query(sql, values, (error) => { if (error) connection.destroy() })
+}
+
+/** Rejects statements that would lift the server-side read-only mode of a read-only profile. */
+const readOnlyEscape = /\bREAD\s+WRITE\b|\b(?:transaction_read_only|tx_read_only)\s*(?::=|=)/i
+
 function queryResults(raw: MysqlQueryResult | RowDataPacket[], sql: string, executionTimeMs: number): QueryResult[] {
   const results = Array.isArray(raw) && splitSqlStatements(sql).length > 1 ? raw : [raw]
   return results.map((result, index) => {
@@ -91,6 +114,10 @@ export class MysqlDriver implements DbDriver {
 
   hasActiveWork(): boolean {
     return this.executions.size > 0 || [...this.pools.values()].some((connection) => Boolean(connection.transactionConnection))
+  }
+
+  connectionEnvironment(connectionId: string): DriverConnectionConfig['environment'] {
+    return this.requireConnection(connectionId).config.environment
   }
 
   async testConnection(config: DriverConnectionConfig): Promise<ConnectionTestResult> {
@@ -148,6 +175,8 @@ export class MysqlDriver implements DbDriver {
           waitForConnections: true,
           connectionLimit: 5
         })
+        // Every pooled session, not only the first one, must carry read-only mode and init commands.
+        core.on('connection', (connection) => queueSessionInitialization(connection as unknown as CorePoolConnection, config))
         return { core, promise: core.promise() }
       }
       const pools = createPool()
@@ -171,9 +200,12 @@ export class MysqlDriver implements DbDriver {
       } finally {
         connection.release()
       }
-      const [tlsRows] = await pool.query<Array<RowDataPacket & { Value: string }>>("SHOW STATUS LIKE 'Ssl_version'")
+      const [[tlsRows], [versionRows]] = await Promise.all([
+        pool.query<Array<RowDataPacket & { Value: string }>>("SHOW STATUS LIKE 'Ssl_version'"),
+        pool.query<Array<RowDataPacket & { version: string }>>('SELECT VERSION() AS version')
+      ])
       const id = crypto.randomUUID()
-      this.pools.set(id, { pool, corePool, tunnel, httpTunnel, config, currentDatabase: config.database, tlsVersion: tlsRows[0]?.Value || undefined, tlsVerified: Boolean(tlsRows[0]?.Value) && (config.ssl.mode === 'verify-ca' || config.ssl.mode === 'verify-identity') })
+      this.pools.set(id, { pool, corePool, tunnel, httpTunnel, config, currentDatabase: config.database, tlsVersion: tlsRows[0]?.Value || undefined, tlsVerified: Boolean(tlsRows[0]?.Value) && (config.ssl.mode === 'verify-ca' || config.ssl.mode === 'verify-identity'), serverFlavor: /mariadb/i.test(versionRows[0]?.version ?? '') ? 'mariadb' : 'mysql' })
       return id
     } catch (error) {
       if (pool) await pool.end()
@@ -250,32 +282,43 @@ export class MysqlDriver implements DbDriver {
     return rows.map((row) => row.tableName)
   }
 
-  async executeSql(connectionId: string, sql: string, executionId?: string): Promise<QueryResult[]> {
+  async executeSql(connectionId: string, sql: string, executionId?: string, timeoutSeconds?: number): Promise<QueryResult[]> {
     const startedAt = performance.now()
     const managed = this.requireConnection(connectionId)
-    if (managed.config.advanced.readOnly && /\b(INSERT|UPDATE|DELETE|REPLACE|CREATE|ALTER|DROP|TRUNCATE|RENAME|GRANT|REVOKE)\b/i.test(sql)) {
+    if (managed.config.advanced.readOnly && (/\b(INSERT|UPDATE|DELETE|REPLACE|CREATE|ALTER|DROP|TRUNCATE|RENAME|GRANT|REVOKE)\b/i.test(sql) || readOnlyEscape.test(sql))) {
       throw new Error('The session is marked read-only.')
     }
-    const timeout = managed.config.advanced.commandTimeoutSeconds
+    const timeout = effectiveCommandTimeoutSeconds(timeoutSeconds ?? 0, managed.config.advanced.commandTimeoutSeconds)
     const transactionConnection = managed.transactionConnection
     const connection = transactionConnection ?? await managed.pool.getConnection()
     const ownsConnection = !transactionConnection
     const activeExecutionId = executionId ?? crypto.randomUUID()
     let raw: MysqlQueryResult | RowDataPacket[]
+    let previousSelectLimit: number | undefined
     this.executions.set(activeExecutionId, { connectionId, threadId: connection.threadId })
+    let timedOut = false
+    const timer = timeout > 0 ? setTimeout(() => { timedOut = true; void this.cancelQuery(connectionId, activeExecutionId).catch(() => undefined) }, timeout * 1000) : undefined
     try {
       if (typeof connection.query === 'function') {
         if (managed.currentDatabase) await connection.query(`USE ${quoteIdentifier(managed.currentDatabase)}`)
-        ;[raw] = await connection.query({ sql, rowsAsArray: false, ...(timeout > 0 ? { timeout: timeout * 1000 } : {}) })
+        if (timeout > 0 && /^\s*(?:SELECT|WITH)\b/i.test(sql)) previousSelectLimit = await this.setSelectExecutionLimit(connection, managed.serverFlavor, timeout)
+        ;[raw] = await connection.query({ sql, rowsAsArray: false })
       } else {
-        ;[raw] = await managed.pool.query({ sql, rowsAsArray: false, ...(timeout > 0 ? { timeout: timeout * 1000 } : {}) })
+        ;[raw] = await managed.pool.query({ sql, rowsAsArray: false })
       }
-    } finally { this.executions.delete(activeExecutionId); if (ownsConnection) connection.release() }
+    } catch (error) {
+      if (timedOut || queryTimedOut(error)) throw Object.assign(new Error(`Query cancelled after ${timeout} s (command timeout)`, { cause: error }), { code: 'TUXSQL_COMMAND_TIMEOUT' })
+      throw error
+    } finally {
+      if (timer) clearTimeout(timer)
+      if (previousSelectLimit !== undefined && typeof connection.query === 'function') await this.setSelectExecutionLimit(connection, managed.serverFlavor, previousSelectLimit, true).catch(() => connection.destroy())
+      this.executions.delete(activeExecutionId); if (ownsConnection) connection.release()
+    }
     return queryResults(raw, sql, performance.now() - startedAt)
   }
 
   /** Pins batch execution to one connection whose SQL mode matches our script splitter. */
-  async withSplitterCompatibleSqlMode<T>(connectionId: string, operation: (execute: (sql: string, executionId?: string) => Promise<QueryResult[]>) => Promise<T>): Promise<T> {
+  async withSplitterCompatibleSqlMode<T>(connectionId: string, operation: (execute: (sql: string, executionId?: string, timeoutSeconds?: number) => Promise<QueryResult[]>) => Promise<T>): Promise<T> {
     const managed = this.requireConnection(connectionId)
     if (managed.config.advanced.readOnly) throw new Error('The session is marked read-only.')
     const connection = managed.transactionConnection ?? await managed.pool.getConnection()
@@ -288,14 +331,18 @@ export class MysqlDriver implements DbDriver {
         return String(rows[0]?.sqlMode ?? '')
       }
       const setMode = async (mode: string): Promise<void> => { await connection.query('SET SESSION sql_mode = ?', [mode]) }
-      return await withSplitterCompatibleSqlMode(readMode, setMode, async () => operation(async (sql, executionId = crypto.randomUUID()) => {
+      return await withSplitterCompatibleSqlMode(readMode, setMode, async () => operation(async (sql, executionId = crypto.randomUUID(), timeoutSeconds = 0) => {
         const startedAt = performance.now()
         this.executions.set(executionId, { connectionId, threadId: connection.threadId })
+        const timeout = effectiveCommandTimeoutSeconds(timeoutSeconds, managed.config.advanced.commandTimeoutSeconds)
+        let timedOut = false
+        const timer = timeout > 0 ? setTimeout(() => { timedOut = true; void this.cancelQuery(connectionId, executionId).catch(() => undefined) }, timeout * 1000) : undefined
         try {
-          const [raw] = await connection.query({ sql, rowsAsArray: false, ...(managed.config.advanced.commandTimeoutSeconds > 0 ? { timeout: managed.config.advanced.commandTimeoutSeconds * 1000 } : {}) })
+          const [raw] = await connection.query({ sql, rowsAsArray: false })
           return queryResults(raw as MysqlQueryResult | RowDataPacket[], sql, performance.now() - startedAt)
         }
-        finally { this.executions.delete(executionId) }
+        catch (error) { if (timedOut || queryTimedOut(error)) throw Object.assign(new Error(`Query cancelled after ${timeout} s (command timeout)`, { cause: error }), { code: 'TUXSQL_COMMAND_TIMEOUT' }); throw error }
+        finally { if (timer) clearTimeout(timer); this.executions.delete(executionId) }
       }))
     } finally { if (ownsConnection) connection.release() }
   }
@@ -375,10 +422,10 @@ export class MysqlDriver implements DbDriver {
     return rows
   }
 
-  async *streamRows(connectionId: string, sql: string, values: readonly SqlValue[] = [], signal?: AbortSignal, timeoutSeconds?: number, executionId?: string): AsyncIterable<Record<string, unknown>> {
+  async *streamRows(connectionId: string, sql: string, values: readonly SqlValue[] = [], signal?: AbortSignal, timeoutSeconds?: number, executionId?: string, splitterCompatible = false): AsyncIterable<Record<string, unknown>> {
     const managed = this.requireConnection(connectionId)
     if (signal?.aborted) throw new DOMException('The operation was cancelled.', 'AbortError')
-    const commandTimeout = timeoutSeconds ?? managed.config.advanced.commandTimeoutSeconds
+    const commandTimeout = effectiveCommandTimeoutSeconds(timeoutSeconds ?? 0, managed.config.advanced.commandTimeoutSeconds)
     const transactionConnection = managed.transactionConnection
     const connection = transactionConnection
       ? transactionConnection.connection as unknown as CorePoolConnection
@@ -390,24 +437,42 @@ export class MysqlDriver implements DbDriver {
     }
     const activeExecutionId = executionId ?? crypto.randomUUID()
     let stream: (NodeJS.ReadableStream & AsyncIterable<Record<string, unknown>> & { destroy(error?: Error): void }) | undefined
+    let timedOut = false
+    let completed = false
+    let previousSelectLimit: number | undefined
+    let previousSqlMode: string | undefined
     this.executions.set(activeExecutionId, { connectionId, threadId: connection.threadId })
     const abort = (): void => {
       void this.cancelQuery(connectionId, activeExecutionId).catch(() => undefined).finally(() => stream?.destroy(new DOMException('The operation was cancelled.', 'AbortError')))
     }
     const timeout = commandTimeout > 0 ? setTimeout(() => {
-      void this.cancelQuery(connectionId, activeExecutionId).catch(() => undefined).finally(() => stream?.destroy(Object.assign(new Error('A consulta excedeu o tempo limite configurado.'), { code: 'ETIMEDOUT' })))
+      timedOut = true
+      void this.cancelQuery(connectionId, activeExecutionId).catch(() => undefined)
     }, commandTimeout * 1000) : undefined
     signal?.addEventListener('abort', abort, { once: true })
     try {
       await this.initializeCoreSession(connection, managed.config)
       if (managed.currentDatabase) await runCoreQuery(connection, `USE ${quoteIdentifier(managed.currentDatabase)}`)
+      if (splitterCompatible) {
+        const [rows] = await new Promise<[RowDataPacket[]]>((resolve, reject) => connection.query('SELECT @@SESSION.sql_mode AS sqlMode', (error, result) => error ? reject(error) : resolve([result as RowDataPacket[]])))
+        previousSqlMode = String(rows[0]?.sqlMode ?? '')
+        const compatibleMode = withoutNoBackslashEscapes(previousSqlMode)
+        await runCoreQuery(connection, 'SET SESSION sql_mode = ?', [compatibleMode])
+        const [verified] = await new Promise<[RowDataPacket[]]>((resolve, reject) => connection.query('SELECT @@SESSION.sql_mode AS sqlMode', (error, result) => error ? reject(error) : resolve([result as RowDataPacket[]])))
+        if (String(verified[0]?.sqlMode ?? '').split(',').some((item) => item.trim().toUpperCase() === 'NO_BACKSLASH_ESCAPES')) throw new Error('Could not disable NO_BACKSLASH_ESCAPES for safe SQL script parsing.')
+      }
+      if (commandTimeout > 0) previousSelectLimit = await this.setSelectExecutionLimitCore(connection, managed.serverFlavor, commandTimeout)
+      if (timedOut) throw Object.assign(new Error(`Query cancelled after ${commandTimeout} s (command timeout)`), { code: 'TUXSQL_COMMAND_TIMEOUT' })
       const query = connection.query({ sql, values: [...values], rowsAsArray: false }) as unknown as { stream(): NodeJS.ReadableStream }
       stream = query.stream() as NodeJS.ReadableStream & AsyncIterable<Record<string, unknown>> & { destroy(error?: Error): void }
       for await (const row of stream) {
         if (signal?.aborted) throw new DOMException('The operation was cancelled.', 'AbortError')
         yield row
       }
+      if (timedOut) throw Object.assign(new Error(`Query cancelled after ${commandTimeout} s (command timeout)`), { code: 'TUXSQL_COMMAND_TIMEOUT' })
+      completed = true
     } catch (error) {
+      if (timedOut || queryTimedOut(error)) throw Object.assign(new Error(`Query cancelled after ${commandTimeout} s (command timeout)`, { cause: error }), { code: 'TUXSQL_COMMAND_TIMEOUT' })
       // MariaDB can report KILL QUERY before the stream destroy callback runs.
       // Normalize only after an explicit caller abort; preserve other DB errors.
       const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
@@ -417,9 +482,37 @@ export class MysqlDriver implements DbDriver {
       signal?.removeEventListener('abort', abort)
       if (timeout) clearTimeout(timeout)
       this.executions.delete(activeExecutionId)
-      if (signal?.aborted) stream?.destroy()
+      if (!completed || signal?.aborted) stream?.destroy()
+      if (previousSelectLimit !== undefined) await this.setSelectExecutionLimitCore(connection, managed.serverFlavor, previousSelectLimit, true).catch(() => connection.destroy())
+      if (previousSqlMode !== undefined) await runCoreQuery(connection, 'SET SESSION sql_mode = ?', [previousSqlMode]).catch(() => connection.destroy())
       if (ownsConnection) connection.release()
     }
+  }
+
+  private async setSelectExecutionLimit(connection: PoolConnection, flavor: ManagedConnection['serverFlavor'], timeoutSeconds: number, restoring = false): Promise<number | undefined> {
+    const variable = flavor === 'mariadb' ? 'max_statement_time' : 'max_execution_time'
+    if (!restoring) {
+      const [rows] = await connection.query<Array<RowDataPacket & Record<string, number>>>(`SELECT @@SESSION.${variable} AS limitValue`)
+      const previous = Number(rows[0]?.limitValue ?? 0)
+      try { await connection.query(`SET SESSION ${variable} = ?`, [flavor === 'mariadb' ? timeoutSeconds : timeoutSeconds * 1000]) }
+      catch (error) { await connection.query(`SET SESSION ${variable} = ?`, [previous]).catch(() => connection.destroy()); throw error }
+      return previous
+    }
+    await connection.query(`SET SESSION ${variable} = ?`, [flavor === 'mariadb' ? timeoutSeconds : timeoutSeconds * 1000])
+    return undefined
+  }
+
+  private async setSelectExecutionLimitCore(connection: CorePoolConnection, flavor: ManagedConnection['serverFlavor'], timeoutSeconds: number, restoring = false): Promise<number | undefined> {
+    const variable = flavor === 'mariadb' ? 'max_statement_time' : 'max_execution_time'
+    if (!restoring) {
+      const [rows] = await new Promise<[RowDataPacket[]] >((resolve, reject) => connection.query(`SELECT @@SESSION.${variable} AS limitValue`, (error, result) => error ? reject(error) : resolve([result as RowDataPacket[]])))
+      const previous = Number(rows[0]?.limitValue ?? 0)
+      try { await runCoreQuery(connection, `SET SESSION ${variable} = ?`, [flavor === 'mariadb' ? timeoutSeconds : timeoutSeconds * 1000]) }
+      catch (error) { await runCoreQuery(connection, `SET SESSION ${variable} = ?`, [previous]).catch(() => connection.destroy()); throw error }
+      return previous
+    }
+    await runCoreQuery(connection, `SET SESSION ${variable} = ?`, [flavor === 'mariadb' ? timeoutSeconds : timeoutSeconds * 1000])
+    return undefined
   }
 
   async withTransaction<T>(connectionId: string, operation: (transaction: DbTransaction) => Promise<T>, signal?: AbortSignal): Promise<T> {
@@ -433,8 +526,9 @@ export class MysqlDriver implements DbDriver {
         execute: async (sql, values = []) => {
           if (signal?.aborted) throw new DOMException('The operation was cancelled.', 'AbortError')
           const [result] = await connection.execute(sql, [...values])
-          const header = result as unknown as { affectedRows?: number; insertId?: number }
-          return { affectedRows: header.affectedRows ?? 0, insertId: header.insertId ?? 0 }
+          const header = result as unknown as { affectedRows?: number; insertId?: number; warningStatus?: number }
+          const warnings = header.warningStatus ? await this.readWarnings(connection) : undefined
+          return { affectedRows: header.affectedRows ?? 0, insertId: header.insertId ?? 0, ...(warnings?.length ? { warnings } : {}) }
         }
       }
       const result = await operation(transaction)
@@ -447,6 +541,11 @@ export class MysqlDriver implements DbDriver {
     } finally {
       connection.release()
     }
+  }
+
+  private async readWarnings(connection: PoolConnection): Promise<string[]> {
+    const [rows] = await connection.query('SHOW WARNINGS')
+    return (rows as Array<Record<string, unknown>>).slice(0, 100).map((row) => `${String(row.Level ?? 'Warning')} ${String(row.Code ?? '')}: ${String(row.Message ?? 'Server reported a warning.')}`)
   }
 
   async withSavepoint<T>(connectionId: string, operation: () => Promise<T>): Promise<T> {
@@ -463,15 +562,17 @@ export class MysqlDriver implements DbDriver {
     }
   }
 
-  async executeParameterized(connectionId: string, sql: string, values: readonly SqlValue[] = [], signal?: AbortSignal): Promise<{ affectedRows: number; insertId: number }> {
+  async executeParameterized(connectionId: string, sql: string, values: readonly SqlValue[] = [], signal?: AbortSignal): Promise<{ affectedRows: number; insertId: number; warnings?: string[] }> {
     if (signal?.aborted) throw new DOMException('The operation was cancelled.', 'AbortError')
     const managed = this.requireConnection(connectionId)
     if (managed.config.advanced.readOnly) throw new Error('The session is marked read-only.')
-    const [result] = managed.transactionConnection
-      ? await managed.transactionConnection.execute(sql, [...values])
-      : await managed.pool.execute(sql, [...values])
-    const header = result as unknown as { affectedRows?: number; insertId?: number }
-    return { affectedRows: header.affectedRows ?? 0, insertId: header.insertId ?? 0 }
+    const connection = managed.transactionConnection ?? await managed.pool.getConnection()
+    try {
+      const [result] = await connection.execute(sql, [...values])
+      const header = result as unknown as { affectedRows?: number; insertId?: number; warningStatus?: number }
+      const warnings = header.warningStatus ? await this.readWarnings(connection) : undefined
+      return { affectedRows: header.affectedRows ?? 0, insertId: header.insertId ?? 0, ...(warnings?.length ? { warnings } : {}) }
+    } finally { if (!managed.transactionConnection) connection.release() }
   }
 
   private async initializeSession(connection: PoolConnection, config: DriverConnectionConfig): Promise<void> {

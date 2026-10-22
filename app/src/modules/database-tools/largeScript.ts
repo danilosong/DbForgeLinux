@@ -1,16 +1,25 @@
 import { createReadStream } from 'node:fs'
+import { destructiveStatementKind, maskSqlCommentsAndLiterals } from '../options/executionWarnings.js'
 
 export type ScriptEncoding = 'utf8' | 'utf16le' | 'latin1' | 'windows1252'
 export type ScriptErrorAction = 'stop' | 'continue' | 'ignore-all'
 export interface ScriptProgress { statements: number; errors: number; skipped: number; bytesRead: number }
 export interface ScriptError { statement: number; message: string; sql: string }
 
-export const DEFAULT_MAX_SCRIPT_STATEMENT_BYTES = 256 * 1024 * 1024
+/** mysqldump --extended-insert caps each INSERT near net_buffer_length (~1 MB), so 64 MB covers real dumps with a predictable peak. */
+export const DEFAULT_MAX_SCRIPT_STATEMENT_BYTES = 64 * 1024 * 1024
 const MAX_CONFIGURED_STATEMENT_BYTES = 1024 * 1024 * 1024
 const MAX_DELIMITER_LENGTH = 16
 const DIRECTIVE_LINE_LIMIT = 256
 
-/** Splits a SQL file incrementally. Only the current statement is retained, with a finite size cap. */
+/** Copies a short excerpt so it does not keep the whole (possibly huge) statement alive as a V8 sliced string. */
+function detachedExcerpt(text: string, length: number): string { return Buffer.from(text.slice(0, length), 'utf8').toString('utf8') }
+
+/**
+ * Splits a SQL file incrementally. Only the current statement is retained, with a finite size cap.
+ * Its pieces are joined once per read chunk and once per statement (never string by string), which
+ * keeps the peak near twice the statement size instead of the ~7x of per-piece concatenation.
+ */
 export async function executeLargeScript(options: {
   path: string; encoding: ScriptEncoding; databaseSelected: boolean; signal?: AbortSignal; maxStatementBytes?: number;
   execute(sql: string): Promise<void>; onProgress(progress: ScriptProgress): void;
@@ -22,7 +31,7 @@ export async function executeLargeScript(options: {
   }
   const stream = createReadStream(options.path, { highWaterMark: 64 * 1024 })
   const decoder = new TextDecoder(options.encoding === 'windows1252' ? 'windows-1252' : options.encoding === 'latin1' ? 'iso-8859-1' : options.encoding, { fatal: false })
-  let statement = ''; let statementBytes = 0; let quote = ''; let escaped = false; let lineComment = false; let blockComment = false
+  let statementParts: string[] = []; let chunkPieces: string[] = []; let statementBytes = 0; let quote = ''; let escaped = false; let lineComment = false; let blockComment = false
   let delimiter = ';'; let line = 1; let column = 1; let statementHasContent = false
   let count = 0; let skipped = 0; let bytesRead = 0; let ignoreAll = false; let stopped = Boolean(options.signal?.aborted)
   let scanBuffer = ''; let directiveCandidate = true; let directiveBuffer = ''
@@ -33,7 +42,7 @@ export async function executeLargeScript(options: {
     if (statementBytes + size > maxStatementBytes) {
       throw new Error(`Statement exceeds the configured limit (${maxStatementBytes} bytes) in file "${options.path}", line ${line}, column ${column}.`)
     }
-    statement += text
+    chunkPieces.push(text)
     statementBytes += size
     if (/\S/.test(text)) statementHasContent = true
     advancePosition(text)
@@ -44,15 +53,23 @@ export async function executeLargeScript(options: {
       else column++
     }
   }
-  const resetStatement = (): void => { statement = ''; statementBytes = 0; statementHasContent = false }
+  const flushChunk = (): void => {
+    if (!chunkPieces.length) return
+    statementParts.push(chunkPieces.length === 1 ? chunkPieces[0]! : chunkPieces.join(''))
+    chunkPieces = []
+  }
+  const resetStatement = (): void => { statementParts = []; chunkPieces = []; statementBytes = 0; statementHasContent = false }
   const run = async (): Promise<void> => {
-    const sql = statement.trim()
+    flushChunk()
+    const sql = (statementParts.length === 1 ? statementParts[0]! : statementParts.join('')).trim()
+    // Release the pieces before executing, so only the joined statement stays alive.
+    statementParts = []
     if (!sql) { resetStatement(); return }
     if (options.databaseSelected && /^\s*(?:USE\b|(?:CREATE|ALTER|DROP)\s+DATABASE\b)/i.test(sql)) { skipped++; resetStatement(); return }
     count++
     try { await options.execute(sql) }
     catch (error) {
-      const item = { statement: count, message: error instanceof Error ? error.message.slice(0, 2000) : 'Statement failed.', sql: sql.slice(0, 2000) }
+      const item = { statement: count, message: error instanceof Error ? error.message.slice(0, 2000) : 'Statement failed.', sql: detachedExcerpt(sql, 2000) }
       errors.push(item)
       const action = ignoreAll ? 'continue' : await options.onError(item)
       if (action === 'stop') stopped = true
@@ -102,6 +119,7 @@ export async function executeLargeScript(options: {
       i++
     }
     if (i > segmentStart) append(text.slice(segmentStart, i))
+    flushChunk()
     scanBuffer = text.slice(i)
   }
   const feedParser = async (text: string, final = false): Promise<void> => {
@@ -173,8 +191,56 @@ export async function executeLargeScript(options: {
   } finally {
     options.signal?.removeEventListener('abort', onAbort)
     stream.destroy()
-    statement = ''; scanBuffer = ''; directiveBuffer = ''
+    statementParts = []; chunkPieces = []; scanBuffer = ''; directiveBuffer = ''
   }
   progress()
   return { statements: count, errors, skipped, stopped }
 }
+
+export type ScriptRiskKind = 'drop' | 'truncate' | 'delete-without-where' | 'update-without-where' | 'privileges' | 'server-settings'
+export interface ScriptRiskSample { statement: number; kind: ScriptRiskKind; sql: string }
+export interface ScriptScan { statements: number; skipped: number; risks: Record<ScriptRiskKind, number>; samples: ScriptRiskSample[] }
+
+/** Only the head of a huge statement (bulk INSERT) is classified, so the scan keeps bounded memory. */
+const CLASSIFY_LIMIT_CHARS = 1024 * 1024
+const MAX_RISK_SAMPLES = 20
+
+/**
+ * Classifies one statement for the pre-execution summary, ignoring comments and literals. A statement
+ * longer than the limit is judged by its head; a DELETE/UPDATE whose WHERE lies beyond it is reported
+ * as missing WHERE (the conservative side).
+ */
+export function classifyScriptStatement(sql: string): ScriptRiskKind | undefined {
+  const head = sql.length > CLASSIFY_LIMIT_CHARS ? sql.slice(0, CLASSIFY_LIMIT_CHARS) : sql
+  const code = maskSqlCommentsAndLiterals(head)
+  if (/^\s*(?:GRANT|REVOKE)\b|\b(?:CREATE|DROP|ALTER|RENAME)\s+USER\b|\bSET\s+(?:PASSWORD|DEFAULT\s+ROLE)\b/i.test(code)) return 'privileges'
+  if (/\bSET\s+(?:GLOBAL|PERSIST|PERSIST_ONLY)\b|@@(?:GLOBAL|PERSIST|PERSIST_ONLY)\s*\.\s*\w+\s*(?::=|=)/i.test(code)) return 'server-settings'
+  const kind = destructiveStatementKind(head)
+  return kind === 'delete' ? 'delete-without-where' : kind === 'update' ? 'update-without-where' : kind
+}
+
+/**
+ * Dry run of Execute Large Script: the same streaming splitter, DELIMITER handling, statement cap
+ * and USE/CREATE DATABASE skipping as a real run, but nothing reaches the server.
+ */
+export async function scanLargeScript(options: { path: string; encoding: ScriptEncoding; databaseSelected: boolean; signal?: AbortSignal; maxStatementBytes?: number }): Promise<ScriptScan> {
+  const risks: Record<ScriptRiskKind, number> = { drop: 0, truncate: 0, 'delete-without-where': 0, 'update-without-where': 0, privileges: 0, 'server-settings': 0 }
+  const samples: ScriptRiskSample[] = []
+  let statement = 0
+  const report = await executeLargeScript({
+    ...options,
+    execute: async (sql) => {
+      statement++
+      const kind = classifyScriptStatement(sql)
+      if (!kind) return
+      risks[kind]++
+      if (samples.length < MAX_RISK_SAMPLES) samples.push({ statement, kind, sql: detachedExcerpt(sql, 200) })
+    },
+    onProgress: () => undefined,
+    onError: async () => 'continue'
+  })
+  return { statements: report.statements, skipped: report.skipped, risks, samples }
+}
+
+/** What a run on a Production connection must have typed back: the target database, or PRODUCTION when none is selected. */
+export function largeScriptProductionConfirmation(database: string): string { return database || 'PRODUCTION' }

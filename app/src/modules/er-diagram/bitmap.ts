@@ -16,6 +16,33 @@ export function encodeBmp24(width: number, height: number, rgba: Uint8ClampedArr
   return output
 }
 
+/** Encodes an opaque GIF using a 3-3-2 RGB palette and bounded-memory LZW blocks. */
+export function encodeGif(width: number, height: number, rgba: Uint8ClampedArray): Uint8Array {
+  if (!Number.isInteger(width) || width < 1 || width > 65535 || !Number.isInteger(height) || height < 1 || height > 65535 || rgba.length !== width * height * 4) throw new Error('Invalid GIF dimensions or pixel buffer.')
+  const output: number[] = []
+  const word = (value: number): void => { output.push(value & 0xff, (value >>> 8) & 0xff) }
+  output.push(...[...`GIF89a`].map((character) => character.charCodeAt(0)))
+  word(width); word(height)
+  output.push(0xf7, 0, 0) // Global 256-color table, 8-bit color resolution.
+  for (let index = 0; index < 256; index++) output.push(((index >>> 5) & 7) * 255 / 7, ((index >>> 2) & 7) * 255 / 7, (index & 3) * 255 / 3)
+  output.push(0x2c, 0, 0, 0, 0); word(width); word(height); output.push(0)
+  const bytes: number[] = []
+  let bits = 0; let bitCount = 0
+  const code = (value: number): void => { bits |= value << bitCount; bitCount += 9; while (bitCount >= 8) { bytes.push(bits & 0xff); bits >>>= 8; bitCount -= 8 } }
+  code(256)
+  for (let pixel = 0; pixel < width * height; pixel++) {
+    const offset = pixel * 4
+    const palette = (rgba[offset]! & 0xe0) | ((rgba[offset + 1]! & 0xe0) >>> 3) | (rgba[offset + 2]! >>> 6)
+    code(palette)
+    code(256) // Reset dictionary before it grows; keeps code width fixed and memory bounded.
+  }
+  code(257)
+  if (bitCount) bytes.push(bits & 0xff)
+  for (let offset = 0; offset < bytes.length; offset += 255) { const chunk = bytes.slice(offset, offset + 255); output.push(chunk.length, ...chunk) }
+  output.push(0, 0x3b)
+  return Uint8Array.from(output)
+}
+
 export function encodeTiff24(width: number, height: number, rgba: Uint8ClampedArray): Uint8Array {
   if (!Number.isInteger(width) || width < 1 || !Number.isInteger(height) || height < 1 || rgba.length !== width * height * 4) throw new Error('Invalid TIFF dimensions or pixel buffer.')
   const entries = 10; const ifdOffset = 8; const ifdSize = 2 + entries * 12 + 4; const bitsOffset = ifdOffset + ifdSize; const pixelOffset = bitsOffset + 6

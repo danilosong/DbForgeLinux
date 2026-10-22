@@ -116,10 +116,19 @@ export default function Panel(): React.JSX.Element {
     const newValue = pending[variable.name]
     if (newValue === undefined || newValue === variable.value) return
     if (!variable.dynamic) { setError(`${variable.name}: Requires server restart / my.cnf.`); return }
-    if (scope === 'GLOBAL' && !window.confirm(`Apply ${variable.name} globally? SET GLOBAL affects all new connections and does not persist after restart.${persist ? ' This will use SET PERSIST.' : ''}`)) return
-    setLoading(true); setError('')
     const change: VariableChange = { name: variable.name, oldValue: variable.value, newValue, scope, dynamic: variable.dynamic }
-    try { await window.tuxsql.setServerVariable(connection.id, change, { confirm: true, persist }); setMessage(`${variable.name} applied.`); await refreshVariables() }
+    let confirmation: string | undefined
+    try {
+      // Server-wide changes show the exact statement and need the variable name typed back.
+      const preview = await window.tuxsql.previewServerVariable(connection.id, change, { persist })
+      if (preview.requiresTypedConfirmation) {
+        const effect = t(persist ? 'sessions.variable.persistEffect' : 'sessions.variable.globalEffect')
+        confirmation = window.prompt(`${preview.sql}\n\n${variable.name}: ${preview.oldValue} → ${newValue}\n${effect}\n\n${t('sessions.variable.typeName')}`) ?? undefined
+        if (confirmation !== variable.name) return
+      }
+    } catch (reason) { showError(reason); return }
+    setLoading(true); setError('')
+    try { await window.tuxsql.setServerVariable(connection.id, change, { confirm: true, persist, confirmation }); setMessage(`${variable.name} applied.`); await refreshVariables() }
     catch (reason) { showError(reason) }
     finally { setLoading(false) }
   }

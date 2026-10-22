@@ -83,6 +83,19 @@ describe('data export/import', () => {
     expect(statements[1].sql).toBe('INSERT INTO `items` (`id`, `label`) VALUES (?, ?)')
   })
 
+  it('returns warnings produced by the database for imported rows', async () => {
+    const driver = {
+      withTransaction: async <T>(_id: string, action: (transaction: DbTransaction) => Promise<T>) => action({
+        execute: async () => ({ affectedRows: 1, insertId: 1, warnings: ['Warning 1265: Data truncated for column value.'] })
+      })
+    } as unknown as DbDriver
+    const report = await importData({
+      driver, connectionId: 'id', format: 'csv', table: 'items',
+      source: (async function* () { yield Buffer.from('value\nlong\n') })()
+    })
+    expect(report.serverWarnings).toEqual(['Warning · import row 1 · Warning 1265: Data truncated for column value.'])
+  })
+
   it('asks after an import row error and can continue with the following row', async () => {
     let writes = 0
     const driver = {

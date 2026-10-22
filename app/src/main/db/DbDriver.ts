@@ -3,7 +3,7 @@ import type { ConnectionRecord, ConnectionTestResult, DatabaseObject, HttpTunnel
 export type SqlValue = string | number | bigint | boolean | Date | Buffer | null
 
 export interface DbTransaction {
-  execute(sql: string, values?: readonly SqlValue[]): Promise<{ affectedRows: number; insertId: number }>
+  execute(sql: string, values?: readonly SqlValue[]): Promise<{ affectedRows: number; insertId: number; warnings?: string[] }>
 }
 
 export interface DriverConnectionConfig extends ConnectionRecord {
@@ -19,7 +19,7 @@ export interface DbDriver {
   disconnect(connectionId: string): Promise<void>
   listDatabases(connectionId: string): Promise<string[]>
   listTables(connectionId: string, database: string): Promise<string[]>
-  executeSql(connectionId: string, sql: string, executionId?: string): Promise<QueryResult[]>
+  executeSql(connectionId: string, sql: string, executionId?: string, timeoutSeconds?: number): Promise<QueryResult[]>
   queryRows(connectionId: string, sql: string, parameters?: unknown[]): Promise<Array<Record<string, unknown>>>
   cancelQuery(connectionId: string, executionId: string): Promise<void>
   listDatabaseObjects(connectionId: string, database: string): Promise<DatabaseObject[]>
@@ -28,8 +28,8 @@ export interface DbDriver {
   beginTransaction(connectionId: string): Promise<void>
   commitTransaction(connectionId: string): Promise<void>
   rollbackTransaction(connectionId: string): Promise<void>
-  executeParameterized(connectionId: string, sql: string, values: readonly SqlValue[], signal?: AbortSignal): Promise<{ affectedRows: number; insertId: number }>
-  streamRows(connectionId: string, sql: string, values?: readonly SqlValue[], signal?: AbortSignal, timeoutSeconds?: number, executionId?: string): AsyncIterable<Record<string, unknown>>
+  executeParameterized(connectionId: string, sql: string, values: readonly SqlValue[], signal?: AbortSignal): Promise<{ affectedRows: number; insertId: number; warnings?: string[] }>
+  streamRows(connectionId: string, sql: string, values?: readonly SqlValue[], signal?: AbortSignal, timeoutSeconds?: number, executionId?: string, splitterCompatible?: boolean): AsyncIterable<Record<string, unknown>>
   withTransaction<T>(connectionId: string, operation: (transaction: DbTransaction) => Promise<T>, signal?: AbortSignal): Promise<T>
   withSavepoint<T>(connectionId: string, operation: () => Promise<T>): Promise<T>
 }

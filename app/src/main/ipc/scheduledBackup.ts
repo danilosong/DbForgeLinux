@@ -5,7 +5,7 @@ import type { MysqlDriver } from '../db/MysqlDriver.js'
 import type { DriverConnectionConfig } from '../db/DbDriver.js'
 import { inspectDatabase } from '../../modules/schema/index.js'
 import { createBackupSql } from '../../modules/database-tools/backup.js'
-import { BackupScheduleRunStateStore, BackupScheduleStore, cronMatches, scheduledBackupPath } from '../../modules/database-tools/scheduler.js'
+import { BackupScheduleRunStateStore, BackupScheduleStore, cronMatches, isScheduledBackupFileName, scheduledBackupPath } from '../../modules/database-tools/scheduler.js'
 
 export async function runScheduledBackup(input: {
   connectionStore: ConnectionsStore
@@ -31,8 +31,7 @@ export async function runScheduledBackup(input: {
     const destination = scheduledBackupPath(outputDirectory, schedule.database, now)
     await writeFile(destination, backup.sql, { encoding: 'utf8', flag: 'wx', mode: 0o600 })
     await chmod(destination, 0o600)
-    const prefix = `${schedule.database.replace(/[^A-Za-z0-9_.-]/g, '_')}-`
-    const files = (await readdir(outputDirectory, { withFileTypes: true })).filter((entry) => entry.isFile() && entry.name.startsWith(prefix) && entry.name.endsWith('.sql'))
+    const files = (await readdir(outputDirectory, { withFileTypes: true })).filter((entry) => entry.isFile() && isScheduledBackupFileName(entry.name, schedule.database))
     const ordered = await Promise.all(files.map(async (entry) => ({ path: join(outputDirectory, entry.name), mtime: (await stat(join(outputDirectory, entry.name))).mtimeMs })))
     ordered.sort((a, b) => b.mtime - a.mtime)
     const { unlink } = await import('node:fs/promises')

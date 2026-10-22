@@ -186,6 +186,9 @@ describe('development updater', () => {
     const checked = await updater.check()
     expect(checked.phase).toBe('up-to-date')
     expect(checked.message).toBeUndefined()
+    expect(checked.log.join('\n')).not.toMatch(/404|No published versions|HttpError|stack/i)
+    expect(updater.setError('HttpError: 404 Not Found - No published versions on GitHub').phase).toBe('up-to-date')
+    expect(updater.status().log.join('\n')).not.toMatch(/404|No published versions|HttpError|stack/i)
   })
 
   it('downloads and installs a release through the package-specific updater', async () => {

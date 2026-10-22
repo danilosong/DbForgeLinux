@@ -3,11 +3,19 @@ import { createObject, createTable, diffTables, dropObject } from './ddl.js'
 import { splitBackupSql } from '../database-tools/splitSql.js'
 
 /** Schema synchronization accepts object DDL only, never arbitrary statements from an imported model. */
-export function assertSchemaUpdateScript(script: string): string[] {
+export function assertSchemaUpdateScript(script: string, targetDatabase?: string): string[] {
   const statements = splitBackupSql(script).map((statement) => statement.trim()).filter(Boolean)
   const objectDdl = /^(?:CREATE(?:\s+OR\s+REPLACE)?\s+(?:(?:TEMPORARY|ALGORITHM\s*=\s*(?:UNDEFINED|MERGE|TEMPTABLE)|DEFINER\s*=\s*[^\s]+|SQL\s+SECURITY\s+(?:DEFINER|INVOKER))\s+)*(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER|EVENT)|ALTER\s+TABLE|DROP\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER|EVENT))\b/i
   if (!statements.length || statements.some((statement) => !objectDdl.test(statement))) {
     throw new Error('Schema update script contains a statement outside the supported object DDL allowlist.')
+  }
+  if (targetDatabase) {
+    const identifier = String.raw`(?:\`(?:\`\`|[^\`])+\`|[A-Za-z_$][\w$]*)`
+    const qualified = new RegExp(`(${identifier})\\s*\\.\\s*(${identifier})`, 'g')
+    for (const statement of statements) for (const match of statement.matchAll(qualified)) {
+      const schema = match[1]!.startsWith('`') ? match[1]!.slice(1, -1).replaceAll('``', '`') : match[1]!
+      if (schema !== targetDatabase) throw new Error('Schema update script may write only to the selected destination schema.')
+    }
   }
   return statements
 }

@@ -8,6 +8,7 @@ export const exportFormats: Array<{ id: ExportFormat; title: string; description
   { id: 'xml', title: 'XML', description: 'imex.format.xml' },
   { id: 'json', title: 'JSON', description: 'imex.format.json' },
   { id: 'sql', title: 'SQL', description: 'imex.format.sql' },
+  { id: 'dbf', title: 'DBF', description: 'imex.format.dbf' },
   { id: 'html', title: 'HTML', description: 'imex.format.html' }
 ]
 
@@ -15,7 +16,6 @@ export const unsupportedExportFormats = [
   { title: 'Google Sheets', reason: 'imex.reason.google' },
   { title: 'Access', reason: 'imex.reason.accessExport' },
   { title: 'ODBC', reason: 'imex.reason.odbc' },
-  { title: 'DBF', reason: 'imex.reason.dbf' },
   { title: 'RTF', reason: 'imex.reason.rtf' }
 ]
 
@@ -25,12 +25,12 @@ export const importFormats: Array<{ id: ImportFormat; title: string; description
   { id: 'xlsx', title: 'Excel', description: 'imex.format.excel' },
   { id: 'xml', title: 'XML', description: 'imex.format.xml' },
   { id: 'json', title: 'JSON', description: 'imex.format.json' },
-  { id: 'sql', title: 'SQL', description: 'imex.format.sqlImport' }
+  { id: 'sql', title: 'SQL', description: 'imex.format.sqlImport' },
+  { id: 'dbf', title: 'DBF', description: 'imex.format.dbf' },
+  { id: 'access', title: 'Access (read only)', description: 'imex.format.access' }
 ]
 
 export const unsupportedImportFormats = [
   { title: 'Google Sheets', reason: 'imex.reason.google' },
-  { title: 'Access', reason: 'imex.reason.accessImport' },
   { title: 'ODBC', reason: 'imex.reason.odbc' },
-  { title: 'DBF', reason: 'imex.reason.dbf' }
 ]

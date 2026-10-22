@@ -340,6 +340,7 @@ textarea { resize: vertical; }
 .query-messages { height: calc(100% - 28px); overflow: auto; padding: 4px 10px; color: var(--text-secondary); }
 .query-messages p { margin: 3px 0; }
 .grid-result { height: calc(100% - 28px); display: flex; flex-direction: column; min-height: 0; }
+.grid-truncated-notice { flex: 0 0 auto; padding: 8px 12px; color: var(--warning-fg, #7a4b00); background: var(--warning-bg, #fff4ce); border-bottom: 1px solid var(--border-color, #d8a900); font-weight: 600; }
 .result-grid-scroll { position: relative; flex: 1; min-height: 0; overflow: auto; }
 .result-grid { table-layout: fixed; width: max-content; min-width: 100%; }
 .result-grid th { position: sticky; top: 0; z-index: 2; height: 28px; text-align: left; background: var(--bg-surface-alt); cursor: pointer; user-select: none; }

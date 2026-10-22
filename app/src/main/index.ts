@@ -1,5 +1,4 @@
 import { app, BrowserWindow, Menu } from 'electron'
-import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { MysqlDriver } from './db/MysqlDriver.js'
@@ -11,6 +10,7 @@ import { registerIpcRegistry } from './ipc/registry.js'
 import { requestSshKeyboardInteractive } from './ipc/keyboard-interactive.js'
 import { isTrustedRendererNavigation } from './security/windowPolicy.js'
 import { migrateLegacyUserData } from './legacyData.js'
+import { ensurePrivateDirectory } from './security/privateDirectory.js'
 import { runScheduledBackup } from './ipc/scheduledBackup.js'
 import { createTuxSqlBrowserWindow } from './windowOptions.js'
 
@@ -28,7 +28,7 @@ function queueSqlPath(path: string): void {
 // Pin the data directory so it no longer depends on the product name, and bring over data from the old name.
 const userDataDir = join(app.getPath('appData'), 'tuxsql')
 app.setPath('userData', userDataDir)
-try { mkdirSync(userDataDir, { recursive: true }); migrateLegacyUserData(app.getPath('appData'), userDataDir) } catch { /* best effort: start with a fresh profile */ }
+try { ensurePrivateDirectory(userDataDir); migrateLegacyUserData(app.getPath('appData'), userDataDir) } catch { /* best effort: start with a fresh profile */ }
 const scheduledBackupArg = process.argv.indexOf('--run-backup-schedule')
 const scheduledBackupId = scheduledBackupArg >= 0 ? process.argv[scheduledBackupArg + 1] : undefined
 const linuxBackend = process.env.TUXSQL_LINUX_BACKEND

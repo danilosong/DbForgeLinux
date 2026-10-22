@@ -28,6 +28,7 @@ describe('MysqlDriver.executeSql', () => {
     vi.clearAllMocks()
     mysqlMock.query.mockResolvedValue([[{ Value: 'TLS_AES_256_GCM_SHA384' }], []])
     mysqlMock.createCorePool.mockReturnValue({
+      on: vi.fn(),
       promise: () => ({
         query: mysqlMock.query,
         getConnection: mysqlMock.getConnection,
@@ -116,6 +117,7 @@ describe('MysqlDriver TLS policy', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mysqlMock.createCorePool.mockReturnValue({
+      on: vi.fn(),
       promise: () => ({ query: mysqlMock.query, getConnection: mysqlMock.getConnection, end: mysqlMock.end, execute: vi.fn() }),
       getConnection: mysqlMock.getCoreConnection
     })

@@ -2,6 +2,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { compareProfileRuns, executeProfiledQuery, explainQuery, normalizeQuery, parseExplain, ProfilerHistory, type ProfileResult } from '../../src/modules/profiler/index.js'
 import { layoutPlanDiagram, planCostHue } from '../../src/modules/profiler/planDiagram.js'
 import { describeStatusVariable } from '../../src/modules/profiler/statusDescriptions.js'
+import { statusDescriptions } from '../../src/modules/profiler/statusDescriptions.js'
+import { mysql84StatusVariables } from '../../src/modules/profiler/mysql84StatusVariables.js'
+import { ptBrModulesProfilerMessages } from '../../src/renderer/src/i18n/ptBrModulesProfiler.js'
 import type { SqlClient } from '../../src/modules/sql.js'
 
 function client(overrides: Partial<SqlClient> = {}): SqlClient {
@@ -26,6 +29,15 @@ describe('query profiler', () => {
   it('describes common server status counters in English', () => {
     expect(describeStatusVariable('Rows_examined')).toContain('read while evaluating')
     expect(describeStatusVariable('unknown_custom_counter')).toContain('scope depend')
+  })
+  it('has authored English and PT-BR descriptions for the complete MySQL 8.4 test-server catalog', () => {
+    expect(mysql84StatusVariables).toHaveLength(497)
+    for (const name of mysql84StatusVariables) {
+      const description = statusDescriptions[name]
+      expect(description, name).toBeTruthy()
+      expect(description, name).not.toContain('unit and scope depend')
+      expect(ptBrModulesProfilerMessages[description!], name).toMatch(/^(Quantidade|Valor|Current|Total|Contagem|Estado|Recurso)/)
+    }
   })
   it('compares selected runs by duration, events, session counters and structural plan shape', () => {
     const make = (overrides: Partial<ProfileResult> = {}): ProfileResult => ({

@@ -11,12 +11,75 @@ import { registerImportExportIpc } from '../../src/main/ipc/import-export.js'
 
 describe('comparison and import/export IPC safeguards', () => {
   it('requires explicit confirmation for destructive schema statements', async () => {
-    registerSchemaCompareIpc({ driver: {} } as never)
+    const driver = { queryRows: vi.fn(async (_connectionId: string, sql: string) => /information_schema\.SCHEMATA/i.test(sql) ? [{ charset: 'utf8mb4', collation: 'utf8mb4_0900_ai_ci' }] : []) }
+    registerSchemaCompareIpc({ driver } as never)
     await expect(handlers.get('schema-compare:synchronize')!({}, 'target', 'db', 'DROP TABLE t;', false)).rejects.toThrow('Confirm the potential data loss')
+  })
+  it('collects same-session server warnings after schema synchronization statements', async () => {
+    const executed: string[] = []
+    const driver = {
+      queryRows: vi.fn(async (_connectionId: string, sql: string) => /information_schema\.SCHEMATA/i.test(sql) ? [{ charset: 'utf8mb4', collation: 'utf8mb4_0900_ai_ci' }] : []),
+      setDatabase: vi.fn(),
+      withSplitterCompatibleSqlMode: async (_id: string, operation: (execute: (sql: string) => Promise<unknown[]>) => Promise<unknown>) => operation(async (sql) => {
+        executed.push(sql)
+        return sql === 'SHOW WARNINGS' ? [{ rows: [{ Level: 'Warning', Code: 1051, Message: 'Unknown table.' }] }] : [{ warningStatus: 1, rows: [] }]
+      })
+    }
+    registerSchemaCompareIpc({ driver } as never)
+    const result = await handlers.get('schema-compare:synchronize')!({}, 'target', 'demo', 'CREATE TABLE `demo`.`items` (`id` INT);', false)
+    expect(executed).toEqual(['CREATE TABLE `demo`.`items` (`id` INT)', 'SHOW WARNINGS'])
+    expect(result).toMatchObject({ succeeded: 1, failed: 0, warnings: ['Warning · statement 1 · Warning 1051: Unknown table.'] })
+  })
+  it('requires destructive confirmation for narrowing schema MODIFY but permits widening', async () => {
+    const executed: string[] = []
+    const driver = {
+      queryRows: async (_id: string, sql: string) => {
+        if (sql.includes('information_schema.SCHEMATA')) return [{ charset: 'utf8mb4', collation: 'utf8mb4_0900_ai_ci' }]
+        if (sql.includes('information_schema.TABLES')) return [{ name: 'items', engine: 'InnoDB', collation: 'utf8mb4_0900_ai_ci', charset: 'utf8mb4', comment: '', options: '' }]
+        if (sql.includes('information_schema.COLUMNS')) return [{ tableName: 'items', name: 'value', type: 'varchar(255)', nullable: 'NO', defaultValue: null, extra: '', comment: '' }]
+        return []
+      },
+      setDatabase: vi.fn(),
+      withSplitterCompatibleSqlMode: async (_id: string, operation: (execute: (sql: string) => Promise<unknown[]>) => Promise<unknown>) => operation(async (sql) => { executed.push(sql); return [{ warningStatus: 0, rows: [] }] })
+    }
+    registerSchemaCompareIpc({ driver } as never)
+    const synchronize = handlers.get('schema-compare:synchronize')!
+    await expect(synchronize({}, 'target', 'demo', 'ALTER TABLE `demo`.items MODIFY COLUMN `value` VARCHAR(50) NOT NULL;', false)).rejects.toThrow('Confirm the potential data loss')
+    const result = await synchronize({}, 'target', 'demo', 'ALTER TABLE `demo`.items MODIFY COLUMN `value` VARCHAR(500) NOT NULL;', false)
+    expect(result).toMatchObject({ succeeded: 1, failed: 0 })
+    expect(executed).toEqual(['ALTER TABLE `demo`.items MODIFY COLUMN `value` VARCHAR(500) NOT NULL'])
   })
   it('requires explicit confirmation before data synchronization', async () => {
     registerDataCompareIpc({ driver: {} } as never)
     await expect(handlers.get('data-compare:synchronize')!({}, 's', 'sdb', 'st', 't', 'tdb', 'tt', ['id'], [], true, false)).rejects.toThrow('Confirm synchronization')
+  })
+  it('requires typing the exact destination database when deletion is enabled', async () => {
+    const driver = {
+      connectionEnvironment: () => 'dev',
+      streamRows: async function* () { },
+      withTransaction: async (_id: string, operation: (tx: { execute: () => Promise<{ affectedRows: number; insertId: number }> }) => Promise<unknown>) => operation({ execute: async () => ({ affectedRows: 0, insertId: 0 }) })
+    }
+    registerDataCompareIpc({ driver } as never)
+    const synchronize = handlers.get('data-compare:synchronize')!
+    await expect(synchronize({}, 's', 'sdb', 'st', 't', 'tdb', 'tt', ['id'], [], true, true)).rejects.toThrow('Type the destination database name')
+    await expect(synchronize({}, 's', 'sdb', 'st', 't', 'tdb', 'tt', ['id'], [], true, true, [], undefined, '', '', 'wrong')).rejects.toThrow('Type the destination database name')
+    await expect(synchronize({}, 's', 'sdb', 'st', 't', 'tdb', 'tt', ['id'], [], true, true, [], undefined, '', '', 'tdb')).resolves.toMatchObject({ failed: 0 })
+  })
+  it('runs before and after statements through the same destination transaction', async () => {
+    const trace: string[] = []
+    const driver = {
+      connectionEnvironment: () => 'dev',
+      streamRows: async function* () { },
+      withTransaction: async (_id: string, operation: (tx: { execute: (sql: string) => Promise<{ affectedRows: number; insertId: number }> }) => Promise<unknown>) => {
+        trace.push('begin')
+        const result = await operation({ execute: async (sql) => { trace.push(sql); return { affectedRows: 0, insertId: 0 } } })
+        trace.push('commit')
+        return result
+      }
+    }
+    registerDataCompareIpc({ driver } as never)
+    await handlers.get('data-compare:synchronize')!({}, 's', 'sdb', 'st', 't', 'tdb', 'tt', ['id'], [], false, true, undefined, undefined, 'INSERT before', 'INSERT after')
+    expect(trace).toEqual(['begin', 'INSERT before', 'INSERT after', 'commit'])
   })
   it('rejects non-read queries from the export wizard', async () => {
     registerImportExportIpc({ driver: {} } as never)

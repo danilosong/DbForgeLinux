@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { encodeBmp24, encodeTiff24 } from '../../src/modules/er-diagram/bitmap.js'
+import { encodeBmp24, encodeGif, encodeTiff24 } from '../../src/modules/er-diagram/bitmap.js'
 
 describe('ER diagram BMP export', () => {
   it('encodes bottom-up 24-bit pixels with padded rows and a valid BMP header', () => {
@@ -21,5 +21,17 @@ describe('ER diagram TIFF export', () => {
     expect(view.getUint16(strip, true)).toBe(273)
     expect(image.slice(view.getUint32(strip + 8, true))).toEqual(new Uint8Array([12, 34, 56]))
     expect(entries).toBe(10)
+  })
+})
+
+describe('ER diagram GIF export', () => {
+  it('writes a GIF89a image with palette, image data and trailer', () => {
+    const image = encodeGif(2, 1, new Uint8ClampedArray([255, 0, 0, 255, 0, 255, 0, 255]))
+    expect(new TextDecoder().decode(image.slice(0, 6))).toBe('GIF89a')
+    expect(new DataView(image.buffer).getUint16(6, true)).toBe(2)
+    expect(new DataView(image.buffer).getUint16(8, true)).toBe(1)
+    expect(image).toContain(0x2c)
+    expect(image.at(-1)).toBe(0x3b)
+    expect(() => encodeGif(0, 1, new Uint8ClampedArray())).toThrow('Invalid GIF dimensions')
   })
 })

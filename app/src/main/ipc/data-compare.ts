@@ -1,6 +1,8 @@
 import { ipcMain } from 'electron'
 import type { IpcDeps } from './registry.js'
 import { compareData, type DataCompareDifference, type DataCompareOptions, type SyncStatement } from '../../modules/data-compare/index.js'
+import { splitSqlStatements } from '../../shared/sqlStatements.js'
+import { isDestructiveStatement } from '../../modules/options/executionWarnings.js'
 
 export function registerDataCompareIpc({ driver }: IpcDeps): void {
   const validateOptions = (options?: DataCompareOptions): void => {
@@ -32,25 +34,40 @@ export function registerDataCompareIpc({ driver }: IpcDeps): void {
   ipcMain.handle('data-compare:compare', async (_event, ...args: [string, string, string, string, string, string, string[], string[]?, boolean?, DataCompareOptions?]) => {
     return compare(...args)
   })
-  ipcMain.handle('data-compare:synchronize', async (_event, sourceConnectionId: string, sourceDatabase: string, sourceTable: string, targetConnectionId: string, targetDatabase: string, targetTable: string, keys: string[], columns: string[], allowDeletes: boolean, confirmed: boolean, selectedKeys?: Record<string, unknown>[], options?: DataCompareOptions) => {
+  ipcMain.handle('data-compare:synchronize', async (_event, sourceConnectionId: string, sourceDatabase: string, sourceTable: string, targetConnectionId: string, targetDatabase: string, targetTable: string, keys: string[], columns: string[], allowDeletes: boolean, confirmed: boolean, selectedKeys?: Record<string, unknown>[], options?: DataCompareOptions, beforeSync = '', afterSync = '', typedDatabase?: string, confirmDestructive = false) => {
     if (!confirmed) throw new Error('Confirm synchronization before changing destination data.')
+    if (typeof beforeSync !== 'string' || beforeSync.length > 500_000 || typeof afterSync !== 'string' || afterSync.length > 500_000) throw new Error('Synchronization scripts exceed the supported size.')
+    if (typedDatabase !== undefined && (typeof typedDatabase !== 'string' || typedDatabase.length > 255)) throw new Error('Typed database confirmation is invalid.')
+    const targetEnvironment = driver.connectionEnvironment(targetConnectionId)
+    if ((targetEnvironment === 'prod' || allowDeletes) && typedDatabase !== targetDatabase) throw new Error('Type the destination database name to confirm.')
+    const customStatements = [...splitSqlStatements(beforeSync), ...splitSqlStatements(afterSync)].map(({ sql }) => sql.trim()).filter(Boolean)
+    const destructiveScripts = customStatements.some(isDestructiveStatement)
+    if (destructiveScripts && !confirmDestructive) throw new Error('Confirm destructive statements before synchronizing.')
+    if (customStatements.some(isDdlStatement)) throw new Error('DDL in before/after scripts is refused because it can commit the transaction implicitly. Move DDL to Schema Compare.')
     validateOptions(options)
     const { keyedStatements } = await compare(sourceConnectionId, sourceDatabase, sourceTable, targetConnectionId, targetDatabase, targetTable, keys, columns, allowDeletes, options)
     const selected = selectedKeys ? new Set(selectedKeys.map((key) => JSON.stringify(key))) : undefined
     const includedStatements = selected ? keyedStatements.filter(({ key }) => selected.has(JSON.stringify(key))).map(({ statement }) => statement) : keyedStatements.map(({ statement }) => statement)
-    if (allowDeletes && !confirmed) throw new Error('Confirm deletion of destination records.')
     let succeeded = 0
     const errors: string[] = []
     try {
       await driver.withTransaction(targetConnectionId, async (transaction) => {
+        for (const sql of splitSqlStatements(beforeSync).map(({ sql }) => sql.trim()).filter(Boolean)) await transaction.execute(sql)
         for (const statement of includedStatements) {
           try { await transaction.execute(statement.sql, statement.values); succeeded++ }
           catch (error) { errors.push(error instanceof Error ? error.message : 'Statement execution failed.'); throw error }
         }
+        for (const sql of splitSqlStatements(afterSync).map(({ sql }) => sql.trim()).filter(Boolean)) await transaction.execute(sql)
       })
     } catch (error) {
+      succeeded = 0
       if (!errors.length) errors.push(error instanceof Error ? error.message : 'The transaction failed.')
     }
     return { succeeded, failed: errors.length, errors }
   })
+}
+
+function isDdlStatement(sql: string): boolean {
+  const executable = sql.replace(/^\s*(?:(?:--[^\r\n]*(?:\r?\n|$))|(?:\/\*(?!!)[\s\S]*?\*\/\s*))*/, '').trim()
+  return /^(?:CREATE|ALTER|DROP|RENAME|TRUNCATE)\b/i.test(executable) || /^\/\*!\s*\d*\s*(?:CREATE|ALTER|DROP|RENAME|TRUNCATE)\b/i.test(executable)
 }

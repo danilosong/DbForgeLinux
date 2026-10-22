@@ -1,7 +1,7 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import { writeFile } from 'node:fs/promises'
 import type { IpcDeps } from './registry.js'
-import { inspectDatabase, compareSchemas, assertSchemaUpdateScript } from '../../modules/schema/index.js'
+import { inspectDatabase, compareSchemas, assertSchemaUpdateScript, isDestructiveSchemaScript } from '../../modules/schema/index.js'
 import { parseSchemaSnapshot, readScriptsFolder, createSchemaSnapshot, assertDatabaseModel } from '../../modules/schema/offline.js'
 import { readBoundedRegularFile } from '../../modules/security/boundedFile.js'
 
@@ -48,23 +48,33 @@ export function registerSchemaCompareIpc({ driver }: IpcDeps): void {
   })
   ipcMain.handle('schema-compare:synchronize', async (_event, targetConnectionId: string, targetDatabase: string, script: string, confirmDestructive: boolean) => {
     if (!targetConnectionId || !targetDatabase || !script.trim()) throw new Error('No synchronization script is selected.')
-    if (/\bDROP\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER|EVENT|DATABASE)\b|\bDROP\s+COLUMN\b/i.test(script) && !confirmDestructive) throw new Error('Confirm the potential data loss before synchronizing.')
     // The target is supplied separately so accidental USE statements cannot redirect writes.
-    const statements = assertSchemaUpdateScript(script)
+    const statements = assertSchemaUpdateScript(script, targetDatabase)
+    if (/\bDROP\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER|EVENT|DATABASE)\b|\bALTER\s+TABLE\b[\s\S]*?\bDROP\s+(?:COLUMN\s+)?(?!INDEX\b|KEY\b|PRIMARY\b|FOREIGN\b|CHECK\b|CONSTRAINT\b)/i.test(script) && !confirmDestructive) throw new Error('Confirm the potential data loss before synchronizing.')
+    const targetModel = await inspectDatabase((sql, parameters) => driver.queryRows(targetConnectionId, sql, parameters), targetDatabase)
+    if (isDestructiveSchemaScript(script, targetModel) && !confirmDestructive) throw new Error('Confirm the potential data loss before synchronizing.')
     const errors: string[] = []
+    const warnings: string[] = []
     let succeeded = 0
     await driver.setDatabase(targetConnectionId, targetDatabase)
     await driver.withSplitterCompatibleSqlMode(targetConnectionId, async (execute) => {
       for (const statement of statements) {
         try {
-          await execute(statement)
+          const result = await execute(statement)
           succeeded++
+          if (result.some((item) => item.warningStatus > 0)) {
+            const warningResult = await execute('SHOW WARNINGS')
+            for (const warning of warningResult.flatMap((item) => item.rows)) {
+              const detail = `${String(warning.Level ?? 'Warning')} ${String(warning.Code ?? '')}: ${String(warning.Message ?? 'Server reported a warning.')}`
+              warnings.push(`Warning · statement ${succeeded} · ${detail}`)
+            }
+          }
         } catch (error) {
           errors.push(error instanceof Error ? error.message : 'Statement execution failed.')
           break
         }
       }
     })
-    return { succeeded, failed: errors.length, errors }
+    return { succeeded, failed: errors.length, errors, warnings }
   })
 }

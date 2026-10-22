@@ -7,12 +7,16 @@ import { importExportEnMessages, importExportPtBrMessages } from '../../src/rend
 import { menuEnMessages, menuPtBrMessages } from '../../src/renderer/src/i18n/menuMessages.js'
 import { navigationEnMessages, navigationPtBrMessages } from '../../src/renderer/src/i18n/navigationMessages.js'
 import { updaterEnMessages, updaterPtBrMessages } from '../../src/renderer/src/i18n/updaterMessages.js'
+import { ptBrModulesDataMessages } from '../../src/renderer/src/i18n/ptBrModulesData.js'
+import { ptBrModulesERMessages } from '../../src/renderer/src/i18n/ptBrModulesER.js'
+import { ptBrModulesDocumenterMessages } from '../../src/renderer/src/i18n/ptBrModulesDocumenter.js'
+import { ptBrModulesProfilerMessages } from '../../src/renderer/src/i18n/ptBrModulesProfiler.js'
 import { enMessages, ptBrCatalog } from '../../src/renderer/src/i18n/specMessages.js'
 import { panelRegistry } from '../../src/renderer/src/ui/panels/registry.js'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../src/renderer/src/ui/panels')
 const en = { ...enMessages, ...navigationEnMessages, ...aboutEnMessages, ...menuEnMessages, ...updaterEnMessages, ...importExportEnMessages }
-const pt = { ...ptBrCatalog, ...navigationPtBrMessages, ...aboutPtBrMessages, ...menuPtBrMessages, ...updaterPtBrMessages, ...importExportPtBrMessages }
+const pt = { ...ptBrCatalog, ...navigationPtBrMessages, ...aboutPtBrMessages, ...menuPtBrMessages, ...updaterPtBrMessages, ...importExportPtBrMessages, ...ptBrModulesDataMessages, ...ptBrModulesERMessages, ...ptBrModulesDocumenterMessages, ...ptBrModulesProfilerMessages }
 
 function sourceForRegisteredPanel(importPath: string): string {
   return readFileSync(resolve(root, `${importPath}/Panel.tsx`), 'utf8')

@@ -1,6 +1,12 @@
 import type { ExportSchemaReport, MergeConflictFile, ProjectFileStatus, ProjectMetadata, RepositoryBranch, RepositoryCommit, RepositoryGraphCommit, RepositoryStatus } from '../../modules/source-control/types.js'
+import type { LegacyVcs, LegacyVcsAvailability } from '../../modules/source-control/legacy-readonly.js'
+import type { ScriptReviewCounts } from '../../modules/source-control/applyScripts.js'
 
 export interface SourceControlApi {
+  legacyVcsAvailability(system: LegacyVcs): Promise<LegacyVcsAvailability>
+  legacyVcsStatus(system: LegacyVcs, path: string): Promise<RepositoryStatus>
+  legacyVcsLog(system: LegacyVcs, path: string, limit?: number): Promise<RepositoryCommit[]>
+  legacyVcsDiff(system: LegacyVcs, path: string, file?: string): Promise<string>
   chooseRepository(): Promise<string | null>
   chooseProjectFolder(): Promise<string | null>
   cloneSourceRepository(url: string, parent: string, folderName: string): Promise<string>
@@ -30,7 +36,7 @@ export interface SourceControlApi {
   closeSourceProject(root: string): Promise<void>
   sourceProjectFiles(root: string): Promise<ProjectFileStatus[]>
   readSourceProjectScripts(root: string, files: string[]): Promise<Array<{ path: string; contents: string }>>
-  applySourceProjectScripts(connectionId: string, database: string, scripts: Array<{ path: string; contents: string }>, confirmed: boolean): Promise<void>
+  applySourceProjectScripts(connectionId: string, database: string, scripts: Array<{ path: string; contents: string }>, confirmation: { confirmed: boolean; typedDatabase?: string; reviewedCounts: ScriptReviewCounts }): Promise<void>
   addSourceProjectFile(root: string): Promise<ProjectMetadata | null>
   writeSourceProjectScript(root: string, file: string, contents: string): Promise<ProjectMetadata>
   exportDatabaseSchema(connectionId: string, database: string, folder?: string): Promise<ExportSchemaReport | null>

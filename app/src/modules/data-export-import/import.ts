@@ -3,6 +3,7 @@ import type { DbTransaction, SqlValue } from '../../main/db/DbDriver.js'
 import type { ImportJob, ImportPreview, ImportReport, Row } from './types.js'
 import { quoteIdentifier, quoteQualifiedIdentifier, sqlLiteral, sqlPlaceholders } from './encoding.js'
 import { readXlsx } from './xlsx.js'
+import { parseDbf } from './dbf.js'
 
 function textChunks(source: AsyncIterable<Buffer | string>, encoding: 'utf8' | 'utf16le' | 'latin1' = 'utf8'): AsyncIterable<string> {
   return (async function* () {
@@ -175,6 +176,11 @@ async function* xmlObjects(job: ImportJob): AsyncIterable<Row> {
 }
 
 async function* sourceRows(job: ImportJob): AsyncIterable<Row> {
+  if (job.format === 'dbf') {
+    const parsed = parseDbf(await readAll(job.source))
+    for (const row of parsed.rows) yield row
+    return
+  }
   if (job.format === 'csv' || job.format === 'text') { yield* csvObjects({ ...job, options: { ...job.options, delimiter: job.options?.delimiter ?? (job.format === 'text' ? '\t' : ',') } }); return }
   if (job.format === 'json') {
     const parsed: unknown = JSON.parse((await readAll(job.source)).toString(job.options?.encoding ?? 'utf8'), (_key, value: unknown) => {
@@ -235,7 +241,7 @@ function sqlForRow(job: ImportJob, row: Row): { sql: string; values: SqlValue[];
   return { sql: `UPDATE ${table} SET ${changes.map(([key]) => `${quoteIdentifier(key)} = ?`).join(', ')} WHERE ${where}`, values: [...changes.map(([, value]) => value as SqlValue), ...keyValues], mode }
 }
 
-async function runRows(job: ImportJob, execute: (sql: string, values: readonly SqlValue[]) => Promise<{ affectedRows: number }>, report: ImportReport): Promise<void> {
+async function runRows(job: ImportJob, execute: (sql: string, values: readonly SqlValue[]) => Promise<{ affectedRows: number; warnings?: string[] }>, report: ImportReport): Promise<void> {
   let index = 0
   for await (const sourceRow of sourceRows(job)) {
     if (job.signal?.aborted) throw new DOMException('The operation was canceled.', 'AbortError')
@@ -244,6 +250,7 @@ async function runRows(job: ImportJob, execute: (sql: string, values: readonly S
       const row = mapped(sourceRow, job)
       const command = sqlForRow(job, row)
       const result = await execute(command.sql, command.values)
+      if (result.warnings?.length) report.serverWarnings.push(...result.warnings.map((warning) => `Warning · import row ${index} · ${warning}`))
       if (command.mode === 'append') report.inserted++
       else if (command.mode === 'delete') report.deleted += result.affectedRows
       else if (command.mode === 'update') report.updated += result.affectedRows
@@ -261,15 +268,14 @@ async function runRows(job: ImportJob, execute: (sql: string, values: readonly S
 }
 
 export async function importData(job: ImportJob): Promise<ImportReport> {
-  const report: ImportReport = { read: 0, inserted: 0, updated: 0, deleted: 0, errors: 0, rowErrors: [] }
+  const report: ImportReport = { read: 0, inserted: 0, updated: 0, deleted: 0, errors: 0, rowErrors: [], serverWarnings: [] }
   const writeJob = job.options?.mode === 'repopulate' ? { ...job, options: { ...job.options, mode: 'append' as const } } : job
   const execute = async (transaction: DbTransaction): Promise<void> => {
     if (job.options?.mode === 'repopulate') await transaction.execute(`DELETE FROM ${quoteQualifiedIdentifier(job.table)}`)
     await runRows(writeJob, async (sql, values) => transaction.execute(sql, values), report)
   }
-  if (job.options?.transactional ?? true) await job.driver.withTransaction(job.connectionId, execute, job.signal)
+  if (job.options?.mode === 'repopulate' || (job.options?.transactional ?? true)) await job.driver.withTransaction(job.connectionId, execute, job.signal)
   else {
-    if (job.options?.mode === 'repopulate') await job.driver.executeParameterized(job.connectionId, `DELETE FROM ${quoteQualifiedIdentifier(job.table)}`, [], job.signal)
     await runRows(writeJob, (sql, values) => job.driver.executeParameterized(job.connectionId, sql, values, job.signal), report)
   }
   job.onProgress?.({ phase: 'complete', rows: report.read })

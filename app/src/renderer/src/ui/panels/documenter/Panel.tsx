@@ -1,5 +1,6 @@
 import { useI18n } from '../../i18n/useI18n.js'
 import { useEffect, useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
 import type { DocumentFormat, DocumenterPalette, GeneratedDocumentation, WrittenDocumentation } from '../../../../../modules/documenter/index.js'
 import { usePanelConnection } from '../registry'
 import AssistantFinish from '../../components/AssistantFinish.js'
@@ -23,6 +24,8 @@ export default function Panel(): React.JSX.Element {
   const [coverPage, setCoverPage] = useState(true)
   const [breadcrumbs, setBreadcrumbs] = useState(true)
   const [palette, setPalette] = useState<DocumenterPalette>('default')
+  const [coverAccent, setCoverAccent] = useState('#2563eb')
+  const [coverSurface, setCoverSurface] = useState('#eff6ff')
   const [excludedTables, setExcludedTables] = useState<string[]>([])
   const [pdfOrientation, setPdfOrientation] = useState<'portrait' | 'landscape'>('portrait')
   const [pdfFontScale, setPdfFontScale] = useState(100)
@@ -53,7 +56,7 @@ export default function Panel(): React.JSX.Element {
     if (!window.confirm(t('documenter.confirm'))) return
     setBusy(true); setError('')
     try {
-      const paths = await window.tuxsql.generateDatabaseDocumentation({ connectionId, database, title: title || undefined, author, copyright, logo, created: localDateTime().date, folderName, descriptions: { cover: description }, formats, outputDirectory: directory, includeDiagram: diagram, includeUsers, coverPage, breadcrumbs, palette, excludedTables, excludedColumns, excludedIndexes, pdfOrientation, pdfFontScale, pdfPageNumbers, confirmed: true })
+      const paths = await window.tuxsql.generateDatabaseDocumentation({ connectionId, database, title: title || undefined, author, copyright, logo, created: localDateTime().date, folderName, descriptions: { cover: description }, formats, outputDirectory: directory, includeDiagram: diagram, includeUsers, coverPage, breadcrumbs, palette, coverAccent, coverSurface, excludedTables, excludedColumns, excludedIndexes, pdfOrientation, pdfFontScale, pdfPageNumbers, confirmed: true })
       setResult(paths)
       if (openAfter) {
         const first = paths.html ?? paths.pdf ?? paths.markdown
@@ -82,7 +85,7 @@ export default function Panel(): React.JSX.Element {
         <label>{t('documenter.copyright')} <input value={copyright} onChange={(event) => setCopyright(event.target.value)} /></label>
         <label>{t('documenter.created')} <input type="date" value={localDateTime().date} readOnly /></label>
       </div>
-      {coverPage && <article className={`documenter-cover-preview documenter-cover-${palette}`} aria-label={t('documenter.coverPreview')}><small>{breadcrumbs ? `${activeConnection?.name || connectionId || t('documenter.server')} / ${database || t('documenter.database')} / ${t('documenter.cover')}` : ''}</small>{logo && <strong className="documenter-preview-logo">{logo}</strong>}<h2>{title || `${t('documenter.titleField')}: ${database || t('documenter.database')}`}</h2>{description && <p>{description}</p>}<p>{author}</p><p>{copyright}</p><small>{localDateTime().date}</small></article>}
+      {coverPage && <article className={`documenter-cover-preview documenter-cover-${palette}`} aria-label={t('documenter.coverPreview')} style={{ '--cover-accent': coverAccent, '--cover-surface': coverSurface } as CSSProperties}><small>{breadcrumbs ? `${activeConnection?.name || connectionId || t('documenter.server')} / ${database || t('documenter.database')} / ${t('documenter.cover')}` : ''}</small><label>{t('Cover accent')} <input aria-label={t('Cover accent')} type="color" value={coverAccent} onChange={(event) => setCoverAccent(event.target.value)} /></label><label>{t('Cover background')} <input aria-label={t('Cover background')} type="color" value={coverSurface} onChange={(event) => setCoverSurface(event.target.value)} /></label><strong className="documenter-preview-logo" contentEditable suppressContentEditableWarning role="textbox" aria-label={t('Cover logo')} onInput={(event) => setLogo(event.currentTarget.textContent ?? '')}>{logo || t('documenter.logoHint')}</strong><h2 contentEditable suppressContentEditableWarning role="textbox" aria-label={t('Cover title')} onInput={(event) => setTitle(event.currentTarget.textContent ?? '')}>{title || `${t('documenter.titleField')}: ${database || t('documenter.database')}`}</h2>{description && <p>{description}</p>}<p>{author}</p><p>{copyright}</p><small>{localDateTime().date}</small></article>}
     </fieldset>
     <fieldset><legend>{t('documenter.generate')}</legend>
       <label>{t('documenter.output')} <input value={directory} onChange={(event) => setDirectory(event.target.value)} placeholder="/home/user/Documents" /></label>

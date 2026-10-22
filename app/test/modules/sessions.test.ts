@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { compareStatus, compareVariableSnapshots, getServerStatus, getServerVariables, killSessions, listSessions, setServerVariable } from '../../src/modules/sessions/index.js'
+import { compareStatus, compareVariableSnapshots, getServerStatus, getServerVariables, killSessions, listSessions, serverVariableSql, setServerVariable } from '../../src/modules/sessions/index.js'
 import type { SqlClient } from '../../src/modules/sql.js'
 
 function client(overrides: Partial<SqlClient> = {}): SqlClient {
@@ -56,9 +56,31 @@ describe('sessions and server variables backend', () => {
     expect(snapshot.variables.find((item) => item.name === 'max_connections')?.type).toBe('number')
     await expect(setServerVariable(db, 'max_connections', 200, 'GLOBAL', { confirm: true, dynamic: true, type: 'number', min: 1, max: 100 })).rejects.toThrow('outside the allowed range')
     await expect(setServerVariable(db, 'read_only; DROP USER x', 'ON', 'GLOBAL', { confirm: true, dynamic: true })).rejects.toThrow('Variable name is invalid')
-    await setServerVariable(db, 'max_connections', 200, 'GLOBAL', { confirm: true, dynamic: true, type: 'number' })
+    await setServerVariable(db, 'max_connections', 200, 'GLOBAL', { confirm: true, confirmation: 'max_connections', dynamic: true, type: 'number' })
     expect(execute).toHaveBeenCalledExactlyOnceWith('SET GLOBAL max_connections = 200')
     await expect(setServerVariable(db, 'port', 3307, 'GLOBAL', { confirm: true, dynamic: true })).rejects.toThrow('is static')
+  })
+
+  it('requires the variable name typed back for SET GLOBAL, PERSIST and PERSIST_ONLY, never for SET SESSION', async () => {
+    const execute = vi.fn(async () => undefined)
+    const db = client({ execute })
+    for (const confirmation of [undefined, '', 'MAX_CONNECTIONS', 'max_connections ']) {
+      await expect(setServerVariable(db, 'max_connections', 200, 'GLOBAL', { confirm: true, confirmation, dynamic: true, type: 'number' })).rejects.toThrow('Type the variable name max_connections')
+      await expect(setServerVariable(db, 'max_connections', 200, 'GLOBAL', { confirm: true, confirmation, mode: 'persist', dynamic: true, type: 'number' })).rejects.toThrow('Type the variable name')
+    }
+    await expect(setServerVariable(db, 'innodb_log_file_size', 1, 'GLOBAL', { confirm: true, mode: 'persist-only', dynamic: false, type: 'number' })).rejects.toThrow('Type the variable name')
+    expect(execute).not.toHaveBeenCalled()
+    await setServerVariable(db, 'sql_mode', 'ANSI', 'SESSION', { confirm: true, dynamic: true, type: 'string' })
+    await setServerVariable(db, 'max_connections', 200, 'GLOBAL', { confirm: true, confirmation: 'max_connections', mode: 'persist', dynamic: true, type: 'number' })
+    await setServerVariable(db, 'innodb_log_file_size', 1, 'GLOBAL', { confirm: true, confirmation: 'innodb_log_file_size', mode: 'persist-only', dynamic: false, type: 'number' })
+    expect(execute.mock.calls.map(([sql]) => sql)).toEqual(["SET SESSION sql_mode = 'ANSI'", 'SET PERSIST max_connections = 200', 'SET PERSIST_ONLY innodb_log_file_size = 1'])
+  })
+
+  it('previews exactly the statement that runs and keeps static/scope rules', () => {
+    expect(serverVariableSql('max_connections', 200, 'GLOBAL', { dynamic: true, type: 'number' })).toBe('SET GLOBAL max_connections = 200')
+    expect(serverVariableSql('max_connections', 200, 'GLOBAL', { dynamic: true, persist: true, type: 'number' })).toBe('SET PERSIST max_connections = 200')
+    expect(() => serverVariableSql('port', 3307, 'GLOBAL', { dynamic: false })).toThrow('is static')
+    expect(() => serverVariableSql('max_connections', 1, 'SESSION', { dynamic: true, mode: 'persist' })).toThrow('only accepts global')
   })
 
   it('compares variables and status counters', () => {

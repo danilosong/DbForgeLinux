@@ -20,8 +20,9 @@ const objects = s('array-object', { maxItems: 10000 })
 const intArray = s('array-int', { maxItems: 1000 })
 const enumOf = (...values: string[]): Spec => s('enum', { values })
 const scope = enumOf('GLOBAL', 'SESSION')
-const fileFormat = enumOf('csv', 'text', 'json', 'xml', 'sql', 'xlsx')
-const outputFormat = enumOf('csv', 'text', 'json', 'xml', 'sql', 'xlsx', 'html', 'pdf')
+const fileFormat = enumOf('csv', 'text', 'json', 'xml', 'sql', 'xlsx', 'dbf', 'access')
+const outputFormat = enumOf('csv', 'text', 'json', 'xml', 'sql', 'xlsx', 'html', 'pdf', 'dbf')
+const legacyVcs = enumOf('Subversion', 'Mercurial')
 
 /** Runtime argument contracts for every invoke channel. Structured records are recursively size/type checked below. */
 export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
@@ -34,16 +35,16 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'connections:list': [], 'connections:save': [object], 'connections:delete': [id], 'vault:save': [ident, s('text')], 'vault:delete': [ident], 'vault:status': [],
   'ssh:keyboard-interactive:respond': [object],
   'data-compare:compare': [id, ident, ident, id, ident, ident, strings, opt(strings), opt(bool), opt(object)],
-  'data-compare:synchronize': [id, ident, ident, id, ident, ident, strings, strings, bool, trueOnly, opt(objects), opt(object)],
+  'data-compare:synchronize': [id, ident, ident, id, ident, ident, strings, strings, bool, trueOnly, opt(objects), opt(object), opt(sql), opt(sql), opt(text), opt(bool)],
   'data-generator:inspect': [id, ident], 'data-generator:preview': [id, ident, ident, object, opt(s('string-number'))], 'data-generator:generate': [object],
   'report-pivot:load': [id, sql], 'report-pivot:build': [id, object], 'report-pivot:export': [object, enumOf('csv', 'xlsx')],
   'database-tools:search': [id, ident, text, object], 'database-tools:invalid': [id, ident], 'database-tools:backup': [id, ident, bool], 'database-tools:select-backup': [],
   'database-tools:backup-directory': [], 'database-tools:backup-project:save': [object], 'database-tools:backup-project:load': [], 'database-tools:backup:run': [id, ident, object, id], 'database-tools:backup:cancel': [id], 'database-tools:restore:select-file': [], 'database-tools:restore:save-command-line': [id, object, ident], 'database-tools:restore:preview': [id, text], 'database-tools:restore:run-selected': [id, ident, text, id, text, enumOf('abort', 'ignore', 'log'), id], 'database-tools:restore:cancel': [id],
-  'database-tools:format-select': [bool], 'database-tools:format-run': [s('array-text', { maxItems: 1000 }), bool, bool, object], 'database-tools:format-preview': [s('array-text', { maxItems: 1000 }), bool, object], 'database-tools:large-select': [], 'database-tools:large-run': [id, text, path, enumOf('utf8', 'utf16le', 'latin1', 'windows1252'), id], 'database-tools:large-cancel': [id], 'database-tools:large-error-action': [id, enumOf('stop', 'continue', 'ignore-all')],
+  'database-tools:format-select': [bool], 'database-tools:format-run': [s('array-text', { maxItems: 1000 }), bool, bool, object], 'database-tools:format-preview': [s('array-text', { maxItems: 1000 }), bool, object], 'database-tools:large-select': [], 'database-tools:large-run': [id, text, path, enumOf('utf8', 'utf16le', 'latin1', 'windows1252'), id, opt(text)], 'database-tools:large-scan': [text, path, enumOf('utf8', 'utf16le', 'latin1', 'windows1252')], 'database-tools:large-cancel': [id], 'database-tools:large-error-action': [id, enumOf('stop', 'continue', 'ignore-all')],
   'database-tools:maintenance': [id, ident, enumOf('ANALYZE', 'OPTIMIZE', 'CHECK', 'REPAIR', 'CHECKSUM'), strings],
   'database-tools:restore': [id, ident, text, sql, opt(bool)], 'database-tools:copy': [id, ident, id, ident, text, bool, opt(bool)],
   'database-tools:schedule:list': [], 'database-tools:schedule:failed': [], 'database-tools:schedule:save': [object], 'database-tools:schedule:delete': [id],
-  'db:test': [object], 'db:connect': [object], 'db:disconnect': [id], 'db:databases': [id], 'db:execute': [id, sql, opt(id), opt(ident), opt(bool)],
+  'db:test': [object], 'db:connect': [object], 'db:disconnect': [id], 'db:databases': [id], 'db:execute': [id, sql, opt(id), opt(ident), opt(bool), opt(object)],
   'grid-editing:describe': [id, sql, opt(ident)], 'grid-editing:preview': [object, objects], 'grid-editing:apply': [id, object, objects, bool],
   'grid-data:master-detail': [id, object, object],
   'db:result-read': [id, integer, integer], 'db:result-dispose': [id], 'db:cancel': [id, id], 'db:transaction-begin': [id], 'db:transaction-commit': [id], 'db:transaction-rollback': [id],
@@ -55,7 +56,7 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'snippets:list': [], 'snippets:save': [object], 'snippets:delete': [id], 'snippets:import': [enumOf('en', 'pt-BR')], 'snippets:export': [enumOf('en', 'pt-BR')],
   'history:list': [opt(object)], 'history:record': [object],
   'updater:check': [], 'updater:apply': [object], 'updater:cancel': [], 'updater:status': [],
-  'import-export:export': [id, sql, outputFormat, opt(object), opt(id)], 'import-export:select-source': [id, fileFormat, opt(object)], 'import-export:preview-export': [id, sql, id],
+  'import-export:export': [id, sql, outputFormat, opt(object), opt(id)], 'import-export:select-source': [id, fileFormat, opt(object)], 'import-export:preview-export': [id, sql, id], 'import-export:legacy-capabilities': [], 'import-export:preview-access-table': [id, text],
   'import-export:import': [id, ident, fileFormat, enumOf('append', 'upsert', 'update', 'delete', 'repopulate'), strings, opt(object), opt(id)], 'import-export:cancel': [id], 'import-export:templates:list': [],
   'import-export:script': [ident, fileFormat, enumOf('append', 'upsert', 'update', 'delete', 'repopulate'), strings, opt(object), opt(id)],
   'import-export:templates:save': [object], 'import-export:templates:delete': [id], 'import-export:save-log': [sql],
@@ -72,8 +73,9 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'service-control:list': [], 'service-control:action': [ident, enumOf('start', 'stop', 'restart', 'enable', 'disable'), ident], 'service-control:logs': [ident],
   'local-server:inspect': [], 'local-server:list': [], 'local-server:create': [enumOf('mysql', 'mariadb')], 'local-server:remove': [ident, text], 'local-server:create-profile': [ident],
   'sessions:list': [id, opt(object)], 'sessions:details': [id, integer], 'sessions:kill': [id, intArray, enumOf('connection', 'query'), trueOnly],
-  'sessions:variables': [id, opt(scope)], 'sessions:status': [id, opt(scope)], 'sessions:set-variable': [id, object, object],
+  'sessions:variables': [id, opt(scope)], 'sessions:status': [id, opt(scope)], 'sessions:set-variable': [id, object, object], 'sessions:preview-variable': [id, object, opt(object)],
   'source-control:choose-repository': [], 'source-control:choose-project-folder': [], 'source-control:clone-repository': [text, path, ident], 'source-control:link-database': [object], 'source-control:has-remote': [path],
+  'source-control:legacy-availability': [legacyVcs], 'source-control:legacy-status': [legacyVcs, path], 'source-control:legacy-log': [legacyVcs, path, opt(integer)], 'source-control:legacy-diff': [legacyVcs, path, opt(s('relative-path'))],
   'source-control:status': [path], 'source-control:init': [path], 'source-control:diff': [path, opt(s('relative-path')), opt(bool)],
   'source-control:commit': [path, text, strings], 'source-control:branches': [path], 'source-control:create-branch': [path, ident], 'source-control:checkout-branch': [path, ident],
   'source-control:delete-branch': [path, ident, trueOnly], 'source-control:fetch': [path], 'source-control:pull': [path, trueOnly], 'source-control:push': [path, trueOnly],
@@ -111,7 +113,8 @@ function assertStructured(value: unknown, state: { bytes: number; nodes: number 
     if (entries.length > 1_000) fail('object has too many properties')
     for (const [key, child] of entries) {
       if (key.length > 256 || key.includes('\0')) fail('invalid property name')
-      if (typeof child === 'string' && /(?:path|directory|folder)$/i.test(key) && child && !isAbsolute(child)) fail(`${key} must be an absolute path`)
+      const isCacheFolderMode = key === 'cacheFolder' && (child === 'system' || child === 'custom')
+      if (typeof child === 'string' && /(?:path|directory|folder)$/i.test(key) && child && !isCacheFolderMode && !isAbsolute(child)) fail(`${key} must be an absolute path`)
       state.bytes += key.length * 2
       assertStructured(child, state, depth + 1)
     }
@@ -169,11 +172,16 @@ function assertStringArray(value: unknown, label: string, maximum = 1000): asser
 }
 function assertDomainPayload(channel: string, args: readonly unknown[]): void {
   if (channel === 'data-generator:generate') {
-    const input = assertRecord(args[0], 'input', ['connectionId', 'database', 'tables', 'rowsPerTable', 'generators', 'confirmed'], ['connectionId', 'database', 'tables', 'rowsPerTable', 'generators', 'seed', 'confirmed', 'truncateTables', 'truncateConfirmation'])
+    const input = assertRecord(args[0], 'input', ['connectionId', 'database', 'tables', 'rowsPerTable', 'generators', 'confirmed'], ['connectionId', 'database', 'tables', 'rowsPerTable', 'generators', 'seed', 'confirmed', 'truncateTables', 'truncateConfirmation', 'batchSize', 'disableForeignKeyChecks', 'foreignKeyChecksConfirmation', 'allowProduction', 'productionConfirmation'])
     if (typeof input.connectionId !== 'string' || !input.connectionId || typeof input.database !== 'string' || !input.database || input.database.length > 64 || input.confirmed !== true) fail('data generation confirmation is invalid')
     assertStringArray(input.tables, 'input.tables', 1000)
     if (input.truncateTables !== undefined) assertStringArray(input.truncateTables, 'input.truncateTables', 1000)
     if (input.truncateConfirmation !== undefined && (typeof input.truncateConfirmation !== 'string' || input.truncateConfirmation.length > 4096)) fail('truncate confirmation is invalid')
+    if (input.batchSize !== undefined && (!Number.isSafeInteger(input.batchSize) || Number(input.batchSize) < 1 || Number(input.batchSize) > 10_000)) fail('batch size must be an integer from 1 to 10000')
+    if (input.disableForeignKeyChecks !== undefined && typeof input.disableForeignKeyChecks !== 'boolean') fail('disableForeignKeyChecks must be boolean')
+    if (input.foreignKeyChecksConfirmation !== undefined && (typeof input.foreignKeyChecksConfirmation !== 'string' || input.foreignKeyChecksConfirmation.length > 4096)) fail('foreign key checks confirmation is invalid')
+    if (input.allowProduction !== undefined && typeof input.allowProduction !== 'boolean') fail('allowProduction must be boolean')
+    if (input.productionConfirmation !== undefined && (typeof input.productionConfirmation !== 'string' || input.productionConfirmation.length > 64)) fail('production confirmation is invalid')
     if (typeof input.rowsPerTable !== 'number' && (!input.rowsPerTable || typeof input.rowsPerTable !== 'object' || Array.isArray(input.rowsPerTable))) fail('row counts are invalid')
     if (!input.generators || typeof input.generators !== 'object' || Array.isArray(input.generators)) fail('generator settings are invalid')
   } else if (channel === 'ssh:keyboard-interactive:respond') {
@@ -263,13 +271,14 @@ function assertDomainPayload(channel: string, args: readonly unknown[]): void {
     }
   } else if ((channel === 'import-export:import' || channel === 'import-export:script' || channel === 'import-export:select-source') && args[channel === 'import-export:import' ? 5 : channel === 'import-export:script' ? 4 : 2] !== undefined) {
     const optionsIndex = channel === 'import-export:import' ? 5 : channel === 'import-export:script' ? 4 : 2
-    const options = assertRecord(args[optionsIndex], 'import options', [], ['delimiter', 'quote', 'encoding', 'header', 'skipLines', 'headerPosition', 'autoDelimiter', 'columns', 'columnMapping', 'createTable', 'mode', 'keyColumns', 'batchSize', 'onRowError', 'transactional', 'previewRows', 'rowElement', 'nullValue', 'nullString', 'booleanTrueValue', 'booleanFalseValue'])
+    const options = assertRecord(args[optionsIndex], 'import options', [], ['delimiter', 'quote', 'encoding', 'header', 'skipLines', 'headerPosition', 'autoDelimiter', 'columns', 'columnMapping', 'createTable', 'mode', 'keyColumns', 'batchSize', 'onRowError', 'transactional', 'previewRows', 'rowElement', 'nullValue', 'nullString', 'booleanTrueValue', 'booleanFalseValue', 'confirmedDatabase'])
     if (options.delimiter !== undefined && (typeof options.delimiter !== 'string' || options.delimiter.length > 8)) fail('import delimiter is invalid')
     if (options.encoding !== undefined && !['utf8', 'utf16le', 'latin1'].includes(String(options.encoding))) fail('import encoding is invalid')
     if (options.header !== undefined && typeof options.header !== 'boolean') fail('import header must be boolean')
     if (options.skipLines !== undefined && (!Number.isSafeInteger(options.skipLines) || Number(options.skipLines) < 0 || Number(options.skipLines) > 100_000)) fail('import skipLines is invalid')
     if (options.headerPosition !== undefined && (!Number.isSafeInteger(options.headerPosition) || Number(options.headerPosition) < 1 || Number(options.headerPosition) > 100_000)) fail('import headerPosition is invalid')
     for (const key of ['nullString', 'booleanTrueValue', 'booleanFalseValue']) if (options[key] !== undefined && (typeof options[key] !== 'string' || String(options[key]).length > 256)) fail(`import ${key} is invalid`)
+    if (options.confirmedDatabase !== undefined && (typeof options.confirmedDatabase !== 'string' || options.confirmedDatabase.length > 255)) fail('import production confirmation is invalid')
     if (options.autoDelimiter !== undefined && typeof options.autoDelimiter !== 'boolean') fail('import autoDelimiter must be boolean')
     if (options.columns !== undefined) assertStringArray(options.columns, 'import columns', 1000)
     if (options.keyColumns !== undefined) assertStringArray(options.keyColumns, 'import keyColumns', 256)

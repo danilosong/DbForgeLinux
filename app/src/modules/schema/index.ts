@@ -3,6 +3,7 @@ export * from './sql.js'
 export * from './ddl.js'
 export * from './introspect.js'
 export * from './compare.js'
+export * from './destructive.js'
 
 import { SchemaIntrospector, type SchemaQuery } from './introspect.js'
 

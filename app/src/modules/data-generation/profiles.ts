@@ -1,6 +1,6 @@
 import type { ColumnModel } from '../schema/model.js'
 import { inferKind } from './generators.js'
-import type { GeneratorKind } from './types.js'
+import type { GeneratorKind, GeneratorSpec } from './types.js'
 
 const industryGroups = {
   people: `people human-resources recruiting payroll education university school childcare government public-sector nonprofit charity community social-services legal law-firm consulting professional-services staffing hospitality hotel restaurant catering travel tourism airline airport railway logistics shipping trucking automotive dealership manufacturing construction real-estate property-management agriculture farming forestry mining energy utilities renewable-energy oil-gas telecommunications internet-media publishing advertising marketing entertainment music film gaming sports fitness beauty salon pet-care veterinary` ,
@@ -12,8 +12,25 @@ const industryGroups = {
   text: `text journalism publishing social-media advertising marketing customer-support helpdesk legal research education documentation reviews forums messaging entertainment gaming`
 } as const
 
+// Concrete business domains and operating contexts, authored for TuxSQL. Each
+// remains a semantic preset over the column generators available in the app.
+const domainSeeds = `accounting billing logistics ticketing insurance admissions banking payments claims underwriting brokerage lending mortgage leasing compliance identity access-control cybersecurity cloud software developer-tools observability datacenter retail grocery inventory point-of-sale fulfillment returns marketplace subscriptions customer-success helpdesk reservations hospitality food-service catering events tourism airlines railways fleet dispatch warehousing procurement manufacturing quality-control maintenance construction permitting property-management agriculture crop-management livestock fisheries energy-grid renewables utilities water-treatment mining extraction laboratories diagnostics clinical-trials public-health pharmacy telemedicine dental vision-care education admissions learning-management research libraries municipal-services courts case-management charities fundraising campaign-management newsroom broadcasting streaming publishing advertising audience-analytics sports-clubs athletics fitness wellness salons cosmetics veterinary animal-shelter automotive repair parts-dealer rental mobility parking telecommunications broadband messaging social-networks creator-economy games esports music production film production archives museums galleries auctions donations payroll recruiting benefits timekeeping workforce government taxation customs trade-port shipping insurance-brokerage wealth-advisory treasury remittance currency-exchange fraud-detection risk-management audit consulting legal-services translation travel-agency lodging restaurant-delivery grocery-delivery fashion apparel electronics furniture home-improvement books ticket-sales software-licensing api-platforms data-platforms backup-recovery incident-response endpoint-security network-operations construction-materials architecture engineering environmental-monitoring recycling waste-management emergency-response public-transit postal-services parcel-delivery cold-chain food-production beverage production hospitality housekeeping childcare eldercare social-care university research student-services examination assessment open-source foundation marketplace-sellers vehicle-manufacturing aircraft-maintenance marine-services hotel-operations restaurant-operations warehouse-operations clinic-operations school-operations city-operations`.split(/\s+/)
+const domainContexts = ['operations', 'customer-service', 'inventory', 'compliance'] as const
+const expandedDomainIds = domainSeeds.flatMap((domain) => domainContexts.map((context) => `${domain}-${context}`))
+
 type ProfileFamily = keyof typeof industryGroups
-const profileFamilies: Array<readonly [string, ProfileFamily]> = (Object.entries(industryGroups) as Array<[ProfileFamily, string]>).flatMap(([family, values]) => values.split(/\s+/).map((id) => [id, family] as const))
+const profileFamilies: Array<readonly [string, ProfileFamily]> = [
+  ...(Object.entries(industryGroups) as Array<[ProfileFamily, string]>).flatMap(([family, values]) => values.split(/\s+/).map((id) => [id, family] as const)),
+  ...expandedDomainIds.map((id) => {
+    const domain = id.slice(0, id.lastIndexOf('-'))
+    const family: ProfileFamily = /bank|payment|finance|credit|insurance|lending|mortgage|broker|wealth|treasury|tax|audit|currency|remittance|fraud|risk|accounting|billing|payroll/.test(domain) ? 'finance'
+      : /retail|grocery|inventory|marketplace|fulfillment|returns|delivery|fashion|apparel|electronics|books|ticket|cosmetic|auction/.test(domain) ? 'ecommerce'
+        : /address|postal|travel|airline|railway|fleet|dispatch|warehouse|shipping|port|transit|parcel|cold-chain|lodging|hotel|restaurant/.test(domain) ? 'addresses'
+          : /text|news|media|social|publishing|advertising|messag|film|music|game|stream|documentation|support|helpdesk|community|campaign|translation/.test(domain) ? 'text'
+            : /date|time|event|schedule|maintenance|monitoring|operations|incident|response/.test(domain) ? 'datetime' : 'people'
+    return [id, family] as const
+  })
+]
 const familyByProfile = profileFamilies.reduce((families, [id, family]) => {
   if (!families.has(id) || id === family) families.set(id, family)
   return families
@@ -71,4 +88,31 @@ export function generatorForDomainProfile(profile: DataDomainProfile, column: Co
       if (/\b(name|title)\b/.test(name)) return 'name'
       return 'lorem'
   }
+}
+
+/** Adds values that identify the selected domain when the schema has a domain/status field. */
+export function generatorSpecForDomainProfile(profile: DataDomainProfile, column: ColumnModel): GeneratorSpec {
+  const family = familyByProfile.get(profile)
+  if (!family) throw new Error(`Unknown data domain profile: ${profile}`)
+  const name = semanticName(column)
+  const label = dataDomainProfileLabel(profile)
+  const context = profile.slice(profile.lastIndexOf('-') + 1)
+  if (/\b(industry|sector|domain|business area)\b/.test(name)) return { kind: 'list', values: [label] }
+  if (/\b(category|segment|program)\b/.test(name)) return { kind: 'list', values: [`${label} Core`, `${label} Growth`, `${label} Archive`] }
+  if (/\b(status|state|lifecycle)\b/.test(name)) {
+    const values: Record<ProfileFamily, string[]> = {
+      people: ['active', 'pending', 'on leave', 'review', 'archived'],
+      addresses: ['unverified', 'validated', 'in transit', 'delivered', 'returned'],
+      companies: ['prospect', 'qualified', 'active', 'suspended', 'closed'],
+      ecommerce: ['draft', 'listed', 'reserved', 'fulfilled', 'returned'],
+      finance: ['pending review', 'approved', 'held', 'reconciled', 'settled'],
+      datetime: ['scheduled', 'active', 'delayed', 'completed', 'canceled'],
+      text: ['draft', 'in review', 'published', 'scheduled', 'archived']
+    }
+    const contextual = context === 'compliance' ? ['pending review', 'verified', 'flagged', 'approved', 'expired']
+      : context === 'inventory' ? ['available', 'reserved', 'replenishing', 'backordered', 'discontinued']
+        : context === 'customer-service' ? ['new', 'assigned', 'waiting', 'resolved', 'closed'] : values[family]
+    return { kind: 'list', values: contextual }
+  }
+  return { kind: generatorForDomainProfile(profile, column) }
 }

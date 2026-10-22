@@ -3,6 +3,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import Editor from '../../components/MonacoEditor.js'
 import type { ConnectionRecord } from '../../../../../shared/contracts.js'
 import type { SchemaCompareResult } from '../../../../../shared/contracts/schema-compare.js'
+import { isDestructiveSchemaScript } from '../../../../../modules/schema/destructive.js'
 import type { SchemaDifference } from '../../../../../modules/schema/model.js'
 import { useKeyboardDialog } from '../../components/useKeyboardDialog.js'
 import { createTable } from '../../../../../modules/schema/ddl.js'
@@ -73,7 +74,7 @@ export default function Panel(): React.JSX.Element {
   const actionPlan = useMemo(() => createSyncActionPlan(fullSyncScript), [fullSyncScript])
   const actionGroups = useMemo(() => groupSyncActionPlan(actionPlan), [actionPlan])
   const functionWarnings = useMemo(() => functionCharacteristicWarnings(fullSyncScript), [fullSyncScript])
-  const destructive = useMemo(() => /\bDROP\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER|EVENT|DATABASE)\b|\bDROP\s+COLUMN\b/i.test(fullSyncScript), [fullSyncScript])
+  const destructive = useMemo(() => Boolean(result && isDestructiveSchemaScript(fullSyncScript, result.target)), [fullSyncScript, result])
   const visible = useMemo(() => result?.differences.filter((item) => {
     const stateMatch = filter === 'all' || (filter === 'different' ? item.change === 'changed' : filter === 'added' ? item.change === 'added' : item.change === 'removed')
     return stateMatch && item.object.toLowerCase().includes(search.toLowerCase())
@@ -150,6 +151,7 @@ export default function Panel(): React.JSX.Element {
       try { summary = await window.tuxsql.synchronizeSchema(connected.id, targetDb, fullSyncScript, destructive && riskAccepted) }
       finally { await window.tuxsql.disconnect(connected.id) }
       await runCompare()
+      if (summary.warnings.length || summary.errors.length) window.dispatchEvent(new CustomEvent('tuxsql:module-errors', { detail: [...summary.warnings, ...summary.errors.map((error, index) => `Error · statement ${summary.succeeded + index + 1} · ${error}`)] }))
       setMessage(`Synchronization complete: ${summary.succeeded} succeeded, ${summary.failed} failed${summary.errors.length ? ` — ${summary.errors.join('; ')}` : ''}. Comparison refreshed.`)
     } catch (error) { setMessage(error instanceof Error ? error.message : t('ui.schemaCompare.syncFailed')) }
     finally { setBusy(false); setConfirmOpen(false); setRiskAccepted(false) }

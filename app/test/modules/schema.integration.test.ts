@@ -1,10 +1,13 @@
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it, vi } from 'vitest'
 import { createDefaultConnection } from '../../src/shared/connectionDefaults.js'
 import { MysqlDriver } from '../../src/main/db/MysqlDriver.js'
 import { compareSchemas, inspectDatabase } from '../../src/modules/schema/index.js'
+import { registerSchemaCompareIpc } from '../../src/main/ipc/schema-compare.js'
 import { mysqlTestPrefix } from '../mysqlTestNames.js'
 
 const enabled = process.env.MYSQL_INTEGRATION === '1'
+const { handlers } = vi.hoisted(() => ({ handlers: new Map<string, (...args: unknown[]) => unknown>() }))
+vi.mock('electron', () => ({ ipcMain: { handle: (name: string, handler: (...args: unknown[]) => unknown) => handlers.set(name, handler) }, dialog: {}, BrowserWindow: { fromWebContents: () => null } }))
 describe.skipIf(!enabled)('schema synchronization integration', () => {
   const driver = new MysqlDriver()
   let connectionId: string
@@ -28,9 +31,9 @@ describe.skipIf(!enabled)('schema synchronization integration', () => {
     const [source, target] = await Promise.all([inspectDatabase(query, schemaA), inspectDatabase(query, schemaB)])
     const comparison = compareSchemas(source, target)
     expect(comparison.differences.length).toBeGreaterThan(0)
-    for (const statement of comparison.script.split(/;\s*(?:\n|$)/).map((item) => item.trim()).filter(Boolean)) {
-      await driver.executeSql(connectionId, `${statement};`)
-    }
+    registerSchemaCompareIpc({ driver } as never)
+    const syncResult = await handlers.get('schema-compare:synchronize')!({}, connectionId, schemaA, comparison.script, false)
+    expect(syncResult).toMatchObject({ failed: 0 })
     const synchronized = await inspectDatabase(query, schemaA)
     expect(compareSchemas(synchronized, target).differences).toEqual([])
   }, 30000)

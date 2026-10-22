@@ -15,6 +15,8 @@ export interface DocumenterOptions {
   coverPage?: boolean
   breadcrumbs?: boolean
   palette?: DocumenterPalette
+  coverAccent?: string
+  coverSurface?: string
   includeUsers?: boolean
   accounts?: DocumenterAccount[]
   descriptions?: Record<string, string>
@@ -105,7 +107,9 @@ export function generateDocumentation(model: DatabaseModel, options: DocumenterO
     journal: { accent: '#eb6864', surface: '#fdf0ef', page: '#ffffff' }, paper: { accent: '#4582ec', surface: '#eef3fd', page: '#ffffff' }, yeti: { accent: '#008c8c', surface: '#e7f5f5', page: '#ffffff' },
     'metro-light': { accent: '#0078d4', surface: '#e6f4ff', page: '#ffffff' }, ocean: { accent: '#0f766e', surface: '#ccfbf1', page: '#f0fdfa' }, forest: { accent: '#3f6212', surface: '#ecfccb', page: '#f7fee7' }
   }
-  const colors = paletteColors[palette]
+  const hexColor = /^#[\da-f]{6}$/i
+  const defaults = paletteColors[palette]
+  const colors = { ...defaults, accent: hexColor.test(options.coverAccent ?? '') ? options.coverAccent! : defaults.accent, surface: hexColor.test(options.coverSurface ?? '') ? options.coverSurface! : defaults.surface }
   const cover = options.coverPage === false ? '' : `<header class="cover" style="--cover-accent:${colors.accent};--cover-surface:${colors.surface};--cover-page:${colors.page}">${options.logo ? `<p class="logo">${escapeHtml(options.logo)}</p>` : ''}${options.breadcrumbs === false ? '' : `<p class="crumb">${escapeHtml(model.name)} / Documentation</p>`}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(description(options, 'cover'))}</p><p>${options.author ? `Author: ${escapeHtml(options.author)}` : ''}</p><p>${options.copyright ? `© ${escapeHtml(options.copyright)}` : ''}</p><p>${escapeHtml(options.created ?? new Date().toISOString().slice(0, 10))}</p></header>`
   const selectedTables = model.tables.filter((table) => !options.excludedTables?.includes(table.name))
   const tables = selectedTables.map((table) => htmlTable(table, options)).join('\n')

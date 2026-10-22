@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { dataDomainProfiles, generateData, generatorForDomainProfile, previewData, relatedGenerationTables, type DataGenerationJob } from '../../src/modules/data-generation/index.js'
+import { dataDomainProfiles, generateData, generatorForDomainProfile, generatorSpecForDomainProfile, previewData, relatedGenerationTables, type DataGenerationJob } from '../../src/modules/data-generation/index.js'
 import type { DbDriver, DbTransaction, SqlValue } from '../../src/main/db/DbDriver.js'
 import type { DatabaseModel, TableModel } from '../../src/modules/schema/model.js'
 import { generateValue, inferKind, sampleRegex, seededRandom } from '../../src/modules/data-generation/generators.js'
@@ -38,6 +38,32 @@ function mockDriver(existingRows: Record<string, unknown>[] = []) {
 }
 
 describe('data generation', () => {
+  it('offers more than 300 authored domain profiles and applies bounded configurable batches', async () => {
+    expect(dataDomainProfiles.length).toBeGreaterThanOrEqual(300)
+    expect(new Set(dataDomainProfiles).size).toBe(dataDomainProfiles.length)
+    expect(generatorSpecForDomainProfile('banking-compliance', { name: 'business_sector', type: 'varchar(80)', nullable: false })).toEqual({ kind: 'list', values: ['Banking Compliance'] })
+    expect(generatorSpecForDomainProfile('banking-compliance', { name: 'review_status', type: 'varchar(32)', nullable: false }).values).toContain('pending review')
+    expect(generatorSpecForDomainProfile('banking-inventory', { name: 'review_status', type: 'varchar(32)', nullable: false }).values).toContain('backordered')
+    const { driver, inserts } = mockDriver()
+    await generateData({ driver, connectionId: 'c', database: 'test', schema: { ...schema, tables: [parent] }, tables: ['parents'], rowsPerTable: 5, batchSize: 2 })
+    const insertsOnly = inserts.filter((item) => item.sql.startsWith('INSERT'))
+    expect(insertsOnly).toHaveLength(3)
+    await expect(generateData({ driver, connectionId: 'c', database: 'test', schema, rowsPerTable: 1, batchSize: 0 })).rejects.toThrow('batch size must be between 1 and 10000')
+  })
+
+  it('requires a strong exact confirmation and restores FOREIGN_KEY_CHECKS in finally', async () => {
+    const { driver, inserts } = mockDriver()
+    const serverDriver = Object.assign(driver, { queryRows: async () => [{ enabled: 1 }] })
+    const tables = ['children', 'parents']
+    const phrase = `DISABLE FOREIGN_KEY_CHECKS test.${JSON.stringify([...tables].sort())}`
+    await expect(generateData({ driver: serverDriver, connectionId: 'c', database: 'test', schema, tables, rowsPerTable: 1, disableForeignKeyChecks: true })).rejects.toThrow('exact confirmation phrase')
+    const faulty = { ...schema, tables: [{ ...parent, checks: [{ name: 'ck_block', expression: 'id BETWEEN 10 AND 20' }] }] }
+    await expect(generateData({ driver: serverDriver, connectionId: 'c', database: 'test', schema: faulty, tables: ['parents'], rowsPerTable: 1, disableForeignKeyChecks: true, foreignKeyChecksConfirmation: `DISABLE FOREIGN_KEY_CHECKS test.["parents"]` })).rejects.toThrow('does not satisfy a CHECK')
+    const checkCommands = inserts.filter((item) => item.sql.startsWith('SET SESSION FOREIGN_KEY_CHECKS'))
+    expect(checkCommands.map((item) => item.sql)).toEqual(['SET SESSION FOREIGN_KEY_CHECKS = 0', 'SET SESSION FOREIGN_KEY_CHECKS = 1'])
+    expect(phrase).toContain('children')
+  })
+
   it('reproduces seeded previews, uses pt-BR semantics and samples generated FK values in dependency order', async () => {
     const { driver, inserts } = mockDriver()
     const previewOne = await previewData({ schema, table: parent, count: 4, seed: 'same', locale: 'pt-BR', generators: { name: { kind: 'name' } } })

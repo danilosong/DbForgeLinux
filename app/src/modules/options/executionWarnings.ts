@@ -27,6 +27,62 @@ export function findDangerousStatements(source: string, maximumScriptKb: number)
   return result
 }
 
+/**
+ * Gate for the editor's "destructive statement" confirmation. Comments and literals are blanked
+ * first, so a commented-out filter (`DELETE FROM t -- WHERE id = 5`) or the word "where" inside a
+ * string still counts as a statement without WHERE. The body of a MySQL executable comment
+ * (slash-star-bang) stays code, because the server runs it.
+ */
+export function isDestructiveStatement(sql: string): boolean {
+  return destructiveStatementKind(sql) !== undefined
+}
+
+export type DestructiveStatementKind = 'drop' | 'truncate' | 'delete' | 'update'
+
+export function destructiveStatementKind(sql: string): DestructiveStatementKind | undefined {
+  const code = maskSqlCommentsAndLiterals(sql).replace(/\bON\s+DUPLICATE\s+KEY\s+UPDATE\b/gi, ' ')
+  if (/\bDROP\b/i.test(code)) return 'drop'
+  if (/\bTRUNCATE\b/i.test(code)) return 'truncate'
+  if (!/\bWHERE\b/i.test(code)) {
+    if (/\bDELETE\b/i.test(code)) return 'delete'
+    if (/\bUPDATE\b/i.test(code)) return 'update'
+  }
+  return undefined
+}
+
+export function maskSqlCommentsAndLiterals(source: string): string {
+  const chars = source.split('')
+  const blank = (from: number, to: number): void => { for (let index = from; index < to && index < chars.length; index++) if (chars[index] !== '\n' && chars[index] !== '\r') chars[index] = ' ' }
+  for (let index = 0; index < chars.length; index++) {
+    const char = chars[index]!
+    if (char === "'" || char === '"' || char === '`') {
+      let end = index + 1
+      while (end < chars.length) {
+        if (chars[end] === '\\' && char !== '`') { end += 2; continue }
+        if (chars[end] === char) { if (chars[end + 1] === char) { end += 2; continue } break }
+        end++
+      }
+      blank(index, end + 1); index = end; continue
+    }
+    if (char === '/' && chars[index + 1] === '*') {
+      const close = source.indexOf('*/', index + 2)
+      if (chars[index + 2] === '!') {
+        // Executable comment: drop only its delimiters and keep scanning the body as code.
+        blank(index, index + 3); if (close >= 0) blank(close, close + 2)
+        index += 2; continue
+      }
+      const end = close < 0 ? chars.length : close + 2
+      blank(index, end); index = end - 1; continue
+    }
+    if (char === '#' || (char === '-' && chars[index + 1] === '-' && (index + 2 >= chars.length || /\s/.test(chars[index + 2]!)))) {
+      let end = index
+      while (end < chars.length && chars[end] !== '\n') end++
+      blank(index, end); index = end
+    }
+  }
+  return chars.join('')
+}
+
 function maskSqlLiteralsAndBlocks(source: string): string {
   const chars = source.split('')
   let quote = ''

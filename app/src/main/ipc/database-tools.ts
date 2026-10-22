@@ -10,7 +10,7 @@ import { inspectDatabase } from '../../modules/schema/index.js'
 import type { DatabaseObject } from '../../shared/contracts/sql.js'
 import type { IpcDeps } from './registry.js'
 import { formatSqlFiles, previewSqlFiles } from '../../modules/editor/batchFormatter.js'
-import { executeLargeScript, type ScriptErrorAction, type ScriptEncoding } from '../../modules/database-tools/largeScript.js'
+import { executeLargeScript, largeScriptProductionConfirmation, scanLargeScript, type ScriptErrorAction, type ScriptEncoding } from '../../modules/database-tools/largeScript.js'
 import { buildRestoreCommandLine } from '../../modules/database-tools/restoreCommand.js'
 
 const quote = (identifier: string): string => `\`${identifier.replaceAll('`', '``')}\``
@@ -60,9 +60,15 @@ export function registerDatabaseToolsIpc(deps: IpcDeps): void {
     approvedLargeScripts.add(resolve(path))
     return { path, name: path.split(/[\\/]/).at(-1) ?? path, size: info.size }
   })
-  ipcMain.handle('database-tools:large-run', async (event, connectionId: string, database: string, path: string, encoding: ScriptEncoding, requestId: string) => {
+  ipcMain.handle('database-tools:large-scan', async (_event, database: string, path: string, encoding: ScriptEncoding) => {
+    if (!approvedLargeScripts.has(resolve(path))) throw new Error('Select a script with the native file dialog before execution.')
+    return scanLargeScript({ path, encoding, databaseSelected: Boolean(database) })
+  })
+  ipcMain.handle('database-tools:large-run', async (event, connectionId: string, database: string, path: string, encoding: ScriptEncoding, requestId: string, productionConfirmation?: string) => {
     if (!connectionId || database.length > 128 || database.includes('\0')) throw new Error('Invalid connection or database selection.')
     if (!approvedLargeScripts.has(resolve(path))) throw new Error('Select a script with the native file dialog before execution.')
+    const expected = largeScriptProductionConfirmation(database)
+    if (driver.connectionEnvironment(connectionId) === 'prod' && productionConfirmation !== expected) throw new Error(`Type ${expected} to run this script on a Production connection.`)
     if (runningScripts.has(requestId)) throw new Error('Script execution request already exists.')
     const controller = new AbortController(); runningScripts.set(requestId, controller)
     try {

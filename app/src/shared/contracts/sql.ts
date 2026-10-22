@@ -4,12 +4,19 @@ export interface QueryResult {
   /** Set for disk-backed results; rows are fetched by window from the main process. */
   resultStoreId?: string
   rowCount?: number
+  truncated?: boolean
   executionTimeMs?: number
   fetchTimeMs?: number
   affectedRows: number
   insertId: number
   warningStatus: number
   editable?: import('../../modules/grid-editing/index.js').EditableResult
+}
+
+export interface SqlExecutionOptions {
+  commandTimeoutSeconds?: number
+  profileCommandTimeoutSeconds?: number
+  resultRowLimit?: number
 }
 
 export type DatabaseObjectKind = 'table' | 'view' | 'procedure' | 'function' | 'trigger' | 'event'

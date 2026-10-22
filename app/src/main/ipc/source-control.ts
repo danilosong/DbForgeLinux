@@ -3,6 +3,8 @@ import { access, readFile, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { inspectDatabase } from '../../modules/schema/index.js'
 import { GitRepository, addProjectFile, cloneRepository, createProject, exportSchemaToFolder, linkProject, openProject, projectFileStatuses, readProjectScripts, writeProjectScript } from '../../modules/source-control/index.js'
+import { LegacyReadOnlyRepository, legacyVcsAvailability, type LegacyVcs } from '../../modules/source-control/legacy-readonly.js'
+import { applyReviewedSourceScripts, type ScriptReviewCounts } from '../../modules/source-control/applyScripts.js'
 import type { IpcDeps } from './registry.js'
 
 async function chooseFolder(title: string): Promise<string | null> {
@@ -13,6 +15,11 @@ async function chooseFolder(title: string): Promise<string | null> {
 }
 
 export function registerSourceControlIpc({ driver, userDataDir }: IpcDeps): void {
+  const legacyRepo = (system: LegacyVcs, path: string): LegacyReadOnlyRepository => new LegacyReadOnlyRepository(system, path)
+  ipcMain.handle('source-control:legacy-availability', (_event, system: LegacyVcs) => legacyVcsAvailability(system))
+  ipcMain.handle('source-control:legacy-status', (_event, system: LegacyVcs, path: string) => legacyRepo(system, path).status())
+  ipcMain.handle('source-control:legacy-log', (_event, system: LegacyVcs, path: string, limit?: number) => legacyRepo(system, path).log(limit))
+  ipcMain.handle('source-control:legacy-diff', (_event, system: LegacyVcs, path: string, file?: string) => legacyRepo(system, path).diff(file))
   const recentFile = join(userDataDir, 'source-control-recent.json')
   async function recents(): Promise<string[]> { try { const value: unknown = JSON.parse(await readFile(recentFile, 'utf8')); return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string').slice(0, 10) : [] } catch { return [] } }
   async function remember(root: string): Promise<void> { const next = [root, ...(await recents()).filter((item) => item !== root)].slice(0, 10); await writeFile(recentFile, JSON.stringify(next, null, 2), { mode: 0o600 }) }
@@ -64,11 +71,8 @@ export function registerSourceControlIpc({ driver, userDataDir }: IpcDeps): void
   ipcMain.handle('source-control:close-project', () => undefined)
   ipcMain.handle('source-control:project-files', (_event, root: string) => projectFileStatuses(root))
   ipcMain.handle('source-control:read-scripts', (_event, root: string, files: string[]) => readProjectScripts(root, files))
-  ipcMain.handle('source-control:apply-scripts', async (_event, connectionId: string, database: string, scripts: Array<{ path: string; contents: string }>, confirmed: boolean) => {
-    if (!confirmed) throw new Error('Confirm applying the reviewed scripts to the database.')
-    if (!scripts.length) throw new Error('Select at least one script.')
-    await driver.setDatabase(connectionId, database)
-    for (const script of scripts) await driver.executeSql(connectionId, script.contents)
+  ipcMain.handle('source-control:apply-scripts', async (_event, connectionId: string, database: string, scripts: Array<{ path: string; contents: string }>, confirmation: { confirmed: boolean; typedDatabase?: string; reviewedCounts: ScriptReviewCounts }) => {
+    await applyReviewedSourceScripts({ driver, connectionId, database, scripts, production: driver.connectionEnvironment(connectionId) === 'prod', confirmed: confirmation?.confirmed === true, typedDatabase: confirmation?.typedDatabase, reviewedCounts: confirmation?.reviewedCounts })
   })
   ipcMain.handle('source-control:add-file', async (_event, root: string) => {
     const window = BrowserWindow.getFocusedWindow()

@@ -1,18 +1,17 @@
 /* global process, console, setTimeout, clearTimeout, window, CustomEvent */
-import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { once } from 'node:events'
 import { _electron as electron } from 'playwright'
 
-const appPath = join(process.cwd(), 'dist', 'linux-unpacked', existsSync(join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql')) ? 'tuxsql' : 'electron')
+const appPath = join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql')
 const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-shared-warning-ui-'))
 const evidence = join(process.cwd(), '..', 'document', 'evidence', 'ui')
 let app
 try {
   await mkdir(evidence, { recursive: true })
-  app = await electron.launch({ executablePath: appPath, args: [], env: { ...process.env, HOME: dataRoot, LANGUAGE: 'en', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), TUXSQL_NO_DEV_LINK: '1', ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
+  app = await electron.launch({ executablePath: appPath, args: [join(process.cwd(), 'out', 'main', 'index.js')], cwd: process.cwd(), env: { ...process.env, HOME: dataRoot, LANGUAGE: 'en', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), TUXSQL_NO_DEV_LINK: '1', ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
   const page = await app.firstWindow()
   await page.locator('.workbench').waitFor()
   const setTheme = async (theme) => {
@@ -28,6 +27,7 @@ try {
     await view.evaluate((element) => { element.open = true })
     await view.locator(':scope > .menu-popup > .menu-action').filter({ hasText: /Source Control Manager/ }).click()
     await page.locator('.source-control-panel').waitFor()
+    await page.locator('.sc-legacy-readonly').screenshot({ path: join(evidence, `source-control-legacy-readonly-${theme}.png`) })
     await page.evaluate(() => window.dispatchEvent(new CustomEvent('tuxsql:source-control:link')))
     await page.locator('.sc-wizard').waitFor()
     await page.getByRole('radio', { name: /Shared/ }).check()

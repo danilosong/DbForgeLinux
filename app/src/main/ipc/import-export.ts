@@ -1,5 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, type IpcMainInvokeEvent, type MessageBoxOptions } from 'electron'
 import { createReadStream, createWriteStream } from 'node:fs'
+import { execFile } from 'node:child_process'
 import { chmod, mkdir, readFile, stat, writeFile, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -12,9 +13,13 @@ import { encodeZipArchive } from '../../modules/archive/index.js'
 import { deleteExportFilesAfterConfirmation, planExportRetention } from '../../modules/data-export-import/exportRetention.js'
 import { buildCreateTableSql, type InferredColumn } from '../../modules/data-export-import/inference.js'
 import { createTuxSqlBrowserWindow } from '../windowOptions.js'
+import { promisify } from 'node:util'
+import { Readable } from 'node:stream'
+
+const execFileAsync = promisify(execFile)
 
 interface ActiveJob { controller: AbortController; senderId: number }
-interface SelectedSource { file: string; senderId: number }
+interface SelectedSource { file: string; senderId: number; accessTables?: string[]; accessTable?: string }
 const activeJobs = new Map<string, ActiveJob>()
 const selectedSources = new Map<string, SelectedSource>()
 const allowedEncodings = ['utf8', 'utf16le', 'latin1'] as const
@@ -31,6 +36,7 @@ function startJob(event: IpcMainInvokeEvent, jobId: string): AbortController {
 }
 
 function assertOptions(options?: ImportExportOptions): void {
+  if (options?.accessTable !== undefined && (typeof options.accessTable !== 'string' || options.accessTable.length > 255)) throw new Error('Access table selection is invalid.')
   if (options?.compress !== undefined && typeof options.compress !== 'boolean') throw new Error('Compression option is invalid.')
   if (options?.encoding && !allowedEncodings.includes(options.encoding)) throw new Error('Encoding is not supported.')
   if (options?.columnMapping && Object.values(options.columnMapping).some((column) => typeof column !== 'string')) throw new Error('Column mapping is invalid.')
@@ -44,10 +50,35 @@ function assertOptions(options?: ImportExportOptions): void {
   if (options?.skipLines !== undefined && (!Number.isInteger(options.skipLines) || options.skipLines < 0 || options.skipLines > 100_000)) throw new Error('Skipped-line count is invalid.')
   if (options?.headerPosition !== undefined && (!Number.isInteger(options.headerPosition) || options.headerPosition < 1 || options.headerPosition > 100_000)) throw new Error('Header position is invalid.')
   for (const value of [options?.nullString, options?.booleanTrueValue, options?.booleanFalseValue]) if (value !== undefined && (typeof value !== 'string' || value.length > 256)) throw new Error('Import value is invalid.')
+  if (options?.confirmedDatabase !== undefined && (typeof options.confirmedDatabase !== 'string' || options.confirmedDatabase.length > 255)) throw new Error('Production confirmation is invalid.')
   if (options?.createTable) {
     const schema = options.createTable
     if (typeof schema.database !== 'string' || typeof schema.name !== 'string' || !Array.isArray(schema.columns) || schema.columns.length > 1000) throw new Error('Table definition is invalid.')
     buildCreateTableSql(schema.database, schema.name, schema.columns as InferredColumn[])
+  }
+}
+
+async function accessTables(file: string): Promise<string[]> {
+  try {
+    const { stdout } = await execFileAsync('mdb-tables', ['-1', '--', file], { timeout: 10_000, maxBuffer: 1024 * 1024, encoding: 'utf8', shell: false })
+    const tables = stdout.split(/\r?\n/).map((table) => table.trim()).filter(Boolean)
+    if (!tables.length || tables.length > 500) throw new Error('The Access file has no tables or exceeds the 500-table safety limit.')
+    return tables
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new Error('Access import requires mdbtools. Install it with: sudo apt install mdbtools', { cause: error })
+    throw error
+  }
+}
+
+async function exportAccessTable(file: string, table: string): Promise<Buffer> {
+  try {
+    const { stdout } = await execFileAsync('mdb-export', ['--', file, table], { timeout: 60_000, maxBuffer: 100 * 1024 * 1024, encoding: 'buffer', shell: false })
+    const data = Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout)
+    if (data.byteLength > 100 * 1024 * 1024) throw new Error('Access table export exceeds the 100 MB safety limit.')
+    return data
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new Error('Access import requires mdbtools. Install it with: sudo apt install mdbtools', { cause: error })
+    throw error
   }
 }
 
@@ -108,12 +139,16 @@ function safeTemplate(value: Omit<ImportExportTemplate, 'id'> & { id?: string })
 }
 
 export function registerImportExportIpc({ driver }: IpcDeps): void {
+  ipcMain.handle('import-export:legacy-capabilities', async () => {
+    try { await execFileAsync('mdb-tables', [], { timeout: 3000, maxBuffer: 1024, encoding: 'utf8', shell: false }); return { accessRead: true } }
+    catch (error) { return { accessRead: (error as NodeJS.ErrnoException).code !== 'ENOENT' } }
+  })
   ipcMain.handle('import-export:export', async (event, connectionId: string, query: string, format: ExportFormat, options?: ImportExportOptions, jobId = randomUUID()) => {
     if (!connectionId || !query.trim()) throw new Error('Enter a source query to export.')
     assertOptions(options)
     const statement = query.trim().replace(/;+\s*$/, '')
     if (!/^\s*(SELECT|WITH)\b/i.test(statement) || statement.includes(';')) throw new Error('Exports accept one SELECT query only.')
-    const extensions: Record<ExportFormat, string> = { csv: 'csv', text: 'txt', json: 'json', xml: 'xml', sql: 'sql', html: 'html', xlsx: 'xlsx', pdf: 'pdf' }
+    const extensions: Record<ExportFormat, string> = { csv: 'csv', text: 'txt', json: 'json', xml: 'xml', sql: 'sql', html: 'html', xlsx: 'xlsx', pdf: 'pdf', dbf: 'dbf' }
     const baseName = (options?.fileName || 'export').replace(/[\\/\\0]/g, '_').slice(0, 120)
     const stamp = options?.appendTimestamp ? `_${new Date().toISOString().replace(/[:.]/g, '-')}` : ''
     const outputExtension = options?.compress ? 'zip' : extensions[format]
@@ -164,18 +199,29 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
   ipcMain.handle('import-export:select-source', async (event, jobId: string, format: ImportFormat, options?: ImportExportOptions) => {
     if (!jobId) throw new Error('Task identifier is missing.')
     assertOptions(options)
-    const extensions: Record<ImportFormat, string[]> = { csv: ['csv', 'tsv'], text: ['txt', 'tsv'], json: ['json'], xml: ['xml'], xlsx: ['xlsx'], sql: ['sql'] }
+    const extensions: Record<ImportFormat, string[]> = { csv: ['csv', 'tsv'], text: ['txt', 'tsv'], json: ['json'], xml: ['xml'], xlsx: ['xlsx'], sql: ['sql'], dbf: ['dbf'], access: ['mdb', 'accdb'] }
     const selected = await dialog.showOpenDialog({ title: 'Data Import from', properties: ['openFile'], filters: [{ name: format.toUpperCase(), extensions: extensions[format] }] })
     if (selected.canceled || !selected.filePaths[0]) return null
     const file = selected.filePaths[0]
     const details = await stat(file)
     if (!details.size) throw new Error('The selected file is empty.')
     if (details.size > 100 * 1024 * 1024) throw new Error('The import file exceeds the 100 MB limit.')
-    selectedSources.set(jobId, { file, senderId: event.sender.id })
+    const tables = format === 'access' ? await accessTables(file) : undefined
+    const selectedAccessTable = tables?.[0]
+    selectedSources.set(jobId, { file, senderId: event.sender.id, accessTables: tables, accessTable: selectedAccessTable })
     const detectedDelimiter = options?.autoDelimiter && (format === 'csv' || format === 'text') ? await detectDelimiter(file, options.quote) : undefined
     const effectiveOptions = { ...options, ...(detectedDelimiter ? { delimiter: detectedDelimiter } : {}), previewRows: 20 }
-    const preview = await previewImport({ driver, connectionId: '', table: '', format, source: createReadStream(file), options: effectiveOptions, onProgress: (value) => progress(event, jobId, value) }, 20)
-    return { name: file.split(/[\\/]/).pop() ?? file, size: details.size, modified: details.mtimeMs, preview, ...(detectedDelimiter ? { detectedDelimiter } : {}) }
+    const source = format === 'access' ? Readable.from([await exportAccessTable(file, selectedAccessTable!)]) : createReadStream(file)
+    const preview = await previewImport({ driver, connectionId: '', table: '', format: format === 'access' ? 'csv' : format, source, options: effectiveOptions, onProgress: (value) => progress(event, jobId, value) }, 20)
+    return { name: file.split(/[\\/]/).pop() ?? file, size: details.size, modified: details.mtimeMs, preview, ...(detectedDelimiter ? { detectedDelimiter } : {}), ...(tables ? { accessTables: tables, selectedAccessTable } : {}) }
+  })
+
+  ipcMain.handle('import-export:preview-access-table', async (event, jobId: string, table: string) => {
+    const selected = selectedSources.get(jobId)
+    if (!selected || selected.senderId !== event.sender.id || !selected.accessTables?.includes(table)) throw new Error('Select a table from the chosen Access file.')
+    selected.accessTable = table
+    const preview = await previewImport({ driver, connectionId: '', table: '', format: 'csv', source: Readable.from([await exportAccessTable(selected.file, table)]) }, 20)
+    return preview
   })
 
   ipcMain.handle('import-export:preview-export', async (event, connectionId: string, query: string, jobId: string): Promise<ImportPreview> => {
@@ -194,12 +240,19 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
     if (['update', 'delete', 'upsert'].includes(mode) && !keyColumns.length) throw new Error('This mode requires at least one key column.')
     if (!jobId) throw new Error('Select the source file before importing.')
     assertOptions(options)
+    if (mode === 'delete' || mode === 'repopulate') {
+      const targetDatabase = table.includes('.') ? table.slice(0, table.indexOf('.')).replaceAll('`', '') : ''
+      if (driver.connectionEnvironment(connectionId) === 'prod' && (!targetDatabase || options?.confirmedDatabase !== targetDatabase)) {
+        throw new Error(`Production import requires typing the target database name: ${targetDatabase ?? 'unavailable'}.`)
+      }
+    }
     const selected = selectedSources.get(jobId)
     if (!selected || selected.senderId !== event.sender.id) throw new Error('The selected source file expired. Select it again.')
     const controller = startJob(event, jobId)
     selectedSources.delete(jobId)
     try {
-      return await importData({ driver, connectionId, table, format, source: createReadStream(selected.file), signal: controller.signal, onProgress: (value) => progress(event, jobId, value), options: { ...options, mode, keyColumns, onRowErrorPrompt: options?.onRowError === 'prompt' ? (row, message) => askOnImportRowError(event, row, message) : undefined, transactional: true } })
+      const source = format === 'access' ? Readable.from([await exportAccessTable(selected.file, selected.accessTable ?? '')]) : createReadStream(selected.file)
+      return await importData({ driver, connectionId, table, format: format === 'access' ? 'csv' : format, source, signal: controller.signal, onProgress: (value) => progress(event, jobId, value), options: { ...options, mode, keyColumns, onRowErrorPrompt: options?.onRowError === 'prompt' ? (row, message) => askOnImportRowError(event, row, message) : undefined, transactional: true } })
     } finally { activeJobs.delete(jobId) }
   })
 
@@ -216,7 +269,8 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
     let rows = 0
     try {
       if (options?.createTable) destination.write(buildCreateTableSql(options.createTable.database, options.createTable.name, options.createTable.columns as InferredColumn[]))
-      for await (const line of generateImportSql({ driver, connectionId: '', table, format, source: createReadStream(selected.file), signal: controller.signal, options: { ...options, mode, keyColumns, onRowErrorPrompt: options?.onRowError === 'prompt' ? (row, message) => askOnImportRowError(event, row, message) : undefined }, onProgress: (value) => { rows = value.rows; progress(event, jobId, value) } })) {
+      const source = format === 'access' ? Readable.from([await exportAccessTable(selected.file, selected.accessTable ?? '')]) : createReadStream(selected.file)
+      for await (const line of generateImportSql({ driver, connectionId: '', table, format: format === 'access' ? 'csv' : format, source, signal: controller.signal, options: { ...options, mode, keyColumns, onRowErrorPrompt: options?.onRowError === 'prompt' ? (row, message) => askOnImportRowError(event, row, message) : undefined }, onProgress: (value) => { rows = value.rows; progress(event, jobId, value) } })) {
         if (!destination.write(line)) await once(destination, 'drain')
       }
       destination.end(); await once(destination, 'finish'); await chmod(dialogResult.filePath, 0o600)

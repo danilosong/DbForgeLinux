@@ -63,7 +63,22 @@ export default function Panel(): React.JSX.Element {
   async function runBatchFormat(): Promise<void> { if (!formatPaths.length) return; if (!window.confirm(t('utilities.formatConfirm', [formatPaths.length]))) return; setBusy(true); try { const results = await window.tuxsql.formatSqlFiles(formatPaths, formatBackup, formatRecursive, formatOptions); const changed = results.filter((item) => item.changed).length; setMessage(`Formatted ${changed} of ${results.length} SQL files.${results.some((item) => item.backupPath) ? ' Backups were written as .bak.' : ''}`) } catch (error) { setMessage(errorText(error)) } finally { setBusy(false) } }
   async function previewBatchFormat(): Promise<void> { if (!formatPaths.length) return; setBusy(true); try { setFormatPreview(await window.tuxsql.previewSqlFiles(formatPaths, formatRecursive, formatOptions)) } catch (error) { setMessage(errorText(error)) } finally { setBusy(false) } }
   async function chooseLargeScript(): Promise<void> { try { setScript(await window.tuxsql.selectLargeScript()); setScriptProgress({ statements: 0, errors: 0, skipped: 0, bytesRead: 0 }) } catch (error) { setMessage(errorText(error)) } }
-  async function runLargeScript(): Promise<void> { if (!script || !record) return; const requestId = crypto.randomUUID(); setScriptRequest(requestId); setBusy(true); setMessage('Executing script…'); try { const result = await withConnection((id) => window.tuxsql.executeLargeScript(id, database, script.path, scriptEncoding, requestId)); setScriptProgress((current) => ({ ...current, statements: result.statements, errors: result.failures.length, skipped: result.skipped })); setMessage(`${t('utilities.complete', [result.statements, result.failures.length, result.skipped])}${result.stopped ? t('utilities.stopped') : ''}`) } catch (error) { setMessage(errorText(error)) } finally { setBusy(false) } }
+  async function confirmLargeScript(scriptPath: string): Promise<{ proceed: boolean; productionConfirmation?: string }> {
+    setMessage(t('largeScript.scanning'))
+    const scan = await window.tuxsql.scanLargeScript(database, scriptPath, scriptEncoding)
+    const { risks } = scan
+    const summary = t('largeScript.summary', [scan.statements, risks.drop, risks.truncate, risks['delete-without-where'], risks['update-without-where'], risks.privileges, risks['server-settings']])
+    const riskyCount = Object.values(risks).reduce((sum, value) => sum + value, 0)
+    const details = riskyCount ? scan.samples.map((item) => `#${item.statement} ${item.kind}: ${item.sql.replace(/\s+/g, ' ')}`).join('\n') : t('largeScript.noRisks')
+    setMessage(summary)
+    if (record?.environment === 'prod') {
+      const expected = database || 'PRODUCTION'
+      const typed = window.prompt(`${summary}\n\n${details}\n\n${t('largeScript.prodConfirm', [expected])}`)
+      return { proceed: typed === expected, productionConfirmation: typed ?? undefined }
+    }
+    return { proceed: !riskyCount || window.confirm(`${summary}\n\n${details}\n\n${t('largeScript.confirmRisky')}`) }
+  }
+  async function runLargeScript(): Promise<void> { if (!script || !record) return; const requestId = crypto.randomUUID(); setScriptRequest(requestId); setBusy(true); try { const check = await confirmLargeScript(script.path); if (!check.proceed) return; setMessage('Executing script…'); const result = await withConnection((id) => window.tuxsql.executeLargeScript(id, database, script.path, scriptEncoding, requestId, check.productionConfirmation)); setScriptProgress((current) => ({ ...current, statements: result.statements, errors: result.failures.length, skipped: result.skipped })); setMessage(`${t('utilities.complete', [result.statements, result.failures.length, result.skipped])}${result.stopped ? t('utilities.stopped') : ''}`) } catch (error) { setMessage(errorText(error)) } finally { setBusy(false) } }
 
   return <section className="tool-panel database-tools-panel" aria-label={t('panel.database.tools.m003120253d')}>
     <h2>{t('panel.database.tools.m003120253d')}</h2>
