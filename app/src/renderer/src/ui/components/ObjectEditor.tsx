@@ -51,15 +51,15 @@ export function ObjectEditor({ target, isNew, isProduction, autoCommit = true, t
       const definition = object.createSql ?? ('definition' in object ? String(object.definition) : '')
       setSql(definition)
       if (object.kind !== 'table') void objectDefinitionFingerprint(definition).then(setLoadedFingerprint)
-    }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Não foi possível carregar a definição do objeto.')).finally(() => { if (!cancelled) setLoading(false) })
+    }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : t('ui.objectEditor.loadFailed'))).finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [target, isNew])
+  }, [target, isNew, t])
 
   const preview = useMemo(() => {
     if (target.kind !== 'table' || !table) return sql
     try { return buildTableDdlPreview(table, existing ? original : null, target.database) }
-    catch (reason) { return reason instanceof Error ? reason.message : 'DDL indisponível.' }
-  }, [target.kind, target.database, table, original, existing, sql])
+    catch (reason) { return reason instanceof Error ? reason.message : t('ui.objectEditor.ddlUnavailable') }
+  }, [target.kind, target.database, table, original, existing, sql, t])
 
   async function refreshObject(): Promise<void> {
     if (isNew) { setTable(blankTable(target.name)); return }
@@ -107,20 +107,20 @@ export function ObjectEditor({ target, isNew, isProduction, autoCommit = true, t
     if (target.kind === 'table' && table) {
       const ddl = String(preview)
       if (!window.confirm(`${existing ? 'Apply Changes' : 'Create Table'}\n\n${ddl}`)) return
-      if (isProduction && window.prompt(`Conexão de produção. Digite ${target.name} para confirmar.`) !== target.name) return
+      if (isProduction && window.prompt(t('ui.objectEditor.productionConfirm', [target.name])) !== target.name) return
       setBusy(true)
       try {
         const applied = await window.tuxsql.applyTableEditor(target.connectionId, target.database, original, table)
-        setOriginal(structuredClone(table)); setCreated(true); setMessage(applied.length ? `Tabela ${table.name} atualizada.` : 'Sem alterações pendentes.'); onApplied()
-      } catch (reason) { setError(reason instanceof Error ? reason.message : 'Falha ao aplicar alterações.') }
+        setOriginal(structuredClone(table)); setCreated(true); setMessage(applied.length ? t('ui.objectEditor.tableUpdated', [table.name]) : t('ui.objectEditor.noPendingChanges')); onApplied()
+      } catch (reason) { setError(reason instanceof Error ? reason.message : t('ui.objectEditor.applyFailed')) }
       finally { setBusy(false) }
       return
     }
     if (!window.confirm(`Apply ${target.kind} ${target.name}?\n\n${preview}`)) return
-    if (isProduction && window.prompt(`Conexão de produção. Digite ${target.name} para confirmar.`) !== target.name) return
+    if (isProduction && window.prompt(t('ui.objectEditor.productionConfirm', [target.name])) !== target.name) return
     setBusy(true)
     try { await window.tuxsql.applyObjectEditor(target, sql); setCreated(true); setMessage(`${target.kind} ${target.name} atualizado.`); onApplied() }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'Falha ao aplicar a definição.') }
+    catch (reason) { setError(reason instanceof Error ? reason.message : t('ui.objectEditor.applyDefinitionFailed')) }
     finally { setBusy(false) }
   }
 
@@ -132,13 +132,13 @@ export function ObjectEditor({ target, isNew, isProduction, autoCommit = true, t
 
   async function execute(): Promise<void> {
     if (target.kind !== 'procedure' && target.kind !== 'function') return
-    const parameters = window.prompt('Parâmetros SQL (separados por vírgula):', '')
+    const parameters = window.prompt(t('ui.objectEditor.sqlParameters'), '')
     if (parameters === null) return
     const query = target.kind === 'procedure' ? `CALL ${quoteIdentifier(target.database)}.${quoteIdentifier(target.name)}(${parameters})` : `SELECT ${quoteIdentifier(target.database)}.${quoteIdentifier(target.name)}(${parameters}) AS result`
     if (!window.confirm(`Execute ${target.kind} ${target.name}?\n\n${query}`)) return
     setBusy(true)
     try { const result = await window.tuxsql.executeSql(target.connectionId, query); setMessage(JSON.stringify(result.map((item) => item.rows.length ? item.rows : { affectedRows: item.affectedRows }), null, 2)) }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'Falha na execução.') }
+    catch (reason) { setError(reason instanceof Error ? reason.message : t('ui.objectEditor.executionFailed')) }
     finally { setBusy(false) }
   }
 

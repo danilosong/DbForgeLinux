@@ -31,7 +31,7 @@ export async function executeLargeScript(options: {
   const append = (text: string): void => {
     const size = Buffer.byteLength(text, 'utf8')
     if (statementBytes + size > maxStatementBytes) {
-      throw new Error(`Statement maior que o limite configurado (${maxStatementBytes} bytes) no arquivo "${options.path}", linha ${line}, coluna ${column}.`)
+      throw new Error(`Statement exceeds the configured limit (${maxStatementBytes} bytes) in file "${options.path}", line ${line}, column ${column}.`)
     }
     statement += text
     statementBytes += size

@@ -44,10 +44,10 @@ export async function listSessions(client: SqlClient, filters: SessionFilters = 
 }
 
 export async function getSessionDetails(client: SqlClient, id: number): Promise<SessionDetails> {
-  if (!Number.isSafeInteger(id) || id < 1) throw new Error('ID de sessão inválido.')
+  if (!Number.isSafeInteger(id) || id < 1) throw new Error('Session ID is invalid.')
   const sessions = await listSessions(client)
   const session = sessions.find((item) => item.id === id)
-  if (!session) throw new Error(`Sessão ${id} não encontrada.`)
+  if (!session) throw new Error(`Session ${id} was not found.`)
   try {
     const locks = await client.query('SELECT * FROM sys.innodb_lock_waits WHERE waiting_pid = ? OR blocking_pid = ?', [id, id])
     return { session, locks, locksAvailable: true }
@@ -60,16 +60,16 @@ export async function getSessionDetails(client: SqlClient, id: number): Promise<
 }
 
 export async function killSessions(client: SqlClient, ids: readonly number[], mode: KillMode, options: { confirm: true; currentId?: number }): Promise<Array<{ id: number; success: boolean; error?: string }>> {
-  if (options.confirm !== true) throw new Error('Encerrar sessões exige confirmação explícita.')
+  if (options.confirm !== true) throw new Error('Ending sessions requires explicit confirmation.')
   const currentId = options.currentId ?? numberValue((await client.query('SELECT CONNECTION_ID() AS id'))[0]?.id, -1)
-  if (currentId < 1) throw new Error('Não foi possível identificar a sessão atual; operação cancelada por segurança.')
+  if (currentId < 1) throw new Error('The current session could not be identified; the operation was cancelled for safety.')
   const visible = await listSessions(client)
   const systemIds = new Set(visible.filter((item) => item.system).map((item) => item.id))
   const unique = [...new Set(ids)]
   return Promise.all(unique.map(async (id) => {
-    if (!Number.isSafeInteger(id) || id < 1) return { id, success: false, error: 'ID inválido.' }
-    if (id === currentId) return { id, success: false, error: 'Não é permitido encerrar a própria sessão.' }
-    if (systemIds.has(id)) return { id, success: false, error: 'Não é permitido encerrar uma thread do sistema.' }
+    if (!Number.isSafeInteger(id) || id < 1) return { id, success: false, error: 'ID is invalid.' }
+    if (id === currentId) return { id, success: false, error: 'You cannot end your own session.' }
+    if (systemIds.has(id)) return { id, success: false, error: 'System threads cannot be ended.' }
     try { await client.execute(`KILL ${mode === 'query' ? 'QUERY ' : ''}${id}`); return { id, success: true } }
     catch (error) { return { id, success: false, error: error instanceof Error ? error.message : String(error) } }
   }))
@@ -92,10 +92,10 @@ export async function getServerStatus(client: SqlClient, scope: 'GLOBAL' | 'SESS
 }
 
 export async function setServerVariable(client: SqlClient, name: string, value: string | number | boolean, scope: 'GLOBAL' | 'SESSION', options: { confirm: true; dynamic: boolean; persist?: boolean; type?: VariableInfo['type']; enumValues?: string[]; min?: number; max?: number }): Promise<void> {
-  if (options.confirm !== true) throw new Error(`${scope === 'GLOBAL' ? 'SET GLOBAL' : 'SET SESSION'} exige confirmação explícita.`)
-  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) throw new Error('Nome de variável inválido.')
-  if (!options.dynamic || staticVariables.has(name.toLowerCase())) throw new Error(`A variável ${name} é estática e requer reinício.`)
-  if (options.persist && scope !== 'GLOBAL') throw new Error('SET PERSIST só aceita variáveis globais.')
+  if (options.confirm !== true) throw new Error(`${scope === 'GLOBAL' ? 'SET GLOBAL' : 'SET SESSION'} requires explicit confirmation.`)
+  if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) throw new Error('Variable name is invalid.')
+  if (!options.dynamic || staticVariables.has(name.toLowerCase())) throw new Error(`Variable ${name} is static and requires a restart.`)
+  if (options.persist && scope !== 'GLOBAL') throw new Error('SET PERSIST only accepts global variables.')
   validateVariableValue(value, options)
   const sqlValue = encodeVariableValue(value, options.type)
   const command = options.persist ? 'SET PERSIST' : `SET ${scope}`
@@ -128,7 +128,7 @@ function categoryFor(name: string): string { return name.split('_')[0].toLowerCa
 function encodeVariableValue(value: string | number | boolean, type?: VariableInfo['type']): string {
   if (typeof value === 'boolean') return value ? 'ON' : 'OFF'
   if (typeof value === 'number') {
-    if (!Number.isFinite(value)) throw new Error('Valor numérico inválido.')
+    if (!Number.isFinite(value)) throw new Error('Numeric value is invalid.')
     return String(value)
   }
   if (type === 'string' || type === 'enum') return quoteString(value)
@@ -137,12 +137,12 @@ function encodeVariableValue(value: string | number | boolean, type?: VariableIn
 }
 
 function validateVariableValue(value: string | number | boolean, options: { type?: VariableInfo['type']; enumValues?: string[]; min?: number; max?: number }): void {
-  if (options.type === 'boolean' && !(typeof value === 'boolean' || typeof value === 'string' && boolValues.has(value.toUpperCase()))) throw new Error('A variável exige um valor booleano (ON/OFF).')
+  if (options.type === 'boolean' && !(typeof value === 'boolean' || typeof value === 'string' && boolValues.has(value.toUpperCase()))) throw new Error('The variable requires a boolean value (ON/OFF).')
   if (options.type === 'number') {
     const numeric = Number(value)
-    if (!Number.isFinite(numeric) || (options.min !== undefined && numeric < options.min) || (options.max !== undefined && numeric > options.max)) throw new Error('Valor numérico fora do intervalo permitido.')
+    if (!Number.isFinite(numeric) || (options.min !== undefined && numeric < options.min) || (options.max !== undefined && numeric > options.max)) throw new Error('Numeric value is outside the allowed range.')
   }
-  if (options.type === 'enum' && (!options.enumValues || !options.enumValues.some((item) => item.toLowerCase() === String(value).toLowerCase()))) throw new Error('Valor não pertence às opções da variável.')
+  if (options.type === 'enum' && (!options.enumValues || !options.enumValues.some((item) => item.toLowerCase() === String(value).toLowerCase()))) throw new Error('Value is not one of the variable options.')
 }
 
 export { quoteString }

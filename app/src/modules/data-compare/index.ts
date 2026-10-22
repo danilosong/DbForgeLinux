@@ -5,7 +5,7 @@ import type { DataCompareDifference, DataCompareEndpoint, DataCompareJob, DataCo
 export type { DataCompareDifference, DataCompareEndpoint, DataCompareJob, DataCompareOptions, DataCompareReport, SyncStatement } from './types.js'
 
 function quoteId(value: string): string {
-  if (!value || value.includes('\0')) throw new Error('Identificador inválido.')
+  if (!value || value.includes('\0')) throw new Error('Invalid identifier.')
   return `\`${value.replace(/`/g, '``')}\``
 }
 function tableName(endpoint: DataCompareEndpoint): string { return `${quoteId(endpoint.database)}.${quoteId(endpoint.table)}` }
@@ -71,9 +71,9 @@ function makeDelete(job: DataCompareJob, row: Record<string, unknown>, keys: str
 
 /** Merge-compares two ordered streams. Row data is emitted one difference at a time. */
 export async function compareData(job: DataCompareJob): Promise<DataCompareReport> {
-  if (!job.keyColumns.length) throw new Error('Data Compare exige pelo menos uma coluna-chave.')
-  if (job.keyColumns.some((key) => key.includes('\0'))) throw new Error('Coluna-chave inválida.')
-  if (job.script && !job.onStatement) throw new Error('Para gerar um script parametrizado, informe onStatement para receber os valores bind.')
+  if (!job.keyColumns.length) throw new Error('Data Compare requires at least one key column.')
+  if (job.keyColumns.some((key) => key.includes('\0'))) throw new Error('The key column is invalid.')
+  if (job.script && !job.onStatement) throw new Error('Provide onStatement to receive bound values when generating a parameterized script.')
   const excluded = job.options?.ignoreLob || job.options?.ignoreComputedColumns || job.options?.includeColumns || job.options?.excludeColumns ? await findExcludedColumns(job.source, job.options) : new Set<string>()
   const requestedColumns = job.columns?.length ? job.columns : undefined
   const columns = [...new Set([...(requestedColumns ?? []), ...job.keyColumns])].filter((column) => !excluded.has(column) || job.keyColumns.includes(column))
@@ -92,7 +92,7 @@ export async function compareData(job: DataCompareJob): Promise<DataCompareRepor
   const readOrdered = async (iterator: AsyncIterator<Record<string, unknown>>, side: 'source' | 'target'): Promise<Record<string, unknown> | undefined> => {
     const row = await next(iterator)
     const previous = side === 'source' ? previousSource : previousTarget
-    if (row && previous && compareKeys(previous, row, job.keyColumns) >= 0) throw new Error(`As colunas-chave devem ser únicas e estar ordenadas na origem ${side}.`)
+    if (row && previous && compareKeys(previous, row, job.keyColumns) >= 0) throw new Error(`Key columns must be unique and sorted in the ${side} source.`)
     if (side === 'source') previousSource = row
     else previousTarget = row
     return row
@@ -105,7 +105,7 @@ export async function compareData(job: DataCompareJob): Promise<DataCompareRepor
   }
   try {
     while (source || target) {
-      if (job.signal?.aborted) throw new DOMException('Comparação cancelada.', 'AbortError')
+      if (job.signal?.aborted) throw new DOMException('Comparison was canceled.', 'AbortError')
       if (!source) {
         report.targetOnly++; report.compared++
         await emit({ kind: 'target-only', key: keyObject(target!, job.keyColumns), target }, job.allowDeletes ? makeDelete(job, target!, job.keyColumns) : undefined)

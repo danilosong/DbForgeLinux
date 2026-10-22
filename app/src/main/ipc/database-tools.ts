@@ -15,7 +15,7 @@ import { buildRestoreCommandLine } from '../../modules/database-tools/restoreCom
 
 const quote = (identifier: string): string => `\`${identifier.replaceAll('`', '``')}\``
 const SAFE_BACKUP_NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,100}(?:\.sql|\.zip)?$/i
-function assertTarget(connectionId: string, database: string): void { if (!connectionId || !database.trim()) throw new Error('Selecione uma conexão e um database.') }
+function assertTarget(connectionId: string, database: string): void { if (!connectionId || !database.trim()) throw new Error('Select a connection and database.') }
 
 export function registerDatabaseToolsIpc(deps: IpcDeps): void {
   const { driver, userDataDir } = deps

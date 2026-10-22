@@ -32,7 +32,7 @@ app.whenReady().then(async () => {
 `
 
 export async function printDocumentationPdfHeadless(html: string): Promise<Buffer> {
-  if (typeof html !== 'string' || html.length > 100 * 1024 * 1024) throw new Error('O documento HTML excede o limite seguro para impressão em PDF.')
+  if (typeof html !== 'string' || html.length > 100 * 1024 * 1024) throw new Error('The HTML document exceeds the safe PDF printing size limit.')
   let chromeExecutable: string | undefined
   for (const candidate of chromeCandidates) {
     try { await access(candidate); chromeExecutable = candidate; break } catch { /* Tenta o próximo Chromium instalado. */ }
@@ -44,7 +44,7 @@ export async function printDocumentationPdfHeadless(html: string): Promise<Buffe
       if (typeof packagedPath === 'string') electronExecutable = packagedPath
     } catch { /* Electron pode não estar instalado no ambiente da CLI. */ }
   }
-  if (!chromeExecutable && !electronExecutable) throw new Error('Instale Chromium/Chrome ou Electron para gerar PDF pela CLI (ou defina TUXSQL_CHROME_PATH).')
+  if (!chromeExecutable && !electronExecutable) throw new Error('Install Chromium/Chrome or Electron to generate a CLI PDF (or set TUXSQL_CHROME_PATH).')
   const tempDirectory = await mkdtemp(resolve(tmpdir(), 'tuxsql-documenter-pdf-'))
   const htmlPath = resolve(tempDirectory, 'document.html')
   const pdfPath = resolve(tempDirectory, 'document.pdf')
@@ -59,17 +59,17 @@ export async function printDocumentationPdfHeadless(html: string): Promise<Buffe
         : ['--headless', '--no-sandbox', '--disable-gpu', helperPath, htmlPath, pdfPath]
       const child = spawn(executable, args, { stdio: ['ignore', 'ignore', 'pipe'], windowsHide: true })
       let errorOutput = ''
-      const timeout = setTimeout(() => { child.kill('SIGKILL'); reject(new Error('A renderização do PDF excedeu 120 segundos.')) }, 120_000)
+      const timeout = setTimeout(() => { child.kill('SIGKILL'); reject(new Error('PDF rendering exceeded 120 seconds.')) }, 120_000)
       child.stderr.setEncoding('utf8').on('data', (chunk: string) => { errorOutput = (errorOutput + chunk).slice(-8000) })
       child.once('error', (error) => { clearTimeout(timeout); reject(error) })
       child.once('exit', (code, signal) => {
         clearTimeout(timeout)
         if (code === 0) resolvePromise()
-        else reject(new Error(`Renderização PDF falhou (exit ${code ?? signal ?? 'unknown'}): ${errorOutput.trim()}`))
+        else reject(new Error(`PDF rendering failed (exit ${code ?? signal ?? 'unknown'}): ${errorOutput.trim()}`))
       })
     })
     const pdf = await readFile(pdfPath)
-    if (pdf.length < 8 || pdf.subarray(0, 5).toString('ascii') !== '%PDF-') throw new Error('O renderizador headless não retornou um arquivo PDF válido.')
+    if (pdf.length < 8 || pdf.subarray(0, 5).toString('ascii') !== '%PDF-') throw new Error('The headless renderer did not return a valid PDF file.')
     return pdf
   } finally { await rm(tempDirectory, { recursive: true, force: true }) }
 }

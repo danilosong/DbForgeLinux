@@ -47,7 +47,7 @@ describe('data compare', () => {
   })
 
   it('exige chave e não coleta resultados antes da comparação', async () => {
-    await expect(compareData({ source: endpoint([]), target: endpoint([]), keyColumns: [] })).rejects.toThrow('coluna-chave')
+    await expect(compareData({ source: endpoint([]), target: endpoint([]), keyColumns: [] })).rejects.toThrow('Data Compare requires at least one key column.')
   })
 
   it('ordena chaves textuais com collation binária nos dois servidores', async () => {

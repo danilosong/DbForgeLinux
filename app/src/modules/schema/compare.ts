@@ -29,7 +29,7 @@ export function compareSchemas(source: DatabaseModel, target: DatabaseModel, opt
   for (const table of target.tables) {
     const old = sourceTables.get(table.name)
     if (!old) {
-      differences.push({ kind: 'table', object: table.name, change: 'added', detail: 'Tabela adicionada' })
+      differences.push({ kind: 'table', object: table.name, change: 'added', detail: 'Table added' })
       script.push(createTable({ ...table, foreignKeys: [] }, source.name))
     } else {
       const tableChanges = tableDiffs(old, table, source.name, target.name)
@@ -54,20 +54,20 @@ export function compareSchemas(source: DatabaseModel, target: DatabaseModel, opt
   for (const object of targetOther) {
     const old = sourceOther.find((candidate) => candidate.kind === object.kind && candidate.name === object.name)
     if (!old) {
-      differences.push({ kind: object.kind, object: object.name, change: 'added', detail: `${object.kind} adicionado` })
+      differences.push({ kind: object.kind, object: object.name, change: 'added', detail: `${object.kind} added` })
       script.push(schemaObjectScript(object, source.name))
     } else if (normalizeCreate(old) !== normalizeCreate(object)) {
-      differences.push({ kind: object.kind, object: object.name, change: 'changed', detail: `Definição de ${object.kind} alterada` })
+      differences.push({ kind: object.kind, object: object.name, change: 'changed', detail: `${object.kind} definition changed` })
       if (object.kind === 'view') script.push(`CREATE OR REPLACE VIEW ${ident(source.name)}.${ident(object.name)} AS ${(object as ViewModel).definition};`)
       else if (includeDrops) script.push(dropObject(old, source.name), schemaObjectScript(object, source.name))
     }
   }
   for (const table of source.tables) if (!targetTables.has(table.name)) {
-    differences.push({ kind: 'table', object: table.name, change: 'removed', detail: 'Tabela removida' })
+    differences.push({ kind: 'table', object: table.name, change: 'removed', detail: 'Table removed' })
     if (includeDrops) removedTables.push(table)
   }
   for (const object of sourceOther) if (!targetOther.some((candidate) => candidate.kind === object.kind && candidate.name === object.name)) {
-    differences.push({ kind: object.kind, object: object.name, change: 'removed', detail: `${object.kind} removido` })
+    differences.push({ kind: object.kind, object: object.name, change: 'removed', detail: `${object.kind} removed` })
     if (includeDrops) removedObjects.push(dropObject(object, source.name))
   }
   if (includeDrops) script.push(...removedObjects, ...reverseDependencyOrder(removedTables).map((table) => dropObject(table, source.name)))
@@ -91,22 +91,22 @@ function tableDiffs(source: TableModel, target: TableModel, sourceDatabase: stri
   const result: SchemaDifference[] = []
   for (const column of target.columns) {
     const old = source.columns.find((candidate) => candidate.name === column.name)
-    if (!old) result.push({ kind: 'column', object: `${target.name}.${column.name}`, change: 'added', detail: 'Coluna adicionada' })
-    else if (JSON.stringify(old) !== JSON.stringify(column)) result.push({ kind: 'column', object: `${target.name}.${column.name}`, change: 'changed', detail: 'Coluna alterada' })
+    if (!old) result.push({ kind: 'column', object: `${target.name}.${column.name}`, change: 'added', detail: 'Column added' })
+    else if (JSON.stringify(old) !== JSON.stringify(column)) result.push({ kind: 'column', object: `${target.name}.${column.name}`, change: 'changed', detail: 'Column changed' })
   }
-  for (const column of source.columns) if (!target.columns.some((candidate) => candidate.name === column.name)) result.push({ kind: 'column', object: `${source.name}.${column.name}`, change: 'removed', detail: 'Coluna removida' })
+  for (const column of source.columns) if (!target.columns.some((candidate) => candidate.name === column.name)) result.push({ kind: 'column', object: `${source.name}.${column.name}`, change: 'removed', detail: 'Column removed' })
   for (const index of target.indexes) {
     const old = source.indexes.find((candidate) => candidate.name === index.name)
-    if (!old) result.push({ kind: 'index', object: `${target.name}.${index.name}`, change: 'added', detail: 'Índice adicionado' })
-    else if (JSON.stringify(old) !== JSON.stringify(index)) result.push({ kind: 'index', object: `${target.name}.${index.name}`, change: 'changed', detail: 'Índice alterado' })
+    if (!old) result.push({ kind: 'index', object: `${target.name}.${index.name}`, change: 'added', detail: 'Index added' })
+    else if (JSON.stringify(old) !== JSON.stringify(index)) result.push({ kind: 'index', object: `${target.name}.${index.name}`, change: 'changed', detail: 'Index changed' })
   }
-  for (const index of source.indexes) if (!target.indexes.some((candidate) => candidate.name === index.name)) result.push({ kind: 'index', object: `${source.name}.${index.name}`, change: 'removed', detail: 'Índice removido' })
+  for (const index of source.indexes) if (!target.indexes.some((candidate) => candidate.name === index.name)) result.push({ kind: 'index', object: `${source.name}.${index.name}`, change: 'removed', detail: 'Index removed' })
   for (const fk of target.foreignKeys) {
     const old = source.foreignKeys.find((candidate) => candidate.name === fk.name)
-    if (!old) result.push({ kind: 'foreignKey', object: `${target.name}.${fk.name}`, change: 'added', detail: 'Chave estrangeira adicionada' })
-    else if (!sameForeignKey(old, fk, sourceDatabase, targetDatabase)) result.push({ kind: 'foreignKey', object: `${target.name}.${fk.name}`, change: 'changed', detail: 'Chave estrangeira alterada' })
+    if (!old) result.push({ kind: 'foreignKey', object: `${target.name}.${fk.name}`, change: 'added', detail: 'Foreign key added' })
+    else if (!sameForeignKey(old, fk, sourceDatabase, targetDatabase)) result.push({ kind: 'foreignKey', object: `${target.name}.${fk.name}`, change: 'changed', detail: 'Foreign key changed' })
   }
-  for (const fk of source.foreignKeys) if (!target.foreignKeys.some((candidate) => candidate.name === fk.name)) result.push({ kind: 'foreignKey', object: `${source.name}.${fk.name}`, change: 'removed', detail: 'Chave estrangeira removida' })
+  for (const fk of source.foreignKeys) if (!target.foreignKeys.some((candidate) => candidate.name === fk.name)) result.push({ kind: 'foreignKey', object: `${source.name}.${fk.name}`, change: 'removed', detail: 'Foreign key removed' })
   return result
 }
 

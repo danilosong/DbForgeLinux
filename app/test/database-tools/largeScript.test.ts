@@ -85,7 +85,7 @@ describe('large script streaming', () => {
       const path = join(dir, 'too-large.sql')
       await writeFile(path, `INSERT INTO t VALUES ('${'SENSITIVE_LITERAL'.repeat(200)}');`)
       await expect(executeLargeScript({ path, encoding: 'utf8', databaseSelected: false, maxStatementBytes: 1024, execute: async () => { throw new Error('must not execute') }, onProgress: () => undefined, onError: async () => 'stop' }))
-        .rejects.toThrow(new RegExp(`Statement maior que o limite configurado.*${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.*linha 1, coluna`))
+        .rejects.toThrow(new RegExp(`Statement exceeds the configured limit.*${path.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}.*line 1, column`))
     } finally { await rm(dir, { recursive: true, force: true }) }
   })
   it('destroys the input stream and returns when the signal aborts during execution', async () => {

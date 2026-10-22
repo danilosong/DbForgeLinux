@@ -12,15 +12,15 @@ import { registerImportExportIpc } from '../../src/main/ipc/import-export.js'
 describe('comparison and import/export IPC safeguards', () => {
   it('requires explicit confirmation for destructive schema statements', async () => {
     registerSchemaCompareIpc({ driver: {} } as never)
-    await expect(handlers.get('schema-compare:synchronize')!({}, 'target', 'db', 'DROP TABLE t;', false)).rejects.toThrow('Confirme a possível perda de dados')
+    await expect(handlers.get('schema-compare:synchronize')!({}, 'target', 'db', 'DROP TABLE t;', false)).rejects.toThrow('Confirm the potential data loss')
   })
   it('requires explicit confirmation before data synchronization', async () => {
     registerDataCompareIpc({ driver: {} } as never)
-    await expect(handlers.get('data-compare:synchronize')!({}, 's', 'sdb', 'st', 't', 'tdb', 'tt', ['id'], [], true, false)).rejects.toThrow('Confirme a sincronização')
+    await expect(handlers.get('data-compare:synchronize')!({}, 's', 'sdb', 'st', 't', 'tdb', 'tt', ['id'], [], true, false)).rejects.toThrow('Confirm synchronization')
   })
   it('rejects non-read queries from the export wizard', async () => {
     registerImportExportIpc({ driver: {} } as never)
-    await expect(handlers.get('import-export:export')!({}, 'connection', 'SELECT 1; DROP TABLE users', 'csv')).rejects.toThrow('aceita apenas uma consulta SELECT')
+    await expect(handlers.get('import-export:export')!({}, 'connection', 'SELECT 1; DROP TABLE users', 'csv')).rejects.toThrow('accept one SELECT query only')
   })
 
   it('previews and imports the file selected by the native dialog without opening it twice', async () => {

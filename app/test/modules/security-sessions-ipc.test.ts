@@ -24,7 +24,7 @@ describe('Security and Sessions IPC', () => {
     const changes = [{ kind: 'createUser', account: { user: 'app', host: '%' }, password: 'secret' }] as const
     const plan = await handler('security:preview')({}, 'connection', [...changes]) as { statements: Array<{ previewSql: string }> }
     expect(plan.statements[0].previewSql).not.toContain('secret')
-    expect(plan.statements[0].previewSql).toContain('<senha>')
+    expect(plan.statements[0].previewSql).toContain('<password>')
     const applied = await handler('security:apply')({}, 'connection', [...changes], true) as Array<{ success: boolean }>
     expect(applied).toEqual([{ index: 0, success: true }])
   })
@@ -33,7 +33,7 @@ describe('Security and Sessions IPC', () => {
     registerSecurityIpc({ driver: {
       queryRows: vi.fn(async () => [{ account: 'admin@localhost' }]), executeSql: vi.fn(async () => [])
     } as unknown as IpcDeps['driver'] } as IpcDeps)
-    await expect(handler('security:preview')({}, 'connection', [{ kind: 'dropUser', account: { user: 'admin', host: 'localhost' } }])).rejects.toThrow('conta desta conexão')
+    await expect(handler('security:preview')({}, 'connection', [{ kind: 'dropUser', account: { user: 'admin', host: 'localhost' } }])).rejects.toThrow('account used by this connection')
   })
 
   it('requires confirmation and protects the current session before KILL', async () => {
@@ -45,7 +45,7 @@ describe('Security and Sessions IPC', () => {
         return []
       }), executeSql
     } as unknown as IpcDeps['driver'] } as IpcDeps)
-    await expect(handler('sessions:kill')({}, 'connection', [1, 2], 'session', false)).rejects.toThrow('confirmação')
+    await expect(handler('sessions:kill')({}, 'connection', [1, 2], 'session', false)).rejects.toThrow('explicit confirmation')
     const results = await handler('sessions:kill')({}, 'connection', [1, 2], 'session', true) as Array<{ id: number; success: boolean }>
     expect(results.map((item) => item.success)).toEqual([false, true])
     expect(executeSql).toHaveBeenCalledExactlyOnceWith('connection', 'KILL 2')
@@ -54,7 +54,7 @@ describe('Security and Sessions IPC', () => {
     registerSessionsIpc({ driver: {
       queryRows: vi.fn(async (_id: string, sql: string) => sql.includes('transaction_read_only') ? [{ readOnly: 1 }] : []), executeSql: readOnlyExecute
     } as unknown as IpcDeps['driver'] } as IpcDeps)
-    await expect(handler('sessions:kill')({}, 'connection', [2], 'session', true)).rejects.toThrow('somente leitura')
+    await expect(handler('sessions:kill')({}, 'connection', [2], 'session', true)).rejects.toThrow('read-only')
     expect(readOnlyExecute).not.toHaveBeenCalled()
   })
 
@@ -64,7 +64,7 @@ describe('Security and Sessions IPC', () => {
     registerSessionsIpc({ driver: { queryRows, executeSql } as unknown as IpcDeps['driver'] } as IpcDeps)
     await handler('sessions:set-variable')({}, 'connection', { name: 'max_connections', oldValue: '151', newValue: '200', scope: 'GLOBAL', dynamic: true }, { confirm: true })
     expect(executeSql).toHaveBeenCalledExactlyOnceWith('connection', 'SET GLOBAL max_connections = 200')
-    await expect(handler('sessions:set-variable')({}, 'connection', { name: 'port', oldValue: '3306', newValue: '3307', scope: 'GLOBAL', dynamic: true }, { confirm: true })).rejects.toThrow('estática')
+    await expect(handler('sessions:set-variable')({}, 'connection', { name: 'port', oldValue: '3306', newValue: '3307', scope: 'GLOBAL', dynamic: true }, { confirm: true })).rejects.toThrow('static')
     expect(executeSql).toHaveBeenCalledExactlyOnceWith('connection', 'SET GLOBAL max_connections = 200')
   })
 })

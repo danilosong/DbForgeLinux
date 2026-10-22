@@ -52,8 +52,8 @@ describe('documenter', () => {
 
   it('rejects empty and oversized documentation batches', async () => {
     const dependencies = { inspect: async () => model }
-    await expect(generateDocumentationBatch([], dependencies)).rejects.toThrow('1 a 100')
-    await expect(generateDocumentationBatch(Array.from({ length: 101 }, (_, index) => ({ database: `db-${index}`, outputDirectory: '/tmp/docs' })), dependencies)).rejects.toThrow('1 a 100')
+    await expect(generateDocumentationBatch([], dependencies)).rejects.toThrow('between 1 and 100 databases')
+    await expect(generateDocumentationBatch(Array.from({ length: 101 }, (_, index) => ({ database: `db-${index}`, outputDirectory: '/tmp/docs' })), dependencies)).rejects.toThrow('between 1 and 100 databases')
   })
   it('threads cover settings and account grants through the batch generator', async () => {
     const inspectAccounts = vi.fn(async () => [{ grantee: "'reporter'@'%'", globalPrivileges: ['SELECT'], scopedPrivileges: [] }])

@@ -34,7 +34,7 @@ export function registerSqlIpc({driver,resolveConnectionConfig,userDataDir}:IpcD
   const smallLimit=/\bLIMIT\s+(?:\d+\s*,\s*)?(\d+)\b/i.exec(sql)?.[1]
   const useDiskSpool=!splitterCompatible&&/^\s*(SELECT|WITH)\b/i.test(sql.trim())&&!sql.includes(';')&&!(smallLimit&&Number(smallLimit)<=1000)
   if(useDiskSpool){
-   const eid=executionId??randomUUID();if(streamedJobs.has(eid))throw new Error('Identificador de execução já está em uso.')
+   const eid=executionId??randomUUID();if(streamedJobs.has(eid))throw new Error('Execution identifier is already in use.')
    const controller=new AbortController();streamedJobs.set(eid,{connectionId:id,senderId:event.sender.id,controller})
    const spool=await resultSpools.create();resultOwners.set(spool.id,event.sender.id)
    if(!spoolSenders.has(event.sender.id)){spoolSenders.add(event.sender.id);event.sender.once('destroyed',()=>{spoolSenders.delete(event.sender.id);for(const [rid,owner] of resultOwners)if(owner===event.sender.id){resultOwners.delete(rid);void resultSpools.dispose(rid)}})}
@@ -63,8 +63,8 @@ export function registerSqlIpc({driver,resolveConnectionConfig,userDataDir}:IpcD
   return {path,contents:await readFile(path,'utf8')}
  })
  ipcMain.handle('file:open-sql-path',async(event,path:string)=>{
-  if(typeof path!=='string'||!path.toLowerCase().endsWith('.sql'))throw new Error('O arquivo não tem extensão .sql.')
-  const localPath=path.startsWith('file:')?fileURLToPath(path):path;const resolved=resolve(localPath);const details=await stat(resolved);if(!details.isFile()||details.size>20*1024*1024)throw new Error('Arquivo SQL inválido ou maior que 20 MB.')
+  if(typeof path!=='string'||!path.toLowerCase().endsWith('.sql'))throw new Error('The file must have a .sql extension.')
+  const localPath=path.startsWith('file:')?fileURLToPath(path):path;const resolved=resolve(localPath);const details=await stat(resolved);if(!details.isFile()||details.size>20*1024*1024)throw new Error('The SQL file is invalid or exceeds the 20 MB limit.')
   let paths=openedSqlFiles.get(event.sender.id);if(!paths){paths=new Set();openedSqlFiles.set(event.sender.id,paths);event.sender.once('destroyed',()=>openedSqlFiles.delete(event.sender.id))};paths.add(resolved)
   return {path:resolved,contents:await readFile(resolved,'utf8')}
  })

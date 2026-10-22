@@ -4,7 +4,7 @@ export function encodeText(text: string, encoding: 'utf8' | 'utf16le' | 'latin1'
 }
 
 export function quoteIdentifier(identifier: string): string {
-  if (!identifier || identifier.includes('\0')) throw new Error('Identificador inválido.')
+  if (!identifier || identifier.includes('\0')) throw new Error('Invalid identifier.')
   return `\`${identifier.replace(/`/g, '``')}\``
 }
 

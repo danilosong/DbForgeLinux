@@ -76,7 +76,7 @@ export async function writeXlsx(rows: AsyncIterable<Row>, out: Writable, signal?
   try {
     await sheetWrite('<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>')
     for await (const row of rows) {
-      if (signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+      if (signal?.aborted) throw new DOMException('The operation was canceled.', 'AbortError')
       if (!columns.length) columns = Object.keys(row)
       if (!headerWritten) {
         const headerRow = 1
@@ -135,11 +135,11 @@ export async function readXlsx(buffer: Buffer): Promise<{ columns: string[]; row
   const entries = new Map<string, Buffer>()
   let expandedXmlBytes = 0
   const eocd = buffer.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]))
-  if (eocd < 0) throw new Error('Arquivo XLSX inválido.')
+  if (eocd < 0) throw new Error('The XLSX file is invalid.')
   const count = buffer.readUInt16LE(eocd + 10)
   let offset = buffer.readUInt32LE(eocd + 16)
   for (let i = 0; i < count; i++) {
-    if (buffer.readUInt32LE(offset) !== 0x02014b50) throw new Error('Estrutura ZIP inválida.')
+    if (buffer.readUInt32LE(offset) !== 0x02014b50) throw new Error('The ZIP structure is invalid.')
     const method = buffer.readUInt16LE(offset + 10)
     const compressed = buffer.readUInt32LE(offset + 20)
     const nameLength = buffer.readUInt16LE(offset + 28)
@@ -164,7 +164,7 @@ export async function readXlsx(buffer: Buffer): Promise<{ columns: string[]; row
     offset += 46 + nameLength + extraLength + commentLength
   }
   const sheet = entries.get('xl/worksheets/sheet1.xml')
-  if (!sheet) throw new Error('Planilha XLSX não encontrada.')
+  if (!sheet) throw new Error('No worksheet was found in the XLSX file.')
   const xml = sheet.toString('utf8')
   const rows: Row[] = []
   for (const match of xml.matchAll(/<row\b[^>]*>(.*?)<\/row>/gs)) {

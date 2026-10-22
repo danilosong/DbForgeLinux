@@ -12,7 +12,7 @@ async function write(job: ExportJob, value: string | Buffer): Promise<number> {
 
 export async function exportData(job: ExportJob): Promise<ExportReport> {
   if (job.format === 'pdf') throw new Error('PDF export must use the Electron print adapter.')
-  if (job.signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+  if (job.signal?.aborted) throw new DOMException('The operation was canceled.', 'AbortError')
   let rows = 0
   let bytes = 0
   let columns: string[] = []
@@ -38,7 +38,7 @@ export async function exportData(job: ExportJob): Promise<ExportReport> {
         sqlBatch = []
       }
       for await (const sourceRow of source) {
-        if (job.signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+        if (job.signal?.aborted) throw new DOMException('The operation was canceled.', 'AbortError')
         const row: Row = { ...sourceRow }
         for (const [column, type] of Object.entries(job.options?.columnTypes ?? {})) {
           const value = row[column]
@@ -91,7 +91,7 @@ export async function exportData(job: ExportJob): Promise<ExportReport> {
 export async function previewExport(job: Pick<ExportJob, 'driver' | 'connectionId' | 'query' | 'signal' | 'onProgress'>, count = 20): Promise<Row[]> {
   const rows: Row[] = []
   for await (const row of job.driver.streamRows(job.connectionId, job.query, [], job.signal)) {
-    if (job.signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+    if (job.signal?.aborted) throw new DOMException('The operation was cancelled.', 'AbortError')
     rows.push(row)
     if (rows.length >= Math.max(1, count)) break
   }

@@ -27,14 +27,14 @@ describe('object editor drafts', () => {
     const changed = { ...table, columns: [...table.columns, { name: 'email', type: 'VARCHAR(120)', nullable: true }] }
     expect(buildTableDdlPreview(changed, table, 'sample')).toContain('ADD COLUMN `email` VARCHAR(120)')
     expect(() => validateTableDraft({ ...table, columns: [{ name: '', type: 'INT', nullable: true }] })).toThrow('column name')
-    expect(() => validateTableDraft({ ...table, columns: [{ name: 'bad', type: 'INT); DROP TABLE x;--', nullable: true }] })).toThrow('Tipo inválido')
+    expect(() => validateTableDraft({ ...table, columns: [{ name: 'bad', type: 'INT); DROP TABLE x;--', nullable: true }] })).toThrow('Invalid type')
   })
 
   it('accepts only CREATE definitions for the target object name', () => {
     const view = target('view', 'active_customers')
     expect(normalizeObjectDefinition('CREATE VIEW `sample`.`active_customers` AS SELECT 1;', view)).toContain('CREATE VIEW')
     expect(() => normalizeObjectDefinition('DROP VIEW `sample`.`active_customers`;', view)).toThrow('CREATE')
-    expect(() => normalizeObjectDefinition('CREATE VIEW `sample`.`other` AS SELECT 1;', view)).toThrow('coincidir')
+    expect(() => normalizeObjectDefinition('CREATE VIEW `sample`.`other` AS SELECT 1;', view)).toThrow('definition name must match')
   })
 
   it('does not disclose saved object DDL in a failed restoration message', () => {

@@ -60,7 +60,7 @@ export default function Panel(): React.JSX.Element {
     if (step === 5) return mode === 'append' || mode === 'repopulate' || Boolean(keys.trim())
     return true
   }, [direction, step, query, sourceFile, table, mapping, mode, keys, rowMode, selectedGridRows, destinationMode, selectedDatabase])
-  useEffect(() => { void window.tuxsql.getConnections().then((items) => { const selected = items.find((item) => item.id === activeConnection?.recordId || item.name === activeConnection?.name)?.id ?? items[0]?.id ?? ''; setRecords(items); setConnection(selected) }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar conexões.')); void window.tuxsql.listImportExportTemplates().then(setTemplates).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar templates.')) }, [activeConnection?.name, activeConnection?.recordId])
+  useEffect(() => { void window.tuxsql.getConnections().then((items) => { const selected = items.find((item) => item.id === activeConnection?.recordId || item.name === activeConnection?.name)?.id ?? items[0]?.id ?? ''; setRecords(items); setConnection(selected) }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : t('ui.importExport.connectionsLoadFailed'))); void window.tuxsql.listImportExportTemplates().then(setTemplates).catch((error: unknown) => setMessage(error instanceof Error ? error.message : t('ui.importExport.templatesLoadFailed'))) }, [activeConnection?.name, activeConnection?.recordId, t])
   useEffect(() => { const listener = (event: Event): void => { const kind = (event as CustomEvent<{ kind?: string }>).detail?.kind; if (kind !== 'import' && kind !== 'export') return; setDirection(kind); setStep(0); setMessage(''); setReport(''); setResultPaths([]) }; window.addEventListener('tuxsql:task:restore', listener); return () => window.removeEventListener('tuxsql:task:restore', listener) }, [])
   useEffect(() => window.tuxsql.onImportExportProgress(jobId, setProgress), [jobId])
   useEffect(() => {
@@ -107,12 +107,12 @@ export default function Panel(): React.JSX.Element {
       const inferred = inferImportColumns(columns, selected.preview.rows)
       setImportColumns(inferred)
       if (destinationMode === 'new') setTable(selected.name.replace(/\.[^.]+$/, '').replace(/(?:[_ -]?\d{8}(?:[_-]?\d{4,6})?)$/, '').replace(/[^\p{L}\p{N}_]+/gu, '_').replace(/^\d/, '_$&').slice(0, 60) || 'imported_data')
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Não foi possível ler o arquivo.') }
+    } catch (error) { setMessage(error instanceof Error ? error.message : t('ui.importExport.readFileFailed')) }
   }
 
   async function run(): Promise<void> {
     const record = records.find((item) => item.id === connection)
-    if (!record) { setMessage('Selecione uma conexão.'); return }
+    if (!record) { setMessage(t('ui.importExport.selectConnection')); return }
     setBusy(true); setMessage(direction === 'export' ? 'Exporting…' : 'Importing…'); setReport(''); setResultPaths([]); setLogPath('')
     let connectedId = ''
     try {
@@ -183,7 +183,7 @@ export default function Panel(): React.JSX.Element {
   }
 
   async function refreshPreview(): Promise<void> {
-    const record = records.find((item) => item.id === connection); if (!record) { setMessage('Selecione uma conexão.'); return }
+    const record = records.find((item) => item.id === connection); if (!record) { setMessage(t('ui.importExport.selectConnection')); return }
     try {
       const connected = await window.tuxsql.connect(record)
       try {

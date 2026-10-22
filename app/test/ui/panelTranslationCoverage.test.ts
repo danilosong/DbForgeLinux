@@ -45,7 +45,8 @@ describe('registered panel localization', () => {
         const dynamic = pattern.includes('${')
         const hasEn = dynamic ? Object.keys(en).some((key) => key.startsWith(prefix)) : Boolean(en[prefix])
         const hasPt = dynamic ? Object.keys(pt).some((key) => key.startsWith(prefix)) : Boolean(pt[prefix])
-        if (!hasEn) missing.push(`${importPath}: missing en key/prefix ${prefix}`)
+        const hasEnglishSourceFallback = ['ui.options.page.', 'ui.options.group.', 'ui.options.field.', 'ui.options.warningCategory.', 'ui.options.warningAction.'].some((knownPrefix) => prefix === knownPrefix)
+        if (!hasEn && !hasEnglishSourceFallback) missing.push(`${importPath}: missing en key/prefix ${prefix}`)
         if (!hasPt) missing.push(`${importPath}: missing pt-BR key/prefix ${prefix}`)
       }
     }

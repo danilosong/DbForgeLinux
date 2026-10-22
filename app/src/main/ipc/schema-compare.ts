@@ -11,7 +11,7 @@ export function registerSchemaCompareIpc({ driver }: IpcDeps): void {
     return inspectDatabase((sql, parameters) => driver.queryRows(connectionId, sql, parameters), database)
   })
   ipcMain.handle('schema-compare:compare', async (_event, sourceConnectionId: string, sourceDatabase: string, targetConnectionId: string, targetDatabase: string, includeDrops = false) => {
-    if (!sourceConnectionId || !targetConnectionId || !sourceDatabase || !targetDatabase) throw new Error('Selecione origem e destino antes de comparar.')
+    if (!sourceConnectionId || !targetConnectionId || !sourceDatabase || !targetDatabase) throw new Error('Select a source and destination before comparing.')
     const [source, target] = await Promise.all([
       inspectDatabase((sql, parameters) => driver.queryRows(sourceConnectionId, sql, parameters), sourceDatabase),
       inspectDatabase((sql, parameters) => driver.queryRows(targetConnectionId, sql, parameters), targetDatabase)
@@ -47,8 +47,8 @@ export function registerSchemaCompareIpc({ driver }: IpcDeps): void {
     return true
   })
   ipcMain.handle('schema-compare:synchronize', async (_event, targetConnectionId: string, targetDatabase: string, script: string, confirmDestructive: boolean) => {
-    if (!targetConnectionId || !targetDatabase || !script.trim()) throw new Error('Nenhum script selecionado para sincronização.')
-    if (/\bDROP\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER|EVENT|DATABASE)\b|\bDROP\s+COLUMN\b/i.test(script) && !confirmDestructive) throw new Error('Confirme a possível perda de dados antes de sincronizar.')
+    if (!targetConnectionId || !targetDatabase || !script.trim()) throw new Error('No synchronization script is selected.')
+    if (/\bDROP\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER|EVENT|DATABASE)\b|\bDROP\s+COLUMN\b/i.test(script) && !confirmDestructive) throw new Error('Confirm the potential data loss before synchronizing.')
     // The target is supplied separately so accidental USE statements cannot redirect writes.
     const statements = assertSchemaUpdateScript(script)
     const errors: string[] = []
@@ -60,7 +60,7 @@ export function registerSchemaCompareIpc({ driver }: IpcDeps): void {
           await execute(statement)
           succeeded++
         } catch (error) {
-          errors.push(error instanceof Error ? error.message : 'Falha ao executar statement.')
+          errors.push(error instanceof Error ? error.message : 'Statement execution failed.')
           break
         }
       }

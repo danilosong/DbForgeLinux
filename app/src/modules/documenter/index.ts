@@ -126,7 +126,7 @@ export function generateDocumentation(model: DatabaseModel, options: DocumenterO
 
 export async function writeDocumentation(model: DatabaseModel, options: DocumenterOptions & { outputDirectory: string }): Promise<WrittenDocumentation> {
   const formats = options.formats ?? ['html', 'markdown']
-  if (formats.includes('pdf') && !options.pdfPrinter) throw new Error('Geração PDF exige um PdfPrintToPdf injetado.')
+  if (formats.includes('pdf') && !options.pdfPrinter) throw new Error('PDF generation requires an injected PdfPrintToPdf provider.')
   const generated = generateDocumentation(model, options)
   const targetDirectory = options.folderName?.trim() ? join(options.outputDirectory, options.folderName.replace(/[\\/\0]/g, '_')) : options.outputDirectory
   await mkdir(targetDirectory, { recursive: true })

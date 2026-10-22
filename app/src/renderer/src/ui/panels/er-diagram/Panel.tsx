@@ -23,7 +23,7 @@ export default function Panel(): React.JSX.Element {
   const [database, setDatabase] = useState(activeConnection?.database ?? ''); const [databases, setDatabases] = useState<string[]>([])
   const [diagram, setDiagram] = useState<ERDiagram | null>(null); const [selectedTable, setSelectedTable] = useState('')
   const [displayMode, setDisplayMode] = useState<DisplayMode>('types'); const [zoom, setZoom] = useState(1); const [pan, setPan] = useState<DiagramPoint>({ x: 0, y: 0 })
-  const [message, setMessage] = useState('Selecione conexão e database para criar um diagrama.')
+  const [message, setMessage] = useState(t('ui.erDiagram.initial'))
   const [busy, setBusy] = useState(false); const [relationName, setRelationName] = useState(''); const [fromTable, setFromTable] = useState(''); const [fromColumns, setFromColumns] = useState(''); const [toTable, setToTable] = useState(''); const [toColumns, setToColumns] = useState(''); const [relationComment, setRelationComment] = useState('')
   const [showRelations, setShowRelations] = useState(false); const [search, setSearch] = useState(''); const [editingRelationId, setEditingRelationId] = useState(''); const [relationDdl, setRelationDdl] = useState('')
   const [showOverview, setShowOverview] = useState(false)
@@ -32,17 +32,17 @@ export default function Panel(): React.JSX.Element {
   const activeRecord = connections.find((record) => record.id === connectionId)
   const visibleTables = useMemo(() => diagram?.tables.filter((table) => table.name.toLowerCase().includes(search.toLowerCase())) ?? [], [diagram, search])
 
-  useEffect(() => { void window.tuxsql.getConnections().then((items) => { setConnections(items); setConnectionId((current) => items.some((item) => item.id === current) ? current : activeConnection?.recordId && items.some((item) => item.id === activeConnection.recordId) ? activeConnection.recordId : activeConnection?.id && items.some((item) => item.id === activeConnection.id) ? activeConnection.id : items[0]?.id ?? '') }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar conexões.')) }, [activeConnection])
-  useEffect(() => { if (!connectionId) { setDatabases([]); return } void window.tuxsql.connect(connections.find((item) => item.id === connectionId)!).then(async (connected) => { try { setDatabases(await window.tuxsql.listDatabases(connected.id)) } finally { await window.tuxsql.disconnect(connected.id) } }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao listar databases.')) }, [connectionId, connections])
+  useEffect(() => { void window.tuxsql.getConnections().then((items) => { setConnections(items); setConnectionId((current) => items.some((item) => item.id === current) ? current : activeConnection?.recordId && items.some((item) => item.id === activeConnection.recordId) ? activeConnection.recordId : activeConnection?.id && items.some((item) => item.id === activeConnection.id) ? activeConnection.id : items[0]?.id ?? '') }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : t('ui.erDiagram.connectionsLoadError'))) }, [activeConnection, t])
+  useEffect(() => { if (!connectionId) { setDatabases([]); return } void window.tuxsql.connect(connections.find((item) => item.id === connectionId)!).then(async (connected) => { try { setDatabases(await window.tuxsql.listDatabases(connected.id)) } finally { await window.tuxsql.disconnect(connected.id) } }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : t('ui.erDiagram.databasesLoadError'))) }, [connectionId, connections, t])
 
   async function load(): Promise<void> {
-    if (!activeRecord || !database) { setMessage('Selecione uma conexão e um database.'); return }
-    setBusy(true); setMessage('Lendo tabelas, colunas e relações…')
+    if (!activeRecord || !database) { setMessage(t('ui.erDiagram.selectConnectionDatabase')); return }
+    setBusy(true); setMessage(t('ui.erDiagram.loading'))
     try {
       const connected = await window.tuxsql.connect(activeRecord)
-      try { const next = await window.tuxsql.loadERDiagram(connected.id, database, activeRecord.id); setDiagram(next); setSelectedTable(next.tables[0]?.name ?? ''); setPan({ x: 0, y: 0 }); setZoom(1); setMessage(`${next.tables.length} tabelas · ${next.relations.length} relações`) }
+      try { const next = await window.tuxsql.loadERDiagram(connected.id, database, activeRecord.id); setDiagram(next); setSelectedTable(next.tables[0]?.name ?? ''); setPan({ x: 0, y: 0 }); setZoom(1); setMessage(t('ui.erDiagram.loaded', [next.tables.length, next.relations.length])) }
       finally { await window.tuxsql.disconnect(connected.id) }
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Falha ao carregar o diagrama.') }
+    } catch (error) { setMessage(error instanceof Error ? error.message : t('ui.erDiagram.loadFailed')) }
     finally { setBusy(false) }
   }
   async function dropExplorerObject(event: React.DragEvent<HTMLDivElement>): Promise<void> {
@@ -86,12 +86,12 @@ export default function Panel(): React.JSX.Element {
     const next = { ...diagram, virtualRelations: relations, relations: [...diagram.relations.filter((item) => !item.virtual), ...relations] }
     setDiagram(next)
     try { await window.tuxsql.saveVirtualRelations(diagram.connectionId, diagram.database, relations); setMessage(t('extras.erd.saved')) }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'Falha ao salvar relações virtuais.') }
+    catch (error) { setMessage(error instanceof Error ? error.message : t('ui.erDiagram.saveRelationsFailed')) }
   }
   function addVirtualRelation(): void {
     if (!diagram) return
     const childColumns = fromColumns.split(',').map((value) => value.trim()).filter(Boolean); const parentColumns = toColumns.split(',').map((value) => value.trim()).filter(Boolean)
-    if (!relationName.trim() || !childColumns.length || childColumns.length !== parentColumns.length) { setMessage('Informe um nome e o mesmo número de colunas em cada lado.'); return }
+    if (!relationName.trim() || !childColumns.length || childColumns.length !== parentColumns.length) { setMessage(t('ui.erDiagram.relationInvalid')); return }
     if (!diagram.tables.some((table) => table.name === fromTable) || !diagram.tables.some((table) => table.name === toTable)) { setMessage(t('extras.erd.selectTables')); return }
     const prior = diagram.virtualRelations.find((item) => item.id === editingRelationId)
     const relation: DiagramRelation = { id: prior?.id ?? `virtual:${Date.now()}:${relationName.trim()}`, name: relationName.trim(), fromTable, fromColumns: childColumns, toTable, toColumns: parentColumns, comment: relationComment.trim(), virtual: true }
@@ -134,7 +134,7 @@ export default function Panel(): React.JSX.Element {
     for (let pass = 0; pass < diagram.tables.length; pass++) for (const [parent, child] of parents) depth.set(child, Math.max(depth.get(child) ?? 0, (depth.get(parent) ?? 0) + 1))
     for (const table of diagram.tables) { const level = depth.get(table.name) ?? 0; const group = groups.get(level) ?? []; group.push(table); groups.set(level, group) }
     const next = { ...diagram, tables: diagram.tables.map((table) => { const level = depth.get(table.name) ?? 0; const index = groups.get(level)!.findIndex((item) => item.name === table.name); return { ...table, position: { x: 40 + level * 370, y: 40 + index * 310 } } }) }
-    setDiagram(next); setMessage('Layout Diagram concluído.')
+    setDiagram(next); setMessage(t('ui.erDiagram.layoutComplete'))
   }
   function dragStart(event: PointerEvent<SVGGElement>, table: DiagramTable): void { event.stopPropagation(); event.currentTarget.setPointerCapture(event.pointerId); setSelectedTable(table.name); dragRef.current = { table: table.name, pointerX: event.clientX, pointerY: event.clientY, startX: table.position.x, startY: table.position.y, panning: false } }
   function panStart(event: PointerEvent<SVGSVGElement>): void { if (event.target !== event.currentTarget) return; event.currentTarget.setPointerCapture(event.pointerId); dragRef.current = { pointerX: event.clientX, pointerY: event.clientY, startX: pan.x, startY: pan.y, panning: true } }
@@ -178,7 +178,7 @@ export default function Panel(): React.JSX.Element {
     image.onload = () => { const canvas = document.createElement('canvas'); canvas.width = 1100; canvas.height = 700; const context = canvas.getContext('2d'); if (context) { context.fillStyle = getComputedStyle(source).backgroundColor || '#fff'; context.fillRect(0, 0, canvas.width, canvas.height); context.drawImage(image, 0, 0, canvas.width, canvas.height); const extension = format; if (format === 'bmp' || format === 'tiff') { const pixels = context.getImageData(0, 0, canvas.width, canvas.height); const bytes = format === 'bmp' ? encodeBmp24(canvas.width, canvas.height, pixels.data) : encodeTiff24(canvas.width, canvas.height, pixels.data); download(new Blob([bytes.buffer as ArrayBuffer], { type: format === 'bmp' ? 'image/bmp' : 'image/tiff' }), `${diagram?.database ?? 'diagram'}.${format === 'tiff' ? 'tiff' : 'bmp'}`); URL.revokeObjectURL(url) } else canvas.toBlob((output) => { if (output) download(output, `${diagram?.database ?? 'diagram'}.${extension}`); URL.revokeObjectURL(url) }, format === 'jpg' ? 'image/jpeg' : 'image/png', format === 'jpg' ? 0.92 : undefined) } else URL.revokeObjectURL(url) }
     image.onerror = () => { URL.revokeObjectURL(url); setMessage('The error occurred while diagram exporting.') }; image.src = url
   }
-  async function saveDiagram(): Promise<void> { if (!diagram) return; try { const path = await window.tuxsql.saveERDiagram(diagram); if (path) setMessage(`Diagrama salvo: ${path}`) } catch (error) { setMessage(error instanceof Error ? error.message : 'Falha ao salvar diagrama.') } }
+  async function saveDiagram(): Promise<void> { if (!diagram) return; try { const path = await window.tuxsql.saveERDiagram(diagram); if (path) setMessage(`Diagram saved: ${path}`) } catch (error) { setMessage(error instanceof Error ? error.message : t('ui.erDiagram.saveFailed')) } }
   async function openDiagram(): Promise<void> { try { const opened = await window.tuxsql.openERDiagram(); if (opened) { setDiagram(opened); setConnectionId(opened.connectionId); setDatabase(opened.database); setSelectedTable(opened.tables[0]?.name ?? ''); setMessage(`Database Diagram · ${opened.database}`) } } catch (error) { setMessage(error instanceof Error ? error.message : 'Diagram deserialization failed.') } }
   function download(blob: Blob, filename: string): void { const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = filename; anchor.click(); URL.revokeObjectURL(url) }
 

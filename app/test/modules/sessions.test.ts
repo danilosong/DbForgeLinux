@@ -23,7 +23,7 @@ describe('sessions and server variables backend', () => {
       if (sql.startsWith('SELECT p.ID')) throw new Error('fallback processlist')
       return [{ Id: 1, User: 'root', Command: 'Query' }, { Id: 2, User: 'system user', Command: 'Daemon' }, { Id: 3, User: 'worker', Command: 'Query' }]
     }) })
-    await expect(killSessions(db, [3], 'query', { confirm: false as true, currentId: 1 })).rejects.toThrow('confirmação')
+    await expect(killSessions(db, [3], 'query', { confirm: false as true, currentId: 1 })).rejects.toThrow('explicit confirmation')
     const results = await killSessions(db, [1, 2, 3], 'query', { confirm: true, currentId: 1 })
     expect(results.map((item) => item.success)).toEqual([false, false, true])
     expect(execute).toHaveBeenCalledExactlyOnceWith('KILL QUERY 3')
@@ -54,11 +54,11 @@ describe('sessions and server variables backend', () => {
     expect(await getServerStatus(db, 'GLOBAL')).toEqual({ port: '3306', max_connections: '151', sql_mode: 'STRICT_TRANS_TABLES,ANSI' })
     expect(snapshot.variables.find((item) => item.name === 'port')?.dynamic).toBe(false)
     expect(snapshot.variables.find((item) => item.name === 'max_connections')?.type).toBe('number')
-    await expect(setServerVariable(db, 'max_connections', 200, 'GLOBAL', { confirm: true, dynamic: true, type: 'number', min: 1, max: 100 })).rejects.toThrow('intervalo')
-    await expect(setServerVariable(db, 'read_only; DROP USER x', 'ON', 'GLOBAL', { confirm: true, dynamic: true })).rejects.toThrow('Nome de variável')
+    await expect(setServerVariable(db, 'max_connections', 200, 'GLOBAL', { confirm: true, dynamic: true, type: 'number', min: 1, max: 100 })).rejects.toThrow('outside the allowed range')
+    await expect(setServerVariable(db, 'read_only; DROP USER x', 'ON', 'GLOBAL', { confirm: true, dynamic: true })).rejects.toThrow('Variable name is invalid')
     await setServerVariable(db, 'max_connections', 200, 'GLOBAL', { confirm: true, dynamic: true, type: 'number' })
     expect(execute).toHaveBeenCalledExactlyOnceWith('SET GLOBAL max_connections = 200')
-    await expect(setServerVariable(db, 'port', 3307, 'GLOBAL', { confirm: true, dynamic: true })).rejects.toThrow('estática')
+    await expect(setServerVariable(db, 'port', 3307, 'GLOBAL', { confirm: true, dynamic: true })).rejects.toThrow('is static')
   })
 
   it('compares variables and status counters', () => {

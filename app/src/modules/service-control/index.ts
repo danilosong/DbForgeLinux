@@ -76,5 +76,5 @@ export function parseMysqlServiceInventory(unitFilesText: string, runningText: s
 function normalizeState(value: string): ServiceState { return value === 'active' ? 'active' : value === 'failed' ? 'failed' : value === 'inactive' ? 'inactive' : 'unknown' }
 function errorText(error: unknown): string {
   if (error && typeof error === 'object' && 'stderr' in error && typeof error.stderr === 'string' && error.stderr.trim()) return error.stderr.trim()
-  return error instanceof Error ? error.message : 'Falha ao consultar serviços do sistema.'
+  return error instanceof Error ? error.message : 'Could not query system services.'
 }

@@ -22,16 +22,16 @@ export function buildSshOptions(config: ResolvedSshConfig, agentSocket = process
     readyTimeout: 15000
   }
   if (config.authMethod === 'password') {
-    if (!config.password) throw new Error('A senha SSH é obrigatória para este método de autenticação.')
+    if (!config.password) throw new Error('An SSH password is required for this authentication method.')
     options.password = config.password
     if (config.keyboardInteractive) options.tryKeyboard = true
   } else if (config.authMethod === 'private-key') {
-    if (!config.privateKey) throw new Error('O arquivo de chave privada SSH não pôde ser lido.')
+    if (!config.privateKey) throw new Error('The SSH private key file could not be read.')
     options.privateKey = config.privateKey
     if (config.passphrase) options.passphrase = config.passphrase
     if (config.keyboardInteractive) options.tryKeyboard = true
   } else {
-    if (!agentSocket) throw new Error('SSH_AUTH_SOCK não está definido; inicie um ssh-agent ou escolha outro método.')
+    if (!agentSocket) throw new Error('SSH_AUTH_SOCK is not set; start ssh-agent or choose another authentication method.')
     options.agent = agentSocket
   }
   return options
@@ -45,9 +45,9 @@ export async function buildSslOptions(
   if (ssl.mode === 'disabled') return undefined
   const verifyCa = ssl.mode === 'verify-ca'
   const verifyIdentity = ssl.mode === 'verify-identity'
-  if (verifyCa && !ssl.caPath) throw new Error('CA obrigatório para validar o certificado TLS.')
+  if (verifyCa && !ssl.caPath) throw new Error('A CA certificate is required to verify the TLS certificate.')
   if (Boolean(ssl.certPath) !== Boolean(ssl.keyPath)) {
-    throw new Error('Certificado e chave de cliente TLS devem ser informados juntos.')
+    throw new Error('Provide both the TLS client certificate and its matching key.')
   }
 
   const result: Record<string, unknown> = { rejectUnauthorized: verifyCa || verifyIdentity }
@@ -72,7 +72,7 @@ export async function buildMysqlOptions(
   config: DriverConnectionConfig,
   endpoint?: { host: string; port: number }
 ): Promise<ConnectionOptions> {
-  if (config.ssh.enabled && config.http.enabled) throw new Error('SSH e HTTP tunneling são mutuamente exclusivos.')
+  if (config.ssh.enabled && config.http.enabled) throw new Error('SSH and HTTP tunneling cannot be enabled at the same time.')
 
   const options: ConnectionOptions = {
     host: endpoint?.host ?? config.host,

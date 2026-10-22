@@ -6,7 +6,7 @@ export const editorMetadataCache = new EditorMetadataCache()
 
 export function registerEditorIpc({ driver }: { driver: MysqlDriver }): void {
   ipcMain.handle('editor:metadata', async (_event, connectionId: string, database: string, refresh = false): Promise<EditorMetadata> => {
-    if (!connectionId?.trim() || !database?.trim()) throw new Error('Selecione uma conexão e um database para carregar o autocomplete.')
+    if (!connectionId?.trim() || !database?.trim()) throw new Error('Select a connection and database before loading autocomplete.')
     if (refresh) editorMetadataCache.invalidate(connectionId, database)
     return editorMetadataCache.get(connectionId, database, async () => {
       const [databases, tables, columns, routines] = await Promise.all([

@@ -73,14 +73,14 @@ export function relationCardinality(source: DatabaseModel, relation: DiagramRela
 }
 
 export function moveTable(diagram: ERDiagram, tableName: string, position: DiagramPoint): ERDiagram {
-  if (![position.x, position.y].every(Number.isFinite)) throw new Error('Posição do diagrama inválida.')
+  if (![position.x, position.y].every(Number.isFinite)) throw new Error('Diagram position is invalid.')
   return { ...diagram, tables: diagram.tables.map((table) => table.name === tableName ? { ...table, position: { x: Math.max(0, position.x), y: Math.max(0, position.y) } } : table) }
 }
 
 export function createVirtualRelation(input: VirtualRelationInput, tableNames: string[]): DiagramRelation {
   const name = input.name.trim()
-  if (!name || !tableNames.includes(input.fromTable) || !tableNames.includes(input.toTable)) throw new Error('Informe nome e tabelas válidas para a relação virtual.')
-  if (!input.fromColumns.length || input.fromColumns.length !== input.toColumns.length) throw new Error('As colunas de origem e destino devem formar pares.')
+  if (!name || !tableNames.includes(input.fromTable) || !tableNames.includes(input.toTable)) throw new Error('Enter a name and valid tables for the virtual relationship.')
+  if (!input.fromColumns.length || input.fromColumns.length !== input.toColumns.length) throw new Error('Source and target columns must be provided in pairs.')
   return { id: randomUUID(), name, fromTable: input.fromTable, fromColumns: input.fromColumns, toTable: input.toTable, toColumns: input.toColumns, comment: input.comment?.trim(), virtual: true }
 }
 
@@ -103,8 +103,8 @@ export function deserializeDiagram(value: string): ERDiagram {
 export function validateVirtualRelation(relation: DiagramRelation, source: DatabaseModel): string | undefined {
   const child = source.tables.find((table) => table.name === relation.fromTable)
   const parent = source.tables.find((table) => table.name === relation.toTable)
-  if (!child || !parent) return `Tabela ausente: ${!child ? relation.fromTable : relation.toTable}`
-  if (relation.fromColumns.some((name) => !child.columns.some((column) => column.name === name)) || relation.toColumns.some((name) => !parent.columns.some((column) => column.name === name))) return 'Coluna inexistente.'
+  if (!child || !parent) return `Table not found: ${!child ? relation.fromTable : relation.toTable}`
+  if (relation.fromColumns.some((name) => !child.columns.some((column) => column.name === name)) || relation.toColumns.some((name) => !parent.columns.some((column) => column.name === name))) return 'Column does not exist.'
   return undefined
 }
 

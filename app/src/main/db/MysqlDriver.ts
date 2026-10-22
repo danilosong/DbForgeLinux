@@ -49,16 +49,16 @@ export function mapMysqlConnectionError(error: unknown, host: string, hasPasswor
   const code = String(value.code ?? '')
   const errno = Number(value.errno)
   if (code === 'ER_ACCESS_DENIED_ERROR' || errno === 1045) {
-    return new Error(`1045: MySQL rejected the credentials for ${host} (password supplied: ${hasPassword ? 'yes' : 'no'}).`)
+    return new Error(`1045: MySQL rejected the credentials for ${host} (password supplied: ${hasPassword ? 'yes' : 'no'}).`, { cause: error })
   }
   if (['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'EHOSTUNREACH', 'ENETUNREACH'].includes(code) || errno === 2003) {
     const reason = code === 'ECONNREFUSED' ? 'connection refused' : ['ENOTFOUND', 'EAI_AGAIN'].includes(code) ? 'host name could not be resolved' : code === 'EHOSTUNREACH' || code === 'ENETUNREACH' ? 'host is unreachable' : 'connection unavailable'
-    return new Error(`2003: Could not connect to the MySQL server at ${host}: ${reason}.`)
+    return new Error(`2003: Could not connect to the MySQL server at ${host}: ${reason}.`, { cause: error })
   }
   if (['ETIMEDOUT', 'PROTOCOL_SEQUENCE_TIMEOUT', 'ETIMEDOUT_CONNECT'].includes(code) || /connect timeout|timed out/i.test(String(value.message ?? ''))) {
-    return new Error(`2003: The MySQL server at ${host} did not respond within the configured ${timeoutSeconds} second connection timeout.`)
+    return new Error(`2003: The MySQL server at ${host} did not respond within the configured ${timeoutSeconds} second connection timeout.`, { cause: error })
   }
-  return error instanceof Error ? error : new Error('Could not connect to the MySQL server.')
+  return error instanceof Error ? error : new Error('Could not connect to the MySQL server.', { cause: error })
 }
 
 function getCoreConnection(pool: CorePool): Promise<CorePoolConnection> {
@@ -254,7 +254,7 @@ export class MysqlDriver implements DbDriver {
     const startedAt = performance.now()
     const managed = this.requireConnection(connectionId)
     if (managed.config.advanced.readOnly && /\b(INSERT|UPDATE|DELETE|REPLACE|CREATE|ALTER|DROP|TRUNCATE|RENAME|GRANT|REVOKE)\b/i.test(sql)) {
-      throw new Error('A sessão está marcada como somente leitura.')
+      throw new Error('The session is marked read-only.')
     }
     const timeout = managed.config.advanced.commandTimeoutSeconds
     const transactionConnection = managed.transactionConnection
@@ -277,7 +277,7 @@ export class MysqlDriver implements DbDriver {
   /** Pins batch execution to one connection whose SQL mode matches our script splitter. */
   async withSplitterCompatibleSqlMode<T>(connectionId: string, operation: (execute: (sql: string, executionId?: string) => Promise<QueryResult[]>) => Promise<T>): Promise<T> {
     const managed = this.requireConnection(connectionId)
-    if (managed.config.advanced.readOnly) throw new Error('A sessão está marcada como somente leitura.')
+    if (managed.config.advanced.readOnly) throw new Error('The session is marked read-only.')
     const connection = managed.transactionConnection ?? await managed.pool.getConnection()
     const ownsConnection = !managed.transactionConnection
     try {
@@ -331,21 +331,21 @@ export class MysqlDriver implements DbDriver {
     const [rows] = await this.requireConnection(connectionId).pool.query<Array<RowDataPacket & Record<string, string>>>(`SHOW CREATE ${type} ${name}`)
     const row = rows[0]
     const createSql = row && Object.entries(row).find(([key, value]) => /^Create /.test(key) && typeof value === 'string')?.[1]
-    if (!createSql) throw new Error(`Não foi possível obter o DDL de ${object.name}.`)
+    if (!createSql) throw new Error(`Could not retrieve the DDL for ${object.name}.`)
     return createSql
   }
 
   async setDatabase(connectionId: string, database: string): Promise<void> {
     const managed = this.requireConnection(connectionId)
     const [rows] = await managed.pool.query<Array<RowDataPacket & { Database: string }>>('SHOW DATABASES')
-    if (!rows.some((row) => row.Database === database)) throw new Error('Database não encontrada nesta conexão.')
+    if (!rows.some((row) => row.Database === database)) throw new Error('Database not found on this connection.')
     managed.currentDatabase = database
   }
 
   async beginTransaction(connectionId: string): Promise<void> {
     const managed = this.requireConnection(connectionId)
-    if (managed.config.advanced.readOnly) throw new Error('A sessão está marcada como somente leitura.')
-    if (managed.transactionConnection) throw new Error('Já existe uma transação manual ativa.')
+    if (managed.config.advanced.readOnly) throw new Error('The session is marked read-only.')
+    if (managed.transactionConnection) throw new Error('A manual transaction is already active.')
     const connection = await managed.pool.getConnection()
     try {
       if (managed.currentDatabase) await connection.query(`USE ${quoteIdentifier(managed.currentDatabase)}`)
@@ -357,7 +357,7 @@ export class MysqlDriver implements DbDriver {
   async commitTransaction(connectionId: string): Promise<void> {
     const managed = this.requireConnection(connectionId)
     const connection = managed.transactionConnection
-    if (!connection) throw new Error('Não há transação manual ativa.')
+    if (!connection) throw new Error('No manual transaction is active.')
     managed.transactionConnection = undefined
     try { await connection.commit() } finally { connection.release() }
   }
@@ -365,7 +365,7 @@ export class MysqlDriver implements DbDriver {
   async rollbackTransaction(connectionId: string): Promise<void> {
     const managed = this.requireConnection(connectionId)
     const connection = managed.transactionConnection
-    if (!connection) throw new Error('Não há transação manual ativa.')
+    if (!connection) throw new Error('No manual transaction is active.')
     managed.transactionConnection = undefined
     try { await connection.rollback() } finally { connection.release() }
   }
@@ -377,7 +377,7 @@ export class MysqlDriver implements DbDriver {
 
   async *streamRows(connectionId: string, sql: string, values: readonly SqlValue[] = [], signal?: AbortSignal, timeoutSeconds?: number, executionId?: string): AsyncIterable<Record<string, unknown>> {
     const managed = this.requireConnection(connectionId)
-    if (signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+    if (signal?.aborted) throw new DOMException('The operation was cancelled.', 'AbortError')
     const commandTimeout = timeoutSeconds ?? managed.config.advanced.commandTimeoutSeconds
     const transactionConnection = managed.transactionConnection
     const connection = transactionConnection
@@ -386,13 +386,13 @@ export class MysqlDriver implements DbDriver {
     const ownsConnection = !transactionConnection
     if (signal?.aborted) {
       if (ownsConnection) connection.release()
-      throw new DOMException('A operação foi cancelada.', 'AbortError')
+      throw new DOMException('The operation was cancelled.', 'AbortError')
     }
     const activeExecutionId = executionId ?? crypto.randomUUID()
     let stream: (NodeJS.ReadableStream & AsyncIterable<Record<string, unknown>> & { destroy(error?: Error): void }) | undefined
     this.executions.set(activeExecutionId, { connectionId, threadId: connection.threadId })
     const abort = (): void => {
-      void this.cancelQuery(connectionId, activeExecutionId).catch(() => undefined).finally(() => stream?.destroy(new DOMException('A operação foi cancelada.', 'AbortError')))
+      void this.cancelQuery(connectionId, activeExecutionId).catch(() => undefined).finally(() => stream?.destroy(new DOMException('The operation was cancelled.', 'AbortError')))
     }
     const timeout = commandTimeout > 0 ? setTimeout(() => {
       void this.cancelQuery(connectionId, activeExecutionId).catch(() => undefined).finally(() => stream?.destroy(Object.assign(new Error('A consulta excedeu o tempo limite configurado.'), { code: 'ETIMEDOUT' })))
@@ -404,14 +404,14 @@ export class MysqlDriver implements DbDriver {
       const query = connection.query({ sql, values: [...values], rowsAsArray: false }) as unknown as { stream(): NodeJS.ReadableStream }
       stream = query.stream() as NodeJS.ReadableStream & AsyncIterable<Record<string, unknown>> & { destroy(error?: Error): void }
       for await (const row of stream) {
-        if (signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+        if (signal?.aborted) throw new DOMException('The operation was cancelled.', 'AbortError')
         yield row
       }
     } catch (error) {
       // MariaDB can report KILL QUERY before the stream destroy callback runs.
       // Normalize only after an explicit caller abort; preserve other DB errors.
       const code = typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined
-      if (signal?.aborted && code === 'ER_QUERY_INTERRUPTED') throw new DOMException('A operação foi cancelada.', 'AbortError')
+      if (signal?.aborted && code === 'ER_QUERY_INTERRUPTED') throw new DOMException('The operation was cancelled.', 'AbortError')
       throw error
     } finally {
       signal?.removeEventListener('abort', abort)
@@ -423,22 +423,22 @@ export class MysqlDriver implements DbDriver {
   }
 
   async withTransaction<T>(connectionId: string, operation: (transaction: DbTransaction) => Promise<T>, signal?: AbortSignal): Promise<T> {
-    if (signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+    if (signal?.aborted) throw new DOMException('The operation was cancelled.', 'AbortError')
     const managed = this.requireConnection(connectionId)
-    if (managed.config.advanced.readOnly) throw new Error('A sessão está marcada como somente leitura.')
+    if (managed.config.advanced.readOnly) throw new Error('The session is marked read-only.')
     const connection = await managed.pool.getConnection()
     try {
       await connection.beginTransaction()
       const transaction: DbTransaction = {
         execute: async (sql, values = []) => {
-          if (signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+          if (signal?.aborted) throw new DOMException('The operation was cancelled.', 'AbortError')
           const [result] = await connection.execute(sql, [...values])
           const header = result as unknown as { affectedRows?: number; insertId?: number }
           return { affectedRows: header.affectedRows ?? 0, insertId: header.insertId ?? 0 }
         }
       }
       const result = await operation(transaction)
-      if (signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+      if (signal?.aborted) throw new DOMException('The operation was cancelled.', 'AbortError')
       await connection.commit()
       return result
     } catch (error) {
@@ -464,9 +464,9 @@ export class MysqlDriver implements DbDriver {
   }
 
   async executeParameterized(connectionId: string, sql: string, values: readonly SqlValue[] = [], signal?: AbortSignal): Promise<{ affectedRows: number; insertId: number }> {
-    if (signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+    if (signal?.aborted) throw new DOMException('The operation was cancelled.', 'AbortError')
     const managed = this.requireConnection(connectionId)
-    if (managed.config.advanced.readOnly) throw new Error('A sessão está marcada como somente leitura.')
+    if (managed.config.advanced.readOnly) throw new Error('The session is marked read-only.')
     const [result] = managed.transactionConnection
       ? await managed.transactionConnection.execute(sql, [...values])
       : await managed.pool.execute(sql, [...values])
@@ -478,7 +478,7 @@ export class MysqlDriver implements DbDriver {
     if (config.advanced.readOnly) await connection.query('SET SESSION TRANSACTION READ ONLY')
     if (config.advanced.sqlMode) await connection.query('SET SESSION sql_mode = ?', [config.advanced.sqlMode])
     if (config.advanced.collation) {
-      if (!/^[a-zA-Z0-9_]+$/.test(config.advanced.collation)) throw new Error('Collation inválida.')
+      if (!/^[a-zA-Z0-9_]+$/.test(config.advanced.collation)) throw new Error('Collation is invalid.')
       await connection.query(`SET collation_connection = '${config.advanced.collation}'`)
     }
     for (const command of config.advanced.initCommands.split(';').map((item) => item.trim()).filter(Boolean)) {
@@ -490,7 +490,7 @@ export class MysqlDriver implements DbDriver {
     if (config.advanced.readOnly) await runCoreQuery(connection, 'SET SESSION TRANSACTION READ ONLY')
     if (config.advanced.sqlMode) await runCoreQuery(connection, 'SET SESSION sql_mode = ?', [config.advanced.sqlMode])
     if (config.advanced.collation) {
-      if (!/^[a-zA-Z0-9_]+$/.test(config.advanced.collation)) throw new Error('Collation inválida.')
+      if (!/^[a-zA-Z0-9_]+$/.test(config.advanced.collation)) throw new Error('Collation is invalid.')
       await runCoreQuery(connection, `SET collation_connection = '${config.advanced.collation}'`)
     }
     for (const command of config.advanced.initCommands.split(';').map((item) => item.trim()).filter(Boolean)) {

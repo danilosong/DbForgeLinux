@@ -31,7 +31,7 @@ describe('security manager backend', () => {
     expect(plan.statements[0].sql).toContain("'u'''@'10.%'")
     expect(plan.statements[0].sql).toContain("secret''\\\\value")
     expect(previewSecurityPlan(plan)).not.toContain('secret')
-    expect(previewSecurityPlan(plan)).toContain('<senha>')
+    expect(previewSecurityPlan(plan)).toContain('<password>')
   })
 
   it('escapes db/table/column names and generates privilege scripts', () => {
@@ -42,9 +42,9 @@ describe('security manager backend', () => {
   it('requires confirmation and reports partial results without printing secrets', async () => {
     const execute = vi.fn().mockRejectedValueOnce(new Error("Access denied for 'user'@'host'" )).mockResolvedValueOnce(undefined)
     const db = client({ execute })
-    expect(() => buildSecurityPlan([{ kind: 'dropUser', account: { user: 'a', host: '%' } }])).toThrow('confirmação')
+    expect(() => buildSecurityPlan([{ kind: 'dropUser', account: { user: 'a', host: '%' } }])).toThrow('explicit confirmation')
     const plan = buildSecurityPlan([{ kind: 'dropUser', account: { user: 'a', host: '%' } }, { kind: 'revokeRole', role: { user: 'r', host: '%' }, grantee: { user: 'a', host: '%' } }], { confirm: true })
-    await expect(applySecurityPlan(db, plan, false as true)).rejects.toThrow('confirmação')
+    await expect(applySecurityPlan(db, plan, false as true)).rejects.toThrow('explicit confirmation')
     expect(execute).not.toHaveBeenCalled()
     await expect(applySecurityPlan(db, plan, true)).resolves.toEqual([{ index: 0, success: false, error: expect.any(String) }, { index: 1, success: true }])
     expect(plan.statements.map((item) => item.risk)).toEqual(['destructive', 'destructive'])
@@ -82,7 +82,7 @@ describe('security manager backend', () => {
   it('generates account limits with valid resource clauses and protects revoke previews', () => {
     const sql = securitySql({ kind: 'alterUser', account: { user: 'app', host: '%' }, changes: { limits: { MAX_QUERIES_PER_HOUR: 20 } } })
     expect(sql).toContain('WITH MAX_QUERIES_PER_HOUR 20')
-    expect(() => buildSecurityPlan([{ kind: 'revoke', privileges: ['SELECT'], scope: { kind: 'global' }, grantee: { user: 'app', host: '%' } }])).toThrow('confirmação')
+    expect(() => buildSecurityPlan([{ kind: 'revoke', privileges: ['SELECT'], scope: { kind: 'global' }, grantee: { user: 'app', host: '%' } }])).toThrow('explicit confirmation')
   })
 
   it('renders account options in MySQL order with one combined REQUIRE clause', () => {
@@ -101,9 +101,9 @@ describe('security manager backend', () => {
 
   it('blocks deleting root or the active account and requires strong confirmation for own admin revokes', () => {
     expect(() => buildSecurityPlan([{ kind: 'dropUser', account: { user: 'root', host: 'localhost' } }], { confirm: true })).toThrow('root@localhost')
-    expect(() => buildSecurityPlan([{ kind: 'dropUser', account: { user: 'admin', host: '%' } }], { confirm: true, currentAccount: { user: 'admin', host: '%' } })).toThrow('conta desta conexão')
+    expect(() => buildSecurityPlan([{ kind: 'dropUser', account: { user: 'admin', host: '%' } }], { confirm: true, currentAccount: { user: 'admin', host: '%' } })).toThrow('account used by this connection')
     const revoke = [{ kind: 'revoke', privileges: ['SUPER'], scope: { kind: 'global' }, grantee: { user: 'admin', host: '%' } }] as const
-    expect(() => buildSecurityPlan(revoke, { confirm: true, currentAccount: { user: 'admin', host: '%' } })).toThrow('confirmação forte')
+    expect(() => buildSecurityPlan(revoke, { confirm: true, currentAccount: { user: 'admin', host: '%' } })).toThrow('strong confirmation')
     expect(buildSecurityPlan(revoke, { confirm: true, currentAccount: { user: 'admin', host: '%' }, allowCurrentAdminRevoke: true }).statements).toHaveLength(1)
   })
 })

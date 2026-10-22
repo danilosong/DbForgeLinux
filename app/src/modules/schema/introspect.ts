@@ -21,7 +21,7 @@ export class SchemaIntrospector {
 
   async inspect(database: string): Promise<DatabaseModel> {
     const schemaRows = rowsOf<Row>(await this.query('SELECT DEFAULT_CHARACTER_SET_NAME AS charset, DEFAULT_COLLATION_NAME AS collation FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?', [database]))
-    if (!schemaRows.length) throw new Error(`Database ${database} não encontrado ou sem acesso.`)
+    if (!schemaRows.length) throw new Error(`Database ${database} was not found or access was denied.`)
     const tables = await this.readTables(database)
     const views = await this.readViews(database)
     const procedures = await this.readRoutines(database, 'PROCEDURE')

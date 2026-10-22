@@ -453,6 +453,7 @@ END`)
     const [schemaRows] = await admin.query('SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?', [database])
     throw new Error(`ER Explorer drop did not add ${dragTable} (test database exists: ${schemaRows.length > 0}): ${await erDiagram.innerText()}`)
   }
+  await erDiagram.getByRole('button', { name: 'Toggle diagram overview' }).click()
   await erDiagram.getByTestId('er-diagram-overview').waitFor()
   await erDiagram.getByRole('button', { name: 'Virtual Relation Manager' }).click()
   await erDiagram.getByRole('dialog', { name: 'Virtual Relation Manager' }).waitFor()
@@ -572,7 +573,8 @@ END`)
   await restoreWizard.getByRole('button', { name: 'Create backup', exact: true }).click()
   await restoreWizard.getByRole('button', { name: /Choose folder/ }).click()
   for (let step = 0; step < 3; step += 1) await restoreWizard.locator('.backup-wizard-footer .button-primary').click()
-  await restoreWizard.getByRole('button', { name: 'Start', exact: true }).click()
+  await restoreWizard.getByRole('button', { name: 'Next', exact: true }).click()
+  await restoreWizard.locator('.backup-wizard-footer').getByRole('button', { name: 'Run backup now', exact: true }).click()
   await restoreWizard.locator('.assistant-finish').waitFor()
   await restoreWizard.locator('.assistant-finish').screenshot({ path: join(evidenceDirectory, 'assistant-finish-backup.png') })
   if (!(await restoreWizard.locator('.assistant-finish-output code').count())) throw new Error(`Backup did not produce an output file: ${await restoreWizard.innerText()}`)
@@ -658,14 +660,14 @@ END`)
   await debuggerPanel.locator('.rd-target').getByRole('button', { name: /Start Debugging/ }).click()
   try { await debuggerPanel.locator('.rd-toolbar span').filter({ hasText: /^paused/i }).waitFor({ timeout: 30_000 }) }
   catch { throw new Error(`Debugger did not pause after Start: ${await debuggerPanel.innerText()}`) }
-  const stepInto = debuggerPanel.locator('.rd-toolbar').getByRole('button').nth(1)
+  const stepInto = debuggerPanel.locator('.rd-toolbar').getByRole('button', { name: /Step Into/ })
   const lineBeforeStep = await debuggerPanel.locator('.rd-toolbar span').innerText()
   await stepInto.click()
   await page.waitForFunction((before) => {
     const value = document.querySelector('.routine-debugger .rd-toolbar span')?.textContent ?? ''
     return /running|paused|finished|error/i.test(value) && value !== before
   }, lineBeforeStep, { timeout: 15_000 })
-  const stop = debuggerPanel.locator('.rd-toolbar').getByRole('button').nth(5)
+  const stop = debuggerPanel.locator('.rd-toolbar').getByRole('button', { name: /Stop/ })
   if (await stop.isEnabled()) await stop.click()
 
   // Skin choices and toolbar customization mutate only this smoke profile.

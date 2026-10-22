@@ -29,7 +29,7 @@ export default function Panel(): React.JSX.Element {
   const [selected, setSelected] = useState<Set<string>>(new Set()); const [active, setActive] = useState<SchemaDifference | null>(null)
   const [filter, setFilter] = useState<Filter>('all'); const [search, setSearch] = useState(''); const [busy, setBusy] = useState(false)
   const [compareStage, setCompareStage] = useState<number | null>(null)
-  const [message, setMessage] = useState('Selecione origem e destino e clique Compare.'); const [confirmOpen, setConfirmOpen] = useState(false); const [riskAccepted, setRiskAccepted] = useState(false)
+  const [message, setMessage] = useState(t('ui.schemaCompare.initial')); const [confirmOpen, setConfirmOpen] = useState(false); const [riskAccepted, setRiskAccepted] = useState(false)
   const syncDialogRef = useKeyboardDialog(confirmOpen, () => setConfirmOpen(false))
   const [scriptPreview, setScriptPreview] = useState(false)
   const [setupStep, setSetupStep] = useState<SetupStep>('source')
@@ -79,10 +79,10 @@ export default function Panel(): React.JSX.Element {
     return stateMatch && item.object.toLowerCase().includes(search.toLowerCase())
   }) ?? [], [result, filter, search])
 
-  useEffect(() => { void window.tuxsql.getConnections().then((items) => { const selected = items.find((item) => item.id === activeConnection?.recordId || item.name === activeConnection?.name)?.id ?? items[0]?.id ?? ''; setRecords(items); setSource(selected); setTarget(selected) }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : 'Falha ao carregar conexões.')) }, [activeConnection?.name, activeConnection?.recordId])
+  useEffect(() => { void window.tuxsql.getConnections().then((items) => { const selected = items.find((item) => item.id === activeConnection?.recordId || item.name === activeConnection?.name)?.id ?? items[0]?.id ?? ''; setRecords(items); setSource(selected); setTarget(selected) }).catch((error: unknown) => setMessage(error instanceof Error ? error.message : t('ui.schemaCompare.connectionsLoadError'))) }, [activeConnection?.name, activeConnection?.recordId, t])
   useEffect(() => { const handler = (event: Event) => { const action = (event as CustomEvent<string>).detail; if (action === 'edit') setSetupStep('source'); else if (action === 'filter') { setSearch(''); setSetupStep('results') } else if (action === 'refresh') void runCompare(); else if (action === 'script') setScriptPreview(true); else if (action === 'report') exportReport(); else if (action === 'sync') { setSyncStep('output'); setConfirmOpen(true) } }; window.addEventListener('schema-compare:action', handler); return () => window.removeEventListener('schema-compare:action', handler) })
   useEffect(() => { const listener = (): void => setSetupStep('source'); window.addEventListener('tuxsql:task:restore', listener); return () => window.removeEventListener('tuxsql:task:restore', listener) }, [])
-  function invalidate(): void { if (result) { setResult(null); setMessage('Resultados desatualizados — Compare novamente.') } }
+  function invalidate(): void { if (result) { setResult(null); setMessage(t('ui.schemaCompare.resultsStale')) } }
   async function loadOffline(side: 'source' | 'target', kind: string): Promise<void> {
     invalidate()
     if (kind === 'Database') { if (side === 'source') setOfflineSource(null); else setOfflineTarget(null); return }
@@ -110,7 +110,7 @@ export default function Panel(): React.JSX.Element {
   }
   async function runCompare(): Promise<void> {
     if (!sourceReady || !validateTarget()) return
-    setBusy(true); setCompareStage(0); setMessage('Lendo origem…'); setResult(null); setActive(null)
+    setBusy(true); setCompareStage(0); setMessage(t('ui.schemaCompare.readingSource')); setResult(null); setActive(null)
     let sourceConnection = ''; let targetConnection = ''
     try {
       const inspectSide = async (kind: string, id: string, database: string, offline: typeof offlineSource): Promise<import('../../../../../modules/schema/model.js').DatabaseModel> => {
@@ -132,7 +132,7 @@ export default function Panel(): React.JSX.Element {
       await new Promise((resolve) => window.setTimeout(resolve, 120))
       setCompareStage(4); setMessage('Comparing schemas…')
       const next = await window.tuxsql.compareSchemaModels(sourceModel, targetModel, includeDrops)
-      setCompareStage(5); setResult(next); markDefaults(next); void window.tuxsql.recordRecentTask({ kind: 'schema-compare', title: t('tasks.schemaCompare'), detail: `${sourceDb || t('tasks.offline')} → ${targetDb || t('tasks.offline')}` }).catch(() => undefined); setMessage(next.differences.length ? `${next.differences.length} diferenças: ${next.differences.filter((d) => d.change === 'added').length} novos, ${next.differences.filter((d) => d.change === 'changed').length} alterados, ${next.differences.filter((d) => d.change === 'removed').length} removidos` : 'Os esquemas são idênticos.')
+      setCompareStage(5); setResult(next); markDefaults(next); void window.tuxsql.recordRecentTask({ kind: 'schema-compare', title: t('tasks.schemaCompare'), detail: `${sourceDb || t('tasks.offline')} → ${targetDb || t('tasks.offline')}` }).catch(() => undefined); setMessage(next.differences.length ? t('ui.schemaCompare.summary', [next.differences.length, next.differences.filter((d) => d.change === 'added').length, next.differences.filter((d) => d.change === 'changed').length, next.differences.filter((d) => d.change === 'removed').length]) : t('ui.schemaCompare.identical'))
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Comparison failed.') }
     finally { if (sourceConnection) void window.tuxsql.disconnect(sourceConnection); if (targetConnection && targetConnection !== sourceConnection) void window.tuxsql.disconnect(targetConnection); setBusy(false); setCompareStage(null) }
   }
@@ -144,14 +144,14 @@ export default function Panel(): React.JSX.Element {
     if (!directAccepted) return
     setBusy(true); setMessage('Sincronizando…')
     try {
-      const record = records.find((item) => item.id === target); if (!record) throw new Error('Escolha uma conexão de destino.')
+      const record = records.find((item) => item.id === target); if (!record) throw new Error(t('ui.schemaCompare.targetRequired'))
       const connected = await window.tuxsql.connect(record)
       let summary: Awaited<ReturnType<typeof window.tuxsql.synchronizeSchema>>
       try { summary = await window.tuxsql.synchronizeSchema(connected.id, targetDb, fullSyncScript, destructive && riskAccepted) }
       finally { await window.tuxsql.disconnect(connected.id) }
       await runCompare()
       setMessage(`Synchronization complete: ${summary.succeeded} succeeded, ${summary.failed} failed${summary.errors.length ? ` — ${summary.errors.join('; ')}` : ''}. Comparison refreshed.`)
-    } catch (error) { setMessage(error instanceof Error ? error.message : 'Falha na sincronização.') }
+    } catch (error) { setMessage(error instanceof Error ? error.message : t('ui.schemaCompare.syncFailed')) }
     finally { setBusy(false); setConfirmOpen(false); setRiskAccepted(false) }
   }
   function exportScript(): void { const blob = new Blob([selectedScript], { type: 'text/sql;charset=utf-8' }); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'schema-sync.sql'; anchor.click(); URL.revokeObjectURL(url) }
@@ -186,7 +186,7 @@ export default function Panel(): React.JSX.Element {
       <div style={{ maxHeight: 230, overflow: 'auto', border: '1px solid var(--border)' }} role="tree" aria-label={t('panel.schema.compare.m011cb3fbea')}><table className="schema-diff-table"><thead><tr><th>{t('panel.schema.compare.xType')}</th><th>{t('panel.schema.compare.xSourceObject')}</th><th>{t('cmp.include')}</th><th>{t('panel.schema.compare.xOperation')}</th><th>{t('panel.schema.compare.xTargetObject')}</th></tr></thead><tbody>{(['added','changed','removed'] as const).map((group)=>{const rows=visible.filter((item)=>item.change===group);if(!rows.length)return null;const count=rows.filter((item)=>selected.has(keyOf(item))).length;const title=group==='added'?t('cmp.state.onlySource'):group==='removed'?t('cmp.state.onlyTarget'):t('cmp.state.different');return <Fragment key={group}><tr className="schema-diff-group"><th colSpan={5}>{title} ({count} of {rows.length} {t('panel.schema.compare.xSelected')})</th></tr>{rows.map((item)=><tr key={keyOf(item)}><td>{item.kind}</td><td><button className="schema-object-link" onClick={()=>setActive(item)}>{group==='removed'?t('panel.schema.compare.xObjectMissing'):item.object}</button></td><td><input type="checkbox" aria-label={`${t('cmp.include')}: ${item.object}`} checked={selected.has(keyOf(item))} onChange={()=>setSelected((old)=>{const next=new Set(old);if(next.has(keyOf(item)))next.delete(keyOf(item));else next.add(keyOf(item));return next})}/></td><td>{group==='added'?t('panel.schema.compare.xCreate'):group==='removed'?t('panel.schema.compare.xDrop'):t('panel.schema.compare.xUpdate')}</td><td>{group==='removed'?item.object:group==='added'?t('panel.schema.compare.xObjectMissing'):item.object}</td></tr>)}</Fragment>})}</tbody></table></div><small>{t('cmp.summary.included').replace('{0}',String(selected.size)).replace('{1}',String(result.differences.length))}</small>
       <h3>{t('panel.schema.compare.mede7a4f214')} {active ? `· ${active.object}` : ''}</h3><div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}><div><b>{t('cmp.dest.connection')}</b><Editor height="220px" language="sql" theme="vs-dark" value={selectedDdl('source')} options={{ readOnly: true, minimap: { enabled: false }, scrollBeyondLastLine: false }} /></div><div><b>{t('panel.schema.compare.m31e4abecbd')}</b><Editor height="220px" language="sql" theme="vs-dark" value={selectedDdl('target')} options={{ readOnly: true, minimap: { enabled: false }, scrollBeyondLastLine: false }} /></div></div>
     </>}
-    <p role="status">{busy ? 'Calculando diferenças… ' : ''}{message}</p>
+    <p role="status">{busy ? `${t('ui.schemaCompare.progress')} ` : ''}{message}</p>
     {scriptPreview && <aside className="schema-script-dock" aria-label={t('panel.schema.compare.mbfa0cceb38')}><h3>{t('panel.schema.compare.mbfa0cceb38')}{active ? ` · ${active.object}` : ''}</h3><textarea aria-label={t('panel.schema.compare.m09cb19896d')} readOnly value={selectedScript} /><div className="schema-wizard-actions"><button onClick={() => { void navigator.clipboard.writeText(selectedScript); setMessage(t('panel.schema.compare.xScriptCopied')) }}>{t('panel.schema.compare.md1aaebd0c4')}</button><button onClick={exportScript}>{t('panel.schema.compare.mbf378c8dfb')}</button><button onClick={() => void queueScript()} disabled={!selectedScript.trim()}>{t('extras.schema.queue')}</button><button onClick={() => setScriptPreview(false)}>{t('panel.schema.compare.m0c2ba589bb')}</button></div></aside>}
     {confirmOpen && <div ref={syncDialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label={t('panel.schema.compare.m09644ae38f')} className="schema-sync-wizard"><h3>{t('panel.schema.compare.madcff3dedf')}</h3><nav className="schema-wizard-steps">{(['output','options','scripts','summary'] as SyncStep[]).map((step,index)=><button key={step} className={syncStep===step?'active':''} onClick={()=>setSyncStep(step)}>{index+1} · {t(`panel.schema.compare.xSync${step[0]?.toUpperCase()}${step.slice(1)}`)}</button>)}</nav><p>{t('panel.schema.compare.mbf2e3e94b1')} {label(target)} / {targetDb}</p>
       {syncStep==='output'&&<fieldset><legend>{t('panel.schema.compare.xOutput')}</legend><label><input type="radio" checked={outputMode==='editor'} onChange={()=>setOutputMode('editor')}/>{t('panel.schema.compare.xOpenEditor')}</label><label><input type="radio" checked={outputMode==='file'} onChange={()=>setOutputMode('file')}/>{t('panel.schema.compare.xSaveFile')}</label><label><input type="radio" checked={outputMode==='execute'} onChange={()=>setOutputMode('execute')}/>{t('panel.schema.compare.xExecuteDirect')}</label>{outputMode==='execute'&&<label className="schema-danger-confirm"><input type="checkbox" checked={directAccepted} onChange={(e)=>setDirectAccepted(e.target.checked)}/>{t('panel.schema.compare.xConfirmDirect')}</label>}</fieldset>}

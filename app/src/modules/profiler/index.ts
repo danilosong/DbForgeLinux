@@ -37,10 +37,10 @@ function planShape(nodes: ExplainNode[]): unknown[] {
 
 export async function explainQuery(client: SqlClient, query: string, mode: ExplainMode = 'JSON', options: { confirmAnalyze?: true; serverFamily?: 'mysql' | 'mariadb' } = {}): Promise<ExplainPlan> {
   const trimmed = query.trim().replace(/;+$/, '')
-  if (!trimmed) throw new Error('Consulta vazia.')
+  if (!trimmed) throw new Error('The query is empty.')
   if (mode === 'ANALYZE') {
-    if (options.confirmAnalyze !== true) throw new Error('EXPLAIN ANALYZE executa a consulta e exige confirmação explícita.')
-    if (!isReadOnlyStatement(trimmed)) throw new Error('EXPLAIN ANALYZE está limitado a consultas de leitura.')
+    if (options.confirmAnalyze !== true) throw new Error('EXPLAIN ANALYZE runs the query and requires explicit confirmation.')
+    if (!isReadOnlyStatement(trimmed)) throw new Error('EXPLAIN ANALYZE is limited to read-only queries.')
   }
   const family = options.serverFamily ?? 'mysql'
   const prefix = mode === 'JSON' ? 'EXPLAIN FORMAT=JSON' : mode === 'TREE' ? 'EXPLAIN FORMAT=TREE' : family === 'mariadb' ? 'ANALYZE FORMAT=JSON' : 'EXPLAIN ANALYZE'
@@ -80,16 +80,16 @@ export function parseExplain(rows: SqlRow[], format: ExplainMode = 'JSON'): Expl
   }
   let data: unknown
   try { data = typeof text === 'string' ? JSON.parse(text) : text }
-  catch { return { format, roots: [{ operation: text || 'Plano vazio', children: [] }], warnings: ['O servidor retornou um plano em formato não reconhecido.'], raw } }
+  catch { return { format, roots: [{ operation: text || 'Empty plan', children: [] }], warnings: ['The server returned a plan in an unrecognized format.'], raw } }
   const warnings: string[] = []
   const roots = collectNodes(data, warnings)
   warnings.push(...allNodeWarnings(roots))
-  if (!roots.length) warnings.push('O plano não contém nós reconhecíveis.')
+  if (!roots.length) warnings.push('The plan contains no recognized nodes.')
   return { format, roots, warnings, raw }
 }
 
 export async function readRecentStatementEvents(client: SqlClient, limit = 10): Promise<StatementEvent[]> {
-  if (!Number.isInteger(limit) || limit < 1 || limit > 1000) throw new Error('Limite de eventos deve estar entre 1 e 1000.')
+  if (!Number.isInteger(limit) || limit < 1 || limit > 1000) throw new Error('The event limit must be between 1 and 1000.')
   try {
     const rows = await client.query('SELECT EVENT_ID AS eventId, SQL_TEXT AS sqlText, TIMER_WAIT AS timerWaitPs, ROWS_EXAMINED AS rowsExamined, ROWS_SENT AS rowsSent, ERRORS AS errors, WARNINGS AS warnings, DIGEST AS digest FROM performance_schema.events_statements_history_long WHERE THREAD_ID = (SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_ID = CONNECTION_ID()) ORDER BY EVENT_ID DESC LIMIT ?', [limit])
     return rows.filter((row) => !String(row.sqlText ?? '').toLowerCase().startsWith('select event_id as')).map((row) => ({ eventId: Number(row.eventId), sqlText: value(row.sqlText), timerWaitPs: number(row.timerWaitPs), rowsExamined: number(row.rowsExamined), rowsSent: number(row.rowsSent), errors: number(row.errors), warnings: number(row.warnings), digest: value(row.digest) }))
@@ -104,7 +104,7 @@ export async function readRecentStatementEvents(client: SqlClient, limit = 10): 
 export class ProfilerHistory {
   private readonly items: ProfileResult[] = []
   constructor(private readonly maxItems = 100) {
-    if (!Number.isInteger(maxItems) || maxItems < 1) throw new Error('Tamanho do histórico precisa ser positivo.')
+    if (!Number.isInteger(maxItems) || maxItems < 1) throw new Error('The history size must be a positive number.')
   }
   add(result: ProfileResult): void { this.items.unshift(result); this.items.length = Math.min(this.items.length, this.maxItems) }
   list(): readonly ProfileResult[] { return this.items }

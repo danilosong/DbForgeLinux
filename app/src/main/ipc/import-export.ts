@@ -24,29 +24,29 @@ function progress(event: IpcMainInvokeEvent, jobId: string, value: JobProgress):
 }
 
 function startJob(event: IpcMainInvokeEvent, jobId: string): AbortController {
-  if (!jobId || activeJobs.has(jobId)) throw new Error('Identificador de tarefa inválido ou em uso.')
+  if (!jobId || activeJobs.has(jobId)) throw new Error('Task identifier is invalid or already in use.')
   const controller = new AbortController()
   activeJobs.set(jobId, { controller, senderId: event.sender.id })
   return controller
 }
 
 function assertOptions(options?: ImportExportOptions): void {
-  if (options?.compress !== undefined && typeof options.compress !== 'boolean') throw new Error('Opção de compactação inválida.')
-  if (options?.encoding && !allowedEncodings.includes(options.encoding)) throw new Error('Encoding não suportado.')
-  if (options?.columnMapping && Object.values(options.columnMapping).some((column) => typeof column !== 'string')) throw new Error('Mapeamento de colunas inválido.')
-  if (options?.columnTypes && Object.values(options.columnTypes).some((type) => !['String', 'Integer', 'Float', 'DateTime', 'HexString'].includes(type))) throw new Error('Tipo de coluna inválido.')
-  if (options?.onRowError && !['abort', 'continue', 'prompt'].includes(options.onRowError)) throw new Error('Política de erro inválida.')
-  if (options?.zipLevel !== undefined && (!Number.isInteger(options.zipLevel) || options.zipLevel < 0 || options.zipLevel > 9)) throw new Error('Nível ZIP inválido.')
-  if (options?.zipPassword !== undefined && (typeof options.zipPassword !== 'string' || options.zipPassword.length > 256)) throw new Error('Senha ZIP inválida.')
-  if (options?.zipComment !== undefined && (typeof options.zipComment !== 'string' || options.zipComment.length > 500)) throw new Error('Comentário ZIP inválido.')
-  if (options?.autoDeleteDays !== undefined && (!Number.isInteger(options.autoDeleteDays) || options.autoDeleteDays < 1 || options.autoDeleteDays > 36_500)) throw new Error('Período de retenção inválido.')
-  if (options?.autoDeleteCount !== undefined && (!Number.isInteger(options.autoDeleteCount) || options.autoDeleteCount < 1 || options.autoDeleteCount > 100_000)) throw new Error('Quantidade de retenção inválida.')
-  if (options?.skipLines !== undefined && (!Number.isInteger(options.skipLines) || options.skipLines < 0 || options.skipLines > 100_000)) throw new Error('Número de linhas ignoradas inválido.')
-  if (options?.headerPosition !== undefined && (!Number.isInteger(options.headerPosition) || options.headerPosition < 1 || options.headerPosition > 100_000)) throw new Error('Posição do cabeçalho inválida.')
-  for (const value of [options?.nullString, options?.booleanTrueValue, options?.booleanFalseValue]) if (value !== undefined && (typeof value !== 'string' || value.length > 256)) throw new Error('Valor de importação inválido.')
+  if (options?.compress !== undefined && typeof options.compress !== 'boolean') throw new Error('Compression option is invalid.')
+  if (options?.encoding && !allowedEncodings.includes(options.encoding)) throw new Error('Encoding is not supported.')
+  if (options?.columnMapping && Object.values(options.columnMapping).some((column) => typeof column !== 'string')) throw new Error('Column mapping is invalid.')
+  if (options?.columnTypes && Object.values(options.columnTypes).some((type) => !['String', 'Integer', 'Float', 'DateTime', 'HexString'].includes(type))) throw new Error('Column type is invalid.')
+  if (options?.onRowError && !['abort', 'continue', 'prompt'].includes(options.onRowError)) throw new Error('Error policy is invalid.')
+  if (options?.zipLevel !== undefined && (!Number.isInteger(options.zipLevel) || options.zipLevel < 0 || options.zipLevel > 9)) throw new Error('ZIP compression level is invalid.')
+  if (options?.zipPassword !== undefined && (typeof options.zipPassword !== 'string' || options.zipPassword.length > 256)) throw new Error('ZIP password is invalid.')
+  if (options?.zipComment !== undefined && (typeof options.zipComment !== 'string' || options.zipComment.length > 500)) throw new Error('ZIP comment is invalid.')
+  if (options?.autoDeleteDays !== undefined && (!Number.isInteger(options.autoDeleteDays) || options.autoDeleteDays < 1 || options.autoDeleteDays > 36_500)) throw new Error('Retention period is invalid.')
+  if (options?.autoDeleteCount !== undefined && (!Number.isInteger(options.autoDeleteCount) || options.autoDeleteCount < 1 || options.autoDeleteCount > 100_000)) throw new Error('Retention count is invalid.')
+  if (options?.skipLines !== undefined && (!Number.isInteger(options.skipLines) || options.skipLines < 0 || options.skipLines > 100_000)) throw new Error('Skipped-line count is invalid.')
+  if (options?.headerPosition !== undefined && (!Number.isInteger(options.headerPosition) || options.headerPosition < 1 || options.headerPosition > 100_000)) throw new Error('Header position is invalid.')
+  for (const value of [options?.nullString, options?.booleanTrueValue, options?.booleanFalseValue]) if (value !== undefined && (typeof value !== 'string' || value.length > 256)) throw new Error('Import value is invalid.')
   if (options?.createTable) {
     const schema = options.createTable
-    if (typeof schema.database !== 'string' || typeof schema.name !== 'string' || !Array.isArray(schema.columns) || schema.columns.length > 1000) throw new Error('Definição de tabela inválida.')
+    if (typeof schema.database !== 'string' || typeof schema.name !== 'string' || !Array.isArray(schema.columns) || schema.columns.length > 1000) throw new Error('Table definition is invalid.')
     buildCreateTableSql(schema.database, schema.name, schema.columns as InferredColumn[])
   }
 }
@@ -93,7 +93,7 @@ function isTemplate(value: unknown): value is ImportExportTemplate {
   return typeof item.id === 'string' && typeof item.name === 'string' && (item.direction === 'import' || item.direction === 'export') && typeof item.format === 'string'
 }
 function safeTemplate(value: Omit<ImportExportTemplate, 'id'> & { id?: string }): ImportExportTemplate {
-  if (!value.name.trim() || value.name.length > 120 || !['import', 'export'].includes(value.direction)) throw new Error('Nome ou direção de template inválido.')
+  if (!value.name.trim() || value.name.length > 120 || !['import', 'export'].includes(value.direction)) throw new Error('Template name or direction is invalid.')
   const options: ImportExportOptions = {}
   for (const key of ['delimiter', 'quote', 'header', 'skipLines', 'headerPosition', 'nullString', 'booleanTrueValue', 'booleanFalseValue', 'forceQuotes', 'encoding', 'onRowError', 'rowElement', 'fileName', 'appendTimestamp', 'autoDeleteDays', 'autoDeleteCount', 'rowStart', 'rowCount', 'columnTypes', 'outputMode', 'compress', 'zipLevel', 'zipComment'] as const) {
     const optionValue = value.options?.[key]
@@ -109,16 +109,16 @@ function safeTemplate(value: Omit<ImportExportTemplate, 'id'> & { id?: string })
 
 export function registerImportExportIpc({ driver }: IpcDeps): void {
   ipcMain.handle('import-export:export', async (event, connectionId: string, query: string, format: ExportFormat, options?: ImportExportOptions, jobId = randomUUID()) => {
-    if (!connectionId || !query.trim()) throw new Error('Informe a consulta de origem para exportar.')
+    if (!connectionId || !query.trim()) throw new Error('Enter a source query to export.')
     assertOptions(options)
     const statement = query.trim().replace(/;+\s*$/, '')
-    if (!/^\s*(SELECT|WITH)\b/i.test(statement) || statement.includes(';')) throw new Error('A exportação aceita apenas uma consulta SELECT.')
+    if (!/^\s*(SELECT|WITH)\b/i.test(statement) || statement.includes(';')) throw new Error('Exports accept one SELECT query only.')
     const extensions: Record<ExportFormat, string> = { csv: 'csv', text: 'txt', json: 'json', xml: 'xml', sql: 'sql', html: 'html', xlsx: 'xlsx', pdf: 'pdf' }
     const baseName = (options?.fileName || 'export').replace(/[\\/\\0]/g, '_').slice(0, 120)
     const stamp = options?.appendTimestamp ? `_${new Date().toISOString().replace(/[:.]/g, '-')}` : ''
     const outputExtension = options?.compress ? 'zip' : extensions[format]
     const { canceled, filePath } = await dialog.showSaveDialog({ title: 'Data Export Wizard', defaultPath: `${baseName}${stamp}.${outputExtension}`, filters: [{ name: options?.compress ? 'ZIP archive' : format.toUpperCase(), extensions: [outputExtension] }] })
-    if (canceled || !filePath) throw new Error('Exportação cancelada.')
+    if (canceled || !filePath) throw new Error('Export was cancelled.')
     const controller = startJob(event, jobId)
     let temporaryOutput: string | undefined
     let temporaryHtml: string | undefined
@@ -162,15 +162,15 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
   })
 
   ipcMain.handle('import-export:select-source', async (event, jobId: string, format: ImportFormat, options?: ImportExportOptions) => {
-    if (!jobId) throw new Error('Identificador da tarefa ausente.')
+    if (!jobId) throw new Error('Task identifier is missing.')
     assertOptions(options)
     const extensions: Record<ImportFormat, string[]> = { csv: ['csv', 'tsv'], text: ['txt', 'tsv'], json: ['json'], xml: ['xml'], xlsx: ['xlsx'], sql: ['sql'] }
     const selected = await dialog.showOpenDialog({ title: 'Data Import from', properties: ['openFile'], filters: [{ name: format.toUpperCase(), extensions: extensions[format] }] })
     if (selected.canceled || !selected.filePaths[0]) return null
     const file = selected.filePaths[0]
     const details = await stat(file)
-    if (!details.size) throw new Error('O arquivo selecionado está vazio.')
-    if (details.size > 100 * 1024 * 1024) throw new Error('O arquivo de importação excede o limite de 100 MB.')
+    if (!details.size) throw new Error('The selected file is empty.')
+    if (details.size > 100 * 1024 * 1024) throw new Error('The import file exceeds the 100 MB limit.')
     selectedSources.set(jobId, { file, senderId: event.sender.id })
     const detectedDelimiter = options?.autoDelimiter && (format === 'csv' || format === 'text') ? await detectDelimiter(file, options.quote) : undefined
     const effectiveOptions = { ...options, ...(detectedDelimiter ? { delimiter: detectedDelimiter } : {}), previewRows: 20 }
@@ -179,9 +179,9 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
   })
 
   ipcMain.handle('import-export:preview-export', async (event, connectionId: string, query: string, jobId: string): Promise<ImportPreview> => {
-    if (!connectionId || !query.trim()) throw new Error('Informe a consulta de origem para visualizar.')
+    if (!connectionId || !query.trim()) throw new Error('Enter a source query to preview.')
     const statement = query.trim().replace(/;+\s*$/, '')
-    if (!/^\s*(SELECT|WITH)\b/i.test(statement) || statement.includes(';')) throw new Error('O preview aceita apenas uma consulta SELECT.')
+    if (!/^\s*(SELECT|WITH)\b/i.test(statement) || statement.includes(';')) throw new Error('Preview accepts one SELECT query only.')
     const controller = startJob(event, jobId)
     try {
       const rows = await previewExport({ driver, connectionId, query: `SELECT * FROM (${statement}) AS tuxsql_preview LIMIT 20`, signal: controller.signal, onProgress: (value) => progress(event, jobId, value) }, 20)
@@ -190,12 +190,12 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
   })
 
   ipcMain.handle('import-export:import', async (event, connectionId: string, table: string, format: ImportFormat, mode: ImportMode, keyColumns: string[], options?: ImportExportOptions, jobId?: string) => {
-    if (!connectionId || !table.trim()) throw new Error('Escolha a tabela de destino.')
-    if (['update', 'delete', 'upsert'].includes(mode) && !keyColumns.length) throw new Error('Este modo exige ao menos uma coluna-chave.')
-    if (!jobId) throw new Error('Selecione o arquivo de origem antes de importar.')
+    if (!connectionId || !table.trim()) throw new Error('Choose a destination table.')
+    if (['update', 'delete', 'upsert'].includes(mode) && !keyColumns.length) throw new Error('This mode requires at least one key column.')
+    if (!jobId) throw new Error('Select the source file before importing.')
     assertOptions(options)
     const selected = selectedSources.get(jobId)
-    if (!selected || selected.senderId !== event.sender.id) throw new Error('Arquivo selecionado expirou. Selecione-o novamente.')
+    if (!selected || selected.senderId !== event.sender.id) throw new Error('The selected source file expired. Select it again.')
     const controller = startJob(event, jobId)
     selectedSources.delete(jobId)
     try {

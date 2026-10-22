@@ -37,7 +37,7 @@ describe('source control module', () => {
     expect((await repository.branches()).map((item) => item.name)).toContain('feature/new-schema')
     await repository.checkoutBranch('feature/new-schema')
     expect((await repository.status()).branch).toBe('feature/new-schema')
-    await expect(repository.deleteBranch('main', false)).rejects.toThrow('Confirme')
+    await expect(repository.deleteBranch('main', false)).rejects.toThrow('Confirm branch deletion')
   })
 
   it('reads and resolves merge conflict stages and exposes parent links for the commit DAG', async () => {
@@ -78,7 +78,7 @@ describe('source control module', () => {
     expect(updated.files).toEqual(['scripts/create.sql', 'notes.sql'])
     expect(await readFile(join(folder, 'scripts/create.sql'), 'utf8')).toBe('DROP DATABASE production;')
     expect(project.root).toBe(folder)
-    await expect(addProjectFile(folder, '../outside.sql')).rejects.toThrow('permanecer dentro')
+    await expect(addProjectFile(folder, '../outside.sql')).rejects.toThrow('stay inside the project folder')
     await expect(writeProjectScript(folder, 'bad.txt', 'SELECT 1')).rejects.toThrow('.sql')
   })
 
@@ -89,7 +89,7 @@ describe('source control module', () => {
     await createProject(folder, 'Safe Project')
     await writeFile(join(outside, 'owned.sql'), 'untouched')
     await symlink(outside, join(folder, 'linked'))
-    await expect(writeProjectScript(folder, 'linked/owned.sql', 'DROP DATABASE production;')).rejects.toThrow('links simbólicos')
+    await expect(writeProjectScript(folder, 'linked/owned.sql', 'DROP DATABASE production;')).rejects.toThrow('symbolic links')
     expect(await readFile(join(outside, 'owned.sql'), 'utf8')).toBe('untouched')
 
     const marker = join(outside, 'hook-ran')

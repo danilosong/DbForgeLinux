@@ -20,7 +20,7 @@ export async function describeGridResult(driver: IpcDeps['driver'], connectionId
   }
   const key = groups.get('PRIMARY') ?? [...groups.values()].find((items) => items.length && items.every((item) => !item.nullable))
   const mapped: EditableColumn[] = columns.map((column) => ({ name: String(column.name), dataType: String(column.dataType), columnType: String(column.columnType), nullable: String(column.isNullable).toUpperCase() === 'YES', defaultValue: column.defaultValue, extra: String(column.extra ?? '') }))
-  return { ...table, columns: mapped, keyColumns: key?.map((item) => item.name) ?? [], ...(!key ? { reason: 'Tabela sem chave primária ou índice único não anulável: edição desabilitada.' } : {}) }
+  return { ...table, columns: mapped, keyColumns: key?.map((item) => item.name) ?? [], ...(!key ? { reason: 'Editing is disabled because the table has no primary key or non-null unique index.' } : {}) }
 }
 
 export function registerGridEditingIpc({ driver }: IpcDeps): void {

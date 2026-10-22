@@ -49,7 +49,7 @@ function pick<T>(values: readonly T[], random: Random): T { return values[Math.f
 
 export function sampleRegex(pattern: string, random: Random): string {
   const source = pattern.replace(/^\^|\$$/g, '')
-  if (source.length > 256 || /\(\?[<!=]/.test(source)) throw new Error('Regex não suportado pelo gerador seguro.')
+  if (source.length > 256 || /\(\?[<!=]/.test(source)) throw new Error('The safe generator does not support this regular expression.')
   let output = ''
   for (let i = 0; i < source.length; i++) {
     let token = source[i]
@@ -63,7 +63,7 @@ export function sampleRegex(pattern: string, random: Random): string {
       else output += token
     } else if (token === '[') {
       const end = source.indexOf(']', i + 1)
-      if (end < 0) throw new Error('Classe de caracteres regex não terminada.')
+      if (end < 0) throw new Error('The regular expression has an unterminated character class.')
       let spec = source.slice(i + 1, end)
       const negate = spec.startsWith('^')
       if (negate) spec = spec.slice(1)
@@ -76,7 +76,7 @@ export function sampleRegex(pattern: string, random: Random): string {
       }
       if (negate) choices = [...'abcdefghijklmnopqrstuvwxyz0123456789'].filter((char) => !choices?.includes(char))
       i = end
-    } else if (token === '(' || token === ')' || token === '|') throw new Error('Regex com grupos ou alternativas não é suportado.')
+    } else if (token === '(' || token === ')' || token === '|') throw new Error('The safe generator does not support regular expression groups or alternatives.')
     if (choices) {
       let repeat = 1
       const quantifier = /^(?:\{(\d+)(?:,(\d+))?\}|([+?*]))/.exec(source.slice(i + 1))
@@ -85,7 +85,7 @@ export function sampleRegex(pattern: string, random: Random): string {
         else repeat = quantifier[3] === '?' ? (random() < 0.5 ? 0 : 1) : quantifier[3] === '*' ? Math.floor(random() * 4) : 1 + Math.floor(random() * 4)
         i += quantifier[0].length
       }
-      if (repeat > 128) throw new Error('Repetição regex acima do limite seguro.')
+      if (repeat > 128) throw new Error('The regular expression repetition exceeds the safe limit.')
       for (let n = 0; n < repeat; n++) output += pick(choices, random)
     } else if (token !== '^' && token !== '$') output += token === '.' ? pick([...'abcdefghijklmnopqrstuvwxyz'], random) : token
   }
@@ -140,15 +140,15 @@ export function generateValue(ctx: GenerationContext): unknown {
     return /int|decimal|numeric|float|double|year/i.test(column.type) ? value : `${ctx.table.name}-${column.name}-${value}`
   }
   if (kind === 'list') {
-    if (!spec?.values?.length) throw new Error(`Gerador list para ${column.name} exige values.`)
+    if (!spec?.values?.length) throw new Error(`The list generator for ${column.name} requires values.`)
     return pick(spec.values, random)
   }
   if (kind === 'regex') {
-    if (!spec?.pattern) throw new Error(`Gerador regex para ${column.name} exige pattern.`)
+    if (!spec?.pattern) throw new Error(`The regular expression generator for ${column.name} requires a pattern.`)
     return sampleRegex(spec.pattern, random)
   }
   if (kind === 'foreignKey' || kind === 'fromTable') {
-    if (!ctx.foreignValues?.length) throw new Error(`Nenhum valor de origem disponível para ${column.name}.`)
+    if (!ctx.foreignValues?.length) throw new Error(`No source values are available for ${column.name}.`)
     return pick(ctx.foreignValues, random)
   }
   if (kind === 'name') return `${pick(first(locale), random)} ${pick(last(locale), random)}`
@@ -196,7 +196,7 @@ export function generateValue(ctx: GenerationContext): unknown {
 
 function generateEnum(column: ColumnModel, random: Random): string {
   const values = /^enum\s*\((.*)\)$/i.exec(column.type)?.[1]?.match(/'(?:''|\\.|[^'])*'/g)?.map((value) => value.slice(1, -1).replaceAll("''", "'"))
-  if (!values?.length) throw new Error(`A coluna ${column.name} não declara valores ENUM.`)
+  if (!values?.length) throw new Error(`Column ${column.name} does not declare any ENUM values.`)
   return pick(values, random)
 }
 

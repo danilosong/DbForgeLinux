@@ -6,12 +6,12 @@ export interface SqlClient {
 }
 
 export function quoteIdentifier(value: string): string {
-  if (!value || value.includes('\0')) throw new Error('Identificador SQL inválido.')
+  if (!value || value.includes('\0')) throw new Error('SQL identifier is invalid.')
   return '`' + value.replaceAll('`', '``') + '`'
 }
 
 export function quoteString(value: string): string {
-  if (value.includes('\0')) throw new Error('Literal SQL inválido.')
+  if (value.includes('\0')) throw new Error('SQL literal is invalid.')
   return `'${value.replaceAll('\\', '\\\\').replaceAll("'", "''")}'`
 }
 

@@ -50,18 +50,16 @@ export function registerExtraToolsIpc(deps: IpcDeps): void {
   ipcMain.handle('snippets:list', () => snippets.list())
   ipcMain.handle('snippets:save', (_event, value: Partial<UserSnippet>) => snippets.save(value))
   ipcMain.handle('snippets:delete', (_event, id: string) => snippets.delete(id))
-  ipcMain.handle('snippets:import', async (_event, locale: 'en' | 'pt-BR') => {
-    const portuguese = locale === 'pt-BR'
-    const options = { title: portuguese ? 'Importar trechos SQL' : 'Import SQL snippets', properties: ['openFile'] as ('openFile')[], filters: [{ name: portuguese ? 'Arquivo JSON de trechos' : 'Snippet JSON', extensions: ['json', 'snippet'] }] }
+  ipcMain.handle('snippets:import', async () => {
+    const options = { title: 'Import SQL snippets', properties: ['openFile'] as ('openFile')[], filters: [{ name: 'Snippet JSON', extensions: ['json', 'snippet'] }] }
     const window = BrowserWindow.getFocusedWindow(); const selected = window ? await dialog.showOpenDialog(window, options) : await dialog.showOpenDialog(options)
     const path = selected.filePaths[0]
     if (selected.canceled || !path) return null
     const source = await readBoundedRegularFile(path, 5 * 1024 * 1024)
     const count = await snippets.import(source.toString('utf8')); return { count }
   })
-  ipcMain.handle('snippets:export', async (_event, locale: 'en' | 'pt-BR') => {
-    const portuguese = locale === 'pt-BR'
-    const options = { title: portuguese ? 'Exportar trechos SQL' : 'Export SQL snippets', defaultPath: 'tuxsql-snippets.json', filters: [{ name: portuguese ? 'Arquivo JSON de trechos' : 'Snippet JSON', extensions: ['json'] }] }
+  ipcMain.handle('snippets:export', async () => {
+    const options = { title: 'Export SQL snippets', defaultPath: 'tuxsql-snippets.json', filters: [{ name: 'Snippet JSON', extensions: ['json'] }] }
     const window = BrowserWindow.getFocusedWindow(); const selected = window ? await dialog.showSaveDialog(window, options) : await dialog.showSaveDialog(options)
     if (selected.canceled || !selected.filePath) return null
     await writeFile(selected.filePath, await snippets.export(), { encoding: 'utf8', mode: 0o600 }); await chmod(selected.filePath, 0o600); return selected.filePath

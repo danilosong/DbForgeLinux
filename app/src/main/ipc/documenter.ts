@@ -26,13 +26,13 @@ export function registerDocumenterIpc({ driver }: IpcDeps): void {
   })
   ipcMain.handle('documenter:preview', async (_event, id: string, database: string, title?: string) => generateDocumentation(await inspect(id, database), { title }))
   ipcMain.handle('documenter:generate', async (_event, input: GenerateInput) => {
-    if (input.confirmed !== true) throw new Error('Confirme a geração da documentação.')
+    if (input.confirmed !== true) throw new Error('Confirm documentation generation.')
     if (!input.outputDirectory.trim()) throw new Error('Documentation has not been saved. The path is invalid.')
-    for (const list of [input.excludedTables, input.excludedColumns, input.excludedIndexes]) if (list !== undefined && (!Array.isArray(list) || list.length > 20_000 || list.some((item) => typeof item !== 'string' || item.length > 512))) throw new Error('A seleção granular da documentação é inválida.')
-    if (input.palette !== undefined && !['default', 'bootstrap', 'cerulean', 'cyborg', 'default-dark', 'flatly', 'journal', 'paper', 'yeti', 'metro-light', 'ocean', 'forest'].includes(input.palette)) throw new Error('A paleta da capa não é válida.')
-    if (input.pdfOrientation !== undefined && !['portrait', 'landscape'].includes(input.pdfOrientation)) throw new Error('A orientação do PDF não é válida.')
-    if (input.pdfFontScale !== undefined && (!Number.isFinite(input.pdfFontScale) || input.pdfFontScale < 50 || input.pdfFontScale > 200)) throw new Error('A escala do PDF deve estar entre 50% e 200%.')
-    if (input.pdfPageNumbers !== undefined && typeof input.pdfPageNumbers !== 'boolean') throw new Error('A opção de numeração do PDF é inválida.')
+    for (const list of [input.excludedTables, input.excludedColumns, input.excludedIndexes]) if (list !== undefined && (!Array.isArray(list) || list.length > 20_000 || list.some((item) => typeof item !== 'string' || item.length > 512))) throw new Error('The detailed documentation selection is invalid.')
+    if (input.palette !== undefined && !['default', 'bootstrap', 'cerulean', 'cyborg', 'default-dark', 'flatly', 'journal', 'paper', 'yeti', 'metro-light', 'ocean', 'forest'].includes(input.palette)) throw new Error('The cover palette is invalid.')
+    if (input.pdfOrientation !== undefined && !['portrait', 'landscape'].includes(input.pdfOrientation)) throw new Error('The PDF orientation is invalid.')
+    if (input.pdfFontScale !== undefined && (!Number.isFinite(input.pdfFontScale) || input.pdfFontScale < 50 || input.pdfFontScale > 200)) throw new Error('The PDF scale must be between 50% and 200%.')
+    if (input.pdfPageNumbers !== undefined && typeof input.pdfPageNumbers !== 'boolean') throw new Error('The PDF page numbering option is invalid.')
     const schema = await inspect(input.connectionId, input.database)
     const accounts = input.includeUsers ? await inspectDocumenterAccounts((sql, parameters) => driver.queryRows(input.connectionId, sql, parameters ? [...parameters] : undefined), input.database) : undefined
     return writeDocumentation(schema, {

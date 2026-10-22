@@ -6,7 +6,7 @@ import type { IpcDeps } from './registry.js'
 export function accountFromCurrentUser(value: unknown): AccountRef {
   const account = String(value ?? '')
   const separator = account.lastIndexOf('@')
-  if (separator < 1 || separator === account.length - 1) throw new Error('Não foi possível identificar a conta desta conexão.')
+  if (separator < 1 || separator === account.length - 1) throw new Error('Could not identify the account for this connection.')
   return { user: account.slice(0, separator), host: account.slice(separator + 1) }
 }
 
@@ -34,7 +34,7 @@ export function registerSecurityIpc({ driver }: IpcDeps): void {
     return buildSecurityPlan(changes, { currentAccount: await currentAccount(client), confirm: true })
   })
   ipcMain.handle('security:apply', async (_event, connectionId: string, changes: SecurityChange[], confirm: true) => {
-    if (confirm !== true) throw new Error('A aplicação de alterações de segurança exige confirmação explícita.')
+    if (confirm !== true) throw new Error('Applying security changes requires explicit confirmation.')
     const client = clientFor(driver, connectionId)
     const plan = buildSecurityPlan(changes, { currentAccount: await currentAccount(client), confirm: true })
     return applySecurityPlan(client, plan, true)

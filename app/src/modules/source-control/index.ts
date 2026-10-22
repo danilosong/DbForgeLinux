@@ -43,13 +43,13 @@ export class GitRepository {
     return this.git('diff', '--no-ext-diff', '--no-textconv', '--no-color', ...(staged ? ['--cached'] : []), '--', ...(file ? [file] : []))
   }
   async diffCommit(hash: string, file?: string): Promise<string> {
-    if (!/^[0-9a-f]{7,40}$/i.test(hash)) throw new Error('Commit hash inválido.')
+    if (!/^[0-9a-f]{7,40}$/i.test(hash)) throw new Error('Commit hash is invalid.')
     return this.git('show', '--no-ext-diff', '--no-color', '--format=fuller', hash, '--', ...(file ? [file] : []))
   }
   async commit(message: string, files: string[]): Promise<RepositoryCommit> {
     const cleanMessage = message.trim()
-    if (!cleanMessage) throw new Error('Informe a commit message.')
-    if (!files.length) throw new Error('Selecione ao menos um arquivo para commit.')
+    if (!cleanMessage) throw new Error('Enter a commit message.')
+    if (!files.length) throw new Error('Select at least one file to commit.')
     for (const file of files) await projectFilePath(this.path, file)
     await this.git('add', '--', ...files)
     await this.git('commit', '-m', cleanMessage)
@@ -70,16 +70,16 @@ export class GitRepository {
   }
   async createBranch(name: string): Promise<void> {
     const clean = name.trim()
-    if (!clean) throw new Error('Informe o nome da branch.')
+    if (!clean) throw new Error('Enter a branch name.')
     await this.git('check-ref-format', '--branch', clean)
     await this.git('branch', '--', clean)
   }
   async checkoutBranch(name: string): Promise<void> {
-    if (!name.trim()) throw new Error('Selecione uma branch.')
+    if (!name.trim()) throw new Error('Select a branch.')
     await this.git('switch', '--', name)
   }
   async deleteBranch(name: string, confirmed: boolean): Promise<void> {
-    if (!confirmed) throw new Error('Confirme a exclusão da branch.')
+    if (!confirmed) throw new Error('Confirm branch deletion.')
     await this.git('branch', '-d', '--', name)
   }
   async hasRemote(): Promise<boolean> { return Boolean((await this.git('remote')).trim()) }
@@ -178,23 +178,23 @@ function isWithin(root: string, target: string): boolean {
 }
 
 async function projectFilePath(root: string, file: string): Promise<string> {
-  if (!file.trim() || isAbsolute(file)) throw new Error('O caminho do arquivo deve ser relativo ao projeto.')
+  if (!file.trim() || isAbsolute(file)) throw new Error('The file path must be relative to the project.')
   const rootAbsolute = resolve(root)
   const resolved = resolve(rootAbsolute, file)
   const rootReal = await realpath(root)
-  if (!isWithin(rootAbsolute, resolved)) throw new Error('O arquivo deve permanecer dentro da pasta do projeto.')
+  if (!isWithin(rootAbsolute, resolved)) throw new Error('The file must stay inside the project folder.')
   const rel = relative(rootAbsolute, resolved)
   let cursor = rootReal
   for (const part of rel.split(sep).slice(0, -1)) {
     cursor = join(cursor, part)
     try {
       const info = await lstat(cursor)
-      if (info.isSymbolicLink() || !info.isDirectory() || !isWithin(rootReal, await realpath(cursor))) throw new Error('O caminho do arquivo não pode atravessar links simbólicos.')
+      if (info.isSymbolicLink() || !info.isDirectory() || !isWithin(rootReal, await realpath(cursor))) throw new Error('The file path cannot traverse symbolic links.')
     } catch (error) { if ((error as NodeJS.ErrnoException).code === 'ENOENT') break; throw error }
   }
   try {
     const info = await lstat(resolved)
-    if (info.isSymbolicLink() || !isWithin(rootReal, await realpath(resolved))) throw new Error('O arquivo não pode ser um link simbólico.')
+    if (info.isSymbolicLink() || !isWithin(rootReal, await realpath(resolved))) throw new Error('The file cannot be a symbolic link.')
   } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
   return resolved
 }
@@ -216,7 +216,7 @@ export async function createProject(root: string, name: string): Promise<Project
   if (!cleanName) throw new Error('Project name is empty.')
   const absoluteRoot = resolve(root)
   await mkdir(absoluteRoot, { recursive: true })
-  try { await access(metadataPath(absoluteRoot)); throw new Error('Já existe um projeto nesta pasta.') } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
+  try { await access(metadataPath(absoluteRoot)); throw new Error('A project already exists in this folder.') } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error }
   const metadata: ProjectMetadata = { version: 1, name: cleanName, root: absoluteRoot, connections: [], files: [], createdAt: new Date().toISOString() }
   await writeProjectMetadata(absoluteRoot, metadata)
   return metadata
@@ -249,7 +249,7 @@ export async function addProjectFile(root: string, file: string): Promise<Projec
 export async function writeProjectScript(root: string, file: string, contents: string): Promise<ProjectMetadata> {
   const project = await openProject(root)
   const path = await projectFilePath(project.root, file)
-  if (!path.toLowerCase().endsWith('.sql')) throw new Error('Scripts do projeto devem usar a extensão .sql.')
+  if (!path.toLowerCase().endsWith('.sql')) throw new Error('Project scripts must use the .sql extension.')
   await writeProjectFile(project.root, file, contents)
   const relativePath = relative(project.root, path).split(sep).join('/')
   if (!project.files.includes(relativePath)) project.files.push(relativePath)
@@ -260,12 +260,12 @@ export async function writeProjectScript(root: string, file: string, contents: s
 function objectSql(database: DatabaseModel, object: SchemaObject): string {
   if (object.kind === 'table') {
     const table = database.tables.find((item) => item.name === object.name)
-    if (!table) throw new Error('Definição da tabela não encontrada.')
+    if (!table) throw new Error('Table definition was not found.')
     return table.createSql ?? createTable(table, database.name)
   }
   if (object.createSql?.trim()) return object.createSql.trim().replace(/;?$/, ';')
   if (object.kind === 'view' && 'definition' in object) return `CREATE VIEW \`${database.name.replaceAll('`', '``')}\`.\`${object.name.replaceAll('`', '``')}\` AS ${object.definition};`
-  throw new Error('O servidor não forneceu DDL completo para este objeto.')
+  throw new Error('The server did not provide complete DDL for this object.')
 }
 
 export async function exportSchemaToFolder(database: DatabaseModel, folder: string): Promise<ExportSchemaReport> {
@@ -287,7 +287,7 @@ export async function exportSchemaToFolder(database: DatabaseModel, folder: stri
       await projectFilePath(root, relativePath)
       await writeProjectFile(root, relativePath, `${objectSql(database, item.object)}\n`)
       report.written.push(relativePath)
-    } catch (error) { report.errors.push({ object: `${item.object.kind} ${item.object.name}`, error: error instanceof Error ? error.message : 'Falha ao exportar DDL.' }) }
+    } catch (error) { report.errors.push({ object: `${item.object.kind} ${item.object.name}`, error: error instanceof Error ? error.message : 'Failed to export DDL.' }) }
   }
   return report
 }

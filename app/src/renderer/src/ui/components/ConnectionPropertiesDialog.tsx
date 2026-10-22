@@ -3,6 +3,7 @@ import type { ConnectionRecord, ConnectionTestResult } from '../../../../shared/
 import { normalizeIpcError } from '../../../../shared/normalizeIpcError.js'
 import { Button, Dialog, Field } from './Button'
 import { useI18n } from '../i18n/useI18n.js'
+import type { Translator } from '../../i18n/types.js'
 
 type Page = 'General' | 'Advanced' | 'Security' | 'HTTP' | 'Embedded'
 export interface ConnectionSecrets {
@@ -27,7 +28,7 @@ const PAGES: Page[] = ['General', 'Advanced', 'Security', 'HTTP', 'Embedded']
 const EMPTY_SECRETS: ConnectionSecrets = { password: '', sshPassword: '', sshPassphrase: '', httpPassword: '', proxyPassword: '' }
 
 export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, onTrustHostKey, onCancel }: Props): React.JSX.Element {
-  const { t, locale } = useI18n()
+  const { t } = useI18n()
   const [record, setRecord] = useState(initial)
   const [secrets, setSecrets] = useState(EMPTY_SECRETS)
   const [remember, setRemember] = useState(true)
@@ -66,7 +67,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
       if (result) {
         setDatabaseChoices(result.databases ?? [])
         setConnectionError('')
-        setStatus({ kind: 'success', text: `${t('conn.test.success')}. ${t('conn.test.serverVersion', [result.serverVersion])}. ${tlsStatusText(result, record.host, record.socketPath, locale)}` })
+        setStatus({ kind: 'success', text: `${t('conn.test.success')}. ${t('conn.test.serverVersion', [result.serverVersion])}. ${tlsStatusText(result, record.host, record.socketPath, t)}` })
       }
     } catch (error) {
       setConnectionError(sanitizeError(error, secrets))
@@ -75,29 +76,29 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
 
   function validate(): Record<string, string> {
     const next: Record<string, string> = {}
-    if (!record.name.trim()) next.name = 'Informe um nome para a conexão.'
-    else if (duplicateName) next.name = 'Este nome já está em uso.'
-    if (transport === 'tcp' && (!record.host.trim() || /\s/.test(record.host))) next.host = 'Informe um host válido, sem espaços.'
-    if (transport === 'tcp' && (!Number.isInteger(record.port) || record.port < 1 || record.port > 65535)) next.port = 'A porta deve estar entre 1 e 65535.'
+    if (!record.name.trim()) next.name = t('ui.conn.validation.nameRequired')
+    else if (duplicateName) next.name = t('ui.conn.validation.duplicateName')
+    if (transport === 'tcp' && (!record.host.trim() || /\s/.test(record.host))) next.host = t('ui.conn.validation.hostInvalid')
+    if (transport === 'tcp' && (!Number.isInteger(record.port) || record.port < 1 || record.port > 65535)) next.port = t('ui.conn.validation.portRange')
     if (transport === 'socket' && !record.socketPath?.trim()) next.socket = t('conn.socket.required')
-    if (!record.user.trim()) next.user = 'Informe o usuário.'
-    if (!record.ssh.enabled && record.ssl.mode.startsWith('verify') && !record.ssl.caPath) next.caPath = 'CA obrigatório para este modo SSL.'
-    if (!record.ssh.enabled && Boolean(record.ssl.certPath) !== Boolean(record.ssl.keyPath)) next.clientKey = 'Informe o certificado e a chave juntos.'
+    if (!record.user.trim()) next.user = t('ui.conn.validation.userRequired')
+    if (!record.ssh.enabled && record.ssl.mode.startsWith('verify') && !record.ssl.caPath) next.caPath = t('ui.conn.validation.caRequired')
+    if (!record.ssh.enabled && Boolean(record.ssl.certPath) !== Boolean(record.ssl.keyPath)) next.clientKey = t('ui.conn.validation.certAndKey')
     if (record.ssh.enabled) {
-      if (record.http.enabled) next.transport = 'SSH e HTTP tunneling são mutuamente exclusivos.'
-      if (!record.ssh.host.trim()) next.sshHost = 'Informe o host SSH.'
-      if (!record.ssh.user.trim()) next.sshUser = 'Informe o usuário SSH.'
-      if (!Number.isInteger(record.ssh.port) || record.ssh.port < 1 || record.ssh.port > 65535) next.sshPort = 'Porta SSH inválida.'
-      if (record.ssh.authMethod === 'password' && !secrets.sshPassword && !record.ssh.passwordRef) next.sshPassword = 'Informe a senha SSH.'
-      if (record.ssh.authMethod === 'private-key' && !record.ssh.privateKeyFile) next.privateKeyFile = 'Escolha o arquivo da chave privada.'
+      if (record.http.enabled) next.transport = t('ui.conn.validation.tunnelConflict')
+      if (!record.ssh.host.trim()) next.sshHost = t('ui.conn.validation.sshHostRequired')
+      if (!record.ssh.user.trim()) next.sshUser = t('ui.conn.validation.sshUserRequired')
+      if (!Number.isInteger(record.ssh.port) || record.ssh.port < 1 || record.ssh.port > 65535) next.sshPort = t('ui.conn.validation.sshPortInvalid')
+      if (record.ssh.authMethod === 'password' && !secrets.sshPassword && !record.ssh.passwordRef) next.sshPassword = t('ui.conn.validation.sshPasswordRequired')
+      if (record.ssh.authMethod === 'private-key' && !record.ssh.privateKeyFile) next.privateKeyFile = t('ui.conn.validation.privateKeyRequired')
     }
     if (record.http.enabled) {
       try {
         const url = new URL(record.http.url)
-        if (!['http:', 'https:'].includes(url.protocol)) next.httpUrl = 'Use uma URL HTTP ou HTTPS para o tunnel.php.'
-      } catch { next.httpUrl = 'Informe uma URL válida para o túnel HTTP.' }
-      if (record.http.proxyHost && (!Number.isInteger(record.http.proxyPort) || (record.http.proxyPort ?? 0) < 1 || (record.http.proxyPort ?? 0) > 65535)) next.proxyPort = 'Porta de proxy inválida.'
-      if (record.ssh.enabled) next.transport = 'SSH e HTTP tunneling são mutuamente exclusivos.'
+        if (!['http:', 'https:'].includes(url.protocol)) next.httpUrl = t('ui.conn.validation.httpUrlProtocol')
+      } catch { next.httpUrl = t('ui.conn.validation.httpUrlInvalid') }
+      if (record.http.proxyHost && (!Number.isInteger(record.http.proxyPort) || (record.http.proxyPort ?? 0) < 1 || (record.http.proxyPort ?? 0) > 65535)) next.proxyPort = t('ui.conn.validation.proxyPortInvalid')
+      if (record.ssh.enabled) next.transport = t('ui.conn.validation.tunnelConflict')
     }
     setErrors(next)
     const firstPage: Page | undefined = next.sshHost || next.sshUser || next.sshPort || next.sshPassword || next.privateKeyFile || next.caPath || next.clientKey
@@ -116,19 +117,19 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
       if (action === 'test' && result) {
         setConnectionError('')
         setDatabaseChoices(result.databases ?? [])
-        setStatus({ kind: 'success', text: `${t('conn.test.success')}. ${t('conn.test.serverVersion', [result.serverVersion])}. ${tlsStatusText(result, attempted.host, attempted.socketPath, locale)}` })
+        setStatus({ kind: 'success', text: `${t('conn.test.success')}. ${t('conn.test.serverVersion', [result.serverVersion])}. ${tlsStatusText(result, attempted.host, attempted.socketPath, t)}` })
       }
     } catch (error) {
       const message = sanitizeError(error, secrets)
       const fingerprint = message.match(/SSH host key não confiável: (SHA256:\S+)/)?.[1]
-      if (fingerprint && window.confirm(`Fingerprint SSH ${fingerprint}\n\nConfiar nesta chave e salvar?`)) {
+      if (fingerprint && window.confirm(`SSH fingerprint ${fingerprint}\n\n${t('ui.app.trustHostKey')}`)) {
         const trusted = { ...attempted, ssh: { ...attempted.ssh, hostFingerprint: fingerprint } }
         setRecord(trusted)
         await onTrustHostKey(trusted)
         setStatus({ kind: 'loading', text: `Verificando chave e conectando a ${trusted.host}:${trusted.port}…` })
         try {
           const result = await onAction(trusted, secrets, remember, action)
-          if (action === 'test' && result) { setDatabaseChoices(result.databases ?? []); setStatus({ kind: 'success', text: `${t('conn.test.success')}. ${t('conn.test.serverVersion', [result.serverVersion])}. ${tlsStatusText(result, trusted.host, trusted.socketPath, locale)}` }) }
+          if (action === 'test' && result) { setDatabaseChoices(result.databases ?? []); setStatus({ kind: 'success', text: `${t('conn.test.success')}. ${t('conn.test.serverVersion', [result.serverVersion])}. ${tlsStatusText(result, trusted.host, trusted.socketPath, t)}` }) }
           return
         } catch (retryError) {
           const retryMessage = sanitizeError(retryError, secrets)
@@ -176,7 +177,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
           <label className="check-field wide"><input type="checkbox" checked={record.ssh.enabled || record.ssl.mode !== 'disabled'} onChange={(event) => { if (!event.target.checked) { updateSsl({ mode: 'disabled' }); updateSsh({ enabled: false }) } else if (record.ssl.mode === 'disabled') updateSsl({ mode: 'preferred' }) }} /> {t('conn.security.useProtocol')}</label>
           <Field label={t('conn.security.protocol')}><select value={record.ssh.enabled ? 'ssh' : 'ssl'} onChange={(event) => { const ssh = event.target.value === 'ssh'; updateSsh({ enabled: ssh }); if (ssh) { updateSsl({ mode: 'disabled' }); updateHttp({ enabled: false }) } else updateSsl({ mode: record.ssl.mode === 'disabled' ? 'preferred' : record.ssl.mode }) }}><option value="ssl">SSL/TLS</option><option value="ssh">SSH tunnel</option></select></Field>
           {!record.ssh.enabled && <>
-          <Field label={t('conn.ssl.mode')}><select value={record.ssl.mode} onChange={(event) => updateSsl({ mode: event.target.value as ConnectionRecord['ssl']['mode'] })}><option value="disabled">{locale === 'pt-BR' ? 'Desativado (senha em texto puro)' : 'Disabled (password sent in plain text)'}</option><option value="preferred">{locale === 'pt-BR' ? 'Preferencial (TLS; aceita certificado autoassinado)' : 'Preferred (TLS; accepts self-signed certificates)'}</option><option value="required">{locale === 'pt-BR' ? 'Obrigatório (criptografado, certificado não verificado)' : 'Required (encrypted, certificate not verified)'}</option><option value="verify-ca">{locale === 'pt-BR' ? 'Verificar CA' : 'Verify CA'}</option><option value="verify-identity">{locale === 'pt-BR' ? 'Verificar CA e identidade' : 'Verify CA and identity'}</option></select></Field>
+          <Field label={t('conn.ssl.mode')}><select value={record.ssl.mode} onChange={(event) => updateSsl({ mode: event.target.value as ConnectionRecord['ssl']['mode'] })}><option value="disabled">{t('ui.conn.ssl.disabled')}</option><option value="preferred">{t('ui.conn.ssl.preferred')}</option><option value="required">{t('ui.conn.ssl.required')}</option><option value="verify-ca">{t('ui.conn.ssl.verifyCa')}</option><option value="verify-identity">{t('ui.conn.ssl.verifyIdentity')}</option></select></Field>
           <PathField label={t('conn.ssl.ca')} value={record.ssl.caPath ?? ''} enabled={record.ssl.mode !== 'disabled'} error={errors.caPath} onChange={(caPath) => updateSsl({ caPath: caPath || undefined })} />
           <PathField label={t('conn.ssl.cert')} value={record.ssl.certPath ?? ''} enabled={record.ssl.mode !== 'disabled'} onChange={(certPath) => updateSsl({ certPath: certPath || undefined })} />
           <PathField label={t('conn.ssl.key')} value={record.ssl.keyPath ?? ''} enabled={record.ssl.mode !== 'disabled'} error={errors.clientKey} onChange={(keyPath) => updateSsl({ keyPath: keyPath || undefined })} />
@@ -191,7 +192,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
           {record.ssh.authMethod === 'password' && <Field label={t('conn.ssh.password')} error={errors.sshPassword}><input type="password" value={secrets.sshPassword} onChange={(event) => updateSecret('sshPassword', event.target.value)} placeholder={record.ssh.passwordRef ? '••••••••' : ''} /></Field>}
           {record.ssh.authMethod === 'private-key' && <PathField label={t('conn.ssh.keyFile')} value={record.ssh.privateKeyFile ?? ''} enabled error={errors.privateKeyFile} onChange={(privateKeyFile) => updateSsh({ privateKeyFile: privateKeyFile || undefined })} startInSsh />}
           {record.ssh.authMethod === 'private-key' && <Field label={t('conn.ssh.passphrase')}><input type="password" value={secrets.sshPassphrase} onChange={(event) => updateSecret('sshPassphrase', event.target.value)} /></Field>}
-          {record.ssh.authMethod === 'agent' && <p className="form-help wide">SSH_AUTH_SOCK será verificado ao conectar.</p>}
+          {record.ssh.authMethod === 'agent' && <p className="form-help wide">{t('ui.conn.sshAgentNote')}</p>}
           <Field label={t('conn.ssh.remoteHost')}><input value={record.ssh.remoteHost || record.host} onChange={(event) => updateSsh({ remoteHost: event.target.value })} /></Field>
           <Field label={t('conn.ssh.remotePort')}><input type="number" value={record.ssh.remotePort} onChange={(event) => updateSsh({ remotePort: Number(event.target.value) })} /></Field>
           <Field label={t('conn.ssh.bindPort')} help={t('conn.ssh.bindPort.help')}><input type="number" min="0" max="65535" value={record.ssh.localPort ?? 0} onChange={(event) => updateSsh({ localPort: Number(event.target.value) || undefined })} /></Field>
@@ -215,7 +216,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
           <Field label={t('conn.http.proxyUser')}><input disabled={!record.http.enabled || !record.http.useProxy || !record.http.proxyUser} value={record.http.proxyUser ?? ''} onChange={(event) => updateHttp({ proxyUser: event.target.value || undefined })} /></Field>
           <Field label={t('conn.http.proxyPassword')}><input type="password" disabled={!record.http.enabled || !record.http.useProxy || !record.http.proxyUser} value={secrets.proxyPassword} onChange={(event) => updateSecret('proxyPassword', event.target.value)} placeholder={record.http.proxyPasswordRef ? '••••••••' : ''} /></Field>
           <label className="check-field wide"><input type="checkbox" disabled={!record.http.enabled} checked={record.http.rejectUnauthorized} onChange={(event) => updateHttp({ rejectUnauthorized: event.target.checked })} /> {t('conn.http.verifyCertificate')}</label>
-          {record.http.enabled && <p className="form-help wide">O MySQL é encaminhado pelo servidor web; host e porta da aba General são o destino remoto do banco.</p>}
+          {record.http.enabled && <p className="form-help wide">{t('ui.conn.httpTunnelNote')}</p>}
         </div>}
         {page === 'Advanced' && <div className="form-grid">
           <Field label={t('conn.advanced.connectionTimeout')}><input type="number" min="1" value={record.advanced.connectionTimeoutSeconds} onChange={(event) => updateAdvanced({ connectionTimeoutSeconds: Number(event.target.value) })} /></Field>
@@ -233,7 +234,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
           <label className="check-field"><input type="checkbox" checked={record.advanced.tinyInt1isBit} onChange={(event) => updateAdvanced({ tinyInt1isBit: event.target.checked })} /> Treat TINYINT(1) as boolean</label>
           <label className="check-field"><input type="checkbox" checked={record.advanced.readOnly} onChange={(event) => updateAdvanced({ readOnly: event.target.checked })} /> Read-only session</label>
           <label className="check-field"><input type="checkbox" checked={record.advanced.autoReconnect} onChange={(event) => updateAdvanced({ autoReconnect: event.target.checked })} /> Auto-reconnect</label>
-          <Field label="Custom parameters" help="Uma chave=valor por linha"><textarea rows={3} value={record.advanced.customParameters.map(({ key, value }) => `${key}=${value}`).join('\n')} onChange={(event) => updateAdvanced({ customParameters: parseParameters(event.target.value) })} /></Field>
+          <Field label={t('conn.advanced.customParameters')} help={t('ui.conn.customParametersHelp')}><textarea rows={3} value={record.advanced.customParameters.map(({ key, value }) => `${key}=${value}`).join('\n')} onChange={(event) => updateAdvanced({ customParameters: parseParameters(event.target.value) })} /></Field>
           <div><Button onClick={() => { setRecord(initial); setNameEdited(true); setTransport(initial.socketPath ? 'socket' : 'tcp') }}>{t('conn.restoreDefaults')}</Button></div>
         </div>}
         {page === 'Embedded' && <div className="embedded-disabled"><strong>{t('conn.embedded.unavailable')}</strong><p>{t('conn.embedded.disabled')}</p><button type="button" onClick={() => window.dispatchEvent(new CustomEvent('tuxsql:open-local-server'))}>{t('conn.embedded.openLocal')}</button></div>}
@@ -277,13 +278,12 @@ function sanitizeError(error: unknown, secrets: ConnectionSecrets): string {
   return message
 }
 
-function tlsStatusText(result: ConnectionTestResult, host: string, socketPath: string | undefined, locale: string): string {
-  const portuguese = locale === 'pt-BR'
-  if (result.tlsVersion) return `${portuguese ? result.tlsVerified ? 'criptografada e verificada' : 'criptografada (certificado não verificado)' : result.tlsVerified ? 'encrypted and verified' : 'encrypted (certificate not verified)'} · ${result.tlsVersion}`
-  if (result.sshTunnel) return portuguese ? 'tráfego protegido pelo túnel SSH' : 'traffic protected by SSH tunnel'
-  if (result.httpTunnel && result.httpTunnelSecure) return portuguese ? 'tráfego criptografado pelo túnel HTTPS' : 'traffic encrypted by HTTPS tunnel'
-  if (result.httpTunnel && result.httpTunnelRemote) return portuguese ? 'SEM criptografia — túnel HTTP remoto sem TLS' : 'NO ENCRYPTION — remote HTTP tunnel has no TLS'
-  if (result.httpTunnel) return portuguese ? 'TLS do MySQL ausente (túnel HTTP local)' : 'MySQL TLS is off (local HTTP tunnel)'
+function tlsStatusText(result: ConnectionTestResult, host: string, socketPath: string | undefined, t: Translator): string {
+  if (result.tlsVersion) return `${t(result.tlsVerified ? 'ui.conn.tls.verified' : 'ui.conn.tls.unverified')} · ${result.tlsVersion}`
+  if (result.sshTunnel) return t('ui.conn.tls.sshTunnel')
+  if (result.httpTunnel && result.httpTunnelSecure) return t('ui.conn.tls.httpsTunnel')
+  if (result.httpTunnel && result.httpTunnelRemote) return t('ui.conn.tls.insecureRemoteTunnel')
+  if (result.httpTunnel) return t('ui.conn.tls.mysqlTlsOff')
   const local = Boolean(socketPath) || ['localhost', '::1'].includes(host.trim().toLowerCase()) || /^127(?:\.\d{1,3}){3}$/.test(host.trim())
-  return local ? (portuguese ? 'SEM criptografia (loopback)' : 'NO ENCRYPTION (loopback)') : (portuguese ? 'SEM criptografia — a senha será enviada em texto puro' : 'NO ENCRYPTION — the password will be sent in plain text')
+  return local ? t('ui.conn.tls.insecureLoopback') : t('ui.conn.tls.insecureRemote')
 }

@@ -52,7 +52,7 @@ describe('connection option builders', () => {
   })
 
   it('requires a CA for certificate verification and omits SSL when disabled', async () => {
-    await expect(buildSslOptions({ mode: 'verify-ca' }, 'localhost')).rejects.toThrow('CA obrigatório')
+    await expect(buildSslOptions({ mode: 'verify-ca' }, 'localhost')).rejects.toThrow('CA certificate is required')
     await expect(buildSslOptions({ mode: 'disabled' }, 'localhost')).resolves.toBeUndefined()
   })
 
@@ -76,7 +76,7 @@ describe('connection option builders', () => {
 
   it('rejects simultaneous SSH and HTTP transports', async () => {
     const record = createDefaultConnection('one', 'Test')
-    await expect(buildMysqlOptions({ ...record, ssh: { ...record.ssh, enabled: true }, http: { ...record.http, enabled: true } })).rejects.toThrow('mutuamente exclusivos')
+    await expect(buildMysqlOptions({ ...record, ssh: { ...record.ssh, enabled: true }, http: { ...record.http, enabled: true } })).rejects.toThrow('cannot be enabled at the same time')
     await expect(buildMysqlOptions({ ...record, http: { ...record.http, enabled: true } })).resolves.toMatchObject({ host: 'localhost', port: 3306 })
   })
 })

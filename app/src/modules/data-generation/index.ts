@@ -7,7 +7,7 @@ export type { DataGenerationJob, DataGenerationPreviewJob, DataGenerationReport,
 export { dataDomainProfiles, generatorForDomainProfile, type DataDomainProfile } from './profiles.js'
 
 function quoteId(name: string): string {
-  if (!name || name.includes('\0')) throw new Error('Identificador inválido.')
+  if (!name || name.includes('\0')) throw new Error('Invalid identifier.')
   return `\`${name.replace(/`/g, '``')}\``
 }
 function tableName(database: string, table: string): string { return `${quoteId(database)}.${quoteId(table)}` }
@@ -90,18 +90,18 @@ async function *makeRows(
     const fkIndex = foreignKey?.columns.indexOf(column.name) ?? -1
     const refTable = spec?.source?.table ?? foreignKey?.referencedTable
     const refColumn = spec?.source?.column ?? (fkIndex >= 0 ? foreignKey?.referencedColumns[fkIndex] : undefined)
-    if (!refTable || !refColumn) throw new Error(`Fonte FK não definida para ${table.name}.${column.name}.`)
+    if (!refTable || !refColumn) throw new Error(`No foreign-key source is defined for ${table.name}.${column.name}.`)
     const refDatabase = spec?.source?.database ?? foreignKey?.referencedDatabase ?? context.database ?? ''
     const sameDatabaseSource = !spec?.source?.database && (!foreignKey?.referencedDatabase || foreignKey.referencedDatabase === context.database)
     let values = sameDatabaseSource && !spec?.source?.connectionId ? generatedSamples.get(`${refTable}.${refColumn}`) : undefined
     const sourceConnection = spec?.source?.connectionId ?? context.connectionId
     if (!values?.length && context.driver && sourceConnection && refDatabase) values = await sampleExistingValues(context.driver, sourceConnection, context.signal, refDatabase, refTable, refColumn)
-    if (!values?.length) throw new Error(`Nenhum valor FK disponível em ${refDatabase}.${refTable}.${refColumn}.`)
+    if (!values?.length) throw new Error(`No foreign-key values are available in ${refDatabase}.${refTable}.${refColumn}.`)
     foreignProviders.set(column.name, values)
   }
 
   for (let rowIndex = 0; rowIndex < count; rowIndex++) {
-    if (context.signal?.aborted) throw new DOMException('Geração cancelada.', 'AbortError')
+    if (context.signal?.aborted) throw new DOMException('Data generation was canceled.', 'AbortError')
     const row: Record<string, unknown> = {}
     for (const column of columns) {
       const spec = specFor(job, table.name, column.name)
@@ -117,7 +117,7 @@ async function *makeRows(
         value = generateValue(ctx)
         if (value === null && !column.nullable) {
           const nonNullList = generator?.values?.filter((item) => item != null)
-          if (generator?.kind === 'list' && !nonNullList?.length) throw new Error(`Gerador list para ${column.name} não contém valor não nulo para coluna NOT NULL.`)
+          if (generator?.kind === 'list' && !nonNullList?.length) throw new Error(`The list generator for ${column.name} has no non-null value for its NOT NULL column.`)
           value = generateValue({ ...ctx, spec: { ...generator, values: nonNullList, nullPercent: 0 } })
         }
         if (unique && value != null) {
@@ -126,7 +126,7 @@ async function *makeRows(
           value = typeof value === 'number' ? value + rowIndex + attempts + 1 : `${String(value)}-${rowIndex + attempts + 1}`
         } else break
         attempts++
-        if (attempts > 1000) throw new Error(`Não foi possível gerar valor único para ${table.name}.${column.name}; o intervalo de valores pode estar esgotado.`)
+        if (attempts > 1000) throw new Error(`Could not generate a unique value for ${table.name}.${column.name}; its value range may be exhausted.`)
       } while (unique && value != null && singleSeen.get(column.name)!.has(uniqueKey([value])))
       if (unique && value != null) singleSeen.get(column.name)!.add(uniqueKey([value]))
       row[column.name] = value
@@ -142,10 +142,10 @@ async function *makeRows(
         }
         key = uniqueKey(index.map((column) => row[column]))
       }
-      if (set.has(key)) throw new Error(`Colisão em índice UNIQUE ${index.join(', ')} da tabela ${table.name}.`)
+      if (set.has(key)) throw new Error(`A UNIQUE index collision occurred for ${index.join(', ')} on table ${table.name}.`)
       set.add(key)
     }
-    if (checks.some((check) => !passesSimpleCheck(check, row))) throw new Error(`Valor não satisfaz CHECK da tabela ${table.name}. Configure um gerador que atenda às constraints.`)
+    if (checks.some((check) => !passesSimpleCheck(check, row))) throw new Error(`A value does not satisfy a CHECK constraint on table ${table.name}. Configure a generator to meet the constraints.`)
     for (const [column, value] of Object.entries(row)) {
       const sampleKey = `${table.name}.${column}`
       const sample = generatedSamples.get(sampleKey) ?? []
@@ -174,7 +174,7 @@ async function insertRows(transaction: DbTransaction, database: string, table: T
 }
 
 export async function previewData(job: DataGenerationPreviewJob): Promise<Record<string, unknown>[]> {
-  if (job.count < 0 || !Number.isInteger(job.count)) throw new Error('A quantidade de preview deve ser um inteiro não negativo.')
+  if (job.count < 0 || !Number.isInteger(job.count)) throw new Error('The preview row count must be a non-negative integer.')
   const samples = new Map<string, unknown[]>()
   const rows: Record<string, unknown>[] = []
   const context = { driver: job.driver, connectionId: job.connectionId, database: job.database, signal: job.signal }
@@ -195,7 +195,7 @@ export async function generateData(job: DataGenerationJob): Promise<DataGenerati
   const selected = new Set(job.tables ?? job.schema.tables.map((table) => table.name))
   const tables = orderTables(job.schema.tables.filter((table) => selected.has(table.name)), job.database)
   const counts = tables.map((table) => rowCount(job, table.name))
-  if (counts.some((count) => !Number.isInteger(count) || count < 0)) throw new Error('Cada quantidade de linhas deve ser um inteiro não negativo.')
+  if (counts.some((count) => !Number.isInteger(count) || count < 0)) throw new Error('Each row count must be a non-negative integer.')
   const report: DataGenerationReport = { generated: 0, inserted: 0, tables: {} }
   const samples = new Map<string, unknown[]>()
   const batchSize = Math.max(1, job.batchSize ?? 250)

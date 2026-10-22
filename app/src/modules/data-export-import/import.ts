@@ -20,7 +20,7 @@ async function readAll(source: AsyncIterable<Buffer | string>): Promise<Buffer> 
 }
 
 async function* parseCsv(source: AsyncIterable<Buffer | string>, delimiter: string, quote: string, encoding: 'utf8' | 'utf16le' | 'latin1'): AsyncIterable<string[]> {
-  if (delimiter.length !== 1 || quote.length !== 1 || delimiter === quote) throw new Error('Delimitador CSV ou quote inválido.')
+  if (delimiter.length !== 1 || quote.length !== 1 || delimiter === quote) throw new Error('The CSV delimiter and quote must be different single characters.')
   let field = ''
   let row: string[] = []
   let quoted = false
@@ -49,13 +49,13 @@ async function* parseCsv(source: AsyncIterable<Buffer | string>, delimiter: stri
         if (row.some((value) => value !== '')) yield row
         row = []
       } else {
-        if (afterQuote && !/\s/.test(char)) throw new Error('Conteúdo inesperado após quote CSV.')
+        if (afterQuote && !/\s/.test(char)) throw new Error('Unexpected content after a quoted CSV value.')
         if (!afterQuote) field += char
       }
     }
   }
   if (pendingQuote) quoted = false
-  if (quoted) throw new Error('Campo CSV com quote não terminado.')
+  if (quoted) throw new Error('A quoted CSV field is not terminated.')
   if (field.length || row.length) { row.push(field); yield row }
 }
 
@@ -128,7 +128,7 @@ async function* sqlObjects(job: ImportJob): AsyncIterable<Row> {
   if (script.slice(start).trim()) statements.push(script.slice(start))
   for (const statement of statements) {
     const match = /^\s*INSERT\s+(?:IGNORE\s+)?INTO\s+(?:`(?:``|[^`])+`\.)?`?(?:``|[^`\s(])+`?\s*\(([^)]*)\)\s*VALUES\s*([\s\S]+?)\s*;?\s*$/i.exec(statement)
-    if (!match) { if (statement.trim()) throw new Error('O script SQL contém uma instrução não suportada; somente INSERT ... VALUES é permitido.'); continue }
+    if (!match) { if (statement.trim()) throw new Error('The SQL script contains an unsupported statement; only INSERT ... VALUES is allowed.'); continue }
     const columns = splitSqlValues(match[1]).map((column) => column.replace(/^`|`$/g, '').replace(/``/g, '`'))
     const tuples: string[] = []
     const valuesText = match[2]
@@ -140,10 +140,10 @@ async function* sqlObjects(job: ImportJob): AsyncIterable<Row> {
       else if (char === '(') { if (depth++ === 0) tupleStart = i + 1 }
       else if (char === ')' && --depth === 0) tuples.push(valuesText.slice(tupleStart, i))
     }
-    if (depth !== 0 || !tuples.length) throw new Error('Lista VALUES inválida no script SQL.')
+    if (depth !== 0 || !tuples.length) throw new Error('The VALUES list in the SQL script is invalid.')
     for (const tuple of tuples) {
       const values = splitSqlValues(tuple)
-      if (values.length !== columns.length) throw new Error('Quantidade de valores diferente da quantidade de colunas no INSERT.')
+      if (values.length !== columns.length) throw new Error('The number of values does not match the number of INSERT columns.')
       yield Object.fromEntries(columns.map((column, index) => [column, sqlUnescape(values[index])]))
     }
   }
@@ -158,7 +158,7 @@ function decodeXml(value: string): string {
 async function* xmlObjects(job: ImportJob): AsyncIterable<Row> {
   const xml = (await readAll(job.source)).toString(job.options?.encoding ?? 'utf8').replace(/^\uFEFF/, '')
   const rowElement = job.options?.rowElement ?? 'row'
-  if (!/^[A-Za-z_][\w.-]*$/.test(rowElement)) throw new Error('Nome do elemento XML inválido.')
+  if (!/^[A-Za-z_][\w.-]*$/.test(rowElement)) throw new Error('The XML row element name is invalid.')
   const rowPattern = new RegExp(`<${rowElement}(?:\\s[^>]*)?>([\\s\\S]*?)<\\/${rowElement}\\s*>`, 'g')
   let found = false
   for (const rowMatch of xml.matchAll(rowPattern)) {
@@ -171,7 +171,7 @@ async function* xmlObjects(job: ImportJob): AsyncIterable<Row> {
     }
     if (Object.keys(row).length) yield row
   }
-  if (!found) throw new Error(`Nenhum elemento <${rowElement}> encontrado no XML.`)
+  if (!found) throw new Error(`No <${rowElement}> elements were found in the XML.`)
 }
 
 async function* sourceRows(job: ImportJob): AsyncIterable<Row> {
@@ -184,7 +184,7 @@ async function* sourceRows(job: ImportJob): AsyncIterable<Row> {
     })
     const values = Array.isArray(parsed) ? parsed : [parsed]
     for (const value of values) {
-      if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Cada linha JSON deve ser um objeto.')
+      if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Each JSON row must be an object.')
       yield value as Row
     }
     return
@@ -207,7 +207,7 @@ function mapped(row: Row, job: ImportJob): Row {
 
 function sqlForRow(job: ImportJob, row: Row): { sql: string; values: SqlValue[]; mode: string } {
   const entries = Object.entries(row)
-  if (!entries.length) throw new Error('A linha não contém colunas.')
+  if (!entries.length) throw new Error('The row contains no columns.')
   const table = quoteQualifiedIdentifier(job.table)
   const keys = job.options?.keyColumns ?? []
   const values = entries.map(([, value]) => value instanceof Date || Buffer.isBuffer(value) || value === null || ['string', 'number', 'bigint', 'boolean'].includes(typeof value) ? value as SqlValue : JSON.stringify(value))
@@ -216,29 +216,29 @@ function sqlForRow(job: ImportJob, row: Row): { sql: string; values: SqlValue[];
   if (mode === 'append' || mode === 'upsert') {
     let sql = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${sqlPlaceholders(entries.length)})`
     if (mode === 'upsert') {
-      if (!keys.length) throw new Error('Upsert exige keyColumns.')
+      if (!keys.length) throw new Error('Upsert requires keyColumns.')
       const updates = entries.filter(([key]) => !keys.includes(key)).map(([key]) => `${quoteIdentifier(key)} = VALUES(${quoteIdentifier(key)})`)
       if (updates.length) sql += ` ON DUPLICATE KEY UPDATE ${updates.join(', ')}`
     }
     return { sql, values, mode }
   }
-  if (!keys.length) throw new Error(`${mode} exige keyColumns.`)
+  if (!keys.length) throw new Error(`${mode} requires keyColumns.`)
   const keySet = new Set(keys)
   const where = keys.map((key) => {
-    if (!Object.hasOwn(row, key)) throw new Error(`A coluna-chave ${key} não está presente na linha.`)
+    if (!Object.hasOwn(row, key)) throw new Error(`The key column ${key} is missing from the row.`)
     return `${quoteIdentifier(key)} <=> ?`
   }).join(' AND ')
   const keyValues = keys.map((key) => row[key] as SqlValue)
   if (mode === 'delete') return { sql: `DELETE FROM ${table} WHERE ${where}`, values: keyValues, mode }
   const changes = entries.filter(([key]) => !keySet.has(key))
-  if (!changes.length) throw new Error('Update exige ao menos uma coluna não-chave.')
+  if (!changes.length) throw new Error('Update requires at least one non-key column.')
   return { sql: `UPDATE ${table} SET ${changes.map(([key]) => `${quoteIdentifier(key)} = ?`).join(', ')} WHERE ${where}`, values: [...changes.map(([, value]) => value as SqlValue), ...keyValues], mode }
 }
 
 async function runRows(job: ImportJob, execute: (sql: string, values: readonly SqlValue[]) => Promise<{ affectedRows: number }>, report: ImportReport): Promise<void> {
   let index = 0
   for await (const sourceRow of sourceRows(job)) {
-    if (job.signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+    if (job.signal?.aborted) throw new DOMException('The operation was canceled.', 'AbortError')
     index++; report.read++
     try {
       const row = mapped(sourceRow, job)
@@ -250,7 +250,7 @@ async function runRows(job: ImportJob, execute: (sql: string, values: readonly S
       else if (result.affectedRows === 1) report.inserted++
       else if (result.affectedRows > 0) report.updated++
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Erro de linha.'
+      const message = error instanceof Error ? error.message : 'Row error.'
       report.errors++; report.rowErrors.push({ row: index, message })
       const policy = job.options?.onRowError ?? 'abort'
       const decision = policy === 'prompt' ? await job.options?.onRowErrorPrompt?.(index, message) ?? 'abort' : policy
@@ -281,7 +281,7 @@ export async function previewImport(job: ImportJob, count = job.options?.preview
   let columns: string[] = []
   let read = 0
   for await (const row of sourceRows(job)) {
-    if (job.signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+    if (job.signal?.aborted) throw new DOMException('The operation was canceled.', 'AbortError')
     const mappedRow = mapped(row, job)
     columns = [...new Set([...columns, ...Object.keys(mappedRow)])]
     rows.push(mappedRow)
@@ -314,7 +314,7 @@ export async function* generateImportSql(job: ImportJob): AsyncIterable<string> 
   if (job.options?.mode === 'repopulate') yield `DELETE FROM ${quoteQualifiedIdentifier(job.table)};\n`
   let rowNumber = 0
   for await (const sourceRow of sourceRows(job)) {
-    if (job.signal?.aborted) throw new DOMException('A operação foi cancelada.', 'AbortError')
+    if (job.signal?.aborted) throw new DOMException('The operation was canceled.', 'AbortError')
     rowNumber++
     try {
       const row = mapped(sourceRow, job)

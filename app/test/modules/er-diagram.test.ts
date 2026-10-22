@@ -61,7 +61,7 @@ describe('ER diagram module', () => {
     const relation = createVirtualRelation({ name: 'orders_customer', fromTable: 'orders', fromColumns: ['customer_id'], toTable: 'customers', toColumns: ['id'] }, schema.tables.map((table) => table.name))
     const diagram = buildDiagram(schema, 'conn', [relation])
     expect(validateVirtualRelation(relation, schema)).toBeUndefined()
-    expect(validateVirtualRelation({ ...relation, fromColumns: ['missing'] }, schema)).toBe('Coluna inexistente.')
+    expect(validateVirtualRelation({ ...relation, fromColumns: ['missing'] }, schema)).toBe('Column does not exist.')
     const moved = moveTable(diagram, 'orders', { x: 450, y: 80 })
     expect(deserializeDiagram(serializeDiagram(moved)).tables.find((table) => table.name === 'orders')?.position).toEqual({ x: 450, y: 80 })
     expect(() => deserializeDiagram('{bad json')).toThrow('Diagram deserialization failed.')

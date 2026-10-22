@@ -1,5 +1,5 @@
 export function quoteIdentifier(value: string): string {
-  if (!value || value.includes('\0')) throw new Error('Identificador SQL inválido.')
+  if (!value || value.includes('\0')) throw new Error('SQL identifier is invalid.')
   return '`' + value.replaceAll('`', '``') + '`'
 }
 

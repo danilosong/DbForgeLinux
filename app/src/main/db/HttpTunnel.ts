@@ -15,10 +15,10 @@ export interface ActiveHttpTunnel {
 }
 
 export async function createHttpTunnel(config: ResolvedHttpTunnelConfig, targetHost: string, targetPort: number): Promise<ActiveHttpTunnel> {
-  if (!config.enabled) throw new Error('HTTP tunneling está desativado.')
+  if (!config.enabled) throw new Error('HTTP tunneling is disabled.')
   let endpoint: URL
-  try { endpoint = new URL(config.url) } catch { throw new Error('URL inválida para o HTTP tunnel.') }
-  if (!['http:', 'https:'].includes(endpoint.protocol)) throw new Error('O HTTP tunnel aceita somente URLs HTTP ou HTTPS.')
+  try { endpoint = new URL(config.url) } catch { throw new Error('The HTTP tunnel URL is invalid.') }
+  if (!['http:', 'https:'].includes(endpoint.protocol)) throw new Error('The HTTP tunnel supports HTTP and HTTPS URLs only.')
   const dispatcher = config.proxyHost && config.useProxy !== false
     ? new ProxyAgent({ uri: `http://${config.proxyHost}:${config.proxyPort ?? 8080}`, requestTls: { rejectUnauthorized: config.rejectUnauthorized }, ...(config.proxyUser ? { token: `Basic ${Buffer.from(`${config.proxyUser}:${config.proxyPassword ?? ''}`).toString('base64')}` } : {}) })
     : new Agent({ connect: { rejectUnauthorized: config.rejectUnauthorized } })
@@ -57,7 +57,7 @@ export async function createHttpTunnel(config: ResolvedHttpTunnelConfig, targetH
   })
 
   const address = server.address()
-  if (!address || typeof address === 'string') throw new Error('Não foi possível abrir o gateway HTTP local.')
+  if (!address || typeof address === 'string') throw new Error('Could not open the local HTTP gateway.')
 
   return {
     host: '127.0.0.1',
@@ -162,7 +162,7 @@ class TunnelSession {
       if (body.startsWith('ER:') && !/connection entry not found/i.test(body)) throw new Error(`HTTP tunnel: ${body.slice(3).trim()}`)
       await delay(200)
     }
-    throw new Error('Tempo esgotado aguardando a sessão do HTTP tunnel.')
+    throw new Error('Timed out while waiting for the HTTP tunnel session.')
   }
 
   private createRequest(): (action: string, parameters?: Record<string, string>, body?: Buffer) => Promise<Response> {
@@ -187,7 +187,7 @@ class TunnelSession {
 
   private assertOk(response: Buffer): Buffer {
     if (response.length > MAX_RESPONSE_BYTES) throw new Error('A resposta do HTTP tunnel excede o limite permitido.')
-    if (!response.subarray(0, RESPONSE_PREFIX.length).equals(RESPONSE_PREFIX)) throw new Error(`Resposta inválida do HTTP tunnel: ${response.subarray(0, 200).toString('utf8')}`)
+    if (!response.subarray(0, RESPONSE_PREFIX.length).equals(RESPONSE_PREFIX)) throw new Error(`Invalid HTTP tunnel response: ${response.subarray(0, 200).toString('utf8')}`)
     return response.subarray(RESPONSE_PREFIX.length)
   }
 }

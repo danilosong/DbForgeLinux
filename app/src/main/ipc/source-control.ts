@@ -80,7 +80,7 @@ export function registerSourceControlIpc({ driver, userDataDir }: IpcDeps): void
   })
   ipcMain.handle('source-control:write-script', (_event, root: string, file: string, contents: string) => writeProjectScript(root, file, contents))
   ipcMain.handle('source-control:export-schema', async (_event, connectionId: string, database: string, folder?: string) => {
-    if (!connectionId || !database.trim()) throw new Error('Selecione a conexão e o database.')
+    if (!connectionId || !database.trim()) throw new Error('Select a connection and database.')
     const destination = folder ?? await chooseFolder('Script Database to Folder')
     if (!destination) return null
     const schema = await inspectDatabase((sql, parameters) => driver.queryRows(connectionId, sql, parameters), database)

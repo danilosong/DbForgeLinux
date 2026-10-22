@@ -58,7 +58,7 @@ export async function listAccounts(client: SqlClient): Promise<UserAccount[]> {
   for (const sql of attempts) {
     try { rows = await client.query(sql); break } catch { /* Older servers expose fewer account columns. */ }
   }
-  if (!rows) throw new Error('Não foi possível listar contas; são necessários privilégios de leitura em mysql.user.')
+  if (!rows) throw new Error('Accounts could not be listed; read privileges on mysql.user are required.')
   const roleKeys = new Set((await readRoles(client)).map((role) => `${role.user}@${role.host}`))
   return rows.map((row) => ({
     user: String(row.user ?? ''), host: String(row.host ?? '%'), plugin: stringValue(row.plugin),
@@ -71,7 +71,7 @@ export async function listAccounts(client: SqlClient): Promise<UserAccount[]> {
 export async function getUserSecurityDetails(client: SqlClient, ref: AccountRef): Promise<UserSecurityDetails> {
   const accounts = await listAccounts(client)
   const selected = accounts.find((item) => item.user === ref.user && item.host === ref.host)
-  if (!selected) throw new Error(`A conta ${ref.user}@${ref.host} não foi encontrada.`)
+  if (!selected) throw new Error(`Account ${ref.user}@${ref.host} was not found.`)
   const grantsRows = await client.query(`SHOW GRANTS FOR ${account(ref)}`)
   const grants = grantsRows.map((row) => String(Object.values(row)[0] ?? '')).filter(Boolean)
   const privileges = await readPrivileges(client, ref)
@@ -100,7 +100,7 @@ export function buildSecurityPlan(changes: readonly SecurityChange[], options: S
 }
 
 export async function applySecurityPlan(client: SqlClient, plan: SecurityPlan, confirm: true): Promise<Array<{ index: number; success: boolean; error?: string }>> {
-  if (confirm !== true) throw new Error('A aplicação de alterações de segurança exige confirmação explícita.')
+  if (confirm !== true) throw new Error('Applying security changes requires explicit confirmation.')
   const results: Array<{ index: number; success: boolean; error?: string }> = []
   for (const [index, statement] of plan.statements.entries()) {
     try { await client.execute(statement.sql); results.push({ index, success: true }) }
@@ -112,7 +112,7 @@ export async function applySecurityPlan(client: SqlClient, plan: SecurityPlan, c
 export function previewSecurityPlan(plan: SecurityPlan): string { return plan.statements.map((item) => item.previewSql).join('\n\n') }
 
 export function securitySql(change: SecurityChange, options: { confirm?: true } = {}): string {
-  if (requiresConfirmation(change) && options.confirm !== true) throw new Error('DROP USER e REVOKE exigem confirmação explícita para gerar SQL.')
+  if (requiresConfirmation(change) && options.confirm !== true) throw new Error('DROP USER and REVOKE require explicit confirmation to generate SQL.')
   switch (change.kind) {
     case 'createUser': {
       const options = userOptions(change.account)
@@ -153,11 +153,11 @@ function requiresConfirmation(change: SecurityChange): boolean {
 
 function validateChange(change: SecurityChange, options: SecurityPlanOptions): void {
   if (change.kind === 'dropUser') {
-    if (change.account.user.toLowerCase() === 'root' && change.account.host.toLowerCase() === 'localhost') throw new Error('A exclusão de root@localhost está bloqueada.')
-    if (options.currentAccount && sameAccount(change.account, options.currentAccount)) throw new Error('Não é permitido excluir a conta desta conexão.')
+    if (change.account.user.toLowerCase() === 'root' && change.account.host.toLowerCase() === 'localhost') throw new Error('Deleting root@localhost is blocked.')
+    if (options.currentAccount && sameAccount(change.account, options.currentAccount)) throw new Error('You cannot delete the account used by this connection.')
   }
   if (change.kind === 'revoke' && options.currentAccount && sameAccount(change.grantee, options.currentAccount) && change.scope.kind === 'global' && change.privileges.some((privilege) => ['ALL', 'ALL PRIVILEGES', 'SUPER', 'CREATE USER', 'GRANT OPTION'].includes(privilege.toUpperCase())) && options.allowCurrentAdminRevoke !== true) {
-    throw new Error('Revogar privilégios administrativos da conta atual exige confirmação forte.')
+    throw new Error('Revoking administrative privileges from the current account requires strong confirmation.')
   }
 }
 
@@ -206,11 +206,11 @@ function renderScope(scope: PrivilegeScope): string {
 }
 
 function renderPrivileges(privileges: string[], scope: PrivilegeScope): string {
-  if (!privileges.length) throw new Error('Informe ao menos um privilégio.')
+  if (!privileges.length) throw new Error('Enter at least one privilege.')
   const normalized = privileges.map((item) => item.toUpperCase())
-  for (const privilege of normalized) if (!/^[A-Z][A-Z0-9_ ]*$/.test(privilege)) throw new Error(`Privilégio inválido: ${privilege}`)
+  for (const privilege of normalized) if (!/^[A-Z][A-Z0-9_ ]*$/.test(privilege)) throw new Error(`Invalid privilege: ${privilege}`)
   if (scope.kind === 'column') {
-    if (!scope.columns.length) throw new Error('Informe ao menos uma coluna para o escopo.')
+    if (!scope.columns.length) throw new Error('Enter at least one column for this scope.')
     const byPrivilege = new Map<string, string[]>()
     for (const column of scope.columns) for (const privilege of normalized) {
       const columns = byPrivilege.get(privilege) ?? []
@@ -243,7 +243,7 @@ function renderLimits(limits: UserAccount['limits']): string {
   return limitKeys.map((key) => {
     const value = limits?.[key]
     if (value === undefined) return ''
-    if (!Number.isInteger(value) || value < 0) throw new Error(`${key} deve ser um inteiro não negativo.`)
+    if (!Number.isInteger(value) || value < 0) throw new Error(`${key} must be a non-negative integer.`)
     return ` ${key} ${value}`
   }).join('')
 }
@@ -254,7 +254,7 @@ function riskFor(change: SecurityChange): PlannedStatement['risk'] {
   return 'normal'
 }
 
-function maskSecrets(sql: string): string { return sql.replace(/(IDENTIFIED\s+(?:WITH\s+`[^`]+`\s+)?BY\s+)'(?:\\\\.|''|[^'])*'/gi, '$1\'<senha>\'') }
+function maskSecrets(sql: string): string { return sql.replace(/(IDENTIFIED\s+(?:WITH\s+`[^`]+`\s+)?BY\s+)'(?:\\\\.|''|[^'])*'/gi, '$1\'<password>\'') }
 function yes(value: unknown): boolean { return value === true || value === 1 || String(value).toUpperCase() === 'Y' || String(value).toUpperCase() === 'YES' }
 function pickLimits(row: SqlRow): UserAccount['limits'] {
   const limits: NonNullable<UserAccount['limits']> = {}

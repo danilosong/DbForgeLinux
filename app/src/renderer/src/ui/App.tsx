@@ -339,10 +339,10 @@ export default function App(): React.JSX.Element {
         setDocuments((current) => [...current, { id, label: file.path.split('/').at(-1) ?? 'query.sql', filePath: file.path, modified: false }])
         setSqlByDocument((current) => ({ ...current, [id]: file.contents }))
         setSelectedDocument(id)
-      }).catch((error: unknown) => log('File', error instanceof Error ? error.message : 'Não foi possível abrir o arquivo SQL.', 'error'))
+      }).catch((error: unknown) => log('File', error instanceof Error ? error.message : t('ui.app.msg.1451c57c9a'), 'error'))
     })
     return () => { window.removeEventListener('tuxsql:insert-ai-sql', insertSql); removeOpenSql() }
-  }, [])
+  }, [t])
 
   useEffect(() => { localStorage.setItem('tuxsql.explorerVisible', String(explorerVisible)) }, [explorerVisible])
   useEffect(() => { localStorage.setItem('tuxsql.projectExplorerVisible', String(projectExplorerVisible)) }, [projectExplorerVisible])
@@ -360,21 +360,21 @@ export default function App(): React.JSX.Element {
     if (!nonCriticalReady) { setHistoryLoading(false); return }
     let cancelled = false
     setHistoryLoading(true)
-    void window.tuxsql.listSqlExecutionHistory({ search: historySearch, limit: 200 }).then((entries) => { if (!cancelled) setHistory(entries) }).catch((error: unknown) => { if (!cancelled) log('History', error instanceof Error ? error.message : 'Não foi possível carregar o histórico.', 'error') }).finally(() => { if (!cancelled) setHistoryLoading(false) })
+    void window.tuxsql.listSqlExecutionHistory({ search: historySearch, limit: 200 }).then((entries) => { if (!cancelled) setHistory(entries) }).catch((error: unknown) => { if (!cancelled) log('History', error instanceof Error ? error.message : t('ui.app.msg.b0912de8a4'), 'error') }).finally(() => { if (!cancelled) setHistoryLoading(false) })
     return () => { cancelled = true }
-  }, [historySearch, nonCriticalReady])
+  }, [historySearch, nonCriticalReady, t])
 
   useEffect(() => {
     let cancelled = false
     if (!currentConnection?.database) { setEditorMetadata(emptyEditorMetadata); setMetadataLoading(false); return }
     setMetadataLoading(true)
-    void window.tuxsql.getEditorMetadata(currentConnection.id, currentConnection.database).then((value) => { if (!cancelled) setEditorMetadata(value) }).catch((error: unknown) => { if (!cancelled) { setEditorMetadata({ ...emptyEditorMetadata, database: currentConnection.database ?? '' }); log('Editor', error instanceof Error ? error.message : 'Autocomplete contextual indisponível.', 'warning') } }).finally(() => { if (!cancelled) setMetadataLoading(false) })
+    void window.tuxsql.getEditorMetadata(currentConnection.id, currentConnection.database).then((value) => { if (!cancelled) setEditorMetadata(value) }).catch((error: unknown) => { if (!cancelled) { setEditorMetadata({ ...emptyEditorMetadata, database: currentConnection.database ?? '' }); log('Editor', error instanceof Error ? error.message : t('ui.app.msg.fb04dcc335'), 'warning') } }).finally(() => { if (!cancelled) setMetadataLoading(false) })
     return () => { cancelled = true }
-  }, [currentConnection?.id, currentConnection?.database])
+  }, [currentConnection?.id, currentConnection?.database, t])
 
   async function loadConnections(): Promise<void> {
     try { setRecords(await window.tuxsql.getConnections()); setLoadError('') }
-    catch (error) { setLoadError(error instanceof Error ? error.message : 'Não foi possível ler as conexões.') }
+    catch (error) { setLoadError(error instanceof Error ? error.message : t('ui.app.msg.d584912ffc')) }
   }
 
   function log(origin: string, message: string, tone = 'info'): void {
@@ -461,7 +461,7 @@ export default function App(): React.JSX.Element {
       if (action === 'save') {
         await window.tuxsql.saveConnection(storedRecord)
         upsertRecord(storedRecord)
-        log('Connections', `Conexão "${storedRecord.name}" salva.`, 'success')
+        log('Connections', t('ui.app.connectionSaved', [storedRecord.name]), 'success')
         setDialogRecord(null)
         return
       }
@@ -486,7 +486,7 @@ export default function App(): React.JSX.Element {
         setDialogRecord(null)
         return
       } catch (error) {
-        const message = error instanceof Error ? error.message : 'Falha na conexão.'
+        const message = error instanceof Error ? error.message : t('ui.app.msg.4b8425c313')
         setConnectionErrors((current) => ({ ...current, [record.id]: message }))
         setErrors((current) => [...current, message])
         setStatus('Error')
@@ -506,7 +506,7 @@ export default function App(): React.JSX.Element {
     try { await runConnectionAction(record, emptySecrets(), true, 'connect') }
     catch (error) {
       const fingerprint = error instanceof Error ? /SSH host key não confiável: (SHA256:\S+)/.exec(error.message)?.[1] : undefined
-      if (fingerprint && window.confirm(`Fingerprint SSH ${fingerprint}\n\nConfiar nesta chave e salvar?`)) {
+      if (fingerprint && window.confirm(`SSH fingerprint ${fingerprint}\n\n${t('ui.app.trustHostKey')}`)) {
         const trusted = { ...record, ssh: { ...record.ssh, hostFingerprint: fingerprint } }
         await window.tuxsql.saveConnection(trusted)
         upsertRecord(trusted)
@@ -521,7 +521,7 @@ export default function App(): React.JSX.Element {
     setActive((current) => current.filter((item) => item.id !== connection.id))
     setDatabases((current) => { const next = { ...current }; delete next[connection.recordId]; return next })
     setStatus('Ready')
-    log('Connections', `Desconectado de ${connection.name}.`)
+    log('Connections', t('ui.app.disconnected', [connection.name]))
   }
 
   async function expandRecord(record: ConnectionRecord): Promise<void> {
@@ -531,7 +531,7 @@ export default function App(): React.JSX.Element {
       const found = await window.tuxsql.listDatabases(connected.id)
       setDatabases((current) => ({ ...current, [record.id]: found }))
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Falha ao atualizar o Explorer.'
+      const message = error instanceof Error ? error.message : t('ui.app.msg.dcb9e42c07')
       setConnectionErrors((current) => ({ ...current, [record.id]: message }))
       log('Connections', message, 'error')
     }
@@ -541,7 +541,7 @@ export default function App(): React.JSX.Element {
     const key = `${connection.recordId}:${database}`
     setLoadingObjects((current) => [...new Set([...current, key])])
     try { const loaded = await window.tuxsql.listDatabaseObjects(connection.id, database); setObjects((current) => ({ ...current, [key]: loaded })) }
-    catch (error) { log('Explorer', error instanceof Error ? error.message : 'Falha ao carregar objetos.', 'error') }
+    catch (error) { log('Explorer', error instanceof Error ? error.message : t('ui.app.msg.6d9bdf2d2a'), 'error') }
     finally { setLoadingObjects((current) => current.filter((item) => item !== key)) }
   }
 
@@ -550,8 +550,8 @@ export default function App(): React.JSX.Element {
     try {
       await window.tuxsql.setDatabase(connection.id, database)
       setActive((current) => current.map((item) => item.id === connection.id ? { ...item, database } : item))
-      log('Database', `Database ativa: ${database}.`)
-    } catch (error) { log('Database', error instanceof Error ? error.message : 'Falha ao selecionar database.', 'error') }
+      log('Database', t('ui.app.databaseSelected', [database]))
+    } catch (error) { log('Database', error instanceof Error ? error.message : t('ui.app.msg.fa3a44b014'), 'error') }
   }
 
   function openSqlDocument(label: string, sql: string): string {
@@ -762,7 +762,7 @@ export default function App(): React.JSX.Element {
     try {
       await window.tuxsql.recordSqlExecutionHistory(entry)
       setHistory(await window.tuxsql.listSqlExecutionHistory({ search: historySearch, limit: 200 }))
-    } catch (reason) { log('History', reason instanceof Error ? reason.message : 'Não foi possível registrar a consulta.', 'error') }
+    } catch (reason) { log('History', reason instanceof Error ? reason.message : t('ui.app.msg.56f63ff8f0'), 'error') }
   }
 
   function replayHistory(entry: SqlExecutionHistoryEntry): void {
@@ -778,7 +778,7 @@ export default function App(): React.JSX.Element {
       setDocuments((current) => [...current, { id, label: file.path.split('/').at(-1) ?? 'query.sql', filePath: file.path, modified: false }])
       setSqlByDocument((current) => ({ ...current, [id]: file.contents }))
       setSelectedDocument(id)
-    } catch (error) { log('File', error instanceof Error ? error.message : 'Não foi possível abrir o arquivo SQL.', 'error') }
+    } catch (error) { log('File', error instanceof Error ? error.message : t('ui.app.msg.1451c57c9a'), 'error') }
   }
 
   async function saveCurrentSql(): Promise<void> {
@@ -787,7 +787,7 @@ export default function App(): React.JSX.Element {
     try {
       const path = await window.tuxsql.saveSqlFile(tab.filePath, sqlByDocument[selectedDocument] ?? '')
       if (path) setDocuments((current) => current.map((item) => item.id === selectedDocument ? { ...item, label: path.split('/').at(-1) ?? item.label, filePath: path, modified: false } : item))
-    } catch (error) { log('File', error instanceof Error ? error.message : 'Não foi possível salvar o arquivo SQL.', 'error') }
+    } catch (error) { log('File', error instanceof Error ? error.message : t('ui.app.msg.fe4b17d0ae'), 'error') }
   }
 
   async function saveAllSql(): Promise<void> {
@@ -817,12 +817,12 @@ export default function App(): React.JSX.Element {
       setResults((current) => current.map((result, index) => index === resultTab ? { ...result, rows: [...result.rows, ...rows] } : result))
       if (rows.length < 1000) setPageQueries((current) => { const updated = { ...current }; delete updated[selectedDocument]; return updated })
       else setPageQueries((current) => ({ ...current, [selectedDocument]: { ...page, offset: page.offset + rows.length } }))
-    } catch (error) { log('Execution', error instanceof Error ? error.message : 'Falha ao carregar mais linhas.', 'error') }
+    } catch (error) { log('Execution', error instanceof Error ? error.message : t('ui.app.msg.d3c2951741'), 'error') }
   }
 
   async function generateScript(connection: ConnectionSummary, database: string, object: DatabaseObject): Promise<void> {
     try { openSqlDocument(`Create ${object.name}`, await window.tuxsql.showCreateObject(connection.id, database, object)) }
-    catch (error) { log('Explorer', error instanceof Error ? error.message : 'Não foi possível gerar o script.', 'error') }
+    catch (error) { log('Explorer', error instanceof Error ? error.message : t('ui.app.msg.f491ece97a'), 'error') }
   }
 
   async function dropObject(connection: ConnectionSummary, database: string, object: DatabaseObject): Promise<void> {
@@ -831,7 +831,7 @@ export default function App(): React.JSX.Element {
     const kind = object.kind.toUpperCase()
     try {
       await window.tuxsql.mutateDatabaseObject({ connectionId: connection.id, database, kind: object.kind, name: object.name }, 'drop')
-      log('Explorer', `${kind} ${object.name} removido.`, 'success')
+      log('Explorer', t('ui.app.objectRemoved', [kind, object.name]), 'success')
       await loadObjects(connection, database)
     } catch (error) { log('Explorer', error instanceof Error ? error.message : `Falha ao remover ${object.name}.`, 'error') }
   }
@@ -839,14 +839,14 @@ export default function App(): React.JSX.Element {
   async function renameTable(connection: ConnectionSummary, database: string, object: DatabaseObject, newName: string): Promise<void> {
     const record = records.find((item) => item.id === connection.recordId)
     if (record?.environment === 'prod' && window.prompt(t('security.prod.confirm', [database])) !== database) return
-    try { await window.tuxsql.mutateDatabaseObject({ connectionId: connection.id, database, kind: object.kind, name: object.name }, 'rename', newName); log('Explorer', `Tabela ${object.name} renomeada para ${newName}.`, 'success'); await loadObjects(connection, database) }
+    try { await window.tuxsql.mutateDatabaseObject({ connectionId: connection.id, database, kind: object.kind, name: object.name }, 'rename', newName); log('Explorer', t('ui.app.tableRenamed', [object.name, newName]), 'success'); await loadObjects(connection, database) }
     catch (error) { log('Explorer', error instanceof Error ? error.message : `Falha ao renomear ${object.name}.`, 'error') }
   }
 
   async function truncateTable(connection: ConnectionSummary, database: string, object: DatabaseObject): Promise<void> {
     const record = records.find((item) => item.id === connection.recordId)
     if (record?.environment === 'prod' && window.prompt(t('security.prod.confirm', [database])) !== database) return
-    try { await window.tuxsql.mutateDatabaseObject({ connectionId: connection.id, database, kind: object.kind, name: object.name }, 'truncate'); log('Explorer', `Tabela ${object.name} truncada.`, 'success'); await loadObjects(connection, database) }
+    try { await window.tuxsql.mutateDatabaseObject({ connectionId: connection.id, database, kind: object.kind, name: object.name }, 'truncate'); log('Explorer', t('ui.app.tableTruncated', [object.name]), 'success'); await loadObjects(connection, database) }
     catch (error) { log('Explorer', error instanceof Error ? error.message : `Falha ao truncar ${object.name}.`, 'error') }
   }
 
@@ -857,7 +857,7 @@ export default function App(): React.JSX.Element {
       await window.tuxsql.deleteConnection(record.id)
     }
     setRecords((current) => current.filter((record) => !selected.some((deleted) => deleted.id === record.id)))
-    log('Connections', `${selected.length} conexão(ões) removida(s).`)
+    log('Connections', t('ui.app.connectionsRemoved', [selected.length]))
   }
 
   async function runSql(mode: 'auto' | 'current' = 'auto', queryOverride?: string): Promise<void> {
@@ -970,19 +970,19 @@ export default function App(): React.JSX.Element {
       await persistExecutionHistory(sql, startedAt, true, next.reduce((sum, result) => sum + (result.rowCount ?? result.rows.length), 0))
       if (currentConnection.database && /\b(CREATE|ALTER|DROP|TRUNCATE|RENAME)\b/i.test(sql)) {
         try { setEditorMetadata(await window.tuxsql.getEditorMetadata(currentConnection.id, currentConnection.database, true)) }
-        catch (error) { log('Editor', error instanceof Error ? error.message : 'O cache do esquema não foi atualizado.', 'warning') }
+        catch (error) { log('Editor', error instanceof Error ? error.message : t('ui.app.msg.74eea28b46'), 'warning') }
       }
-      log('Execution', `Consulta concluída · ${next.reduce((sum, result) => sum + (result.rowCount ?? result.rows.length), 0)} rows.`, 'success')
+      log('Execution', t('ui.app.queryCompleted', [next.reduce((sum, result) => sum + (result.rowCount ?? result.rows.length), 0)]), 'success')
     } catch (error) {
       const code = typeof error === 'object' && error ? String((error as { code?: unknown }).code ?? '') : ''
       if (code === 'ER_QUERY_INTERRUPTED' || code === '1317' || (error instanceof Error && error.name === 'AbortError')) {
-        setQueryMessages((current) => [...current, 'Execução cancelada.'])
+        setQueryMessages((current) => [...current, t('ui.app.msg.5b6cd91499')])
         setResultIndex(next.length ? 0 : -1)
         setStatus('Ready')
-        await persistExecutionHistory(sql, startedAt, false, next.reduce((sum, result) => sum + (result.rowCount ?? result.rows.length), 0), 'Execução cancelada.')
+        await persistExecutionHistory(sql, startedAt, false, next.reduce((sum, result) => sum + (result.rowCount ?? result.rows.length), 0), t('ui.app.msg.5b6cd91499'))
         return
       }
-      const message = error instanceof Error ? error.message : 'Falha na consulta.'
+      const message = error instanceof Error ? error.message : t('ui.app.queryFailed')
       const detail = error && typeof error === 'object' ? error as { code?: string; errno?: number; lineNumber?: number; columnNumber?: number } : {}
       const match = /at (?:line )?(\d+)(?:,? column (\d+))?/i.exec(message)
       const line = detail.lineNumber ?? Number(match?.[1] ?? 0)
@@ -994,10 +994,10 @@ export default function App(): React.JSX.Element {
           await window.tuxsql.disconnect(currentConnection.id)
           setActive((current) => current.filter((item) => item.id !== currentConnection.id))
           await runConnectionAction(currentRecord, emptySecrets(), true, 'connect')
-          log('Connections', 'A conexão caiu durante a execução e foi restabelecida. A consulta com falha não foi repetida.', 'warning')
-        } catch { log('Connections', 'A conexão caiu e a reconexão automática falhou. Reconecte pelo Explorer.', 'warning') }
+          log('Connections', t('ui.app.autoReconnectSucceeded'), 'warning')
+        } catch { log('Connections', t('ui.app.autoReconnectFailed'), 'warning') }
       }
-      const shownMessage = `${detail.code ? `${detail.code}${detail.errno ? ` ${detail.errno}` : ''}: ` : ''}${lostConnection ? `A conexão caiu durante a execução. Verifique a rede e reconecte antes de repetir a consulta. (${safeMessage})` : safeMessage}${line ? ` · line ${line}${column ? `, column ${column}` : ''}` : ''}`
+      const shownMessage = `${detail.code ? `${detail.code}${detail.errno ? ` ${detail.errno}` : ''}: ` : ''}${lostConnection ? t('ui.app.queryConnectionLost', [safeMessage]) : safeMessage}${line ? ` · line ${line}${column ? `, column ${column}` : ''}` : ''}`
       setErrors([shownMessage]); setErrorDocumentId(selectedDocument); setQueryMessages([...messages, shownMessage]); setResultIndex(-1); setPanelTab('Error List'); setPanelVisible(true); setStatus('Error'); logSql(sql, [], performance.now() - startedAt, true); log('Execution', shownMessage, 'error')
       await persistExecutionHistory(sql, startedAt, false, next.reduce((sum, result) => sum + (result.rowCount ?? result.rows.length), 0), shownMessage)
       if (line && editorRef.current) editorRef.current.revealLineInCenter(line)
@@ -1007,8 +1007,8 @@ export default function App(): React.JSX.Element {
   async function cancelSql(): Promise<void> {
     if (!currentConnection || !queryBusy || !executionId) return
     setStatus('Canceling…')
-    try { await window.tuxsql.cancelQuery(currentConnection.id, executionId); setQueryMessages((current) => [...current, 'Execução cancelada.']); setStatus('Ready') }
-    catch (error) { log('Execution', error instanceof Error ? error.message : 'Falha ao cancelar consulta.', 'error') }
+    try { await window.tuxsql.cancelQuery(currentConnection.id, executionId); setQueryMessages((current) => [...current, t('ui.app.msg.5b6cd91499')]); setStatus('Ready') }
+    catch (error) { log('Execution', error instanceof Error ? error.message : t('ui.app.msg.d3fa911fe4'), 'error') }
   }
 
   async function toggleAutoCommit(enabled: boolean): Promise<void> {
@@ -1018,8 +1018,8 @@ export default function App(): React.JSX.Element {
       else await window.tuxsql.beginTransaction(currentConnection.id)
       if (enabled) { setTransactionCommitted(true); setTransactionRevision((value) => value + 1) }
       setAutoCommit(enabled)
-      log('Transaction', enabled ? 'Transação confirmada.' : 'Transação manual iniciada.')
-    } catch (error) { log('Transaction', error instanceof Error ? error.message : 'Falha na transação.', 'error') }
+      log('Transaction', enabled ? t('ui.app.transactionCommitted') : t('ui.app.transactionStarted'))
+    } catch (error) { log('Transaction', error instanceof Error ? error.message : t('ui.app.msg.4f17cfa979'), 'error') }
   }
 
   async function finishTransaction(action: 'commit' | 'rollback'): Promise<void> {
@@ -1029,8 +1029,8 @@ export default function App(): React.JSX.Element {
       else await window.tuxsql.rollbackTransaction(currentConnection.id)
       setTransactionCommitted(action === 'commit'); setTransactionRevision((value) => value + 1)
       setAutoCommit(true)
-      log('Transaction', action === 'commit' ? 'Alterações confirmadas.' : 'Alterações desfeitas.')
-    } catch (error) { log('Transaction', error instanceof Error ? error.message : 'Falha na transação.', 'error') }
+      log('Transaction', action === 'commit' ? t('ui.app.changesCommitted') : t('ui.app.changesRolledBack'))
+    } catch (error) { log('Transaction', error instanceof Error ? error.message : t('ui.app.msg.4f17cfa979'), 'error') }
   }
 
   function newSql(): void {
@@ -1323,7 +1323,7 @@ export default function App(): React.JSX.Element {
   function closeTab(id: string): void {
     if (id === 'start') return
     const tab = documents.find((item) => item.id === id)
-    if (tab?.modified && !window.confirm(`Descartar alterações em ${tab.label}?`)) return
+    if (tab?.modified && !window.confirm(t('ui.app.discardTabChanges', [tab.label]))) return
     const next = documents.filter((item) => item.id !== id)
     setDocuments(next)
     if (selectedDocument === id) setSelectedDocument(next.at(-1)?.id ?? 'start')
@@ -1522,7 +1522,7 @@ export default function App(): React.JSX.Element {
       {!toolbarHidden.includes('newConnection') && <Button title="New Connection (Ctrl+Shift+N)" onClick={openNewConnection}>＋ Connection</Button>}
       {!toolbarHidden.includes('connectionManager') && <Button onClick={() => setManagerOpen(true)}>Connection Manager</Button>}
       <span className="toolbar-divider" />
-      <select aria-label="Ativa conexão" value={currentConnection?.recordId ?? ''} onChange={(event) => { const record = records.find((item) => item.id === event.target.value); if (record) void connectFromExplorer(record) }}>
+      <select aria-label={t('ui.app.activeConnection')} value={currentConnection?.recordId ?? ''} onChange={(event) => { const record = records.find((item) => item.id === event.target.value); if (record) void connectFromExplorer(record) }}>
         <option value="">{currentConnection?.name ?? 'Connection'}</option>{records.map((record) => <option key={record.id} value={record.id}>{record.name}</option>)}
       </select>
       <select aria-label="Database ativa" value={currentConnection?.database ?? ''} disabled={!currentConnection} onChange={(event) => { if (currentConnection) void selectDatabase(currentConnection, event.target.value) }}><option value="">{currentConnection?.database ?? 'Database'}</option>{(databases[currentConnection?.recordId ?? ''] ?? []).map((name) => <option key={name}>{name}</option>)}</select>
@@ -1663,7 +1663,7 @@ export default function App(): React.JSX.Element {
           </div>}</div>
           <div className="result-view">
             <div className="result-presentation">{t('editor.results.as')} <button className={resultPresentation === 'text' ? 'selected' : ''} onClick={() => setResultPresentation('text')}>{t('editor.results.text')}</button><button className={resultPresentation === 'grid' ? 'selected' : ''} onClick={() => setResultPresentation('grid')}>{t('editor.results.grid')}</button></div><div className="result-tabs" role="tablist" aria-label={t('editor.results.tabs')}>{results.map((result, index) => <button key={index} role="tab" aria-selected={resultIndex === index} className={resultIndex === index ? 'selected' : ''} onClick={() => setResultIndex(index)}>Result {index + 1} ({result.rowCount ?? result.rows.length})</button>)}<button role="tab" aria-selected={resultIndex === -1} className={resultIndex === -1 ? 'selected' : ''} onClick={() => setResultIndex(-1)}>Messages</button><button role="tab" aria-selected={resultIndex === -2} className={resultIndex === -2 ? 'selected' : ''} onClick={() => setResultIndex(-2)}>Query History</button></div>
-            {resultIndex >= 0 && results[resultIndex] ? resultPresentation === 'text' ? <pre className="result-text">{JSON.stringify(results[resultIndex].rows, null, 2)}</pre> : <ResultGrid result={results[resultIndex]} index={resultIndex} currentConnection={currentConnection ?? undefined} autoCommit={autoCommit} transactionRevision={transactionRevision} transactionCommitted={transactionCommitted} fetchRows={(offset, limit) => window.tuxsql.readResultRows(results[resultIndex].resultStoreId!, offset, limit)} onLoadMore={pageQueries[selectedDocument] ? () => loadMorePage(resultIndex) : undefined} /> : resultIndex === -2 ? <div className="query-history"><div className="history-toolbar"><input aria-label="Search Query History" placeholder="Search SQL, connection, database…" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} /><span>{historyLoading ? 'Loading…' : `${history.length} entries`}</span></div><div className="query-messages">{history.length ? history.map((entry) => <article className="history-row" key={entry.id}><button className="history-entry" onClick={() => openSqlDocument('History query', entry.sql)}><span>{new Date(entry.timestamp).toLocaleString()} · {entry.connection}{entry.database ? ` · ${entry.database}` : ''} · {(entry.elapsedMs / 1000).toFixed(3)} s · {entry.success ? 'Success' : 'Failed'}</span><code>{entry.sql}</code></button><Button onClick={() => replayHistory(entry)}>Re-run</Button></article>) : <p>{historyLoading ? 'Loading…' : 'Histórico vazio.'}</p>}</div></div> : <div className="query-messages" aria-live="polite">{queryBusy && <p>Executando…</p>}{queryMessages.map((message, index) => <p key={index}>{message}</p>)}{!queryBusy && !queryMessages.length && <p>Messages de execução aparecerão aqui.</p>}{results.filter((result) => !result.columns.length).map((result, index) => <p key={`affected-${index}`}>Affected rows: {result.affectedRows} · Last insert id: {result.insertId}</p>)}{queryElapsed > 0 && <small>{(queryElapsed / 1000).toFixed(3)} s</small>}</div>}
+            {resultIndex >= 0 && results[resultIndex] ? resultPresentation === 'text' ? <pre className="result-text">{JSON.stringify(results[resultIndex].rows, null, 2)}</pre> : <ResultGrid result={results[resultIndex]} index={resultIndex} currentConnection={currentConnection ?? undefined} autoCommit={autoCommit} transactionRevision={transactionRevision} transactionCommitted={transactionCommitted} fetchRows={(offset, limit) => window.tuxsql.readResultRows(results[resultIndex].resultStoreId!, offset, limit)} onLoadMore={pageQueries[selectedDocument] ? () => loadMorePage(resultIndex) : undefined} /> : resultIndex === -2 ? <div className="query-history"><div className="history-toolbar"><input aria-label="Search Query History" placeholder="Search SQL, connection, database…" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} /><span>{historyLoading ? 'Loading…' : `${history.length} entries`}</span></div><div className="query-messages">{history.length ? history.map((entry) => <article className="history-row" key={entry.id}><button className="history-entry" onClick={() => openSqlDocument('History query', entry.sql)}><span>{new Date(entry.timestamp).toLocaleString()} · {entry.connection}{entry.database ? ` · ${entry.database}` : ''} · {(entry.elapsedMs / 1000).toFixed(3)} s · {entry.success ? 'Success' : 'Failed'}</span><code>{entry.sql}</code></button><Button onClick={() => replayHistory(entry)}>Re-run</Button></article>) : <p>{historyLoading ? 'Loading…' : t('ui.app.msg.8918e025fe')}</p>}</div></div> : <div className="query-messages" aria-live="polite">{queryBusy && <p>{t('ui.app.queryRunning')}</p>}{queryMessages.map((message, index) => <p key={index}>{message}</p>)}{!queryBusy && !queryMessages.length && <p>{t('ui.app.queryMessagesEmpty')}</p>}{results.filter((result) => !result.columns.length).map((result, index) => <p key={`affected-${index}`}>Affected rows: {result.affectedRows} · Last insert id: {result.insertId}</p>)}{queryElapsed > 0 && <small>{(queryElapsed / 1000).toFixed(3)} s</small>}</div>}
           </div>
         </div>}
         {splitDocument && <aside className="document-split-pane" aria-label={t('tabs.secondaryPane')}><header><select aria-label={t('tabs.secondaryPane')} value={splitDocument} onChange={(event) => setSplitDocument(event.target.value)}>{documents.filter((tab) => tab.id !== 'start').map((tab) => <option key={tab.id} value={tab.id}>{tab.label}</option>)}</select><Button onClick={() => setSplitDocument(undefined)}>{t('tabs.closeSplit')}</Button></header><textarea aria-label={t('tabs.secondaryEditor')} spellCheck={false} value={sqlByDocument[splitDocument] ?? ''} onChange={(event) => { const value = event.target.value; setSqlByDocument((current) => ({ ...current, [splitDocument]: value })); setDocuments((current) => current.map((tab) => tab.id === splitDocument ? { ...tab, modified: true } : tab)) }} /></aside>}

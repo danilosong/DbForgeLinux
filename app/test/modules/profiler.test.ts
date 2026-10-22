@@ -23,10 +23,9 @@ describe('query profiler', () => {
     expect(planCostHue(0, 9)).toBe(120)
   })
 
-  it('describes common server status counters in both supported UI locales', () => {
-    expect(describeStatusVariable('Rows_examined', 'en')).toContain('read while evaluating')
-    expect(describeStatusVariable('Rows_examined', 'pt-BR')).toContain('Linhas lidas')
-    expect(describeStatusVariable('unknown_custom_counter', 'en')).toContain('scope depend')
+  it('describes common server status counters in English', () => {
+    expect(describeStatusVariable('Rows_examined')).toContain('read while evaluating')
+    expect(describeStatusVariable('unknown_custom_counter')).toContain('scope depend')
   })
   it('compares selected runs by duration, events, session counters and structural plan shape', () => {
     const make = (overrides: Partial<ProfileResult> = {}): ProfileResult => ({
@@ -66,9 +65,9 @@ describe('query profiler', () => {
     const plan = parseExplain([{ EXPLAIN: '-> Nested loop inner join  (cost=2.10 rows=4)\n    -> Table scan on p  (cost=1.00 rows=2)\n    -> Index lookup on c using fk_p (p_id=p.id)  (cost=0.55 rows=2)' }], 'TREE')
     expect(plan.roots[0].children).toHaveLength(2)
     const query = vi.fn(async () => [{ EXPLAIN: '{}' }])
-    await expect(explainQuery(client({ query }), 'SELECT 1', 'ANALYZE')).rejects.toThrow('confirmação')
-    await expect(explainQuery(client({ query }), 'DELETE FROM t', 'ANALYZE', { confirmAnalyze: true })).rejects.toThrow('leitura')
-    await expect(explainQuery(client({ query }), 'WITH c AS (SELECT 1) DELETE FROM t', 'ANALYZE', { confirmAnalyze: true })).rejects.toThrow('leitura')
+    await expect(explainQuery(client({ query }), 'SELECT 1', 'ANALYZE')).rejects.toThrow('requires explicit confirmation')
+    await expect(explainQuery(client({ query }), 'DELETE FROM t', 'ANALYZE', { confirmAnalyze: true })).rejects.toThrow('limited to read-only queries')
+    await expect(explainQuery(client({ query }), 'WITH c AS (SELECT 1) DELETE FROM t', 'ANALYZE', { confirmAnalyze: true })).rejects.toThrow('limited to read-only queries')
     expect(query).not.toHaveBeenCalled()
   })
 

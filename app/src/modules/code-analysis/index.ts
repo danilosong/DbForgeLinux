@@ -13,32 +13,32 @@ export function analyzeSql(sql: string): CodeAnalysisFinding[] {
   }
 
   for (const match of masked.matchAll(/\bSELECT\s+(?:[\w`$]+\s*\.\s*)?\*/gi)) {
-    add('SQL001', 'Performance', 'Warning', 'Evite SELECT *; enumere as colunas necessárias.', match.index ?? 0)
+    add('SQL001', 'Performance', 'Warning', 'Avoid SELECT *; list the required columns.', match.index ?? 0)
   }
   for (const statement of splitSqlStatements(masked)) {
     if (/^\s*UPDATE\b/i.test(statement.sql) && !/\bWHERE\b/i.test(statement.sql)) {
-      add('SQL002', 'Correctness', 'Warning', 'UPDATE sem WHERE pode alterar todas as linhas.', Math.max(statement.start, masked.toUpperCase().indexOf('UPDATE', statement.start)))
+      add('SQL002', 'Correctness', 'Warning', 'UPDATE without WHERE may change every row.', Math.max(statement.start, masked.toUpperCase().indexOf('UPDATE', statement.start)))
     }
     if (/^\s*DELETE\b/i.test(statement.sql) && !/\bWHERE\b/i.test(statement.sql)) {
-      add('SQL003', 'Correctness', 'Warning', 'DELETE sem WHERE pode remover todas as linhas.', Math.max(statement.start, masked.toUpperCase().indexOf('DELETE', statement.start)))
+      add('SQL003', 'Correctness', 'Warning', 'DELETE without WHERE may remove every row.', Math.max(statement.start, masked.toUpperCase().indexOf('DELETE', statement.start)))
     }
   }
   for (const match of masked.matchAll(/(?:=|<>|!=)\s*NULL\b/gi)) {
-    add('SQL004', 'Correctness', 'Error', 'Use IS NULL ou IS NOT NULL para comparar valores NULL.', match.index ?? 0)
+    add('SQL004', 'Correctness', 'Error', 'Use IS NULL or IS NOT NULL to compare NULL values.', match.index ?? 0)
   }
   for (const match of masked.matchAll(/\bWHERE\b[^;\n]*?\b(?:LOWER|UPPER|DATE|YEAR|MONTH|DAY|COALESCE|IFNULL|CAST|CONVERT)\s*\(/gi)) {
-    add('SQL005', 'Performance', 'Warning', 'Uma função aplicada à coluna no predicado pode impedir o uso de índice.', match.index ?? 0)
+    add('SQL005', 'Performance', 'Warning', 'Applying a function to a predicate column can prevent index use.', match.index ?? 0)
   }
   for (const match of masked.matchAll(/\bJOIN\s+[^;\n]*?(?=;|\n|\b(?:JOIN|WHERE|GROUP\s+BY|ORDER\s+BY|LIMIT)\b|$)/gi)) {
-    if (!/\b(?:ON|USING)\b/i.test(match[0])) add('SQL006', 'Correctness', 'Warning', 'JOIN sem ON ou USING pode gerar produto cartesiano.', match.index ?? 0)
+    if (!/\b(?:ON|USING)\b/i.test(match[0])) add('SQL006', 'Correctness', 'Warning', 'JOIN without ON or USING may produce a Cartesian product.', match.index ?? 0)
   }
   for (const match of masked.matchAll(/\bLIMIT\s+\d+(?:\s*,\s*\d+)?\b/gi)) {
     const statementStart = Math.max(masked.lastIndexOf(';', match.index ?? 0) + 1, 0)
     const segment = masked.slice(statementStart, match.index ?? 0)
-    if (!/\bORDER\s+BY\b/i.test(segment)) add('SQL007', 'Style', 'Info', 'LIMIT sem ORDER BY pode retornar linhas diferentes entre execuções.', match.index ?? 0)
+    if (!/\bORDER\s+BY\b/i.test(segment)) add('SQL007', 'Style', 'Info', 'LIMIT without ORDER BY may return rows in a different order between runs.', match.index ?? 0)
   }
   for (const match of masked.matchAll(/\bUNION\b(?!\s+ALL)\b/gi)) {
-    add('SQL008', 'Performance', 'Info', 'Confirme se UNION DISTINCT é necessário; UNION ALL evita remover duplicatas.', match.index ?? 0)
+    add('SQL008', 'Performance', 'Info', 'Check whether UNION DISTINCT is needed; UNION ALL keeps duplicate rows.', match.index ?? 0)
   }
   return findings.sort((left, right) => left.line - right.line || left.column - right.column || left.ruleId.localeCompare(right.ruleId))
 }
