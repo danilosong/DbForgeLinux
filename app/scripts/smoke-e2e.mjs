@@ -541,7 +541,7 @@ END`)
   await exportPanel.locator('.io-footer .button-primary').click()
   const secondQuery = exportPanel.locator('textarea').first()
   for (const selectedSource of await exportPanel.locator('.io-source-list input[type="checkbox"]:checked').all()) await selectedSource.uncheck()
-  if (await secondQuery.count()) await secondQuery.fill('NOT A SELECT')
+  if (await secondQuery.count()) await secondQuery.fill('SELECT * FROM `__tuxsql_missing_export_table__`')
   for (let step = 0; step < 5; step += 1) {
     const next = exportPanel.getByRole('button', { name: /Next|Avançar/ })
     if (!(await next.count())) break
