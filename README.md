@@ -157,7 +157,7 @@ Para instalar o pacote oficial no Ubuntu, Debian, Linux Mint ou Pop!_OS:
 
 ```bash
 # Instalação do pacote .deb (substitua pelo caminho do arquivo baixado ou gerado)
-sudo apt install /caminho/para/tuxsql_0.1.1_amd64.deb
+sudo apt install /caminho/para/tuxsql_0.1.2_amd64.deb
 ```
 
 Após a instalação, o aplicativo estará disponível no menu do sistema como **TuxSQL** ou pode ser iniciado via terminal:
