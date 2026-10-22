@@ -1,0 +1,17 @@
+Mean grayscale luminance (normalized 0..1), measured from full 1440x900 captures. Each light capture is brighter than its dark pair.
+sql-editor antes: light L 0.9607 > dark D 0.5515: True
+sql-editor depois: light L 0.9701 > dark D 0.1209: True
+table-data-grid-edit antes: light L 0.9612 > dark D 0.5545: True
+table-data-grid-edit depois: light L 0.9704 > dark D 0.1204: True
+table-designer antes: light L 0.9522 > dark D 0.1473: True
+table-designer depois: light L 0.9617 > dark D 0.1329: True
+er-diagram antes: light L 0.9643 > dark D 0.1309: True
+er-diagram depois: light L 0.9722 > dark D 0.1194: True
+schema-compare antes: light L 0.7997 > dark D 0.1357: True
+schema-compare depois: light L 0.9646 > dark D 0.1266: True
+routine-debugger antes: light L 0.9567 > dark D 0.3170: True
+routine-debugger depois: light L 0.9639 > dark D 0.1377: True
+ai-assistant antes: light L 0.9433 > dark D 0.1547: True
+ai-assistant depois: light L 0.9545 > dark D 0.1368: True
+connection-properties antes: light L 0.7418 > dark D 0.1013: True
+connection-properties depois: light L 0.7430 > dark D 0.0929: True

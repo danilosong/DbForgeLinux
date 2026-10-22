@@ -33,7 +33,7 @@ export const defaultKeyBindings: KeyBinding[] = keymapCommands.map((item) => ({ 
 export const defaultSettings: AppSettings = {
   schemaVersion: 2,
   environment: { confirmExit: true, restoreSession: true, recentFiles: 10, windowItems: 10, showStatusBar: true, showSplash: true, showStartPage: true, autoSaveDrafts: true, autoSaveIntervalSeconds: 30, successToasts: true, startup: 'last-workspace' },
-  appearance: { theme: 'auto', accent: '#2f6fde', density: 'comfortable', uiZoom: 100, reduceMotion: false, editorForeground: '#202124', editorBackground: '#ffffff', currentLineColor: '#f1f5fb', keywordColor: '#315fc0' },
+  appearance: { theme: 'auto', accent: '#0e7490', density: 'comfortable', uiZoom: 100, reduceMotion: false, editorForeground: '#202124', editorBackground: '#ffffff', currentLineColor: '#f1f5fb', keywordColor: '#315fc0' },
   queryBuilder: { showGrid: true, gridSize: 8, snapToGrid: true, shadows: true },
   chartDesigner: { showEveryTime: true },
   profiler: { historyLimit: 10 },

@@ -259,6 +259,12 @@ async function packagedFontNotices() {
     } else if (baseName.includes('codicon')) {
       if (!monaco) throw new Error('Bundled Monaco codicon font has no package license entry.')
       sections.push(`\n${asset.fileName}\nName: Monaco codicon font\nVersion: ${monaco.versions?.[0] ?? 'unknown'}\nSPDX: ${monaco.spdx}\nURL: ${monaco.homepage ?? 'https://microsoft.github.io/monaco-editor/'}\nCovered by the monaco-editor notice above.`)
+    } else if (baseName.includes('inter-')) {
+      const notice = resolve(appRoot, 'src/renderer/src/ui/fonts/Inter-OFL.txt')
+      sections.push(`\n${asset.fileName}\nName: Inter\nVersion: 20\nSPDX: OFL-1.1\nURL: https://github.com/rsms/inter\n${(await readFile(notice, 'utf8')).trim()}`)
+    } else if (baseName.includes('jetbrainsmono-')) {
+      const notice = resolve(appRoot, 'src/renderer/src/ui/fonts/JetBrainsMono-OFL.txt')
+      sections.push(`\n${asset.fileName}\nName: JetBrains Mono\nVersion: 24\nSPDX: OFL-1.1\nURL: https://github.com/JetBrains/JetBrainsMono\n${(await readFile(notice, 'utf8')).trim()}`)
     } else {
       throw new Error(`No font license mapping for bundled asset ${asset.fileName}`)
     }
@@ -266,7 +272,7 @@ async function packagedFontNotices() {
   if (!fontAssets.some((asset) => basename(asset.fileName).toLowerCase().includes('rubik-spray-paint')) || !fontAssets.some((asset) => basename(asset.fileName).toLowerCase().includes('sedgwick-ave-display'))) {
     throw new Error('Expected splash typefaces are not present in the renderer package inventory.')
   }
-  sections.push('\nInter and JetBrains Mono are system-font fallbacks only; neither is bundled as a font file.')
+  sections.push('\nInter and JetBrains Mono are system-font fallbacks only when the bundled faces cannot be loaded; both families are also bundled from the pinned WOFF2 files above.')
   return sections.join('\n')
 }
 

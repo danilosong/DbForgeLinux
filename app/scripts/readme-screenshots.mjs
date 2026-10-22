@@ -1,4 +1,4 @@
-/* global process, console, setTimeout, clearTimeout, document, DOMPoint, HTMLElement */
+/* global process, console, setTimeout, clearTimeout, document, DOMPoint, HTMLElement, getComputedStyle, localStorage */
 import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
@@ -12,12 +12,12 @@ import mysql from 'mysql2/promise'
 process.env.LANG = 'en_US.UTF-8'
 process.env.LC_ALL = 'en_US.UTF-8'
 
-const names = ['ui-corrections', 'sql-editor', 'table-data-grid-edit', 'er-diagram', 'schema-compare', 'routine-debugger', 'table-designer', 'ai-assistant']
+const names = ['ui-corrections', 'sql-editor', 'table-data-grid-edit', 'er-diagram', 'schema-compare', 'routine-debugger', 'table-designer', 'ai-assistant', 'connection-properties']
 const expectedFiles = names.flatMap((name) => [`${name}-light.png`, `${name}-dark.png`]).sort()
 const appBinary = resolve(process.env.TUXSQL_APP_BIN ?? join(process.cwd(), 'dist', 'linux-unpacked', 'tuxsql'))
 if (!existsSync(appBinary)) throw new Error(`TuxSQL executable not found: ${appBinary}`)
 
-const evidenceDirectory = join(process.cwd(), '..', 'document', 'evidence', 'ui')
+const evidenceDirectory = process.env.TUXSQL_SCREENSHOT_OUTPUT ?? join(process.cwd(), '..', 'document', 'evidence', 'ui')
 const runId = `${process.pid}_${randomUUID().replaceAll('-', '').slice(0, 10)}`
 const database = `tuxsql_readme_${runId}`
 const targetDatabase = `${database}_target`
@@ -84,7 +84,58 @@ END`)
   page = await app.firstWindow()
   page.setDefaultTimeout(15_000)
   page.on('dialog', (dialog) => dialog.accept())
+  const setTheme = async (theme) => {
+    const dialogOpen = await page.locator('.connection-dialog').isVisible().catch(() => false)
+    const state = await page.evaluate(() => ({ dataset: document.documentElement.dataset.theme, mode: localStorage.getItem('tuxsql.theme') }))
+    if (dialogOpen) {
+      await page.evaluate((value) => { document.documentElement.dataset.theme = value }, theme)
+      return
+    }
+    if (state.mode !== theme) {
+      const viewMenu = page.locator('.menu-row > details').filter({ has: page.locator('summary').filter({ hasText: /^View$/ }) })
+      await viewMenu.locator('summary').click()
+      await viewMenu.getByRole('button', { name: `Theme: ${theme === 'dark' ? 'Dark' : 'Light'}`, exact: true }).click()
+    } else if (state.dataset !== theme) {
+      await page.evaluate((value) => { document.documentElement.dataset.theme = value }, theme)
+    }
+  }
+  const assertThemeLuminance = async (theme) => {
+    const actual = await page.evaluate(() => {
+      const root = document.documentElement
+      const css = getComputedStyle(root)
+      const background = css.getPropertyValue('--color-canvas-app').trim() || css.getPropertyValue('--bg-app').trim()
+      const channels = background.startsWith('#')
+        ? (background.length === 4 ? background.slice(1).split('').map((channel) => Number.parseInt(channel + channel, 16)) : background.slice(1).match(/.{2}/g)?.map((channel) => Number.parseInt(channel, 16)))
+        : background.match(/[\d.]+/g)?.slice(0, 3).map(Number)
+      if (!channels || channels.length !== 3) throw new Error(`Cannot resolve theme canvas color: ${background}`)
+      const linear = channels.map((channel) => {
+        const value = channel / 255
+        return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+      })
+      return { theme: root.dataset.theme, background, accent: css.getPropertyValue('--accent').trim(), luminance: 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2] }
+    })
+    const correctTheme = actual.theme === theme && (theme === 'light' ? actual.luminance > 0.45 : actual.luminance < 0.15)
+    if (!correctTheme) throw new Error(`Expected ${theme} theme luminance; got data-theme=${actual.theme}, color=${actual.background}, luminance=${actual.luminance.toFixed(3)}`)
+    const expectedAccent = theme === 'light' ? '#0e7490' : '#38bdf8'
+    if (actual.accent !== expectedAccent) throw new Error(`Expected ${theme} accent ${expectedAccent}; got ${actual.accent}`)
+    return actual.luminance
+  }
   await page.locator('.app-shell .brand').filter({ hasText: /^TuxSQL$/ }).waitFor()
+  const localFonts = await page.evaluate(async () => {
+    await Promise.all([
+      document.fonts.load('400 13px Inter', 'TuxSQL Ação'),
+      document.fonts.load('500 13px Inter', 'Interface'),
+      document.fonts.load('600 13px Inter', 'TuxSQL'),
+      document.fonts.load('400 13px "JetBrains Mono"', 'SELECT 42'),
+      document.fonts.load('500 13px "JetBrains Mono"', '123.45'),
+      document.fonts.load('600 13px "JetBrains Mono"', 'CREATE TABLE')
+    ])
+    return {
+      inter: document.fonts.check('400 13px Inter', 'TuxSQL Ação'),
+      mono: document.fonts.check('400 13px "JetBrains Mono"', 'SELECT 42')
+    }
+  })
+  if (!localFonts.inter || !localFonts.mono) throw new Error(`Packaged fonts did not load locally: ${JSON.stringify(localFonts)}`)
   const later = page.getByRole('button', { name: /^(Later|Dismiss)$/ })
   if (await later.count()) await later.click().catch(() => undefined)
   const welcomeClose = page.locator('.panel-dialog-backdrop .panel-dialog-close')
@@ -106,6 +157,13 @@ END`)
   }
   const dbSelect = page.locator('.form-grid .form-field').filter({ has: page.getByText('Database', { exact: true }) }).locator('select')
   if (await dbSelect.count()) await dbSelect.selectOption(database).catch(() => undefined)
+  for (const theme of ['light', 'dark']) {
+    await setTheme(theme)
+    await assertThemeLuminance(theme)
+    await page.locator('.connection-dialog').waitFor({ state: 'visible' })
+    await page.screenshot({ path: join(evidenceDirectory, `connection-properties-${theme}.png`) })
+  }
+  await setTheme('light')
   await page.getByRole('button', { name: 'Connect', exact: true }).click()
   await page.getByRole('heading', { name: 'Database Connection Properties' }).waitFor({ state: 'detached', timeout: 30_000 })
   await page.locator('.workbench').waitFor()
@@ -126,11 +184,11 @@ END`)
       await page.waitForTimeout(120)
     }
   }
-  const setTheme = async (theme) => page.evaluate((value) => { document.documentElement.dataset.theme = value }, theme)
   const capturePair = async (name, selector, setup) => {
     for (const theme of ['light', 'dark']) {
       await setTheme(theme)
       if (setup) await setup(theme)
+      await assertThemeLuminance(theme)
       if (name === 'routine-debugger') await page.waitForFunction(() => {
         const toolbar = document.querySelector('.rd-toolbar')?.textContent ?? ''
         const variables = document.querySelector('.rd-side')?.textContent ?? ''
@@ -251,6 +309,7 @@ END`)
   await capturePair('schema-compare', '.compare-panel')
 
   // Deploy the server-side engine and pause after loading a local variable for Variables and Watches.
+  await setTheme('light')
   await openMenu(/^Debug$/, /Start Debugging/)
   const debugPanel = page.locator('.routine-debugger')
   await debugPanel.waitFor()
