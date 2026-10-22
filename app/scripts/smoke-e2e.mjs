@@ -16,7 +16,7 @@ const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-smoke-'))
 const mysqlHost = process.env.MYSQL_HOST ?? '127.0.0.1'
 const mysqlPort = Number(process.env.MYSQL_PORT ?? 33067)
 const smokeConnectionName = `Smoke DB ${mysqlPort}`
-const admin = await mysql.createConnection({ host: mysqlHost, port: mysqlPort, user: 'root', password: process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only' })
+let admin
 // Keep this long-running E2E schema outside mysql:clean-test's broad tuxsql_test_ sweep.
 const testPrefix = `qa_smoke_${process.pid}_${randomUUID().slice(0, 8)}`
 const database = testPrefix
@@ -28,7 +28,21 @@ const debugRoutine = `${testPrefix}_debug`
 let debugSchemaExisted = false
 let databaseCreated = false
 let app
+let hardStopTimer
 const evidenceDirectory = join(process.cwd(), '..', 'document', 'evidence', 'ui')
+
+// Bound the whole desktop run, including browser automation and teardown. The package script
+// adds an outer process-group timeout so Xvfb is also reaped if Node itself stops responding.
+const smokeWatchdog = setTimeout(() => {
+  console.error('Smoke e2e exceeded 4 minutes 30 seconds; terminating Electron and cleaning up.')
+  const child = app?.process()
+  if (child && child.exitCode === null && child.signalCode === null) child.kill('SIGTERM')
+  hardStopTimer = setTimeout(() => {
+    const lingeringChild = app?.process()
+    if (lingeringChild && lingeringChild.exitCode === null && lingeringChild.signalCode === null) lingeringChild.kill('SIGKILL')
+    process.exit(124)
+  }, 15_000)
+}, 270_000)
 
 async function dropDisposableDatabase(name) {
   let lastError
@@ -42,6 +56,7 @@ async function dropDisposableDatabase(name) {
   throw new Error(`Could not remove disposable database ${name}: ${lastError instanceof Error ? lastError.message : 'database is still present'}`)
 }
 try {
+  admin = await mysql.createConnection({ host: mysqlHost, port: mysqlPort, user: process.env.MYSQL_USER ?? 'root', password: process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only', connectTimeout: 10_000 })
   await admin.query(`CREATE DATABASE \`${database}\``)
   databaseCreated = true
   await admin.query(`CREATE DATABASE \`${targetDatabase}\``)
@@ -526,7 +541,7 @@ END`)
     await next.click()
   }
   await exportPanel.getByRole('heading', { name: 'Ready to export' }).first().waitFor()
-  await exportPanel.locator('.io-footer .button-primary').click()
+  await exportPanel.locator('.io-footer .button-primary').click({ noWaitAfter: true })
   await exportPanel.locator('.assistant-finish').waitFor()
   await mkdir(evidenceDirectory, { recursive: true })
   await exportPanel.locator('.assistant-finish').screenshot({ path: join(evidenceDirectory, 'assistant-finish-export.png') })
@@ -541,7 +556,7 @@ END`)
   await exportPanel.locator('.io-footer .button-primary').click()
   const secondQuery = exportPanel.locator('textarea').first()
   for (const selectedSource of await exportPanel.locator('.io-source-list input[type="checkbox"]:checked').all()) await selectedSource.uncheck()
-  if (await secondQuery.count()) await secondQuery.fill('SELECT * FROM `__tuxsql_missing_export_table__`')
+  if (await secondQuery.count()) await secondQuery.fill('NOT A SELECT')
   for (let step = 0; step < 5; step += 1) {
     const next = exportPanel.getByRole('button', { name: /Next|Avançar/ })
     if (!(await next.count())) break
@@ -551,10 +566,17 @@ END`)
   const writeErrorLog = exportPanel.getByRole('checkbox', { name: /Write an error log/ })
   if (await writeErrorLog.count() !== 1) throw new Error(`The export error step did not expose Write an error log: ${await exportPanel.innerText()}`)
   await writeErrorLog.check()
-  await exportPanel.locator('.io-footer .button-primary').click()
-  await exportPanel.locator('.io-footer .button-primary').click()
+  await exportPanel.locator('.io-footer .button-primary').click({ noWaitAfter: true })
+  await exportPanel.locator('.io-footer .button-primary').click({ noWaitAfter: true })
   const runExport = exportPanel.locator('.io-footer .button-primary')
-  if (await runExport.count()) await runExport.click()
+  const exportFinish = exportPanel.locator('.assistant-finish')
+  const exportNextState = await Promise.race([
+    exportFinish.waitFor({ state: 'visible', timeout: 15_000 }).then(() => 'finish', () => null),
+    runExport.waitFor({ state: 'visible', timeout: 15_000 }).then(() => 'run', () => null)
+  ])
+  if (!exportNextState) throw new Error(`Export wizard stalled after the error-log step: ${await exportPanel.innerText()}`)
+  if (exportNextState === 'run' && !(await exportFinish.isVisible())) await runExport.click({ noWaitAfter: true })
+  await exportFinish.waitFor({ state: 'visible', timeout: 20_000 })
   const showLog = exportPanel.getByRole('button', { name: 'Show log file', exact: true })
   if (!(await showLog.count())) throw new Error(`Finish did not expose Show log file: ${await exportPanel.innerText()} (saved log: ${await readFile(exportErrorLog, 'utf8').catch(() => 'missing')})`)
   await exportPanel.locator('.assistant-finish').screenshot({ path: join(evidenceDirectory, 'assistant-finish-log.png') })
@@ -575,7 +597,7 @@ END`)
   await exportPanel.locator('.io-footer .button-primary').click()
   await exportPanel.locator('.io-footer .button-primary').click()
   const importRun = exportPanel.locator('.io-footer .button-primary')
-  if (await importRun.count()) await importRun.click()
+  if (await importRun.count()) await importRun.click({ noWaitAfter: true })
   await exportPanel.locator('.assistant-finish').waitFor({ timeout: 20_000 })
   await exportPanel.locator('.assistant-finish').screenshot({ path: join(evidenceDirectory, 'assistant-finish-import.png') })
   if (!(await exportPanel.getByRole('button', { name: 'Import more', exact: true }).count())) throw new Error('Import Finish must provide Import more.')
@@ -734,17 +756,27 @@ END`)
       child.kill('SIGTERM')
       let timer
       try {
-        await Promise.race([exited, new Promise((resolve) => { timer = setTimeout(resolve, 30_000) })])
-        if (child.exitCode === null && child.signalCode === null) { child.kill('SIGKILL'); await exited }
+        await Promise.race([exited, new Promise((resolve) => { timer = setTimeout(resolve, 5_000) })])
+        if (child.exitCode === null && child.signalCode === null) {
+          child.kill('SIGKILL')
+          await Promise.race([exited, new Promise((resolve) => { timer = setTimeout(resolve, 5_000) })])
+        }
       } finally { if (timer) clearTimeout(timer) }
     }
   }
   try {
-    if (databaseCreated) await dropDisposableDatabase(database)
-    await dropDisposableDatabase(targetDatabase)
-    if (!debugSchemaExisted) await dropDisposableDatabase('tuxsql_linux_debug')
+    if (admin) {
+      if (databaseCreated) await dropDisposableDatabase(database)
+      await dropDisposableDatabase(targetDatabase)
+      if (!debugSchemaExisted) await dropDisposableDatabase('tuxsql_linux_debug')
+    }
   } finally {
-    await admin.end()
-    await rm(dataRoot, { recursive: true, force: true })
+    try {
+      if (admin) await admin.end()
+      await rm(dataRoot, { recursive: true, force: true })
+    } finally {
+      clearTimeout(smokeWatchdog)
+      if (hardStopTimer) clearTimeout(hardStopTimer)
+    }
   }
 }

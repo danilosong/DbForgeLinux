@@ -1547,16 +1547,38 @@ export default function App(): React.JSX.Element {
     const nav = menuRowRef.current
     if (!nav) return
     const menus = (): HTMLDetailsElement[] => Array.from(nav.querySelectorAll<HTMLDetailsElement>(':scope > details'))
-    const closeAll = (except?: HTMLDetailsElement): void => { for (const menu of menus()) if (menu !== except && menu.open) menu.open = false }
+    const closeDescendants = (menu: HTMLDetailsElement): void => {
+      for (const child of menu.querySelectorAll<HTMLDetailsElement>('details[open]')) child.open = false
+    }
+    const closeAll = (except?: HTMLDetailsElement): void => {
+      for (const menu of menus()) {
+        if (menu === except) continue
+        if (menu.open) menu.open = false
+        closeDescendants(menu)
+      }
+    }
     const onToggle = (event: Event): void => {
-      if (!(event.target instanceof HTMLDetailsElement) || !event.target.open) return
-      let root = event.target
+      if (!(event.target instanceof HTMLDetailsElement)) return
+      const current = event.target
+      if (!current.open) {
+        closeDescendants(current)
+        return
+      }
+      let root = current
       while (root.parentElement && root.parentElement !== nav) {
         const parent = root.parentElement.closest('details')
         if (!parent || parent === root) break
         root = parent
       }
       closeAll(root)
+      const siblings = root === current
+        ? menus()
+        : Array.from(current.parentElement?.children ?? []).filter((item): item is HTMLDetailsElement => item instanceof HTMLDetailsElement)
+      for (const sibling of siblings) {
+        if (sibling === current) continue
+        if (sibling.open) sibling.open = false
+        closeDescendants(sibling)
+      }
     }
     const onPointerDown = (event: PointerEvent): void => { if (!(event.target instanceof Node) || !nav.contains(event.target)) closeAll() }
     const onKeyDown = (event: KeyboardEvent): void => { if (event.key === 'Escape') closeAll() }
