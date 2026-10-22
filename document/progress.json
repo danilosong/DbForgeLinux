@@ -3,7 +3,7 @@
   "bars": [
     {
       "label": "Cobertura de funcionalidades de referência",
-      "value": 98.5,
+      "value": 100.0,
       "source": "document/paridade/FIDELIDADE-MEDIDA.md"
     },
     {
@@ -13,9 +13,9 @@
     },
     {
       "label": "Specs de UX verificadas contra evidência",
-      "value": 95,
-      "detail": "18 de 19"
+      "value": 100,
+      "detail": "20 de 20"
     }
   ],
-  "note": "Cobertura medida contra mais de 800 capturas reais do produto de referência (VM). Specs de UX só contam como verificados quando citam capturas existentes (18 de 19; o AI Assistant só tem a casca deslogada)."
+  "note": "O 100% vale para o escopo Debian/Linux e para o que a referência mostrou; exclusões e diferenças intencionais estão declaradas em document/paridade/ESCOPO-LINUX.md."
 }

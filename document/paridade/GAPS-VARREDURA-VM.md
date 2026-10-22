@@ -48,7 +48,7 @@ Como medir: cada item vira linhas em `FIDELIDADE-MEDIDA.md` (rodada 3) com evid�
 
 - **#25 Security Manager:** os campos IPC de contas, mudanças, escopos, privilégios e roles agora têm validação por discriminante, campos permitidos e limites. Isso reduz risco de entrada forjada, mas não fecha a diferença de apresentação/fluxo da grade nem substitui evidência e2e.
 - **#20, #21, #23–24, #26–30:** esta rodada não alterou o escopo funcional desses itens; seus estados e pendências acima continuam válidos.
-- **Debugger de triggers (fora da faixa 20–30):** o checkpoint lê comandos de estado confirmados durante a DML e usa um advisory lock para expor a linha pausada. O snapshot do trigger não contém variáveis locais e Step Out não percorre uma pilha filha; são limites do modelo, registrados na divergência do debugger.
+- **Debugger de triggers (fora da faixa 20–30):** o checkpoint expõe a linha/frames por advisory lock e os locals via user variables limitadas lidos pelo Performance Schema da sessão DML; Step Out atravessa procedures chamadas diretamente no mesmo schema. Se Performance Schema ou os privilégios SELECT faltarem, o debug avisa e omite locals; limites de escopo estão registrados em `DIVERGENCIAS-ORIGINAL.md`.
 
 ## Rodada de implementação — gaps 20, 21 e 24
 

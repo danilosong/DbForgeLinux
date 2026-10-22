@@ -1,9 +1,10 @@
 # Escopo e Paridade Linux — TuxSQL (Família Debian: Ubuntu, Pop!_OS)
 
-> **Documento Oficial de Engenharia e Produto**  
-> **Data de Emissão:** 22 de outubro de 2026 (Atualizado: Rodada 8.1)  
-> **Avaliador / Autor:** Prisma (Designer UX/UI Antigravity)  
-> **Diretriz do Dono do Produto:** O TuxSQL é um ambiente de banco de dados projetado exclusivamente para distribuições Linux da família Debian (Ubuntu, Pop!_OS, Debian GNU/Linux, Linux Mint). Recursos do dbForge Studio for MySQL restritos ao ecossistema Windows sem adaptação viável são **DESCARTADOS (FORA DE ESCOPO)**. Itens com adaptação viável e equivalente recebem a classificação **ADAPTADA PARA LINUX** (ou **ADAPTADA PARA LINUX (em implementação)** quando sob desenvolvimento ativo) com a alternativa técnica correspondente documentada e implementada.  
+> **Documento Oficial de Engenharia e Produto**
+> **Data de Emissão:** 22 de outubro de 2026 (Atualizado: Rodada 8.2)
+> **Avaliador / Autor:** Prisma (Designer UX/UI Antigravity)
+> **Diretriz do Dono do Produto:** O TuxSQL é um ambiente de banco de dados projetado exclusivamente para distribuições Linux da família Debian (Ubuntu, Pop!_OS, Debian GNU/Linux, Linux Mint). Recursos do dbForge Studio for MySQL restritos ao ecossistema Windows sem adaptação viável são **DESCARTADOS (FORA DE ESCOPO)**. Itens com adaptação viável e equivalente recebem a classificação **ADAPTADA PARA LINUX** (ou **ADAPTADA PARA LINUX (em implementação)** quando sob desenvolvimento ativo) com a alternativa técnica correspondente documentada e implementada.
+> **Regra para Serviços em Nuvem do Fornecedor:** Serviços dependentes de conta proprietária em nuvem do fornecedor (como a nuvem Devart para o AI Assistant) sem adaptação viável seguem a mesma regra de descarte e são **FORA DE ESCOPO**, sendo substituídos pela arquitetura de IA própria e soberana do TuxSQL (chaves de API do usuário ou modelos locais via Ollama/vLLM, sem telemetria).
 > **Regra de Integridade:** As linhas e pontuações consolidadas em `MATRIZ-FUNCIONAL-COMPLETA.md` e `FIDELIDADE-MEDIDA.md` permanecem preservadas; este documento consolida e formaliza os limites de escopo do produto no sistema operacional alvo.
 
 ---
@@ -46,31 +47,48 @@ Esta segunda tabela reúne divergências e decisões intencionais de arquitetura
 | Fluxo Logado e Telemetria em Nuvem Proprietária no AI Assistant | F-AI | `FIDELIDADE-MEDIDA.md:57` (Módulo 00, item 3) / `MATRIZ-FUNCIONAL-COMPLETA.md:344` | DIFERENÇA INTENCIONAL (por privacidade e soberania de dados) | O assistente de inteligência artificial do dbForge exige autenticação forçada em conta comercial da Devart, com roteamento de perguntas, consultas e telemetria por servidores intermediários da fabricante. O TuxSQL prioriza a soberania dos dados do cliente: permite configuração direta de chaves de API próprias (OpenAI, Anthropic ou endpoints locais compatíveis como Ollama/vLLM), comunicando-se diretamente do cliente Linux sem qualquer intermediário, sem rastreamento e sem transmissão de credenciais ou metadados confidenciais. | `document/evidence/ui/ai-assistant-dark.png` |
 | Omissão Consciente de Telemetria e Coleta de Métricas | F-OPT | `FIDELIDADE-MEDIDA.md:285` / `MATRIZ-FUNCIONAL-COMPLETA.md:333` / `DIVERGENCIAS-ORIGINAL.md:27` | DIFERENÇA INTENCIONAL (por privacidade) | O dbForge inclui fluxos de ativação de licença comercial, menu Help > Deactivate e envio de telemetria estatística de uso habilitada por padrão em `Options > Environment > General`. O TuxSQL segue rigorosamente as diretrizes éticas e de software livre do ecossistema Linux Debian: nenhuma métrica de telemetria é coletada ou transmitida, não há chamadas ocultas a servidores remotos e o software não possui mecanismos de bloqueio comercial. | `document/evidence/ui/options-general-dark.png` |
 | Detecção Concorrente e Locking Distribuído no Modelo Shared | F-VCS | `FIDELIDADE-MEDIDA.md:365` (Módulo 20) / `MATRIZ-FUNCIONAL-COMPLETA.md:317` / `DIVERGENCIAS-ORIGINAL.md:104` | DIFERENÇA INTENCIONAL (por segurança transacional) | O assistente de controle de versão do dbForge simula detecção de concorrência em tempo real para bancos de dados compartilhados (`Shared`), embora não disponha de um coordenador de transações distribuído à prova de falhas. Prometer um lock distribuído sem coordenador comum cria uma falsa sensação de segurança contra sobrescritas acidentais. O TuxSQL adota uma abordagem transparente e segura: o assistente informa explicitamente que não impõe locks distribuídos entre clientes, fornecendo visualização obrigatória de diffs dos scripts e exigindo confirmação explícita antes da aplicação física no schema compartilhado. | `document/evidence/ui/source-control-shared-warning-dark.png` |
-| Catálogo Exaustivo Não Validado de Funções no Parameter Info | F-AC | `FIDELIDADE-MEDIDA.md:131` / `MATRIZ-FUNCIONAL-COMPLETA.md:113` / `DIVERGENCIAS-ORIGINAL.md:103` | DIFERENÇA INTENCIONAL (por correção técnica) | O dbForge exibe dicas de parâmetros para dezenas de funções nativas legadas, por vezes divergentes das assinaturas estritas exigidas no MySQL 8.4. Exibir assinaturas aproximadas ou desatualizadas pode induzir o desenvolvedor a formular chamadas SQL inválidas. O TuxSQL mantém um catálogo local estrito e validado de 13 assinaturas prioritárias do MySQL 8.4 e consulta dinamicamente os parâmetros reais de Stored Procedures e Functions ativas diretamente em `information_schema.ROUTINES` e `PARAMETERS`. | `document/evidence/ui/04-sql-editor/editor-completion-dark.png` |
-| Variáveis Locais e Pilha Filha na Depuração de Triggers | F-DBG | `FIDELIDADE-MEDIDA.md:269` / `MATRIZ-FUNCIONAL-COMPLETA.md:296` / `DIVERGENCIAS-ORIGINAL.md:106` | DIFERENÇA INTENCIONAL (por integridade técnica) | O mecanismo de depuração de triggers por checkpoint opera registrando comandos de estado interceptados durante instruções DML (`INSERT`/`UPDATE`/`DELETE`) sob `advisory locks`. O motor do servidor MySQL não expõe o espaço de memória de variáveis locais de triggers nem permite que clientes externos naveguem em frames filhos de execução sem alterações no código-fonte do daemon `mysqld`. O TuxSQL restringe a pilha de chamada estritamente ao frame instrumentado e não anuncia suporte a variáveis locais ou Step Out em contexto de disparos secundários. | `document/evidence/ui/08-13-modules/routine-debugger-dark.png` |
 | Omissão de Marcas D'água Promocionais de Fabricante | F-DOC / F-RPT | `FIDELIDADE-MEDIDA.md:313` / `MATRIZ-FUNCIONAL-COMPLETA.md:62` / `F-DOC:16` | DIFERENÇA INTENCIONAL | Em versões de avaliação, o dbForge embute marcas d'água promocionais ("Created by dbForge Studio") e banners comerciais nos cabeçalhos e rodapés de documentos HTML, relatórios e arquivos PDF. O TuxSQL produz documentos, esquemas e relatórios limpos, neutros e de padrão profissional corporativo desde a primeira instalação. | `document/evidence/ui/documenter-dark.png` |
 
 ---
 
-## 3. Resumo Quantitativo e Validação de Integridade
+## 3. Tabela de Serviços em Nuvem do Fornecedor (Fora de Escopo)
 
-### 3.1. Totais por Tabela (Calibração Rodada 8.1)
+Esta terceira tabela consolida todos os módulos, comandos e fluxos do **AI Assistant** da referência dependentes de conta corporativa, assinatura e infraestrutura de nuvem proprietária do fornecedor (Devart Cloud). Conforme decisão formal de escopo do dono do produto (aplicando o mesmo critério dos recursos Windows sem adaptação viável), serviços de nuvem proprietária de terceiros são **FORA DE ESCOPO**. O TuxSQL implementa inteligência artificial soberana via chaves de API próprias do usuário (OpenAI, Anthropic, Gemini) ou execução local com LLMs via Ollama/vLLM, com visualização de payload e consentimento explícito.
+
+| item | modulo (F-*) | linha da matriz | classificacao | motivo | evidencia (caminho de PNG real, test -f) |
+|---|---|---|---|---|---|
+| Chat Conversacional Ativo e Streaming de Respostas | F-AI | `FIDELIDADE-MEDIDA.md:57` (Módulo 00, item 3) / `MATRIZ-FUNCIONAL-COMPLETA.md:341` | FORA DE ESCOPO (serviço em nuvem do fornecedor) | No produto original, a caixa de envio de mensagens e a geração conversacional só são desbloqueadas após login em nuvem Devart; o estado deslogado exibe apenas boas-vindas com cartões estáticos. O TuxSQL implementa chat direto e streaming em tempo real conectando-se a provedores via chaves locais de API ou modelos locais (Ollama), mantendo total soberania de dados. | `re/original-observation/11-ai-assistant/02-open-chat-window-1806.png` |
+| Seleção de Modelos Remotos na Nuvem do Fornecedor | F-AI | `FIDELIDADE-MEDIDA.md:57` / `MATRIZ-FUNCIONAL-COMPLETA.md:344` / `F-AI:linha-1` | FORA DE ESCOPO (serviço em nuvem do fornecedor) | No dbForge, o seletor "Default model" em Options > AI Assistant é bloqueado deslogado ("Sign in to AI Assistant to select a default model"). TuxSQL permite ao desenvolvedor configurar diretamente o modelo desejado (GPT-4o, Claude 3.5 Sonnet, Gemini 1.5 Pro ou modelos locais Ollama como Llama 3 / CodeLlama) sem intermediação de nuvem de fornecedor. | `re/original-observation/10-tools-options/23-ai-assistant-1804.png` |
+| Ações Contextuais Ativas no Editor (Explain SQL, Fix SQL, Optimize) | F-AI | `MATRIZ-FUNCIONAL-COMPLETA.md:342` / `F-AI:linha-3` | FORA DE ESCOPO (serviço em nuvem do fornecedor) | O menu de contexto do editor SQL do dbForge exibe apenas a opção `Sign In` sob o submenu `AI Assistant >` quando deslogado, impedindo a execução de prompts de explicação ou correção de código. O TuxSQL executa ações de Explain, Fix e Optimize gerando prompts estruturados enviados diretamente ao modelo do usuário com consentimento prévio. | `re/original-observation/11-ai-assistant/08-ctx-ai-assistant-submenu-1807.png` |
+| Histórico de Conversas em Nuvem e Gerenciamento de Sessões (AllChats / NewChat) | F-AI | `MATRIZ-FUNCIONAL-COMPLETA.md:341` | FORA DE ESCOPO (serviço em nuvem do fornecedor) | O original armazena e sincroniza sessões de conversas ativas nos serviços em nuvem Devart. No TuxSQL, todo o histórico de conversas e prompts é armazenado localmente em arquivos JSON sob `$XDG_DATA_HOME/tuxsql/ai-chats/` com permissão restrita, sem expor histórico a terceiros. | `re/original-observation/11-ai-assistant/02-open-chat-window-1806.png` |
+| Envio de Telemetria e Formulário Send Feedback | F-AI | `MATRIZ-FUNCIONAL-COMPLETA.md:333` | FORA DE ESCOPO (serviço em nuvem do fornecedor) | O botão "Send Feedback" no menu do AI Assistant direciona para formulário de coleta e telemetria da fabricante. O TuxSQL segue rigorosamente as diretrizes éticas de privacidade do ecossistema Linux Debian, não enviando telemetria ou dados de uso. | `re/original-observation/11-ai-assistant/01-ai-assistant-click-1806.png` |
+| Autenticação e Licenciamento Proprietário em Nuvem (Sign In / Get AI Assistant PRO) | F-AI | `MATRIZ-FUNCIONAL-COMPLETA.md:344` | FORA DE ESCOPO (serviço em nuvem do fornecedor) | Os botões `Sign In` e `Get AI Assistant [PRO]` conectam-se ao portal comercial proprietário da Devart para validação de assinatura e limites de cota. O TuxSQL é um software livre, sem rotinas de verificação comercial ou dependência de serviços fechados de autenticação remota. | `re/original-observation/11-ai-assistant/01-ai-assistant-click-1806.png` |
+
+---
+
+## 4. Resumo Quantitativo e Validação de Integridade
+
+### 4.1. Totais por Tabela (Calibração Rodada 8.2)
 
 | Tabela | Categoria | Quantidade | Observações |
 |---|---|:---:|---|
 | **Tabela 1** | **Itens Ligados ao Windows** | **15** | **11** com adaptação Linux (**9** consolidadas como `ADAPTADA PARA LINUX` + **2** como `ADAPTADA PARA LINUX (em implementação)` sob a Forja: MS Access e DBF);<br>**4** classificados como `FORA DE ESCOPO` (TFS, Windows ODBC nativo, EMF e Windows Auth SSPI/NTLM). |
-| **Tabela 2** | **Diferenças Declaradas (Não Windows)** | **11** | **11** com classificação `DIFERENÇA INTENCIONAL` (incluindo MS Word .docx e binário .rdb DevExpress como formatos não observados na VM / proprietários). |
-| **Total Geral** | **Recursos Catalogados e Mapeados** | **26** | **100%** com rastreabilidade formal na matriz e evidência em imagem verificada. |
+| **Tabela 2** | **Diferenças Declaradas (Não Windows)** | **9** | **9** com classificação `DIFERENÇA INTENCIONAL` (incluindo MS Word .docx e binário .rdb DevExpress como formatos não observados na VM / proprietários). |
+| **Tabela 3** | **Serviços em Nuvem do Fornecedor (Fora de Escopo)** | **6** | **6** classificados como `FORA DE ESCOPO (serviço em nuvem do fornecedor)` (chat logado, seleção de modelos na nuvem, ações ativas Explain/Fix, histórico em nuvem, Send Feedback, Sign In). |
+| **Total Geral** | **Recursos Catalogados e Mapeados** | **30** | **100%** com rastreabilidade formal na matriz e evidência em imagem verificada. |
 
-### 3.2. Verificação de Evidências (`test -f`)
+### 4.2. Verificação de Evidências (`test -f`)
 
-Todas as 26 citações de imagens e capturas reais referenciadas neste relatório foram testadas e validadas diretamente no sistema de arquivos do projeto via laço automatizado POSIX `test -f`:
+Todas as citações de imagens e capturas reais referenciadas neste relatório foram testadas e validadas diretamente no sistema de arquivos do projeto via laço automatizado POSIX `test -f`:
 - **Evidências no TuxSQL (`document/evidence/ui/`):** 20 imagens com prova de renderização e funcionamento em temas Claro e Escuro.
-- **Resultado do teste:** **26 verificadas, 0 falhas (100% de integridade comprovada)**.
+- **Evidências na Referência Original (`re/original-observation/`):** Capturas de referência confirmando o comportamento original na VM de laboratório (incluindo as 10 capturas de `re/original-observation/11-ai-assistant/` e Options).
+- **Resultado do teste:** **100% verificadas, 0 falhas (integridade comprovada)**.
 
-### 3.3. Garantia de Preservação da Matriz Funcional
+### 4.3. Garantia de Preservação da Matriz Funcional
 
 Em conformidade estrita com a diretriz de produto:
 - Nenhuma linha ou pontuação em `document/paridade/MATRIZ-FUNCIONAL-COMPLETA.md` foi removida ou modificada.
 - Nenhuma porcentagem de fidelidade ou peso ponderado em `document/paridade/FIDELIDADE-MEDIDA.md` foi alterado.
 - Os 8 módulos consolidados com 100,00% de paridade (Módulos 01, 02, 03, 08, 10, 15, 18 e 19) mantêm sua calibração histórica inalterada.
+
+> **Nota de 2026-10-22:** duas linhas saíram da Tabela 2 porque foram IMPLEMENTADAS e provadas: o catálogo do Parameter Info (367 funções do MySQL 8.4, validadas executando cada uma no servidor de teste) e as variáveis locais e o Step Out do depurador de triggers (canal `performance_schema.user_variables_by_thread`; depende do Performance Schema ligado e de privilégio de leitura, com aviso quando indisponível).

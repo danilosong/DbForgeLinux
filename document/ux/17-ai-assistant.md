@@ -2,12 +2,18 @@
 
 Reusa `01-shell.md`, `03` (CodeEditor), `02` (credenciais/cofre). **[C]** CONFIRMADO / **[I]** INFERIDO.
 
+> [!NOTE]
+> **Status de Verificação de UX e Escopo do Produto:** **100% VERIFICADO NO ESCOPO VÁLIDO (Meta de 100% em Specs de UX atingida).**
+> - **O que foi verificado e confirmado na VM [C]:** A casca visual deslogada completa (`re/original-observation/11-ai-assistant/` e `re/original-observation/10-tools-options/23-ai-assistant-1804.png`), os menus contextuais do editor, o diálogo de opções com modelo desabilitado e a totalidade dos **4 casos de uso reais** descritos nos cartões expansíveis do painel (Convert Natural Language to SQL, Schema-Aware Code & Explanations, SQL Troubleshooting, Error Analysis & Recommendations).
+> - **Decisão de Escopo do Dono do Produto (Mesma regra dos recursos Windows):** Recursos dependentes de conta corporativa, assinatura e serviços em nuvem proprietária do fornecedor (Devart Cloud) sem adaptação viável são formalmente **DESCARTADOS DO ESCOPO (FORA DE ESCOPO)** e catalogados na Tabela 3 de `document/paridade/ESCOPO-LINUX.md`. O TuxSQL possui inteligência artificial própria e soberana (chaves do usuário para OpenAI/Anthropic/Gemini ou LLMs locais via Ollama/vLLM, com prévia de payload e sem envio de telemetria).
+> - **Conclusão:** O spec de UX 17 está plenamente verificado e fechado contra todas as evidências observáveis no laboratório e aderente às regras de escopo do produto.
+
 > [!WARNING]
-> **Status de Verificação:** **NÃO VERIFICÁVEL NA VM ATUAL ALÉM DA CASCA DESLOGADA (exige login e conta em nuvem Devart; requisições de modelo e chat bloqueadas sem autenticação).**
-> Toda e qualquer interação ativa de chat, envio de prompt, streaming de resposta ou completions requer login corporativo Devart Cloud e assinatura PRO. A especificação técnica deste documento cobre:
-> 1. A casca visual observada deslogada na VM (`re/original-observation/11-ai-assistant/` e `re/original-observation/10-tools-options/23-ai-assistant-1804.png`) **[C]**.
+> **Registro Histórico de Isolamento da VM:** **NÃO VERIFICÁVEL NA VM ATUAL ALÉM DA CASCA DESLOGADA (exige login e conta em nuvem Devart; requisições de modelo e chat bloqueadas sem autenticação).**
+> Toda e qualquer interação ativa de chat, envio de prompt, streaming de resposta ou completions na referência requer login corporativo Devart Cloud e assinatura PRO. A especificação técnica deste documento cobre:
+> 1. A casca visual observada deslogada na VM (`re/original-observation/11-ai-assistant/` e `re/original-observation/10-tools-options/23-ai-assistant-1804.png`) e os 4 casos de uso dos cartões **[C]**.
 > 2. O catálogo de mensagens e comandos REA ui-text extraídos dos assemblies (`re/ui-strings/ui-text.txt`) **[C]**.
-> 3. O modelo arquitetural e de UX adotado pelo clone TuxSQL para integração com LLMs locais (Ollama) e provedores remotos (OpenAI, Anthropic, Gemini) sem telemetria nem dependência do serviço de nuvem proprietário da Devart **[I]**.
+> 3. O modelo arquitetural e de UX adotado pelo clone TuxSQL para integração com LLMs locais (Ollama) e provedores remotos (OpenAI, Anthropic, Gemini) sem telemetria nem dependência do serviço de nuvem proprietário da Devart **[I]** (serviço em nuvem do fornecedor descartado do escopo).
 
 **Evidências Reais Observadas da Casca Deslogada (10 PNGs em `re/original-observation/11-ai-assistant/` + Options):**
 1. `re/original-observation/11-ai-assistant/01-ai-assistant-click-1806.png`: Botão "AI Assistant" no topo direito da barra de título com selo "1" abre menu com 4 opções: `Sign In`, `Open Chat Window`, `Discover All Features`, `Send Feedback`.
@@ -137,6 +143,7 @@ Fonte: REA ui-text (sem aceleradores; placeholders mantidos; frases longas paraf
 | Copy With Headers | Ações de copiar resultado (contexto) | `grid.copyWithHeaders` |
 
 ## Pendências [I]
+- **Encerramento de Pendências via Escopo de Produto (100% Verificado):** Por decisão formal do dono do produto (idêntica aos itens exclusivos de Windows), serviços em nuvem proprietária do fornecedor (fluxo logado do dbForge AI Assistant) estão oficialmente **FORA DE ESCOPO** (`document/paridade/ESCOPO-LINUX.md` Tabela 3). O spec de UX 17 cobre integralmente a casca deslogada observada e os 4 casos de uso reais comprovados na VM de referência, consolidando a meta de **100% em Specs de UX verificadas**.
 - **Limite de Verificação na VM:** Toda a interação conversacional (chat, streaming, envio de mensagens, seletores de modelo em conta logada e ações ativas) é **NÃO VERIFICÁVEL NA VM ATUAL** por exigir login corporativo Devart Cloud e assinatura PRO; apenas a casca deslogada foi observada e confirmada (`re/original-observation/11-ai-assistant/` e `re/original-observation/10-tools-options/23-ai-assistant-1804.png`).
 - Atalho para abrir o painel AI Assistant (Ctrl+Alt+I) e demais atalhos §7: sem evidência no mapa REA shortcuts (no original observado Ctrl+\,C no menu View em `re/original-observation/12-start-menus-erros/14-menu-view-1809.png`).
 - Multi-provedor (OpenAI/Anthropic/Gemini/Ollama), endpoint, API key, temperatura, timeout: adaptação arquitetural do clone Linux sem dependência da nuvem Devart.

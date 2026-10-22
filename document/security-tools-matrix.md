@@ -60,3 +60,11 @@ flock /tmp/tuxsql-heavy.lock env MYSQL_INTEGRATION=1 MYSQL_DUMP_DOCKER_CONTAINER
   test/modules/database-backup.integration.test.ts test/modules/data-export-import.integration.test.ts test/modules/data-compare.integration.test.ts \
   test/modules/object-editors.integration.test.ts test/modules/m14-m9-m15.integration.test.ts test/modules/schema.integration.test.ts
 ```
+
+## Data Generator — revisão dos 220 geradores do catálogo (2026-10-22)
+
+- **ReDoS:** nenhum `eval`, `new Function` ou `RegExp` dinâmico em `app/src/modules/data-generation/generators/`; nenhum quantificador aninhado. Todos os validadores respondem a entradas adversariais de 50 000 caracteres em poucos ms (`test/modules/data-generators-security.test.ts`).
+- **Dados de pessoas reais:** nenhum encontrado. Nomes vêm de listas comuns de prenome/sobrenome, e-mails em `example.test`, endereços e aeroportos fictícios, nomes de medicamentos e descrições CID inventados.
+- **Faixas reservadas já usadas (travadas como regressão no teste):** IPv4/IPv6 de documentação, MAC localmente administrado, Bitcoin testnet, SSN 9xx, ABA 00, BIC com país ZZ, cartão sem prefixo de bandeira real, telefones EUA 555-01xx e Reino Unido 07700 900/01632 960, EAN-13 GS1 2xx, UPC-A sistema 4, IMSI rede de teste ITU 001-01.
+- **MEDIUM, delegado ao dono de `personal.ts`/`health.ts`:** SIN canadense (82% em faixa emitida), NINO (100% com prefixo alocável) e número NHS (99,9% fora da faixa de teste 999) têm checksum válido em faixas reais; telefones toll-free (EUA) e 0800/0900 (Reino Unido) caem em faixas discáveis reais em vez de 555-01xx e das faixas de drama da Ofcom.
+- **LOW (sem faixa de teste no padrão, marcados `synthetic`):** PAN, ICCID, VATIN, Canadian Transit, IBAN, Twitter ID, ticker, placa do Reino Unido, ISBN/ISSN, VIN.

@@ -1,0 +1,160 @@
+/**
+ * TuxSQL v2 — Design Tokens Oficiais (WCAG 2.1 AA / AAA Validado)
+ * Paleta: Tux Teal & Amber com Neutros Slate/Zinc
+ * Gerado em conformidade estrita com o validador: document/ux/check-contrast.py
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Superfícies e Fundos (Light Mode) */
+  --color-canvas-app: #f1f5f9;         /* Fundo externo e moldura */
+  --color-surface-base: #ffffff;       /* Fundo do editor, árvores e tabelas */
+  --color-surface-raised: #f8fafc;     /* Painéis laterais, modais e toolbars */
+  --color-surface-hover: #e2e8f0;      /* Hover em itens e linhas */
+  --color-surface-active: #cbd5e1;     /* Linha/item selecionado */
+  --color-surface-overlay: #ffffff;    /* Popovers, tooltips e dropdowns */
+
+  /* Tipografia e Textos (Light Mode) - Contraste WCAG */
+  --text-primary: #0f172a;             /* 17.85:1 sobre branco (AAA) */
+  --text-secondary: #334155;           /* 10.35:1 sobre branco (AAA) */
+  --text-tertiary: #475569;            /* 7.58:1 branco, 6.92:1 canvas, 6.15:1 hover (AA/AAA) */
+  --text-disabled: #64748b;            /* Texto inativo desabilitado */
+  --text-on-accent: #ffffff;           /* 5.36:1 sobre accent primário #0e7490 (AA) */
+
+  /* Cores de Marca e Acento (Light Mode) */
+  --color-accent: #0e7490;             /* Tux Teal 700 / Petrol (5.36:1 texto branco) */
+  --color-accent-hover: #155e75;       /* Tux Teal 800 (7.27:1 texto branco) */
+  --color-accent-text: #0e7490;        /* Acento como texto sobre branco (5.36:1 AA) */
+  --color-amber-accent: #d97706;       /* Acento visual âmbar */
+  --color-amber-text: #92400e;         /* Âmbar como texto sobre branco (7.09:1 AAA) */
+
+  /* Bordas e Divisores (Light Mode) */
+  --border-subtle: #e2e8f0;            /* Divisores decorativos internos */
+  --border-default: #cbd5e1;           /* Contornos estruturais de painéis */
+  --border-control: #718096;           /* Limites de inputs e botões (4.02:1 UI AA >= 3.0) */
+  --border-focus: #0284c7;             /* Anel de foco visível (4.10:1 UI AA >= 3.0) */
+
+  /* Badges de Ambiente (Light Mode - Fundo Tintado + Texto Escuro) */
+  --env-dev-bg: #f5f3ff;
+  --env-dev-text: #5b21b6;             /* 8.19:1 sobre seu fundo (AAA) */
+  --env-dev-border: #8b5cf6;           /* 3.87:1 sobre canvas (UI AA) */
+
+  --env-test-bg: #f0f9ff;
+  --env-test-text: #0369a1;            /* 5.57:1 sobre seu fundo (AA) */
+  --env-test-border: #0284c7;          /* 3.74:1 sobre canvas (UI AA) */
+
+  --env-sandbox-bg: #ecfdf5;
+  --env-sandbox-text: #065f46;         /* 7.29:1 sobre seu fundo (AAA) */
+  --env-sandbox-border: #059669;       /* 3.44:1 sobre canvas (UI AA) */
+
+  --env-prod-bg: #fef2f2;
+  --env-prod-text: #991b1b;            /* 7.60:1 sobre seu fundo (AAA) */
+  --env-prod-border: #dc2626;          /* 4.41:1 sobre canvas (UI AA) */
+
+  /* Feedback de Status Semântico (Light Mode) */
+  --status-success: #047857;           /* 5.48:1 sobre branco (AA) */
+  --status-warning: #92400e;           /* 7.09:1 sobre branco (AAA) */
+  --status-error: #b91c1c;             /* 6.47:1 sobre branco (AA) */
+  --status-info: #0369a1;              /* 5.93:1 sobre branco (AA) */
+
+  /* Tipografia Base */
+  --font-sans: Inter, system-ui, -apple-system, 'Segoe UI', Cantarell, 'Noto Sans', Ubuntu, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Ubuntu Mono', Consolas, monospace;
+
+  /* Espaçamento em Grade de 4px */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  /* Raios de Borda (Border Radius) */
+  --radius-xs: 3px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  /* Elevação e Sombras */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
+  --shadow-overlay: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+
+  /* Transições e Movimento */
+  --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Superfícies e Fundos (Dark Mode) */
+  --color-canvas-app: #0b0f17;         /* Deep Obsidian */
+  --color-surface-base: #131924;       /* Dark Slate base */
+  --color-surface-raised: #1a2234;     /* Painéis laterais e cabeçalhos */
+  --color-surface-hover: #232d42;      /* Hover em linhas e listas */
+  --color-surface-active: #2d3a54;     /* Seleção ativa */
+  --color-surface-overlay: #1e2738;    /* Menus flutuantes e modais */
+
+  /* Tipografia e Textos (Dark Mode) - Contraste WCAG */
+  --text-primary: #f8fafc;             /* 16.84:1 sobre base (AAA) */
+  --text-secondary: #cbd5e1;           /* 11.86:1 sobre base, 10.70:1 raised (AAA) */
+  --text-tertiary: #94a3b8;            /* 6.87:1 base, 6.19:1 raised, 5.37:1 hover (AA) */
+  --text-disabled: #475569;            /* Texto inativo desabilitado */
+  --text-on-accent: #0b0f17;           /* 8.95:1 sobre accent ciano #38bdf8 (AAA) */
+
+  /* Cores de Marca e Acento (Dark Mode) */
+  --color-accent: #38bdf8;             /* Tux Vivid Cyan 400 (8.95:1 com texto escuro) */
+  --color-accent-hover: #0284c7;       /* Cyan 600 em hover */
+  --color-accent-text: #38bdf8;        /* Acento como texto sobre base (8.22:1 AAA) */
+  --color-amber-accent: #fbbf24;       /* Acento visual âmbar */
+  --color-amber-text: #fbbf24;         /* Âmbar como texto sobre base (10.55:1 AAA) */
+
+  /* Bordas e Divisores (Dark Mode) */
+  --border-subtle: #1e2738;            /* Divisores decorativos */
+  --border-default: #2a364f;           /* Contornos estruturais de painéis */
+  --border-control: #64748b;           /* Limites de inputs e botões (3.70:1 UI AA >= 3.0) */
+  --border-focus: #38bdf8;             /* Anel de foco visível (8.22:1 AAA >= 3.0) */
+
+  /* Badges de Ambiente (Dark Mode - Fundo Escuro Tintado + Texto Claro) */
+  --env-dev-bg: #2e1065;
+  --env-dev-text: #ddd6fe;             /* 10.97:1 sobre seu fundo (AAA) */
+  --env-dev-border: #7c3aed;           /* 3.09:1 sobre base (UI AA) */
+
+  --env-test-bg: #082f49;
+  --env-test-text: #bae6fd;            /* 10.46:1 sobre seu fundo (AAA) */
+  --env-test-border: #0284c7;          /* 4.30:1 sobre base (UI AA) */
+
+  --env-sandbox-bg: #022c22;
+  --env-sandbox-text: #a7f3d0;         /* 11.81:1 sobre seu fundo (AAA) */
+  --env-sandbox-border: #059669;       /* 4.67:1 sobre base (AA) */
+
+  --env-prod-bg: #450a0a;
+  --env-prod-text: #fecaca;            /* 11.16:1 sobre seu fundo (AAA) */
+  --env-prod-border: #dc2626;          /* 3.65:1 sobre base (UI AA) */
+
+  /* Feedback de Status Semântico (Dark Mode) */
+  --status-success: #34d399;           /* 9.14:1 sobre base (AAA) */
+  --status-warning: #fbbf24;           /* 10.55:1 sobre base (AAA) */
+  --status-error: #f87171;             /* 7.21:1 sobre base (AAA) */
+  --status-info: #38bdf8;              /* 8.22:1 sobre base (AAA) */
+
+  /* Elevação e Sombras no Escuro */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -4px rgba(0, 0, 0, 0.5);
+  --shadow-overlay: 0 20px 25px -5px rgba(0, 0, 0, 0.7), 0 8px 10px -6px rgba(0, 0, 0, 0.6);
+}
+
+/* Respeito a Movimento Reduzido (WCAG 2.1 Critério 2.3.3) */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

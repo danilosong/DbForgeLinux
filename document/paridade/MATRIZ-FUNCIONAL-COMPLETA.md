@@ -242,7 +242,7 @@
 | Modos de distribuição de linhas (Specified, Volume, Time, Lookup) | Data Generator opções | Implementado | `data-generator/Panel.tsx:28` | A | Quantidade fixa, proporção do volume existente ou tabela de consulta. |
 | Semente determinística configurável (Seed) | Data Generator opções | Implementado | `data-generator/Panel.tsx:34` | A | Garante reprodução exata dos dados gerados para testes automatizados. |
 | Pré-visualização ao vivo das primeiras 50 linhas | Data Generator preview | Implementado | `data-generator/Panel.tsx:37` | A | Grade inferior atualizada em tempo real ao alterar parâmetros do gerador. |
-| Opção de truncar tabela antes da geração com aviso explícito | Data Generator opções | Implementado | `data-generator-ipc.test.ts` | A | Executa `TRUNCATE TABLE` com aviso prévio obrigatório de segurança. |
+| Limpeza transacional das tabelas selecionadas antes da geração com confirmação por frase digitada | Data Generator opções | Implementado | `modules/data-generation.test.ts` | A | Remove linhas com `DELETE` dentro da transação e exige a frase exata para desativar temporariamente as verificações de chave estrangeira. |
 
 ---
 

@@ -1,0 +1,2869 @@
+{
+ "description": "Manifesto de cobertura do Data Generator: nomes unicos, categorias, idiomas e tipos de coluna dos geradores do produto de referencia. Apenas metadados, nenhum dado de exemplo. Cada entrada deve ter um gerador equivalente proprio no TuxSQL.",
+ "count": 220,
+ "generators": [
+  {
+   "name": "Annual Revenue",
+   "category": "Business",
+   "columnTypes": [
+    "bigint",
+    "decimal",
+    "double",
+    "float",
+    "int",
+    "mediumint"
+   ]
+  },
+  {
+   "name": "Commercial and Government Entity Code (NCAGE Code)",
+   "category": "Business",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Company",
+   "category": "Business",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Data Universal Numbering System Number (DUNS Number)",
+   "category": "Business",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "int",
+    "longtext",
+    "mediumtext",
+    "text",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Department",
+   "category": "Business",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ID (composite sequential)",
+   "category": "Business",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ID (globally unique identifier)",
+   "category": "Business",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ID (hexadecimal sequential)",
+   "category": "Business",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ID (numeric sequential)",
+   "category": "Business",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ID (random)",
+   "category": "Business",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ID (sequential)",
+   "category": "Business",
+   "columnTypes": [
+    "bigint",
+    "double",
+    "int",
+    "mediumint",
+    "smallint",
+    "tinyint",
+    "ubigint",
+    "udouble",
+    "uint",
+    "umediumint",
+    "usmallint",
+    "utinyint"
+   ]
+  },
+  {
+   "name": "Industry Sector",
+   "category": "Business",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "International Maritime Organization Number (IMO)",
+   "category": "Business",
+   "columnTypes": [
+    "char",
+    "decimal",
+    "int",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "International Securities Identification Number (ISIN, ISO 6166)",
+   "category": "Business",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "International Standard Industrial Classification Code (ISIC Rev.4)",
+   "category": "Business",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "int",
+    "longtext",
+    "mediumint",
+    "mediumtext",
+    "smallint",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "International Standard Industrial Classification Code Title (ISIC Rev.4)",
+   "category": "Business",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Lead Source",
+   "category": "Business",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Lead Status",
+   "category": "Business",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "National Stock Number (NSN)",
+   "category": "Business",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Standard Industrial Classification Code (SIC)",
+   "category": "Business",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "int",
+    "longtext",
+    "mediumint",
+    "mediumtext",
+    "smallint",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Standard Industrial Classification Code Title (SIC)",
+   "category": "Business",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Stock Ticker Code",
+   "category": "Business",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "UK Company Registration Number (CRN)",
+   "category": "Business",
+   "languages": [
+    "GB"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "UK Standard Industrial Classification Code (UK SIC)",
+   "category": "Business",
+   "languages": [
+    "GB"
+   ],
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "int",
+    "longtext",
+    "mediumint",
+    "mediumtext",
+    "smallint",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "UK Standard Industrial Classification Code Title (UK SIC)",
+   "category": "Business",
+   "languages": [
+    "GB"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "UK Stock Exchange Daily Official List Number (SEDOL)",
+   "category": "Business",
+   "languages": [
+    "GB"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "US Committee on Uniform Security Identification Procedures Code (CUSIP)",
+   "category": "Business",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "US Federal Employer Identification Number (FEIN/FEID)",
+   "category": "Business",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "int",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "US North American Industry Classification System Code (NAICS)",
+   "category": "Business",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "int",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Drug Name",
+   "category": "Health",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ICD10 Diagnose Code",
+   "category": "Health",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ICD10 Diagnose Description (long)",
+   "category": "Health",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ICD10 Diagnose Description (short)",
+   "category": "Health",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ICD10 Procedure Code",
+   "category": "Health",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ICD10 Procedure Description (long)",
+   "category": "Health",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ICD10 Procedure Description (short)",
+   "category": "Health",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ICD9 Diagnose Code",
+   "category": "Health",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ICD9 Diagnose Description (long)",
+   "category": "Health",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ICD9 Diagnose Description (short)",
+   "category": "Health",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ICD9 Procedure Code",
+   "category": "Health",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ICD9 Procedure Description (long)",
+   "category": "Health",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ICD9 Procedure Description (short)",
+   "category": "Health",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "UK National Health Service Number (NHS Number, ISB 0149)",
+   "category": "Health",
+   "languages": [
+    "GB"
+   ],
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "US National Drug Code (FDA NDC)",
+   "category": "Health",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Binary Bits (base 2 mod 3)",
+   "category": "IT",
+   "columnTypes": [
+    "binary",
+    "blob",
+    "char",
+    "longblob",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinyblob",
+    "tinytext",
+    "varbinary",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Bitcoin Address",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Connection Timeout",
+   "category": "IT",
+   "columnTypes": [
+    "bigint",
+    "int",
+    "mediumint",
+    "smallint",
+    "ubigint",
+    "uint",
+    "umediumint",
+    "usmallint"
+   ]
+  },
+  {
+   "name": "Document File",
+   "category": "IT",
+   "columnTypes": [
+    "longtext",
+    "mediumtext",
+    "text"
+   ]
+  },
+  {
+   "name": "Document Title",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Error Message",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "File Extension",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "File Name (DOS)",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "File Name (Windows)",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "File Name (images)",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "File Path (DOS)",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "File Path (Windows)",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "File Path (web files)",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "File Path (web images)",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "First Day of Week",
+   "category": "IT",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "int",
+    "longtext",
+    "mediumint",
+    "mediumtext",
+    "smallint",
+    "text",
+    "tinyint",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Host Name",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "IPv4 Address",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "IPv6 Address",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Image",
+   "category": "IT",
+   "columnTypes": [
+    "blob",
+    "longblob",
+    "mediumblob",
+    "tinyblob"
+   ]
+  },
+  {
+   "name": "Lorem Pixel",
+   "category": "IT",
+   "columnTypes": [
+    "blob",
+    "longblob"
+   ]
+  },
+  {
+   "name": "MAC Address (IEEE 802)",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "MD5 Hash",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "MIME Type",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Meta Keywords",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Ordinal Numbers",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "nchar",
+    "ntext",
+    "nvarchar",
+    "nvarchar(max)",
+    "text",
+    "varchar",
+    "varchar(max)"
+   ]
+  },
+  {
+   "name": "Password Hash",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Product Key",
+   "category": "IT",
+   "columnTypes": [
+    "MySQLRegularExpressionGenerator",
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Roman Numerals",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Security Password Answer",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Security Password Question",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Server Port",
+   "category": "IT",
+   "columnTypes": [
+    "bigint",
+    "int",
+    "mediumint",
+    "smallint",
+    "ubigint",
+    "uint",
+    "umediumint",
+    "usmallint"
+   ]
+  },
+  {
+   "name": "Time Zone",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Time Zone Code",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Time Zone Offset",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "URL (web)",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "User Agent",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Version",
+   "category": "IT",
+   "columnTypes": [
+    "char",
+    "nchar",
+    "ntext",
+    "nvarchar",
+    "nvarchar(max)",
+    "text",
+    "varchar",
+    "varchar(max)"
+   ]
+  },
+  {
+   "name": "AU City",
+   "category": "Location",
+   "languages": [
+    "AU"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "AU Post Code",
+   "category": "Location",
+   "languages": [
+    "AU"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "AU State",
+   "category": "Location",
+   "languages": [
+    "AU"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Address Type",
+   "category": "Location",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Airport Codes",
+   "category": "Location",
+   "columnTypes": [
+    "char",
+    "nchar",
+    "ntext",
+    "nvarchar",
+    "nvarchar(max)",
+    "text",
+    "varchar",
+    "varchar(max)"
+   ]
+  },
+  {
+   "name": "Airports",
+   "category": "Location",
+   "columnTypes": [
+    "char",
+    "nchar",
+    "ntext",
+    "nvarchar",
+    "nvarchar(max)",
+    "text",
+    "varchar",
+    "varchar(max)"
+   ]
+  },
+  {
+   "name": "Building Unit",
+   "category": "Location",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "CA City",
+   "category": "Location",
+   "languages": [
+    "CA"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "CA Post Code",
+   "category": "Location",
+   "languages": [
+    "CA"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "CA Province",
+   "category": "Location",
+   "languages": [
+    "CA"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "CA Province Code",
+   "category": "Location",
+   "languages": [
+    "CA"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Country",
+   "category": "Location",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Country Code (ISO 3166-1 alpha-2)",
+   "category": "Location",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Country Code (ISO 3166-1 alpha-3)",
+   "category": "Location",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Country Code (ISO 3166-1 numeric)",
+   "category": "Location",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "int",
+    "longtext",
+    "mediumint",
+    "mediumtext",
+    "smallint",
+    "text",
+    "tinyint",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Country Phone Calling Code (IDD)",
+   "category": "Location",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "int",
+    "longtext",
+    "mediumint",
+    "mediumtext",
+    "smallint",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "DE Address Full",
+   "category": "Location",
+   "languages": [
+    "DE"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "DE Address Line 1",
+   "category": "Location",
+   "languages": [
+    "DE"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "DE Bundesland",
+   "category": "Location",
+   "languages": [
+    "DE"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "DE City",
+   "category": "Location",
+   "languages": [
+    "DE"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "DE Post Code",
+   "category": "Location",
+   "languages": [
+    "DE"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Latitude",
+   "category": "Location",
+   "columnTypes": [
+    "double",
+    "float"
+   ]
+  },
+  {
+   "name": "Longitude",
+   "category": "Location",
+   "columnTypes": [
+    "double",
+    "float"
+   ]
+  },
+  {
+   "name": "P.O. Box",
+   "category": "Location",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "UK Address Full",
+   "category": "Location",
+   "languages": [
+    "GB"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "UK Address Line 1",
+   "category": "Location",
+   "languages": [
+    "GB"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "UK Address Line 2",
+   "category": "Location",
+   "languages": [
+    "GB"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "UK City",
+   "category": "Location",
+   "languages": [
+    "GB"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "UK County",
+   "category": "Location",
+   "languages": [
+    "GB"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "UK Post Code",
+   "category": "Location",
+   "languages": [
+    "GB"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "UK Town",
+   "category": "Location",
+   "languages": [
+    "GB"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "US Address Full",
+   "category": "Location",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "US Address Line 1",
+   "category": "Location",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "nchar",
+    "ntext",
+    "nvarchar",
+    "nvarchar(max)",
+    "text",
+    "tinytext",
+    "varchar",
+    "varchar(max)"
+   ]
+  },
+  {
+   "name": "US Address Line 2",
+   "category": "Location",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "US City",
+   "category": "Location",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "US Post Code (ZIP Plus 4)",
+   "category": "Location",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "US Post Code (ZIP)",
+   "category": "Location",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "US Region",
+   "category": "Location",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "US State",
+   "category": "Location",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "US State Capital",
+   "category": "Location",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "US State Code",
+   "category": "Location",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "ABA Routing Transit Number (ABA RTN)",
+   "category": "Payment",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Bank Identifier Code (SWIFT-BIC, ISO 9362)",
+   "category": "Payment",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Canadian Transit Number",
+   "category": "Payment",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "int",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Credit Card Expire Date (mm/yy)",
+   "category": "Payment",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Credit Card Expire Month",
+   "category": "Payment",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "int",
+    "longtext",
+    "mediumint",
+    "mediumtext",
+    "smallint",
+    "text",
+    "tinyint",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Credit Card Expire Year",
+   "category": "Payment",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "int",
+    "longtext",
+    "mediumint",
+    "mediumtext",
+    "smallint",
+    "text",
+    "tinyint",
+    "tinytext",
+    "varchar",
+    "year"
+   ]
+  },
+  {
+   "name": "Credit Card Issue Number",
+   "category": "Payment",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "int",
+    "longtext",
+    "mediumint",
+    "mediumtext",
+    "smallint",
+    "text",
+    "tinyint",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Credit Card Number (ISO IEC 7812)",
+   "category": "Payment",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Credit Card Security Code (CVV2)",
+   "category": "Payment",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Credit Card Type",
+   "category": "Payment",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Currency",
+   "category": "Payment",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Currency Code (ISO 4217 alpha-3)",
+   "category": "Payment",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Currency Code (ISO 4217 numeric)",
+   "category": "Payment",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "int",
+    "longtext",
+    "mediumint",
+    "mediumtext",
+    "smallint",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Currency Rate",
+   "category": "Payment",
+   "columnTypes": [
+    "decimal"
+   ]
+  },
+  {
+   "name": "International Bank Account Number (IBAN, ISO 13616-1)",
+   "category": "Payment",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Payment Method",
+   "category": "Payment",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Value Added Tax Identification Number (VATIN)",
+   "category": "Payment",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Age",
+   "category": "Personal",
+   "columnTypes": [
+    "int",
+    "smallint",
+    "tinyint"
+   ]
+  },
+  {
+   "name": "Avatar Images",
+   "category": "Personal",
+   "columnTypes": [
+    "blob",
+    "longblob"
+   ]
+  },
+  {
+   "name": "Birth Date",
+   "category": "Personal",
+   "columnTypes": [
+    "date",
+    "datetime",
+    "timestamp"
+   ]
+  },
+  {
+   "name": "CA Social Insurance Number (SIN)",
+   "category": "Personal",
+   "languages": [
+    "CA"
+   ],
+   "columnTypes": [
+    "MySqlCASINGenerator",
+    "bigint",
+    "char",
+    "decimal",
+    "int",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Courtesy Title",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "DE First Name (any gender)",
+   "category": "Personal",
+   "languages": [
+    "DE"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "DE First Name (female)",
+   "category": "Personal",
+   "languages": [
+    "DE"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "DE First Name (male)",
+   "category": "Personal",
+   "languages": [
+    "DE"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "DE Full Name",
+   "category": "Personal",
+   "languages": [
+    "DE"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "DE Honorific Prefix (Title)",
+   "category": "Personal",
+   "languages": [
+    "DE"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "DE Last Name",
+   "category": "Personal",
+   "languages": [
+    "DE"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Death Date",
+   "category": "Personal",
+   "columnTypes": [
+    "date",
+    "datetime",
+    "timestamp"
+   ]
+  },
+  {
+   "name": "Email",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Employment Term",
+   "category": "Personal",
+   "columnTypes": [
+    "date",
+    "datetime",
+    "timestamp"
+   ]
+  },
+  {
+   "name": "Ethnic Group",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "First Name (any gender)",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "First Name (female)",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "First Name (male)",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Full Name",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Gender",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Honorific Prefix (Title)",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Honorific Suffix",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Initials",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Integrated Circuit Card ID (ICCID)",
+   "category": "Personal",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Job Title",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Last Name",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Marital Status",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Middle Name",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "NickName",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Permanent Account Number(PAN)",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "nchar",
+    "nvarchar",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Phone Extension",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Phone Number (domestic)",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Phone Number (international)",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Phone Number (local)",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Phone Number (toll-free)",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Phone Number Type",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Twitter ID",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "UK National Insurance Number (NINO)",
+   "category": "Personal",
+   "languages": [
+    "GB"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "UK Phone Number (free)",
+   "category": "Personal",
+   "languages": [
+    "GB"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "UK Phone Number (mobile)",
+   "category": "Personal",
+   "languages": [
+    "GB"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "UK Phone Number (premium rate service)",
+   "category": "Personal",
+   "languages": [
+    "GB"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "UK Phone Number (wide)",
+   "category": "Personal",
+   "languages": [
+    "GB"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "URL (Gravatar image)",
+   "category": "Personal",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "varchar"
+   ]
+  },
+  {
+   "name": "US Annual Salary",
+   "category": "Personal",
+   "columnTypes": [
+    "bigint",
+    "decimal",
+    "double",
+    "float",
+    "int",
+    "mediumint"
+   ]
+  },
+  {
+   "name": "US Social Security Number (SSN)",
+   "category": "Personal",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "int",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Working Age",
+   "category": "Personal",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "int",
+    "longtext",
+    "mediumint",
+    "mediumtext",
+    "smallint",
+    "text",
+    "tinyint",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Amazon Standard Identification Number (ASIN)",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Bibliographic Code (CODEN)",
+   "category": "Product",
+   "columnTypes": [
+    "MySqlCODENGenerator",
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Clothing Size",
+   "category": "Product",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "int",
+    "longtext",
+    "mediumint",
+    "mediumtext",
+    "smallint",
+    "text",
+    "tinyint",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Color",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "International Article Number (EAN-13)",
+   "category": "Product",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "International Mobile Station Equipment Identity (IMEI)",
+   "category": "Product",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "International Mobile Station Equipment Identity Software Version (IMEISV)",
+   "category": "Product",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "International Mobile Station Identity (IMSI)",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "International Standard Book Number (ISBN)",
+   "category": "Product",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "International Standard Book Number (ISBN-13)",
+   "category": "Product",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "International Standard Music Number (ISMN)",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "International Standard Music Number (ISMN-13)",
+   "category": "Product",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "International Standard Serial Number (ISSN)",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "International Standard Serial Number (ISSN-13)",
+   "category": "Product",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Language",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Language Code (ISO 639-1 alpha-2, LowerCase)",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Language Code (ISO 639-1 alpha-2, UpperCase)",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Language Code (ISO 639-1 alpha-3, LowerCase)",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Language Code (ISO 639-1 alpha-3, UpperCase)",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Post Tracking Number (UPU S10)",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Price Look-Up Code (PLU)",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Product Category",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Product Cost",
+   "category": "Product",
+   "columnTypes": [
+    "bigint",
+    "decimal",
+    "int",
+    "mediumint",
+    "smallint",
+    "tinyint",
+    "ubigint",
+    "udecimal",
+    "uint",
+    "umediumint",
+    "usmallint",
+    "utinyint"
+   ]
+  },
+  {
+   "name": "Product Description",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Product Images",
+   "category": "Product",
+   "columnTypes": [
+    "blob",
+    "longblob"
+   ]
+  },
+  {
+   "name": "Product Name",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Product Quantity",
+   "category": "Product",
+   "columnTypes": [
+    "bigint",
+    "decimal",
+    "int",
+    "mediumint",
+    "smallint",
+    "tinyint",
+    "ubigint",
+    "udecimal",
+    "uint",
+    "umediumint",
+    "usmallint",
+    "utinyint"
+   ]
+  },
+  {
+   "name": "Product Weight",
+   "category": "Product",
+   "columnTypes": [
+    "bigint",
+    "decimal",
+    "int",
+    "mediumint",
+    "smallint",
+    "tinyint",
+    "ubigint",
+    "udecimal",
+    "uint",
+    "umediumint",
+    "usmallint",
+    "utinyint"
+   ]
+  },
+  {
+   "name": "Shipping Method",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Size Unit",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "UK Vehicle Registration Plate",
+   "category": "Product",
+   "languages": [
+    "GB"
+   ],
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Universal Product Code (UPC-A)",
+   "category": "Product",
+   "columnTypes": [
+    "bigint",
+    "char",
+    "decimal",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "User Comments",
+   "category": "Product",
+   "columnTypes": [
+    "longtext",
+    "mediumtext",
+    "text"
+   ]
+  },
+  {
+   "name": "Vehicle Identification Number (VIN)",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  },
+  {
+   "name": "Weight Unit",
+   "category": "Product",
+   "columnTypes": [
+    "char",
+    "longtext",
+    "mediumtext",
+    "text",
+    "tinytext",
+    "varchar"
+   ]
+  }
+ ]
+}
