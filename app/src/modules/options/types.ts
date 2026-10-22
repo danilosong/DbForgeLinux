@@ -8,6 +8,7 @@ export interface AppSettings {
   environment: { confirmExit: boolean; restoreSession: boolean; recentFiles: number; windowItems: number; showStatusBar: boolean; showSplash: boolean; showStartPage: boolean; autoSaveDrafts: boolean; autoSaveIntervalSeconds: number; successToasts: boolean; startup: 'last-workspace' | 'start-page' | 'empty' }
   appearance: { theme: ThemeOption; accent: string; density: 'compact' | 'comfortable'; uiZoom: number; reduceMotion: boolean; editorForeground: string; editorBackground: string; currentLineColor: string; keywordColor: string }
   queryBuilder: { showGrid: boolean; gridSize: number; snapToGrid: boolean; shadows: boolean }
+  chartDesigner: { showEveryTime: boolean }
   profiler: { historyLimit: number }
   debugging: { timeoutSeconds: number }
   dataComparison: { cacheFolder: 'system' | 'custom'; customCachePath: string; keyStrategy: 'none' | 'primary' | 'unique' }
@@ -34,6 +35,7 @@ export const defaultSettings: AppSettings = {
   environment: { confirmExit: true, restoreSession: true, recentFiles: 10, windowItems: 10, showStatusBar: true, showSplash: true, showStartPage: true, autoSaveDrafts: true, autoSaveIntervalSeconds: 30, successToasts: true, startup: 'last-workspace' },
   appearance: { theme: 'auto', accent: '#2f6fde', density: 'comfortable', uiZoom: 100, reduceMotion: false, editorForeground: '#202124', editorBackground: '#ffffff', currentLineColor: '#f1f5fb', keywordColor: '#315fc0' },
   queryBuilder: { showGrid: true, gridSize: 8, snapToGrid: true, shadows: true },
+  chartDesigner: { showEveryTime: true },
   profiler: { historyLimit: 10 },
   debugging: { timeoutSeconds: 30 },
   dataComparison: { cacheFolder: 'system', customCachePath: '', keyStrategy: 'none' },

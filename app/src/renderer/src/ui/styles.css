@@ -279,21 +279,28 @@ textarea { resize: vertical; }
 .empty-state p { margin: 0; }
 .empty-state.compact { min-height: 180px; }
 
-.document-workspace { min-width: 0; min-height: 0; display: grid; grid-template-rows: 30px minmax(100px, 1fr) 5px 200px; background: var(--bg-surface); }
+.document-workspace { position: relative; min-width: 0; min-height: 0; display: grid; grid-template-rows: 30px minmax(100px, 1fr) 5px 200px; background: var(--bg-surface); }
 .panel-hidden .document-workspace { grid-template-rows: 30px minmax(0, 1fr) 0 0; }
 .panel-hidden .bottom-panel { display: none; }
 .document-main { min-height: 0; display: grid; grid-template-rows: 34px minmax(80px, 1fr) minmax(80px, 28%); }
 .document-content { min-height: 0; min-width: 0; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr); }
 .document-content.split-vertical { grid-template-columns: minmax(0, 1fr) 5px minmax(0, 1fr); }
 .document-content.split-horizontal { grid-template-rows: minmax(0, 1fr) 5px minmax(0, 1fr); }
-.document-content.split-vertical > .document-split-pane { grid-column: 3; }
-.document-content.split-horizontal > .document-split-pane { grid-row: 3; }
+.document-content.split-vertical > .document-group-splitter { grid-column: 2; grid-row: 1; }
+.document-content.split-horizontal > .document-group-splitter { grid-column: 1; grid-row: 2; }
+.document-content.split-vertical > .document-split-pane { grid-column: 3; grid-row: 1; }
+.document-content.split-horizontal > .document-split-pane { grid-column: 1; grid-row: 3; }
+.document-group-splitter { background: var(--border); touch-action: none; }
+.document-group-splitter:hover { background: var(--accent); }
+.document-group-splitter.vertical { cursor: col-resize; }
+.document-group-splitter.horizontal { cursor: row-resize; }
 .document-split-pane { min-width: 0; min-height: 0; display: grid; grid-template-rows: 32px minmax(0, 1fr); border-left: 1px solid var(--border); }
 .document-split-pane header { display: flex; align-items: center; gap: 6px; padding: 2px 6px; border-bottom: 1px solid var(--border); }
 .document-split-pane textarea { min-width: 0; min-height: 0; resize: none; padding: 12px; border: 0; color: var(--text-primary); background: var(--bg-surface); font: 13px/1.5 ui-monospace, monospace; tab-size: 2; }
 .float-sql-document { height: 100vh; display: grid; grid-template-rows: 42px minmax(0, 1fr); background: var(--bg-surface); color: var(--text-primary); }
 .float-sql-document header { display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-bottom: 1px solid var(--border); }
 .float-sql-document textarea { min-width: 0; min-height: 0; resize: none; border: 0; padding: 16px; color: inherit; background: transparent; font: 13px/1.55 ui-monospace, monospace; tab-size: 2; }
+.float-panel-document { height: 100vh; min-height: 0; overflow: auto; background: var(--bg-surface); color: var(--text-primary); }
 .document-main:has(.grid-card-view) { grid-template-rows: 34px minmax(80px, 1fr) minmax(210px, 42%); }
 .document-workspace:has(.start-page) { grid-template-rows: 30px minmax(0, 1fr) 5px 200px; }
 .vertical-splitter, .horizontal-splitter { touch-action: none; background: var(--border); }
@@ -308,6 +315,11 @@ textarea { resize: vertical; }
 .document-tab.group-horizontal { border-bottom: 2px solid var(--accent); }
 .document-tab.group-vertical { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent); }
 .document-tab.selected { background: var(--bg-surface); border-top-color: var(--accent); }
+.document-drop-guides { position: absolute; z-index: 50; inset: 30px 0 0; display: grid; grid-template: 1fr 1fr 1fr / 1fr 1fr 1fr; place-items: center; background: rgb(8 14 24 / .26); }
+.document-drop-guide { width: 44px; height: 44px; border: 1px solid var(--accent); border-radius: 8px; color: var(--text-primary); background: var(--bg-surface); box-shadow: 0 2px 12px #0005; font-size: 22px; cursor: pointer; }
+.document-drop-guide:hover,.document-drop-guide:focus-visible { color: white; background: var(--accent); }
+.document-drop-guide.active { color: white; background: var(--accent); box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 26%, transparent), 0 4px 16px #0006; transform: scale(1.08); }
+.document-drop-guide-top { grid-area: 1 / 2; }.document-drop-guide-left { grid-area: 2 / 1; }.document-drop-guide-center { grid-area: 2 / 2; }.document-drop-guide-right { grid-area: 2 / 3; }.document-drop-guide-bottom { grid-area: 3 / 2; }
 .tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 190px; height: 28px; padding: 3px 9px; }
 .tab-close { height: 24px; padding: 0 6px; color: var(--text-secondary); }
 .tab-overflow { margin-left: auto; min-width: 28px; }

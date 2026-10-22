@@ -27,7 +27,7 @@ const legacyVcs = enumOf('Subversion', 'Mercurial')
 /** Runtime argument contracts for every invoke channel. Structured records are recursively size/type checked below. */
 export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'app:renderer-ready': [],
-  'document:float-sql': [id, text, sql], 'document:float-change': [id, sql],
+  'document:float-sql': [id, text, sql], 'document:float-panel': [text, text], 'document:float-change': [id, sql],
   'tasks:recent:list': [], 'tasks:recent:record': [object], 'tasks:recent:delete': [id],
   'about:info': [], 'about:open-link': [enumOf('documentation', 'repository', 'license')],
   'ai-assistant:settings:load': [], 'ai-assistant:settings:save': [object, opt(s('text'))], 'ai-assistant:settings:test': [object, opt(s('text'))],
@@ -49,7 +49,7 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'grid-data:master-detail': [id, object, object],
   'db:result-read': [id, integer, integer], 'db:result-dispose': [id], 'db:cancel': [id, id], 'db:transaction-begin': [id], 'db:transaction-commit': [id], 'db:transaction-rollback': [id],
   'db:tables': [id, ident], 'db:objects': [id, ident], 'db:show-create': [id, ident, object], 'db:set-database': [id, ident],
-  'file:open-sql': [], 'file:open-sql-path': [path], 'file:open-in-system': [path, enumOf('file', 'folder')], 'file:reveal-path': [path], 'file:save-sql': [opt(path), sql],
+  'file:open-sql': [], 'file:open-sql-path': [path], 'file:open-in-system': [path, enumOf('file', 'folder')], 'file:reveal-path': [path], 'file:open-containing-folder': [path], 'file:save-sql': [opt(path), sql],
   'documenter:tree': [id, ident], 'documenter:preview': [id, ident, opt(text)], 'documenter:generate': [object], 'documenter:open': [path], 'editor:metadata': [id, ident, opt(bool)], 'editor:invalidate-metadata': [id, opt(ident)],
   'er-diagram:load': [id, ident, id], 'er-diagram:save-relations': [id, ident, objects], 'er-diagram:save-file': [object], 'er-diagram:open-file': [],
   'schema-update:list': [], 'schema-update:queue': [object], 'schema-update:queue-table': [id, ident, s('nullable-object'), object], 'schema-update:remove': [strings], 'schema-update:execute': [strings, trueOnly],
@@ -271,7 +271,7 @@ function assertDomainPayload(channel: string, args: readonly unknown[]): void {
     }
   } else if ((channel === 'import-export:import' || channel === 'import-export:script' || channel === 'import-export:select-source') && args[channel === 'import-export:import' ? 5 : channel === 'import-export:script' ? 4 : 2] !== undefined) {
     const optionsIndex = channel === 'import-export:import' ? 5 : channel === 'import-export:script' ? 4 : 2
-    const options = assertRecord(args[optionsIndex], 'import options', [], ['delimiter', 'quote', 'encoding', 'header', 'skipLines', 'headerPosition', 'autoDelimiter', 'columns', 'columnMapping', 'createTable', 'mode', 'keyColumns', 'batchSize', 'onRowError', 'transactional', 'previewRows', 'rowElement', 'nullValue', 'nullString', 'booleanTrueValue', 'booleanFalseValue', 'confirmedDatabase'])
+    const options = assertRecord(args[optionsIndex], 'import options', [], ['delimiter', 'quote', 'encoding', 'header', 'skipLines', 'headerPosition', 'autoDelimiter', 'columns', 'columnMapping', 'createTable', 'mode', 'keyColumns', 'batchSize', 'onRowError', 'transactional', 'previewRows', 'rowElement', 'accessTable', 'nullValue', 'nullString', 'booleanTrueValue', 'booleanFalseValue', 'confirmedDatabase'])
     if (options.delimiter !== undefined && (typeof options.delimiter !== 'string' || options.delimiter.length > 8)) fail('import delimiter is invalid')
     if (options.encoding !== undefined && !['utf8', 'utf16le', 'latin1'].includes(String(options.encoding))) fail('import encoding is invalid')
     if (options.header !== undefined && typeof options.header !== 'boolean') fail('import header must be boolean')
@@ -284,6 +284,7 @@ function assertDomainPayload(channel: string, args: readonly unknown[]): void {
     if (options.keyColumns !== undefined) assertStringArray(options.keyColumns, 'import keyColumns', 256)
     if (options.columnMapping !== undefined) assertRecord(options.columnMapping, 'import columnMapping', [], Object.keys((options.columnMapping ?? {}) as object))
     if (options.columnMapping && Object.values(options.columnMapping as Record<string, unknown>).some((value) => typeof value !== 'string' || value.length > 256)) fail('import columnMapping values must be text')
+    if (options.accessTable !== undefined && (typeof options.accessTable !== 'string' || options.accessTable.length > 255 || options.accessTable.includes('\0'))) fail('import accessTable must be a valid table name')
     if (options.createTable !== undefined) {
       const schema = assertRecord(options.createTable, 'import createTable', ['database', 'name', 'columns'], ['database', 'name', 'columns'])
       if (typeof schema.database !== 'string' || !schema.database || schema.database.length > 256 || typeof schema.name !== 'string' || !schema.name || schema.name.length > 256 || !Array.isArray(schema.columns) || !schema.columns.length || schema.columns.length > 1000) fail('import createTable identity or columns are invalid')

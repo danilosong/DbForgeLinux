@@ -16,8 +16,14 @@ const dictionaryFiles = new Set([
   'renderer/src/i18n/menuMessages.ts',
   'renderer/src/i18n/navigationMessages.ts'
 ])
-// Exception for modules/data-generation/generators.ts: pools de dados de exemplo pt-BR gerados pelo Data Generator.
-const portugueseDataExceptions = new Set(['modules/data-generation/generators.ts'])
+// Generated sample locales contain proper names and place names, not interface copy.
+const portugueseDataExceptions = new Set([
+  'modules/data-generation/generators.ts',
+  'modules/data-generation/generators/location.ts',
+  'modules/data-generation/generators/personal.ts',
+  // Only the pt-BR row-value pools of the Business/Product generators; their logic files stay English.
+  'modules/data-generation/generators/ptBrSamplePools.ts'
+])
 const portuguese = /[\u00c0-\u00d6\u00d8-\u00f6\u00f8-\u00ff]|\b(?:nao|falha|invalido|invalida|informe|selecione|nenhum|nenhuma|disponivel|removido|removida|alterado|alterada|adicionado|adicionada|tabela|coluna|origem|destino|obrigatorio|obrigatoria|conexao|usuario|senha|arquivo|banco|dados|criado|criada|excluido|excluida|sera|foram|apenas|vazio|vazia|quantidade|privilegio|sessao|definicao|posicao|relacao|colunas|opcoes|chave|estrangeira|limpar|gerar|geracao|execucao|atualizar|comparacao|esquema|documentacao|renderizador|planilha|linha|valores|suportado|suportada|instalacao|conexoes|servicos)\b/i
 
 async function sourceFiles(folder: string): Promise<string[]> {

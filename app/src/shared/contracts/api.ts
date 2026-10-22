@@ -26,6 +26,7 @@ import type { AboutApi } from './about.js'
 import type { UpdaterApi } from './updater.js'
 export interface TuxSqlApi extends SecurityApi, SessionsApi, SchemaCompareApi, DataCompareApi, ImportExportApi, ERDiagramApi, QueryBuilderApi, EditorApi, HistoryApi, SourceControlApi, ObjectEditorApi, OptionsApi, DatabaseToolsApi, ReportPivotApi, AiAssistantApi, RoutineDebugContract, TasksApi, ServiceControlApi, LocalServerApi, CodeAnalysisApi, GridEditingApi, GridDataApi, ExtraToolsApi, AboutApi, UpdaterApi {
   floatSqlDocument(documentId: string, title: string, contents: string): Promise<void>
+  floatDocumentPanel(panelId: string, title: string): Promise<void>
   floatSqlChange(documentId: string, contents: string): Promise<void>
   onFloatSqlUpdate(handler: (documentId: string, contents: string) => void): () => void
   initializeNonCriticalIpc(): Promise<{ ready: true }>
@@ -55,6 +56,7 @@ export interface TuxSqlApi extends SecurityApi, SessionsApi, SchemaCompareApi, D
   openSqlFile(): Promise<SqlFile | null>
   openSqlPath(path: string): Promise<SqlFile>
   revealPath(path: string): Promise<void>
+  openContainingFolder(path: string): Promise<void>
   openPathInSystem(path: string, kind: 'file' | 'folder'): Promise<string>
   onOpenSqlPath(handler: (path: string) => void): () => void
   saveSqlFile(path: string | undefined, contents: string): Promise<string | null>

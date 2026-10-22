@@ -15,7 +15,7 @@ import { findFormatProfile } from '../../../modules/editor/formatProfiles.js'
 import { decideBatchError } from '../../../modules/editor/batchErrorPolicy.js'
 import { findBeginEndPair } from '../../../modules/editor/blockPairs.js'
 import { normalizeQuery } from '../../../modules/profiler/index.js'
-import { dockDirectionClass, normalizeDockDirection, type DockDirection } from '../../../modules/dock-layout.js'
+import { createDocumentLayout, dockDirectionClass, findDocumentGroup, mergeDocumentIntoGroup, normalizeDockDirection, parseDocumentLayout, serializeDocumentLayout, setGroupRatio, splitDocumentGroup, type DockDirection, type DocumentLayout } from '../../../modules/dock-layout.js'
 import { expandSqlWildcards, qualifyObjectNames, transformIdentifiers } from '../../../modules/editor/refactoring.js'
 import { findBookmark, toggleBookmark, toggleOutlining } from '../../../modules/editor-navigation.js'
 import { createDefaultConnection } from '../../../shared/connectionDefaults'
@@ -55,6 +55,8 @@ const editorCommands = new Set(['Make Uppercase', 'Make Lowercase', 'Toggle Bloc
 export default function App(): React.JSX.Element {
   const floatParams = window.location.hash.startsWith('#float-sql?') ? new URLSearchParams(window.location.hash.slice(window.location.hash.indexOf('?') + 1)) : undefined
   const floatedDocument = floatParams?.get('doc')
+  const floatPanelParams = window.location.hash.startsWith('#float-panel?') ? new URLSearchParams(window.location.hash.slice(window.location.hash.indexOf('?') + 1)) : undefined
+  const floatedPanelId = floatPanelParams?.get('panel')
   const { t } = useI18n()
   const [records, setRecords] = useState<ConnectionRecord[]>([])
   const [active, setActive] = useState<ConnectionSummary[]>([])
@@ -101,6 +103,12 @@ export default function App(): React.JSX.Element {
   const [panelHeight, setPanelHeight] = useState(() => Number(localStorage.getItem('tuxsql.panelHeight')) || 200)
   const [panelTab, setPanelTab] = useState<'Output' | 'Error List' | 'Find Results'>('Output')
   const [documents, setDocuments] = useState<DocumentTab[]>(readStoredDocuments)
+  const [documentLayout, setDocumentLayout] = useState<DocumentLayout>(() => {
+    const ids = readStoredDocuments().map((item) => item.id)
+    try { return parseDocumentLayout(JSON.parse(localStorage.getItem('tuxsql.documentLayout') ?? 'null'), ids) ?? createDocumentLayout(ids) }
+    catch { return createDocumentLayout(ids) }
+  })
+  const [documentDropGuides, setDocumentDropGuides] = useState(false)
   const [databaseDrafts, setDatabaseDrafts] = useState<Record<string, DatabaseDraft>>({})
   const [databaseEditorStatus, setDatabaseEditorStatus] = useState('')
   const [pinnedTabs, setPinnedTabs] = useState<string[]>([])
@@ -108,6 +116,7 @@ export default function App(): React.JSX.Element {
   const [splitDocument, setSplitDocument] = useState<string | undefined>()
   const [splitOrientation, setSplitOrientation] = useState<'horizontal' | 'vertical'>('vertical')
   const draggedTabRef = useRef<string | undefined>(undefined)
+  const [documentDropTarget, setDocumentDropTarget] = useState<{ documentId: string; direction: DockDirection | 'center' }>()
   const [tabContext, setTabContext] = useState<{ x: number; y: number; tabId: string }>()
   const tabContextMenuRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -135,6 +144,11 @@ export default function App(): React.JSX.Element {
     if (floatedDocument) return
     for (const [documentId, contents] of Object.entries(sqlByDocument)) void window.tuxsql.floatSqlChange(documentId, contents)
   }, [sqlByDocument, floatedDocument])
+  useEffect(() => {
+    const ids = documents.map((item) => item.id)
+    setDocumentLayout((current) => parseDocumentLayout(current, ids) ?? createDocumentLayout(ids))
+  }, [documents])
+  useEffect(() => { localStorage.setItem('tuxsql.documentLayout', serializeDocumentLayout(documentLayout)) }, [documentLayout])
   const [results, setResults] = useState<QueryResult[]>([])
   const [queryMessages, setQueryMessages] = useState<string[]>([])
   const [queryBusy, setQueryBusy] = useState(false)
@@ -247,6 +261,7 @@ export default function App(): React.JSX.Element {
   const activeObjectTab = documents.find((tab) => tab.id === selectedDocument)?.objectEditor
   const activeDatabaseTab = documents.find((tab) => tab.id === selectedDocument)?.databaseEditor
   const activePanelTab = documents.find((tab) => tab.id === selectedDocument)?.panelId
+  const primaryGroupTabs = findDocumentGroup(documentLayout.root, selectedDocument)?.tabs ?? documents.map((tab) => tab.id)
   const activeSql = selectedDocument !== 'start' && !activeObjectTab && !activeDatabaseTab && !activePanelTab
   const activeSqlText = activeSql ? sqlByDocument[selectedDocument] ?? '' : ''
   const navigationSqlDocument = documents.find((tab) => tab.id === selectedDocument && !tab.objectEditor && !tab.databaseEditor && !tab.panelId)
@@ -1361,6 +1376,22 @@ export default function App(): React.JSX.Element {
     if (closingIds.has(selectedDocument)) setSelectedDocument(next.at(-1)?.id ?? 'start')
   }
 
+  function dropDocumentTab(documentId: string, targetDocumentId: string, direction: DockDirection | 'center'): void {
+    if (documentId === targetDocumentId) return
+    if (direction === 'center') {
+      setDocumentLayout((current) => mergeDocumentIntoGroup(current, documentId, targetDocumentId))
+      setSplitDocument(undefined)
+      setSelectedDocument(documentId)
+      return
+    }
+    setDocumentLayout((current) => splitDocumentGroup(current, targetDocumentId, documentId, direction, `group-${Date.now()}`))
+    const orientation = direction === 'left' || direction === 'right' ? 'vertical' : 'horizontal'
+    setTabGroups((current) => ({ ...current, [documentId]: orientation, [targetDocumentId]: orientation }))
+    setSplitDocument(documentId)
+    setSplitOrientation(orientation)
+    setSelectedDocument(targetDocumentId)
+  }
+
   async function handleTabContextAction(action: string, tab: DocumentTab): Promise<void> {
     if (action === 'close') { closeTab(tab.id); return }
     if (action === 'closeAllButThis') { closeManyTabs(documents.filter((item) => item.id !== tab.id).map((item) => item.id)); return }
@@ -1368,9 +1399,22 @@ export default function App(): React.JSX.Element {
     if (action === 'closeAllButPinned') { closeManyTabs(documents.filter((item) => item.id !== 'start' && !pinnedTabs.includes(item.id)).map((item) => item.id)); return }
     if (action === 'pinTab') { setPinnedTabs((current) => current.includes(tab.id) ? current.filter((id) => id !== tab.id) : [...current, tab.id]); return }
     if (action === 'copyFullPath' && tab.filePath) { await navigator.clipboard.writeText(tab.filePath); return }
-    if (action === 'openContainingFolder' && tab.filePath) { await window.tuxsql.revealPath(tab.filePath); return }
-    if (action === 'newHorizontalTabGroup' || action === 'newVerticalTabGroup') { const orientation = action === 'newHorizontalTabGroup' ? 'horizontal' : 'vertical'; setTabGroups((current) => ({ ...current, [tab.id]: orientation })); setSplitDocument(tab.id); setSplitOrientation(orientation); return }
-    if (action === 'floatTab') { const contents = sqlByDocument[tab.id]; if (typeof contents !== 'string') { log('Documents', 'Only SQL documents can be floated.', 'warning'); return }; await window.tuxsql.floatSqlDocument(tab.id, tab.label, contents) }
+    if (action === 'openContainingFolder' && tab.filePath) { await window.tuxsql.openContainingFolder(tab.filePath); return }
+    if (action === 'newHorizontalTabGroup' || action === 'newVerticalTabGroup') {
+      const orientation = action === 'newHorizontalTabGroup' ? 'horizontal' : 'vertical'
+      const direction = orientation === 'horizontal' ? 'bottom' : 'right'
+      const targetId = selectedDocument !== tab.id ? selectedDocument : documents.find((item) => item.id !== tab.id && item.id !== 'start')?.id
+      if (!targetId) return
+      dropDocumentTab(tab.id, targetId, direction)
+      setTabGroups((current) => ({ ...current, [tab.id]: orientation, [targetId]: orientation }))
+      return
+    }
+    if (action === 'floatTab') {
+      if (tab.panelId) { await window.tuxsql.floatDocumentPanel(tab.panelId, tab.label); return }
+      const contents = sqlByDocument[tab.id]
+      if (typeof contents === 'string') { await window.tuxsql.floatSqlDocument(tab.id, tab.label, contents); return }
+      log('Documents', 'This document type cannot be opened in a separate window yet.', 'warning')
+    }
   }
 
   useEffect(() => {
@@ -1510,6 +1554,12 @@ export default function App(): React.JSX.Element {
   }, [])
 
   if (floatedDocument) return <FloatSqlDocument documentId={floatedDocument} title={floatParams?.get('title') ?? 'SQL document'} initialContents={floatParams?.get('contents') ?? ''} />
+  if (floatedPanelId) {
+    const entry = panelRegistry.find((item) => item.id === floatedPanelId)
+    if (!entry) return <main className="float-panel-document">Panel unavailable.</main>
+    const Panel = entry.component
+    return <main className="float-panel-document"><Suspense fallback={<div role="status">Loading panel…</div>}>{panelContents(Panel)}</Suspense></main>
+  }
   return <main className="app-shell" aria-label="TuxSQL">
     <header className="app-menubar">
       <strong className="brand">TuxSQL</strong>
@@ -1563,12 +1613,15 @@ export default function App(): React.JSX.Element {
       {explorerVisible && <DatabaseExplorer records={records} active={active} databases={databases} objects={objects} loadingObjects={loadingObjects} connecting={connecting} errors={connectionErrors} onNew={openNewConnection} onManage={() => setManagerOpen(true)} onConnect={(record) => void connectFromExplorer(record)} onDisconnect={(connection) => void disconnect(connection)} onExpand={(record) => void expandRecord(record)} onLoadObjects={loadObjects} onSelectDatabase={(connection, database) => void selectDatabase(connection, database)} onDropObject={(connection, database, object) => void dropObject(connection, database, object)} onOpenObject={(connection, database, object) => openObjectEditor(connection, database, object.kind, object.name)} onCreateObject={(connection, database, kind) => openObjectEditor(connection, database, kind, `new_${kind}`, true)} onRenameTable={(connection, database, object, name) => void renameTable(connection, database, object, name)} onTruncateTable={(connection, database, object) => void truncateTable(connection, database, object)} onSelectObject={(connection, database, object) => setSelectedExplorerObject({ connection, database, object })} onProperties={showObjectProperties} onEdit={openEdit} onContextAction={(action, context) => void handleExplorerContextAction(action, context)} />}
       {explorerVisible && <div className="vertical-splitter" role="separator" aria-orientation="vertical" aria-label="Resize Database Explorer" onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)} onPointerMove={(event) => { if (event.buttons) setExplorerWidth(Math.min(Math.floor(window.innerWidth * 0.5), Math.max(200, event.clientX))) }} />}
       <section className="document-workspace" style={{ gridTemplateRows: panelVisible ? `30px minmax(0, 1fr) 5px ${panelHeight}px` : '30px minmax(0, 1fr) 0 0' }}>
-        <div className="document-tab-strip"><div className="document-tabs" role="tablist" aria-label="Documents" aria-owns={documents.map((tab) => `document-tab-control-${tab.id}`).join(' ')} />
-          {documents.map((tab, index) => <div key={tab.id} draggable={tab.id !== 'start'} onDragStart={() => { draggedTabRef.current = tab.id }} onDragOver={(event) => { if (draggedTabRef.current && draggedTabRef.current !== tab.id) event.preventDefault() }} onDrop={(event) => { event.preventDefault(); const dragged = draggedTabRef.current; if (dragged && dragged !== tab.id) { const orientation = tabGroups[tab.id] ?? 'vertical'; setTabGroups((current) => ({ ...current, [dragged]: orientation, [tab.id]: orientation })); setSplitDocument(dragged); setSplitOrientation(orientation) }; draggedTabRef.current = undefined }} className={`document-tab${selectedDocument === tab.id ? ' selected' : ''}${pinnedTabs.includes(tab.id) ? ' pinned' : ''}${tabGroups[tab.id] ? ` group-${tabGroups[tab.id]}` : ''}`}>
+        <div className="document-tab-strip"><div className="document-tabs" role="tablist" aria-label="Documents" aria-owns={documents.filter((tab) => primaryGroupTabs.includes(tab.id)).map((tab) => `document-tab-control-${tab.id}`).join(' ')} />
+          {documents.filter((tab) => primaryGroupTabs.includes(tab.id)).map((tab, index) => <div key={tab.id} draggable={tab.id !== 'start'} onPointerDown={() => { if (tab.id !== 'start') { draggedTabRef.current = tab.id; setDocumentDropGuides(true) } }} onPointerUp={() => { if (draggedTabRef.current === tab.id) { draggedTabRef.current = undefined; setDocumentDropGuides(false); setDocumentDropTarget(undefined) } }} onDragStart={() => { draggedTabRef.current = tab.id; setDocumentDropGuides(true) }} onDragEnd={() => { draggedTabRef.current = undefined; setDocumentDropGuides(false); setDocumentDropTarget(undefined) }} onDragOver={(event) => { if (draggedTabRef.current && draggedTabRef.current !== tab.id) { event.preventDefault(); setDocumentDropTarget({ documentId: tab.id, direction: 'center' }) } }} onDrop={(event) => { event.preventDefault(); const dragged = draggedTabRef.current; if (dragged && dragged !== tab.id) dropDocumentTab(dragged, tab.id, 'center'); draggedTabRef.current = undefined; setDocumentDropGuides(false); setDocumentDropTarget(undefined) }} className={`document-tab${selectedDocument === tab.id ? ' selected' : ''}${pinnedTabs.includes(tab.id) ? ' pinned' : ''}${tabGroups[tab.id] ? ` group-${tabGroups[tab.id]}` : ''}`}>
             <button id={`document-tab-control-${tab.id}`} type="button" role="tab" tabIndex={selectedDocument === tab.id ? 0 : -1} aria-selected={selectedDocument === tab.id} aria-label={`${tab.label}${tab.modified ? ` · ${t('tabs.modified')}` : ''}${pinnedTabs.includes(tab.id) ? ` · ${t('tabs.pinned')}` : ''}`} className="tab-label" onClick={() => setSelectedDocument(tab.id)} onContextMenu={(event) => { event.preventDefault(); setTabContext({ x: event.clientX, y: event.clientY, tabId: tab.id }) }} onKeyDown={(event) => { if (event.shiftKey && event.key === 'F10') { event.preventDefault(); const rect = event.currentTarget.getBoundingClientRect(); setTabContext({ x: rect.left, y: rect.bottom, tabId: tab.id }) } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') { event.preventDefault(); const next = documents[(index + (event.key === 'ArrowRight' ? 1 : documents.length - 1)) % documents.length]; if (next) { setSelectedDocument(next.id); document.querySelector<HTMLButtonElement>(`[role="tab"][aria-label^="${CSS.escape(next.label)}"]`)?.focus() } } }}>{tab.modified ? '• ' : ''}{tab.label}</button>
             {tab.id !== 'start' && <button type="button" className="tab-close" aria-label={`${t('tabs.close')} ${tab.label}`} title={t('tabs.close')} onClick={() => closeTab(tab.id)}>×</button>}
           </div>)}
           <button className="tab-overflow" title="Todas as abas" onClick={() => window.alert(documents.map((tab) => tab.label).join('\n'))}>⌄</button></div>
+          {documentDropGuides && <div className="document-drop-guides" role="group" aria-label={t('tabs.splitView')} onDragOver={(event) => event.preventDefault()}>
+            {(['top', 'left', 'center', 'right', 'bottom'] as const).map((direction) => <button key={direction} type="button" data-document-dock-direction={direction} className={`document-drop-guide document-drop-guide-${direction}${documentDropTarget?.direction === direction ? ' active' : ''}`} aria-label={direction === 'center' ? t('tabs.mergeGroup') : t(`tabs.drop.${direction}`)} onDragOver={(event) => { event.preventDefault(); const target = selectedDocument !== draggedTabRef.current ? selectedDocument : documents.find((item) => item.id !== draggedTabRef.current && item.id !== 'start')?.id; if (target) setDocumentDropTarget({ documentId: target, direction }) }} onDrop={(event) => { event.preventDefault(); const dragged = draggedTabRef.current; const target = documentDropTarget?.documentId ?? (selectedDocument !== dragged ? selectedDocument : documents.find((item) => item.id !== dragged && item.id !== 'start')?.id); if (dragged && target) dropDocumentTab(dragged, target, direction); draggedTabRef.current = undefined; setDocumentDropGuides(false); setDocumentDropTarget(undefined) }}>{direction === 'center' ? '●' : direction === 'top' ? '↑' : direction === 'bottom' ? '↓' : direction === 'left' ? '←' : '→'}</button>)}
+          </div>}
           {tabContext && <div ref={tabContextMenuRef} className="object-context tab-context-menu" style={{ left: tabContext.x, top: tabContext.y }} role="menu" aria-label={t('tabs.contextMenu')} onPointerDown={(event) => event.stopPropagation()} onKeyDown={(event) => {
             if (event.key === 'Escape') { setTabContext(undefined); return }
             const items = [...(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)'))]
@@ -1580,7 +1633,7 @@ export default function App(): React.JSX.Element {
             ['close', t('tabs.close')], ['closeAllDocuments', t('tabs.closeAll')], ['closeAllButThis', t('tabs.closeAllButThis')], ['closeAllUnmodified', t('tabs.closeUnmodified')], ['closeAllButPinned', t('tabs.closeButPinned')],
             ['copyFullPath', t('tabs.copyPath')], ['openContainingFolder', t('tabs.openFolder')], ['floatTab', t('tabs.float')], ['pinTab', pinnedTabs.includes(tabContext.tabId) ? t('tabs.unpin') : t('tabs.pin')], ['newHorizontalTabGroup', t('tabs.horizontalGroup')], ['newVerticalTabGroup', t('tabs.verticalGroup')]
           ] as const).map(([action, label]) => <button key={action} type="button" role="menuitem" disabled={(['copyFullPath', 'openContainingFolder'] as string[]).includes(action) && !documents.find((item) => item.id === tabContext.tabId)?.filePath} onClick={() => { const tab = documents.find((item) => item.id === tabContext.tabId); if (!tab) return; if (action === 'closeAllDocuments') closeManyTabs(documents.map((item) => item.id)); else void handleTabContextAction(action, tab); setTabContext(undefined) }}>{label}</button>)}</div>}
-        <div className={`document-content${splitDocument ? ` split-${splitOrientation}` : ''}`}>
+        <div className={`document-content${splitDocument ? ` split-${splitOrientation}` : ''}`} style={splitDocument ? splitOrientation === 'vertical' ? { gridTemplateColumns: `minmax(0, ${documentLayout.root.type === 'split' ? documentLayout.root.ratio : 0.5}fr) 5px minmax(0, ${documentLayout.root.type === 'split' ? 1 - documentLayout.root.ratio : 0.5}fr)` } : { gridTemplateRows: `minmax(0, ${documentLayout.root.type === 'split' ? documentLayout.root.ratio : 0.5}fr) 5px minmax(0, ${documentLayout.root.type === 'split' ? 1 - documentLayout.root.ratio : 0.5}fr)` } : undefined}>
         {selectedDocument === 'start' ? <StartPage files={documents.filter((tab) => tab.id !== 'start' && tab.filePath).slice(-10).reverse()} connections={records} onNewSql={newSql} onOpenSql={() => void openSqlFile()} onNewConnection={openNewConnection} onManageConnections={() => setManagerOpen(true)} onOpenFile={setSelectedDocument} onConnect={(record) => void connectFromExplorer(record)} onOpenTask={(panel) => openRegisteredPanel(panel)} /> : activeObjectTab ? <Suspense fallback={<div className="editor-loading" role="status">Loading object editor…</div>}><ObjectEditor key={selectedDocument} target={activeObjectTab} isNew={activeObjectTab.isNew} isProduction={currentConnection?.environment === 'prod'} autoCommit={autoCommit} transactionRevision={transactionRevision} transactionCommitted={transactionCommitted} onScript={(sql, label) => openSqlDocument(label, sql)} onApplied={() => { const connection = active.find((item) => item.id === activeObjectTab.connectionId); if (connection) void loadObjects(connection, activeObjectTab.database) }} /></Suspense> : activeDatabaseTab ? (() => { const draft = databaseDrafts[selectedDocument]; if (!draft) return <div className="tool-document-empty">{t('database.editor.empty')}</div>; return <section className="database-create-editor" aria-label={t('database.editor.title')}><header><strong>{t('database.editor.title')}</strong><span className="toolbar-spacer" /><button onClick={() => updateDatabaseDraft({ page: 'General' })}>{t('database.editor.general')}</button><button onClick={() => updateDatabaseDraft({ page: 'SQL' })}>{t('database.editor.sql')}</button><Button variant="primary" onClick={() => void applyDatabaseDraft()}>{t('common.applyChanges')}</Button></header>{draft.page === 'General' ? <div className="database-create-form"><label>{t('database.editor.name')}<input value={draft.name} onChange={(event) => updateDatabaseDraft({ name: event.target.value }, true)} /></label><label>{t('database.editor.characterSet')}<input value={draft.charset} onChange={(event) => updateDatabaseDraft({ charset: event.target.value }, true)} /></label><label>{t('database.editor.collation')}<input value={draft.collation} onChange={(event) => updateDatabaseDraft({ collation: event.target.value }, true)} /></label></div> : <textarea value={draft.sql} onChange={(event) => updateDatabaseDraft({ sql: event.target.value })} />}{databaseEditorStatus && <p role="status">{databaseEditorStatus}</p>}<pre>{draft.sql}</pre></section> })() : activePanelTab ? (() => { const entry = panelRegistry.find((item) => item.id === activePanelTab); if (!entry) return <div className="tool-document-empty">Panel unavailable.</div>; const Panel = entry.component; return <div className="tool-document">{panelContents(Panel)}</div> })() : <div className="document-main">
           <div className="sql-context-toolbar"><span>{documents.find((tab) => tab.id === selectedDocument)?.label}</span><span>{activeTitle}</span><span className="metadata-state">{metadataLoading ? 'Loading schema…' : editorMetadata.objects.length ? `${editorMetadata.objects.length} schema objects` : ''}</span><Button onClick={() => formatEditor('document')}>Format</Button><Button onClick={() => formatEditor('statement')}>Format statement</Button><Button variant="primary" onClick={() => void runSql()} disabled={!currentConnection || queryBusy}>▶ Execute</Button><Button onClick={() => void runSql('current')} disabled={!currentConnection || queryBusy}>Current statement</Button></div>
           {findOpen && <div className="find-toolbar"><input type="search" aria-label={t('nav.find')} placeholder={t('nav.find')} value={findQuery} onChange={(event) => setFindQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') cycleFind(event.shiftKey ? -1 : 1) }} /><Button onClick={() => cycleFind(-1)} title={t('nav.previous')}>↑</Button><Button onClick={() => cycleFind(1)} title={t('nav.next')}>↓</Button><label><input type="checkbox" checked={findRegex} onChange={(event) => setFindRegex(event.target.checked)} />{t('nav.regex')}</label><label><input type="checkbox" checked={findCase} onChange={(event) => setFindCase(event.target.checked)} />{t('nav.caseSensitive')}</label><select aria-label={t('nav.scope')} value={findScope} onChange={(event) => setFindScope(event.target.value as typeof findScope)}><option value="document">{t('nav.document')}</option><option value="selection">{t('nav.selection')}</option><option value="open">{t('nav.openDocuments')}</option></select>{findReplaceMode && <><input aria-label={t('nav.replace')} placeholder={t('nav.replace')} value={replaceQuery} onChange={(event) => setReplaceQuery(event.target.value)} /><Button onClick={replaceCurrentMatch}>{t('nav.replaceOne')}</Button><Button onClick={replaceAllMatches}>{t('nav.replaceAll')}</Button></>}<span>{findMatches.length}</span><Button onClick={() => { setFindOpen(false); setFindReplaceMode(false) }} title={t('nav.close')}>×</Button></div>}
@@ -1687,7 +1740,18 @@ export default function App(): React.JSX.Element {
             {resultIndex >= 0 && results[resultIndex] ? resultPresentation === 'text' ? <pre className="result-text">{JSON.stringify(results[resultIndex].rows, null, 2)}</pre> : <ResultGrid result={results[resultIndex]} index={resultIndex} currentConnection={currentConnection ?? undefined} autoCommit={autoCommit} transactionRevision={transactionRevision} transactionCommitted={transactionCommitted} fetchRows={(offset, limit) => window.tuxsql.readResultRows(results[resultIndex].resultStoreId!, offset, limit)} onLoadMore={pageQueries[selectedDocument] ? () => loadMorePage(resultIndex) : undefined} /> : resultIndex === -2 ? <div className="query-history"><div className="history-toolbar"><input aria-label="Search Query History" placeholder="Search SQL, connection, database…" value={historySearch} onChange={(event) => setHistorySearch(event.target.value)} /><span>{historyLoading ? 'Loading…' : `${history.length} entries`}</span></div><div className="query-messages">{history.length ? history.map((entry) => <article className="history-row" key={entry.id}><button className="history-entry" onClick={() => openSqlDocument('History query', entry.sql)}><span>{new Date(entry.timestamp).toLocaleString()} · {entry.connection}{entry.database ? ` · ${entry.database}` : ''} · {(entry.elapsedMs / 1000).toFixed(3)} s · {entry.success ? 'Success' : 'Failed'}</span><code>{entry.sql}</code></button><Button onClick={() => replayHistory(entry)}>Re-run</Button></article>) : <p>{historyLoading ? 'Loading…' : t('ui.app.msg.8918e025fe')}</p>}</div></div> : <div className="query-messages" aria-live="polite">{queryBusy && <p>{t('ui.app.queryRunning')}</p>}{queryMessages.map((message, index) => <p key={index}>{message}</p>)}{!queryBusy && !queryMessages.length && <p>{t('ui.app.queryMessagesEmpty')}</p>}{results.filter((result) => !result.columns.length).map((result, index) => <p key={`affected-${index}`}>Affected rows: {result.affectedRows} · Last insert id: {result.insertId}</p>)}{queryElapsed > 0 && <small>{(queryElapsed / 1000).toFixed(3)} s</small>}</div>}
           </div>
         </div>}
-        {splitDocument && <aside className="document-split-pane" aria-label={t('tabs.secondaryPane')}><header><select aria-label={t('tabs.secondaryPane')} value={splitDocument} onChange={(event) => setSplitDocument(event.target.value)}>{documents.filter((tab) => tab.id !== 'start').map((tab) => <option key={tab.id} value={tab.id}>{tab.label}</option>)}</select><Button onClick={() => setSplitDocument(undefined)}>{t('tabs.closeSplit')}</Button></header><textarea aria-label={t('tabs.secondaryEditor')} spellCheck={false} value={sqlByDocument[splitDocument] ?? ''} onChange={(event) => { const value = event.target.value; setSqlByDocument((current) => ({ ...current, [splitDocument]: value })); setDocuments((current) => current.map((tab) => tab.id === splitDocument ? { ...tab, modified: true } : tab)) }} /></aside>}
+        {splitDocument && <div className={`document-group-splitter ${splitOrientation}`} role="separator" aria-orientation={splitOrientation === 'vertical' ? 'vertical' : 'horizontal'} aria-label={t('tabs.resizeGroups')} onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)} onPointerMove={(event) => { if (!event.buttons || documentLayout.root.type !== 'split') return; const rect = event.currentTarget.parentElement!.getBoundingClientRect(); const ratio = splitOrientation === 'vertical' ? (event.clientX - rect.left) / rect.width : (event.clientY - rect.top) / rect.height; setDocumentLayout((current) => current.root.type === 'split' ? setGroupRatio(current, current.root.id, ratio) : current) }} />}
+        {splitDocument && <aside className="document-split-pane" aria-label={t('tabs.secondaryPane')}><header><div className="split-document-tabs" role="tablist" aria-label={t('tabs.secondaryPane')}>{(findDocumentGroup(documentLayout.root, splitDocument)?.tabs ?? [splitDocument]).map((id) => { const tab = documents.find((item) => item.id === id); return tab && <button key={id} type="button" role="tab" aria-selected={id === splitDocument} onClick={() => setSplitDocument(id)}>{tab.modified ? '• ' : ''}{tab.label}</button> })}</div><Button onClick={() => { const groupTabs = findDocumentGroup(documentLayout.root, splitDocument)?.tabs ?? [splitDocument]; for (const id of groupTabs) setDocumentLayout((current) => mergeDocumentIntoGroup(current, id, selectedDocument)); setSplitDocument(undefined) }}>{t('tabs.closeSplit')}</Button></header>
+          {(() => {
+            const tab = documents.find((item) => item.id === splitDocument)
+            if (!tab) return null
+            if (tab.panelId) { const entry = panelRegistry.find((item) => item.id === tab.panelId); if (!entry) return <div className="tool-document-empty">Panel unavailable.</div>; return <div className="tool-document split-tool-document">{panelContents(entry.component)}</div> }
+            if (tab.objectEditor) { const target = tab.objectEditor; return <div className="split-tool-document"><Suspense fallback={<div role="status">Loading object editor…</div>}><ObjectEditor key={tab.id} target={target} isNew={target.isNew} isProduction={currentConnection?.environment === 'prod'} autoCommit={autoCommit} transactionRevision={transactionRevision} transactionCommitted={transactionCommitted} onScript={(sql, label) => openSqlDocument(label, sql)} onApplied={() => { const connection = target.connectionId ? active.find((item) => item.id === target.connectionId) : undefined; if (connection && target.database) void loadObjects(connection, target.database) }} /></Suspense></div> }
+            if (tab.databaseEditor) { const draft = databaseDrafts[tab.id]; return <textarea aria-label={t('tabs.secondaryEditor')} spellCheck={false} value={draft?.sql ?? ''} onChange={(event) => { const value = event.target.value; setDatabaseDrafts((current) => ({ ...current, [tab.id]: { ...(current[tab.id] ?? { name: '', charset: 'utf8mb4', collation: 'utf8mb4_0900_ai_ci', page: 'SQL' as const }), sql: value, page: 'SQL' } })); setDocuments((current) => current.map((item) => item.id === tab.id ? { ...item, modified: true } : item)) }} /> }
+            if (tab.id === 'start') return <StartPage files={documents.filter((item) => item.id !== 'start' && item.filePath).slice(-10).reverse()} connections={records} onNewSql={newSql} onOpenSql={() => void openSqlFile()} onNewConnection={openNewConnection} onManageConnections={() => setManagerOpen(true)} onOpenFile={setSelectedDocument} onConnect={(record) => void connectFromExplorer(record)} onOpenTask={(panel) => openRegisteredPanel(panel)} />
+            return <textarea aria-label={t('tabs.secondaryEditor')} spellCheck={false} value={sqlByDocument[tab.id] ?? ''} onChange={(event) => { const value = event.target.value; setSqlByDocument((current) => ({ ...current, [tab.id]: value })); setDocuments((current) => current.map((item) => item.id === tab.id ? { ...item, modified: true } : item)) }} />
+          })()}
+        </aside>}
         </div>
         <div className="horizontal-splitter" role="separator" aria-orientation="horizontal" aria-label="Resize Output panel" onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)} onPointerMove={(event) => { if (event.buttons) setPanelHeight(Math.min(480, Math.max(80, window.innerHeight - event.clientY))) }} />
         <section className="bottom-panel" aria-label="Output and errors">

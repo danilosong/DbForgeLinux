@@ -27,7 +27,7 @@ export function inferImportColumns(columns: readonly string[], rows: readonly Re
   return columns.map((name) => ({ name, type: inferSqlType(rows.map((row) => row[name])), primaryKey: false }))
 }
 
-const allowedType = /^(?:INT|BIGINT|DECIMAL\((?:[1-9]\d?|[1-5]\d|65),(?:0|[1-9]\d?|30)\)|DATETIME|TEXT|JSON|VARCHAR\((?:[1-9]\d{0,3}|10000)\))$/
+const allowedType = /^(?:TINYINT(?:\s+UNSIGNED|\(1\))?|SMALLINT|INT|BIGINT|FLOAT|DOUBLE|DATE|DATETIME|DECIMAL\((?:[1-9]\d?|[1-5]\d|65),(?:0|[1-9]\d?|30)\)|TEXT|JSON|VARCHAR\((?:[1-9]\d{0,3}|10000)\))$/
 function ident(value: string): string {
   if (!value.trim() || value.length > 64 || value.includes('\0')) throw new Error('Invalid table or column name.')
   return `\`${value.replaceAll('`', '``')}\``

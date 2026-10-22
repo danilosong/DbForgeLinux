@@ -71,4 +71,4 @@ export interface ImportJob {
 export interface ExportReport { rows: number; bytes: number }
 export interface ImportReport { read: number; inserted: number; updated: number; deleted: number; errors: number; rowErrors: Array<{ row: number; message: string }>; serverWarnings: string[] }
 
-export interface ImportPreview { columns: string[]; rows: Row[] }
+export interface ImportPreview { columns: string[]; rows: Row[]; sourceTypes?: Record<string, string>; primaryKeyColumns?: string[] }

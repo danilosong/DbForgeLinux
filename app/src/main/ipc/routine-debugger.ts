@@ -3,15 +3,18 @@ import { createHash } from 'node:crypto'
 import type { IpcMainInvokeEvent, WebContents } from 'electron'
 import type { IpcDeps } from './registry.js'
 import { ipcMain } from './registry.js'
-import { DEBUG_SCHEMA, engineDdl, instrumentProcedure, instrumentTrigger, quoteDebugIdentifier, type DebugBreakpoint, type DebugRoutineTarget, type DebugSessionStatus, type DebugSnapshot, type DebugStepKind, type DebugWatch } from '../../modules/routine-debugger/index.js'
+import { DEBUG_SCHEMA, calledProcedureNames, engineDdl, instrumentProcedure, instrumentTrigger, quoteDebugIdentifier, type DebugBreakpoint, type DebugRoutineTarget, type DebugSessionStatus, type DebugSnapshot, type DebugStepKind, type DebugWatch } from '../../modules/routine-debugger/index.js'
 import type { DedicatedMysqlSession } from '../db/MysqlDriver.js'
 import { evaluateWatchExpression } from '../../modules/routine-debugger/expression.js'
 import { buildDebugCallPlan } from '../../modules/routine-debugger/outputParameters.js'
 import { scheduleDebugSessionTimeout } from '../../modules/routine-debugger/sessionTimeout.js'
 
-interface LiveSession { id: string; ownerId: number; sender: WebContents; target: DebugRoutineTarget; controller: DedicatedMysqlSession; executor: DedicatedMysqlSession; originalSql: string; instrumentedSql: string; statementLines: number[]; task?: Promise<void>; snapshot: DebugSnapshot; watches: string[]; stopRequested: boolean; showAfterExecute: boolean }
+interface AuxiliaryRoutine { database: string; name: string; originalSql: string; instrumentedSql: string }
+interface StatementFrame { routine: string; line: number; depth: number; locals: Array<{ name: string; userVariable: string }> }
+interface LiveSession { id: string; ownerId: number; sender: WebContents; target: DebugRoutineTarget; controller: DedicatedMysqlSession; executor: DedicatedMysqlSession; executorProcessId: number; localVariablePrefix: string; localsAvailable: boolean; originalSql: string; instrumentedSql: string; statementLines: number[]; statementFrames: StatementFrame[]; auxiliaryRoutines: AuxiliaryRoutine[]; auxiliaryLocks: string[]; task?: Promise<void>; snapshot: DebugSnapshot; watches: string[]; stopRequested: boolean; showAfterExecute: boolean }
 const sessions = new Map<string, LiveSession>()
 const table = (name: string): string => `${quoteDebugIdentifier(DEBUG_SCHEMA)}.${quoteDebugIdentifier(name)}`
+const LOCALS_UNAVAILABLE_MESSAGE = 'Locals unavailable: enable performance_schema / grant SELECT'
 
 export function registerRoutineDebuggerIpc({ driver }: IpcDeps): void {
   ipcMain.handle('routine-debugger:engine:inspect', async (_event, connectionId: string) => inspectEngine(driver, connectionId))
@@ -57,12 +60,17 @@ export function registerRoutineDebuggerIpc({ driver }: IpcDeps): void {
     if (!Number.isInteger(timeoutSeconds) || timeoutSeconds < 1 || timeoutSeconds > 3600) throw new Error('Debugging timeout must be between 1 and 3600 seconds.')
     const engine = await inspectEngine(driver, target.connectionId)
     if (!engine.installed) throw new Error('Deploy the debug engine before starting a routine debug session.')
-    const preview = await compilePreview(driver, target)
     const id = randomUUID()
+    const localVariablePrefix = id.replaceAll('-', '').slice(0, 20)
+    const preview = await compilePreview(driver, target, target.kind === 'trigger' ? localVariablePrefix : undefined)
     const controller = await driver.openDedicatedSession(target.connectionId)
     let executor: DedicatedMysqlSession | undefined
     let routineDropped = false
     let routineLock = false
+    let localAccess!: { executorProcessId: number; localsAvailable: boolean }
+    const needsTriggerLocals = target.kind === 'trigger' && preview.statementFrames.some((frame) => frame.locals.length > 0)
+    const auxiliaryLocks: string[] = []
+    const auxiliaryDropped: AuxiliaryRoutine[] = []
     try {
       executor = await driver.openDedicatedSession(target.connectionId)
       await controller.execute(`USE ${quoteDebugIdentifier(DEBUG_SCHEMA)}`)
@@ -70,12 +78,32 @@ export function registerRoutineDebuggerIpc({ driver }: IpcDeps): void {
       const routineLockResult = await controller.query('SELECT GET_LOCK(?,0) AS got_lock', [routineLockName])
       if (Number(routineLockResult[0]?.got_lock) !== 1) throw new Error(`This stored ${target.kind ?? 'procedure'} already has an active debug session.`)
       routineLock = true
+      for (const auxiliary of preview.auxiliaryRoutines) {
+        const auxiliaryTarget: DebugRoutineTarget = { connectionId: target.connectionId, database: auxiliary.database, name: auxiliary.name, kind: 'procedure' }
+        const auxiliaryLock = makeRoutineLockName(auxiliaryTarget)
+        const acquired = await controller.query('SELECT GET_LOCK(?,0) AS got_lock', [auxiliaryLock])
+        if (Number(acquired[0]?.got_lock) !== 1) throw new Error(`Procedure ${auxiliary.database}.${auxiliary.name} is already being debugged.`)
+        auxiliaryLocks.push(auxiliaryLock)
+      }
       const sourceKey = sourceKeyFor(target)
       await controller.execute(`INSERT INTO ${table('routine_sources')}(database_name,routine_name,original_sql) VALUES (?,?,?) ON DUPLICATE KEY UPDATE original_sql=VALUES(original_sql)`, [target.database, sourceKey, preview.originalSql])
       await controller.execute(`INSERT INTO ${table('debug_sessions')}(debug_id,connection_id,database_name,routine_name,status,step_kind) VALUES (?,?,?,?, 'running','into')`, [id, target.connectionId, target.database, sourceKey])
       await writeBreakpoints(controller, id, sanitizeBreakpoints(breakpoints, preview.statementLines))
       await executor.execute(`USE ${quoteDebugIdentifier(target.database)}`)
       await executor.execute(`SET autocommit=${autocommit ? '1' : '0'}`)
+      if (target.kind === 'trigger') await executor.execute('SET @tuxsql_linux_debug_id=NULL,@tuxsql_linux_debug_step_kind=NULL,@tuxsql_linux_debug_run_to=NULL,@tuxsql_linux_debug_target_depth=NULL,@tuxsql_linux_debug_current_depth=NULL')
+      const executorConnection = await executor.query('SELECT CONNECTION_ID() AS connection_id')
+      const executorProcessId = Number(executorConnection[0]?.connection_id)
+      const localsAvailable = needsTriggerLocals && Number.isSafeInteger(executorProcessId) && executorProcessId > 0
+        ? await canReadTriggerLocals(controller, executorProcessId)
+        : false
+      localAccess = { executorProcessId, localsAvailable }
+      for (const auxiliary of preview.auxiliaryRoutines) {
+        await controller.execute(`INSERT INTO ${table('routine_sources')}(database_name,routine_name,original_sql) VALUES (?,?,?) ON DUPLICATE KEY UPDATE original_sql=VALUES(original_sql)`, [auxiliary.database, auxiliary.name, auxiliary.originalSql])
+        await executor.execute(`DROP PROCEDURE ${quoteDebugIdentifier(auxiliary.database)}.${quoteDebugIdentifier(auxiliary.name)}`)
+        auxiliaryDropped.push(auxiliary)
+        await executor.execute(auxiliary.instrumentedSql)
+      }
       await executor.execute(`DROP ${target.kind === 'trigger' ? 'TRIGGER' : 'PROCEDURE'} ${quoteDebugIdentifier(target.database)}.${quoteDebugIdentifier(target.name)}`)
       routineDropped = true
       await executor.execute(preview.instrumentedSql)
@@ -86,12 +114,18 @@ export function registerRoutineDebuggerIpc({ driver }: IpcDeps): void {
         try { await restoreObject(executor!, target.database, target.name, target.kind ?? 'procedure', preview.originalSql) }
         catch (restoreError) { restoreFailure = restoreError }
       }
+      for (const auxiliary of [...auxiliaryDropped].reverse()) {
+        try { await restoreObject(executor!, auxiliary.database, auxiliary.name, 'procedure', auxiliary.originalSql) }
+        catch (restoreError) { restoreFailure ??= restoreError }
+      }
       try { await controller.execute(`UPDATE ${table('debug_sessions')} SET status='error' WHERE debug_id=?`, [id]); await controller.execute(`DELETE FROM ${table('breakpoints')} WHERE debug_id=?`, [id]); await controller.execute(`DELETE FROM ${table('watches')} WHERE debug_id=?`, [id]); if (!restoreFailure) await controller.execute(`DELETE FROM ${table('routine_sources')} WHERE database_name=? AND routine_name=?`, [target.database, sourceKeyFor(target)]) } catch { /* deployment state may be partial */ }
       if (routineLock) { try { await controller.query('SELECT RELEASE_LOCK(?) AS released', [makeRoutineLockName(target)]) } catch { /* closing connection releases the named lock */ } }
+      for (const auxiliaryLock of auxiliaryLocks) { try { await controller.query('SELECT RELEASE_LOCK(?) AS released', [auxiliaryLock]) } catch { /* closing connection releases the named lock */ } }
       await controller.close(); await executor?.close(); throw error
     }
-    const snapshot: DebugSnapshot = { sessionId: id, status: 'running', routine: `${target.database}.${target.name}`, variables: {}, breakpoints: sanitizeBreakpoints(breakpoints, preview.statementLines), watches: [], callStack: [{ routine: `${target.database}.${target.name}`, line: 0, depth: 0 }], output: [target.kind === 'trigger' ? 'Trigger debugging started.' : 'Debugging started.'] }
-    const live: LiveSession = { id, ownerId: event.sender.id, sender: event.sender, target, controller, executor, originalSql: preview.originalSql, instrumentedSql: preview.instrumentedSql, statementLines: preview.statementLines, snapshot, watches: [], stopRequested: false, showAfterExecute }
+    const { executorProcessId, localsAvailable } = localAccess
+    const snapshot: DebugSnapshot = { sessionId: id, status: 'running', routine: `${target.database}.${target.name}`, variables: {}, breakpoints: sanitizeBreakpoints(breakpoints, preview.statementLines), watches: [], callStack: [{ routine: `${target.database}.${target.name}`, line: 0, depth: 0 }], output: [target.kind === 'trigger' ? 'Trigger debugging started.' : 'Debugging started.', ...(needsTriggerLocals && !localsAvailable ? [LOCALS_UNAVAILABLE_MESSAGE] : [])] }
+    const live: LiveSession = { id, ownerId: event.sender.id, sender: event.sender, target, controller, executor, executorProcessId, localVariablePrefix, localsAvailable, originalSql: preview.originalSql, instrumentedSql: preview.instrumentedSql, statementLines: preview.statementLines, statementFrames: preview.statementFrames, auxiliaryRoutines: preview.auxiliaryRoutines, auxiliaryLocks, snapshot, watches: [], stopRequested: false, showAfterExecute }
     sessions.set(id, live)
     live.task = runTarget(live, args, autocommit, triggerSql, parameters, timeoutSeconds)
     return { sessionId: id }
@@ -121,8 +155,9 @@ export function registerRoutineDebuggerIpc({ driver }: IpcDeps): void {
       try {
         const currentLine = live.snapshot.line
         if (!currentLine) throw new Error('Trigger debugger has no current source line.')
+        const currentDepth = live.snapshot.callStack.at(-1)?.depth ?? 0
         for (let attempt = 0; attempt < 100; attempt++) {
-          const state = await live.controller.query('SELECT IS_USED_LOCK(?) AS owner', [triggerPauseLockName(id, currentLine)])
+          const state = await live.controller.query('SELECT IS_USED_LOCK(?) AS owner', [triggerPauseLockName(id, currentLine, currentDepth)])
           if (state[0]?.owner == null) return
           await new Promise((resolve) => setTimeout(resolve, 50))
         }
@@ -161,12 +196,32 @@ async function inspectEngine(driver: IpcDeps['driver'], connectionId: string): P
   return { installed: true, activeSessions: active.length, version: String(rows[0]?.engine_version ?? Object.values(rows[0] ?? {})[0] ?? '') }
 }
 
-async function compilePreview(driver: IpcDeps['driver'], target: DebugRoutineTarget): Promise<{ originalSql: string; instrumentedSql: string; statementLines: number[] }> {
+async function compilePreview(driver: IpcDeps['driver'], target: DebugRoutineTarget, debugVariablePrefix?: string): Promise<{ originalSql: string; instrumentedSql: string; statementLines: number[]; statementFrames: StatementFrame[]; auxiliaryRoutines: AuxiliaryRoutine[] }> {
   validateTarget(target)
   const kind = target.kind ?? 'procedure'
   const originalSql = await driver.showCreateObject(target.connectionId, target.database, { name: target.name, kind })
-  const result = kind === 'trigger' ? instrumentTrigger(originalSql) : instrumentProcedure(originalSql)
-  return { originalSql, instrumentedSql: result.sql, statementLines: result.statementLines }
+  const result = kind === 'trigger' ? instrumentTrigger(originalSql, DEBUG_SCHEMA, target.name, debugVariablePrefix) : instrumentProcedure(originalSql, DEBUG_SCHEMA, target.name)
+  const auxiliaryRoutines: AuxiliaryRoutine[] = []
+  const statementFrames: StatementFrame[] = result.checkpoints.map(({ line, locals }) => ({ routine: target.name, line, depth: 0, locals }))
+  if (kind === 'trigger') {
+    const called = calledProcedureNames(originalSql)
+    if (called.length > 32) throw new Error('Trigger debugging supports up to 32 directly called procedures.')
+    for (const reference of called) {
+      const parts = reference.split('.')
+      if (parts.length > 2) throw new Error(`Trigger CALL target ${reference} could not be resolved safely.`)
+      const database = parts.length === 2 ? parts[0]! : target.database
+      const name = parts.at(-1)!
+      if (database !== target.database) throw new Error(`Trigger debugging does not instrument cross-database procedure ${database}.${name}.`)
+      if (auxiliaryRoutines.some((item) => item.name === name)) continue
+      const childSql = await driver.showCreateObject(target.connectionId, database, { name, kind: 'procedure' })
+      const depth = auxiliaryRoutines.length + 1
+      const child = instrumentProcedure(childSql, DEBUG_SCHEMA, name, depth, debugVariablePrefix)
+      auxiliaryRoutines.push({ database, name, originalSql: childSql, instrumentedSql: child.sql })
+      statementFrames.push(...child.checkpoints.map(({ line, locals }) => ({ routine: name, line, depth, locals })))
+    }
+  }
+  if (statementFrames.length > 500) throw new Error('Trigger and called procedures exceed the 500 checkpoint limit.')
+  return { originalSql, instrumentedSql: result.sql, statementLines: [...new Set(statementFrames.map((frame) => frame.line))], statementFrames, auxiliaryRoutines }
 }
 
 function validateTarget(target: DebugRoutineTarget): void {
@@ -243,11 +298,22 @@ async function runTarget(live: LiveSession, args: Array<string | null>, autocomm
     if (!['finished', 'stopped', 'error'].includes(live.snapshot.status)) {
       try { await pollSnapshot(live) } catch { /* keep the terminal event */ }
     }
+    if (live.target.kind === 'trigger') {
+      try { await clearTriggerLocalUserVariables(live) } catch { /* a cancelled target session releases its user variables when the connection closes */ }
+      try { await live.executor.execute('SET @tuxsql_linux_debug_id=NULL,@tuxsql_linux_debug_step_kind=NULL,@tuxsql_linux_debug_run_to=NULL,@tuxsql_linux_debug_target_depth=NULL,@tuxsql_linux_debug_current_depth=NULL') } catch { /* a cancelled target session releases its state when the connection closes */ }
+    }
     let restored = false
       try { await restoreObject(live.executor, live.target.database, live.target.name, live.target.kind ?? 'procedure', live.originalSql); restored = true }
     catch (targetRestoreError) {
       try { await restoreObject(live.controller, live.target.database, live.target.name, live.target.kind ?? 'procedure', live.originalSql); restored = true }
       catch (controlRestoreError) { live.snapshot.status = 'error'; live.snapshot.output.push(`Routine restoration failed: ${errorText(targetRestoreError)}; recovery through the control session also failed: ${errorText(controlRestoreError)}`) }
+    }
+    for (const auxiliary of [...live.auxiliaryRoutines].reverse()) {
+      try { await restoreObject(live.executor, auxiliary.database, auxiliary.name, 'procedure', auxiliary.originalSql) }
+      catch (error) {
+        try { await restoreObject(live.controller, auxiliary.database, auxiliary.name, 'procedure', auxiliary.originalSql) }
+        catch (fallbackError) { live.snapshot.status = 'error'; live.snapshot.output.push(`Procedure restoration failed for ${auxiliary.database}.${auxiliary.name}: ${errorText(error)}; control-session recovery failed: ${errorText(fallbackError)}`) }
+      }
     }
     if (!autocommit) { try { await live.executor.execute('ROLLBACK') } catch { /* connection may already have ended */ } }
     try {
@@ -255,8 +321,10 @@ async function runTarget(live: LiveSession, args: Array<string | null>, autocomm
       await live.controller.execute(`DELETE FROM ${table('breakpoints')} WHERE debug_id=?`, [live.id])
       await live.controller.execute(`DELETE FROM ${table('watches')} WHERE debug_id=?`, [live.id])
       if (restored) await live.controller.execute(`DELETE FROM ${table('routine_sources')} WHERE database_name=? AND routine_name=?`, [live.target.database, sourceKeyFor(live.target)])
+      for (const auxiliary of live.auxiliaryRoutines) await live.controller.execute(`DELETE FROM ${table('routine_sources')} WHERE database_name=? AND routine_name=?`, [auxiliary.database, auxiliary.name])
     } catch (error) { live.snapshot.output.push(`Cleanup failed: ${errorText(error)}`) }
     try { await live.controller.query('SELECT RELEASE_LOCK(?) AS released', [makeRoutineLockName(live.target)]) } catch { /* closing the control connection releases this lock */ }
+    for (const auxiliaryLock of live.auxiliaryLocks) { try { await live.controller.query('SELECT RELEASE_LOCK(?) AS released', [auxiliaryLock]) } catch { /* closing the control connection releases this named lock */ } }
     live.snapshot.watches = evaluateWatches(live.snapshot.variables, live.watches)
     emit(live)
     await live.executor.close(); await live.controller.close()
@@ -271,29 +339,89 @@ async function pollSnapshot(live: LiveSession): Promise<void> {
   const rows = await live.controller.query(`SELECT status,current_line,variables_json FROM ${table('debug_sessions')} WHERE debug_id=?`, [live.id])
   const row = rows[0]
   if (!row) return
-  let triggerLine: number | undefined
+  let currentFrame: StatementFrame | undefined
   if (live.target.kind === 'trigger' && row.status !== 'stopped') {
-    for (const candidate of live.statementLines) {
-      const lock = await live.controller.query('SELECT IS_USED_LOCK(?) AS owner', [triggerPauseLockName(live.id, candidate)])
-      if (lock[0]?.owner != null) { triggerLine = candidate; break }
-    }
+    const frames = live.statementFrames
+    const owners = await live.controller.query(`SELECT ${frames.map((_, index) => `IS_USED_LOCK(?) AS frame_${index}`).join(',')}`, frames.map((candidate) => triggerPauseLockName(live.id, candidate.line, candidate.depth)))
+    const ownerRow = owners[0] ?? {}
+    const activeIndex = frames.findIndex((_, index) => ownerRow[`frame_${index}`] != null)
+    if (activeIndex >= 0) currentFrame = frames[activeIndex]
   }
-  const nextStatus = live.target.kind === 'trigger' ? row.status === 'stopped' ? 'stopped' as const : triggerLine === undefined ? 'running' as const : 'paused' as const : String(row.status) as DebugSessionStatus
-  const rawVariables = row.variables_json
+  const triggerLine = currentFrame?.line
+  const triggerDepth = currentFrame?.depth ?? 0
+  const triggerPaused = currentFrame !== undefined
+  const nextStatus = live.target.kind === 'trigger' ? row.status === 'stopped' ? 'stopped' as const : triggerPaused ? 'paused' as const : 'running' as const : String(row.status) as DebugSessionStatus
+  const rawVariables = live.target.kind === 'trigger' ? null : row.variables_json
   let variables: Record<string, unknown> = {}
   if (rawVariables && typeof rawVariables === 'object') variables = rawVariables as Record<string, unknown>
   else if (typeof rawVariables === 'string') { try { variables = JSON.parse(rawVariables) as Record<string, unknown> } catch { variables = {} } }
+  if (live.target.kind === 'trigger' && currentFrame && live.localsAvailable && currentFrame.locals.length) {
+    try { variables = await readTriggerLocals(live, currentFrame) }
+    catch {
+      live.localsAvailable = false
+      appendLocalsUnavailable(live)
+      variables = {}
+    }
+  }
   const line = live.target.kind === 'trigger' ? triggerLine : row.current_line == null ? undefined : Number(row.current_line)
   const changed = live.snapshot.status !== nextStatus || live.snapshot.line !== line || JSON.stringify(live.snapshot.variables) !== JSON.stringify(variables)
   live.snapshot.status = nextStatus
   live.snapshot.line = line
   live.snapshot.variables = variables
-  live.snapshot.callStack = [{ routine: `${live.target.database}.${live.target.name}`, line: line ?? 0, depth: 0 }]
+  live.snapshot.callStack = live.target.kind === 'trigger' && currentFrame && triggerDepth > 0
+    ? [{ routine: `${live.target.database}.${live.target.name}`, line: 0, depth: 0 }, { routine: `${live.target.database}.${currentFrame.routine}`, line: triggerLine ?? 0, depth: triggerDepth }]
+    : [{ routine: `${live.target.database}.${live.target.name}`, line: line ?? 0, depth: 0 }]
   live.snapshot.watches = evaluateWatches(variables, live.watches)
   if (changed) emit(live)
 }
 
-function triggerPauseLockName(id: string, line: number): string { return `dfl-pause-${id}-${line}` }
+async function canReadTriggerLocals(controller: DedicatedMysqlSession, executorProcessId: number): Promise<boolean> {
+  try {
+    const setting = await controller.query('SELECT @@performance_schema AS enabled')
+    if (Number(setting[0]?.enabled) !== 1) return false
+    const thread = await controller.query('SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_ID=? LIMIT 1', [executorProcessId])
+    if (!thread.length) return false
+    await controller.query('SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.user_variables_by_thread WHERE THREAD_ID=? LIMIT 0', [thread[0]!.THREAD_ID as number])
+    return true
+  } catch { return false }
+}
+
+async function readTriggerLocals(live: LiveSession, frame: StatementFrame): Promise<Record<string, unknown>> {
+  const prefix = `tuxsql_dbg_${live.localVariablePrefix}_`
+  const rows = await live.controller.query(
+    'SELECT uv.VARIABLE_NAME,uv.VARIABLE_VALUE FROM performance_schema.threads AS t JOIN performance_schema.user_variables_by_thread AS uv ON uv.THREAD_ID=t.THREAD_ID WHERE t.PROCESSLIST_ID=? AND LEFT(uv.VARIABLE_NAME,?)=?',
+    [live.executorProcessId, prefix.length, prefix]
+  )
+  const byUserVariable = new Map(rows.map((row) => [String(row.VARIABLE_NAME), boundedVariableValue(row.VARIABLE_VALUE)]))
+  const variables: Record<string, unknown> = {}
+  for (const local of frame.locals) {
+    if (byUserVariable.has(local.userVariable)) variables[local.name] = byUserVariable.get(local.userVariable)
+  }
+  return variables
+}
+
+function boundedVariableValue(value: unknown): unknown {
+  if (Buffer.isBuffer(value)) return value.subarray(0, 4096).toString('utf8')
+  if (value instanceof Uint8Array) return Buffer.from(value).subarray(0, 4096).toString('utf8')
+  if (typeof value === 'string' && Buffer.byteLength(value, 'utf8') > 4096) {
+    const bytes = Buffer.from(value, 'utf8').subarray(0, 4096)
+    return bytes.toString('utf8').replace(/\uFFFD+$/u, '')
+  }
+  return value
+}
+
+function appendLocalsUnavailable(live: LiveSession): void {
+  if (live.snapshot.output.includes(LOCALS_UNAVAILABLE_MESSAGE)) return
+  live.snapshot.output.push(LOCALS_UNAVAILABLE_MESSAGE)
+  emit(live)
+}
+
+async function clearTriggerLocalUserVariables(live: LiveSession): Promise<void> {
+  const names = [...new Set(live.statementFrames.flatMap((frame) => frame.locals.map((local) => local.userVariable)))].filter((name) => /^[A-Za-z0-9_]+$/.test(name))
+  if (names.length) await live.executor.execute(`SET ${names.map((name) => `@${name}=NULL`).join(', ')}`)
+}
+
+function triggerPauseLockName(id: string, line: number, depth = 0): string { return depth === 0 ? `dfl-pause-${id}-${line}` : `dfl-pause-${id}-${depth}-${line}` }
 
 async function restoreObject(connection: DedicatedMysqlSession, database: string, name: string, kind: 'procedure' | 'trigger', originalSql: string): Promise<void> {
   await connection.execute(`USE ${quoteDebugIdentifier(database)}`)

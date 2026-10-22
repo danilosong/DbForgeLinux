@@ -1,6 +1,6 @@
 import { app, ipcMain, BrowserWindow, dialog, shell, type OpenDialogOptions, type SaveDialogOptions } from 'electron'
 import { chmod, readFile, stat, writeFile } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import type { IpcDeps } from './registry.js'
 import type { ConnectionRecord } from '../../shared/contracts.js'
 import { editorMetadataCache } from './editor.js'
@@ -8,19 +8,29 @@ import { maySaveSqlToPath } from '../security/windowPolicy.js'
 import { ResultSpoolRegistry } from '../db/ResultSpool.js'
 import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
+import { execFile as execFileCallback } from 'node:child_process'
+import { promisify } from 'node:util'
 import { describeGridResult } from './grid-editing.js'
 import { createTuxSqlBrowserWindow } from '../windowOptions.js'
 import { validateSystemOpenPath, type SystemOpenKind } from '../security/systemOpenPath.js'
 import { effectiveCommandTimeoutSeconds, validateSqlExecutionOptions } from '../../modules/options/sqlExecution.js'
 import { spoolLimitedRows } from '../../modules/options/streamResult.js'
 const openedSqlFiles = new Map<number, Set<string>>()
+const execFile = promisify(execFileCallback)
 export function registerSqlIpc({driver,resolveConnectionConfig,userDataDir}:IpcDeps):void {
  ipcMain.handle('file:open-in-system',async(_event,path:string,kind:SystemOpenKind)=>{
   if(kind!=='file'&&kind!=='folder')throw new Error('Unsupported system open target.')
   const target=await validateSystemOpenPath(path,kind);const error=await shell.openPath(target);if(error)throw new Error(error);return target
  })
  const floatingSqlWindows = new Map<string, BrowserWindow>()
+ const floatingPanelWindows = new Map<string, BrowserWindow>()
  ipcMain.handle('file:reveal-path',(_event,path:string)=>{if(!path.trim())throw new Error('Path is required.');shell.showItemInFolder(resolve(path))})
+ ipcMain.handle('file:open-containing-folder',async(_event,path:string)=>{
+  if(typeof path!=='string'||!path.trim())throw new Error('Path is required.')
+  const target=resolve(path)
+  try{if(!(await stat(target)).isFile())return}catch{return}
+  await execFile('xdg-open',[dirname(target)])
+ })
  const resultSpools=new ResultSpoolRegistry(join(userDataDir,'query-results'))
  const spoolCleanup=resultSpools.cleanStaleFiles().catch(()=>{})
  let cleaningSpools=false
@@ -93,6 +103,15 @@ export function registerSqlIpc({driver,resolveConnectionConfig,userDataDir}:IpcD
   window.on('closed', () => { if (floatingSqlWindows.get(documentId) === window) floatingSqlWindows.delete(documentId) })
   const hash = `float-sql?doc=${encodeURIComponent(documentId)}&title=${encodeURIComponent(title)}&contents=${encodeURIComponent(contents)}`
   await window.loadFile(join(__dirname, '../renderer/index.html'), { hash })
+ })
+ ipcMain.handle('document:float-panel', async (_event, panelId: string, title: string) => {
+  if (typeof panelId !== 'string' || !/^[a-z0-9-]{1,80}$/.test(panelId) || typeof title !== 'string' || title.length > 180) throw new Error('Floating panel is invalid.')
+  const existing = floatingPanelWindows.get(panelId)
+  if (existing && !existing.isDestroyed()) { existing.focus(); return }
+  const window = createTuxSqlBrowserWindow({ width: 1000, height: 700, title, webPreferences: { preload: join(__dirname, '../preload/index.js') } })
+  floatingPanelWindows.set(panelId, window)
+  window.on('closed', () => { if (floatingPanelWindows.get(panelId) === window) floatingPanelWindows.delete(panelId) })
+  await window.loadFile(join(__dirname, '../renderer/index.html'), { hash: `float-panel?panel=${encodeURIComponent(panelId)}` })
  })
  ipcMain.handle('document:float-change', (event, documentId: string, contents: string) => {
   if (typeof documentId !== 'string' || typeof contents !== 'string' || Buffer.byteLength(contents, 'utf8') > 1_000_000) throw new Error('Floating SQL update is invalid or too large.')

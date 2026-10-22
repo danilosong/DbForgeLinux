@@ -15,11 +15,12 @@ import { buildCreateTableSql, type InferredColumn } from '../../modules/data-exp
 import { createTuxSqlBrowserWindow } from '../windowOptions.js'
 import { promisify } from 'node:util'
 import { Readable } from 'node:stream'
+import { countCsvRecords, parseAccessSchema, parseAccessTables, validateAccessFile as validateAccessSourceFile, type AccessTableSchema } from '../../modules/data-export-import/access.js'
 
 const execFileAsync = promisify(execFile)
 
 interface ActiveJob { controller: AbortController; senderId: number }
-interface SelectedSource { file: string; senderId: number; accessTables?: string[]; accessTable?: string }
+interface SelectedSource { file: string; senderId: number; accessTables?: string[]; accessTable?: string; accessNativeSchema?: string; accessMysqlSchema?: string }
 const activeJobs = new Map<string, ActiveJob>()
 const selectedSources = new Map<string, SelectedSource>()
 const allowedEncodings = ['utf8', 'utf16le', 'latin1'] as const
@@ -58,23 +59,65 @@ function assertOptions(options?: ImportExportOptions): void {
   }
 }
 
+function accessLimit(environmentName: string, fallback: number, maximum: number): number {
+  const raw = process.env[environmentName]
+  if (raw === undefined || raw === '') return fallback
+  const parsed = Number(raw)
+  if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > maximum) throw new Error(`${environmentName} must be an integer between 1 and ${maximum}.`)
+  return parsed
+}
+
+const accessTimeoutMs = (): number => accessLimit('TUXSQL_ACCESS_TIMEOUT_MS', 60_000, 300_000)
+const accessMaxFileBytes = (): number => accessLimit('TUXSQL_ACCESS_MAX_BYTES', 100 * 1024 * 1024, 1024 * 1024 * 1024)
+const accessMaxExportBytes = (): number => accessLimit('TUXSQL_ACCESS_MAX_EXPORT_BYTES', 100 * 1024 * 1024, 512 * 1024 * 1024)
+const accessMaxRows = (): number => accessLimit('TUXSQL_ACCESS_MAX_ROWS', 100_000, 1_000_000)
+
+export async function validateAccessFile(file: string): Promise<{ size: number; modified: number }> {
+  return validateAccessSourceFile(file, accessMaxFileBytes())
+}
+
 async function accessTables(file: string): Promise<string[]> {
+  await validateAccessFile(file)
   try {
-    const { stdout } = await execFileAsync('mdb-tables', ['-1', '--', file], { timeout: 10_000, maxBuffer: 1024 * 1024, encoding: 'utf8', shell: false })
-    const tables = stdout.split(/\r?\n/).map((table) => table.trim()).filter(Boolean)
-    if (!tables.length || tables.length > 500) throw new Error('The Access file has no tables or exceeds the 500-table safety limit.')
-    return tables
+    const { stdout } = await execFileAsync('mdb-tables', ['-1', '--', file], { timeout: Math.min(10_000, accessTimeoutMs()), maxBuffer: 1024 * 1024, encoding: 'utf8', shell: false })
+    return parseAccessTables(stdout)
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new Error('Access import requires mdbtools. Install it with: sudo apt install mdbtools', { cause: error })
     throw error
   }
 }
 
-async function exportAccessTable(file: string, table: string): Promise<Buffer> {
+async function readAccessSchema(file: string): Promise<{ nativeSql: string; mysqlSql: string }> {
+  await validateAccessFile(file)
+  const options = { timeout: Math.min(30_000, accessTimeoutMs()), maxBuffer: 5 * 1024 * 1024, encoding: 'utf8' as const, shell: false }
   try {
-    const { stdout } = await execFileAsync('mdb-export', ['--', file, table], { timeout: 60_000, maxBuffer: 100 * 1024 * 1024, encoding: 'buffer', shell: false })
+    const native = await execFileAsync('mdb-schema', ['--indexes', '--', file], options)
+    const mysql = await execFileAsync('mdb-schema', ['--indexes', '--', file, 'mysql'], options)
+    return { nativeSql: native.stdout, mysqlSql: mysql.stdout }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new Error('Access import requires mdbtools. Install it with: sudo apt install mdbtools', { cause: error })
+    throw error
+  }
+}
+
+function withAccessMetadata(preview: ImportPreview, schema: AccessTableSchema): ImportPreview {
+  return {
+    ...preview,
+    sourceTypes: Object.fromEntries(schema.columns.map((column) => [column.name, column.type])),
+    primaryKeyColumns: schema.columns.filter((column) => column.primaryKey).map((column) => column.name)
+  }
+}
+
+async function exportAccessTable(file: string, table: string): Promise<Buffer> {
+  await validateAccessFile(file)
+  if (!table || table.length > 255 || table.includes('\0')) throw new Error('Access table selection is invalid.')
+  try {
+    const maxExportBytes = accessMaxExportBytes()
+    const { stdout } = await execFileAsync('mdb-export', ['-B', '-D', '%Y-%m-%d', '-T', '%Y-%m-%d %H:%M:%S', '--', file, table], { timeout: accessTimeoutMs(), maxBuffer: maxExportBytes, encoding: 'buffer', shell: false })
     const data = Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout)
-    if (data.byteLength > 100 * 1024 * 1024) throw new Error('Access table export exceeds the 100 MB safety limit.')
+    if (data.byteLength > maxExportBytes) throw new Error('Access table export exceeds the configured byte limit.')
+    const rowCount = Math.max(0, countCsvRecords(data.toString('utf8'), accessMaxRows() + 1) - 1)
+    if (rowCount > accessMaxRows()) throw new Error(`Access table exceeds the configured ${accessMaxRows()} row limit.`)
     return data
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new Error('Access import requires mdbtools. Install it with: sudo apt install mdbtools', { cause: error })
@@ -200,20 +243,26 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
     if (!jobId) throw new Error('Task identifier is missing.')
     assertOptions(options)
     const extensions: Record<ImportFormat, string[]> = { csv: ['csv', 'tsv'], text: ['txt', 'tsv'], json: ['json'], xml: ['xml'], xlsx: ['xlsx'], sql: ['sql'], dbf: ['dbf'], access: ['mdb', 'accdb'] }
-    const selected = await dialog.showOpenDialog({ title: 'Data Import from', properties: ['openFile'], filters: [{ name: format.toUpperCase(), extensions: extensions[format] }] })
+    const automationFile = process.env.TUXSQL_E2E_FILE_DIALOG === '1' ? process.env.TUXSQL_E2E_IMPORT_SOURCE : undefined
+    const selected = automationFile
+      ? { canceled: false, filePaths: [automationFile] }
+      : await dialog.showOpenDialog({ title: 'Data Import from', properties: ['openFile'], filters: [{ name: format.toUpperCase(), extensions: extensions[format] }] })
     if (selected.canceled || !selected.filePaths[0]) return null
     const file = selected.filePaths[0]
-    const details = await stat(file)
+    const details = format === 'access' ? await validateAccessFile(file) : await stat(file)
+    const modified = 'modified' in details ? details.modified : details.mtimeMs
     if (!details.size) throw new Error('The selected file is empty.')
-    if (details.size > 100 * 1024 * 1024) throw new Error('The import file exceeds the 100 MB limit.')
+    if (format !== 'access' && details.size > 100 * 1024 * 1024) throw new Error('The import file exceeds the 100 MB limit.')
     const tables = format === 'access' ? await accessTables(file) : undefined
     const selectedAccessTable = tables?.[0]
-    selectedSources.set(jobId, { file, senderId: event.sender.id, accessTables: tables, accessTable: selectedAccessTable })
+    const accessSchemas = format === 'access' ? await readAccessSchema(file) : undefined
+    selectedSources.set(jobId, { file, senderId: event.sender.id, accessTables: tables, accessTable: selectedAccessTable, accessNativeSchema: accessSchemas?.nativeSql, accessMysqlSchema: accessSchemas?.mysqlSql })
     const detectedDelimiter = options?.autoDelimiter && (format === 'csv' || format === 'text') ? await detectDelimiter(file, options.quote) : undefined
     const effectiveOptions = { ...options, ...(detectedDelimiter ? { delimiter: detectedDelimiter } : {}), previewRows: 20 }
     const source = format === 'access' ? Readable.from([await exportAccessTable(file, selectedAccessTable!)]) : createReadStream(file)
     const preview = await previewImport({ driver, connectionId: '', table: '', format: format === 'access' ? 'csv' : format, source, options: effectiveOptions, onProgress: (value) => progress(event, jobId, value) }, 20)
-    return { name: file.split(/[\\/]/).pop() ?? file, size: details.size, modified: details.mtimeMs, preview, ...(detectedDelimiter ? { detectedDelimiter } : {}), ...(tables ? { accessTables: tables, selectedAccessTable } : {}) }
+    const accessSchema = format === 'access' ? parseAccessSchema(accessSchemas!.nativeSql, accessSchemas!.mysqlSql, selectedAccessTable!) : undefined
+    return { name: file.split(/[\\/]/).pop() ?? file, size: details.size, modified, preview: accessSchema ? withAccessMetadata(preview, accessSchema) : preview, ...(detectedDelimiter ? { detectedDelimiter } : {}), ...(tables ? { accessTables: tables, selectedAccessTable } : {}) }
   })
 
   ipcMain.handle('import-export:preview-access-table', async (event, jobId: string, table: string) => {
@@ -221,7 +270,11 @@ export function registerImportExportIpc({ driver }: IpcDeps): void {
     if (!selected || selected.senderId !== event.sender.id || !selected.accessTables?.includes(table)) throw new Error('Select a table from the chosen Access file.')
     selected.accessTable = table
     const preview = await previewImport({ driver, connectionId: '', table: '', format: 'csv', source: Readable.from([await exportAccessTable(selected.file, table)]) }, 20)
-    return preview
+    const schemas = selected.accessNativeSchema && selected.accessMysqlSchema
+      ? { nativeSql: selected.accessNativeSchema, mysqlSql: selected.accessMysqlSchema }
+      : await readAccessSchema(selected.file)
+    const schema = parseAccessSchema(schemas.nativeSql, schemas.mysqlSql, table)
+    return withAccessMetadata(preview, schema)
   })
 
   ipcMain.handle('import-export:preview-export', async (event, connectionId: string, query: string, jobId: string): Promise<ImportPreview> => {

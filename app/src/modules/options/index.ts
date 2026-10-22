@@ -18,6 +18,7 @@ export function mergeSettings(value: unknown): AppSettings {
     environment: { ...defaultSettings.environment, ...safeObject(data.environment) },
     appearance: { ...defaultSettings.appearance, ...safeObject(data.appearance) },
     queryBuilder: { ...defaultSettings.queryBuilder, ...safeObject(data.queryBuilder) },
+    chartDesigner: { ...defaultSettings.chartDesigner, ...safeObject(data.chartDesigner) },
     profiler: { ...defaultSettings.profiler, ...safeObject(data.profiler) },
     debugging: { ...defaultSettings.debugging, ...safeObject(data.debugging) },
     dataComparison: { ...defaultSettings.dataComparison, ...safeObject(data.dataComparison) },

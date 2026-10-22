@@ -13,6 +13,7 @@ import { ptBrModulesImportExportMessages } from './ptBrModulesImportExport.js'
 import { ptBrModulesDocumenterMessages } from './ptBrModulesDocumenter.js'
 import { ptBrModulesProfilerMessages } from './ptBrModulesProfiler.js'
 import { ptBrModulesExecutionMessages } from './ptBrModulesExecution.js'
+import { ptBrModulesShell } from './ptBrModulesShell.js'
 
 function resolveLocale(value: unknown): UiLocale {
   if (value === 'pt-BR') return 'pt-BR'
@@ -34,7 +35,7 @@ export function I18nProvider({ children }: { children: ReactNode }): React.JSX.E
   }, [])
   useEffect(() => { document.documentElement.lang = locale; document.documentElement.dataset.locale = locale; localStorage.setItem('tuxsql.locale', locale) }, [locale])
   const value = useMemo(() => ({ locale, t: (key: string, args: Array<string | number> = []) => {
-    const catalog = locale === 'pt-BR' ? { ...ptBrCatalog, ...navigationPtBrMessages, ...aboutPtBrMessages, ...menuPtBrMessages, ...updaterPtBrMessages, ...importExportPtBrMessages, ...ptBrModulesDataMessages, ...ptBrModulesERMessages, ...ptBrModulesImportExportMessages, ...ptBrModulesDocumenterMessages, ...ptBrModulesProfilerMessages, ...ptBrModulesExecutionMessages } : { ...enMessages, ...navigationEnMessages, ...aboutEnMessages, ...menuEnMessages, ...updaterEnMessages, ...importExportEnMessages }
+    const catalog = locale === 'pt-BR' ? { ...ptBrCatalog, ...navigationPtBrMessages, ...aboutPtBrMessages, ...menuPtBrMessages, ...updaterPtBrMessages, ...importExportPtBrMessages, ...ptBrModulesDataMessages, ...ptBrModulesERMessages, ...ptBrModulesImportExportMessages, ...ptBrModulesDocumenterMessages, ...ptBrModulesProfilerMessages, ...ptBrModulesExecutionMessages, ...ptBrModulesShell } : { ...enMessages, ...navigationEnMessages, ...aboutEnMessages, ...menuEnMessages, ...updaterEnMessages, ...importExportEnMessages }
     return (catalog[key] ?? enMessages[key] ?? key).replace(/\{(\d+)\}/g, (token, index: string) => String(args[Number(index)] ?? token))
   } }), [locale])
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>

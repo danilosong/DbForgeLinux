@@ -36,8 +36,8 @@ END`
     const result = instrumentProcedure(source)
     expect(result.statementLines).toEqual([4, 5])
     expect(result.variables).toEqual(['total'])
-    expect(result.sql).toContain('checkpoint(@tuxsql_linux_debug_id, 4, JSON_OBJECT(\'total\', `total`))')
-    expect(result.sql).toContain('checkpoint(@tuxsql_linux_debug_id, 5, JSON_OBJECT(\'total\', `total`))')
+    expect(result.sql).toContain('checkpoint(@tuxsql_linux_debug_id, 4, JSON_OBJECT(\'total\', `total`), \'calc\', 0)')
+    expect(result.sql).toContain('checkpoint(@tuxsql_linux_debug_id, 5, JSON_OBJECT(\'total\', `total`), \'calc\', 0)')
     expect(result.sql).toContain('DECLARE total INT DEFAULT 0;')
   })
 
@@ -67,9 +67,34 @@ END`
     const result = instrumentTrigger(source, 'debug_test')
     expect(result.statementLines).toEqual([3])
     expect(result.sql).toContain('AFTER INSERT ON audit_rows FOR EACH ROW')
-    expect(result.sql).toContain('`debug_test`.checkpoint(@tuxsql_linux_debug_id, 3, JSON_OBJECT())')
+    expect(result.sql).toContain('`debug_test`.checkpoint(@tuxsql_linux_debug_id, 3, JSON_OBJECT(), \'audit_insert\', 0)')
     expect(result.sql).toContain('INSERT INTO audit_log(id) VALUES (NEW.id);')
     expect(() => instrumentTrigger('CREATE PROCEDURE p() BEGIN SELECT 1; END')).toThrow(/only stored triggers/i)
+  })
+
+  it('captures trigger locals and gives child procedure frames a deeper step level', () => {
+    const prefix = '0123456789abcdef0123'
+    const trigger = instrumentTrigger(`CREATE TRIGGER tr AFTER INSERT ON t FOR EACH ROW
+BEGIN
+  DECLARE trigger_value INT DEFAULT NEW.id;
+  CALL child();
+END`, 'debug_test', 'tr', prefix)
+    const child = instrumentProcedure(`CREATE PROCEDURE child()
+BEGIN
+  DECLARE child_value INT DEFAULT 41;
+  SET @child_result = child_value;
+END`, 'debug_test', 'child', 1, prefix)
+    expect(trigger.variables).toEqual(['trigger_value'])
+    expect(trigger.sql).toContain('checkpoint(@tuxsql_linux_debug_id, 4, JSON_OBJECT(), \'tr\', 0)')
+    expect(trigger.checkpoints[0]?.locals).toMatchObject([{ name: 'trigger_value' }])
+    expect(trigger.checkpoints[0]?.locals[0]?.userVariable).toMatch(/^tuxsql_dbg_0123456789abcdef0123_00_trigger_value_[a-f0-9]{8}$/)
+    expect(trigger.sql).toContain('SET @' + trigger.checkpoints[0]?.locals[0]?.userVariable + '=LEFT(CAST(`trigger_value` AS CHAR CHARACTER SET utf8mb4),1024)')
+    expect(trigger.sql).toContain(`SET @${trigger.checkpoints[0]?.locals[0]?.userVariable}=NULL`)
+    expect(child.sql).toContain("JSON_OBJECT(), 'child', 1")
+    expect(child.sql).toContain('SET @' + child.checkpoints[0]?.locals[0]?.userVariable + '=LEFT(CAST(`child_value` AS CHAR CHARACTER SET utf8mb4),1024)')
+    expect(child.sql).toContain(`SET @${child.checkpoints[0]?.locals[0]?.userVariable}=NULL`)
+    expect(child.statementLines).toEqual([4])
+    expect(() => instrumentTrigger('CREATE TRIGGER tr AFTER INSERT ON t FOR EACH ROW SET @x=1', 'debug_test', 'tr', 'unsafe prefix')).toThrow(/prefix/i)
   })
 })
 

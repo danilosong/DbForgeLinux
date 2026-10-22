@@ -109,7 +109,7 @@ export default function Panel(): React.JSX.Element {
       const columns = selected.preview.columns
       setMapping(Object.fromEntries(columns.map((column) => [column, column])))
       setSample(rowsForPreview(columns, selected.preview.rows))
-      const inferred = inferImportColumns(columns, selected.preview.rows)
+      const inferred = applyAccessMetadata(inferImportColumns(columns, selected.preview.rows), selected.preview)
       setImportColumns(inferred)
       if (destinationMode === 'new') setTable(selected.name.replace(/\.[^.]+$/, '').replace(/(?:[_ -]?\d{8}(?:[_-]?\d{4,6})?)$/, '').replace(/[^\p{L}\p{N}_]+/gu, '_').replace(/^\d/, '_$&').slice(0, 60) || 'imported_data')
     } catch (error) { setMessage(error instanceof Error ? error.message : t('ui.importExport.readFileFailed')) }
@@ -121,7 +121,7 @@ export default function Panel(): React.JSX.Element {
       const preview = await window.tuxsql.previewAccessTable(jobId, nextTable)
       setMapping(Object.fromEntries(preview.columns.map((column) => [column, column])))
       setSample(rowsForPreview(preview.columns, preview.rows))
-      setImportColumns(inferImportColumns(preview.columns, preview.rows))
+      setImportColumns(applyAccessMetadata(inferImportColumns(preview.columns, preview.rows), preview))
     } catch (error) { setMessage(error instanceof Error ? error.message : t('ui.importExport.readFileFailed')) }
   }
 
@@ -253,6 +253,16 @@ export default function Panel(): React.JSX.Element {
     {message && <p className="io-message" role="status">{message}</p>}
     <style>{`.io-wizard{max-width:980px}.io-stepper{display:flex;gap:4px;overflow:auto;margin:20px 0}.io-stepper button{border:0;background:transparent;color:var(--muted,#777);display:flex;align-items:center;gap:7px;padding:8px;white-space:nowrap}.io-stepper button:focus-visible,.io-categories button:focus-visible,.io-format-grid button:focus-visible,.io-footer button:focus-visible{outline:2px solid var(--border-focus);outline-offset:2px}.io-stepper button span{border:1px solid currentColor;border-radius:50%;width:22px;height:22px;display:inline-grid;place-items:center}.io-stepper button.current{color:var(--accent,#3774d6);font-weight:700}.io-stepper button.complete{color:var(--success,#25834a);cursor:pointer}.io-toolbar,.io-footer{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.io-toolbar{padding:10px 0;border-block:1px solid var(--border,#888)}.io-toolbar label,.io-page>label,.io-page label{display:flex;gap:8px;align-items:center;margin:12px 0}.io-page{min-height:260px;padding:16px 0}.io-format-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}.io-format-grid button{text-align:left;padding:14px;border:1px solid var(--border,#888);border-radius:6px;background:var(--surface,#fff);color:inherit;cursor:pointer}.io-format-grid button.selected{outline:2px solid var(--accent,#3774d6)}.io-format-grid button:disabled{opacity:.55;cursor:not-allowed}.io-format-grid span{display:block;margin-top:6px;color:var(--muted,#777)}.io-categories{display:flex;gap:8px;border-bottom:1px solid var(--border,#888);padding-bottom:8px}.io-categories button{border:0;background:transparent;color:inherit;padding:8px}.io-categories button.selected{color:var(--accent,#3774d6);font-weight:700;border-bottom:2px solid var(--accent,#3774d6)}.io-wide{display:block}.io-wide textarea{display:block;width:100%;font-family:monospace}.io-source-list{max-height:180px;overflow:auto;border:1px solid var(--border,#888);padding:8px}.io-source-list label{display:flex;gap:8px;align-items:center}.io-source-list small{margin-left:auto;color:var(--muted,#777)}.io-mapping{width:100%;border-collapse:collapse}.io-mapping th,.io-mapping td{text-align:left;padding:8px;border-bottom:1px solid var(--border,#888)}.io-preview,.io-report{max-height:240px;overflow:auto;padding:12px;background:var(--surface-raised,#f2f3f5);white-space:pre-wrap}.io-message{color:var(--status-error,#a32)}.io-footer{border-top:1px solid var(--border,#888);padding-top:14px}.io-footer>div{display:flex;gap:8px}`}</style>
   </section>
+}
+
+function applyAccessMetadata(columns: InferredColumn[], preview: { sourceTypes?: Record<string, string>; primaryKeyColumns?: string[] }): InferredColumn[] {
+  if (!preview.sourceTypes && !preview.primaryKeyColumns) return columns
+  const primaryKeys = new Set(preview.primaryKeyColumns ?? [])
+  return columns.map((column) => ({
+    ...column,
+    ...(preview.sourceTypes?.[column.name] ? { type: preview.sourceTypes[column.name] } : {}),
+    primaryKey: primaryKeys.has(column.name)
+  }))
 }
 
 function Options({ delimiter, setDelimiter, quote, setQuote, header, setHeader, encoding, setEncoding, csv, forceQuotes, setForceQuotes }: { delimiter: string; setDelimiter: (value: string) => void; quote: string; setQuote: (value: string) => void; header: boolean; setHeader: (value: boolean) => void; encoding: 'utf8' | 'utf16le' | 'latin1'; setEncoding: (value: 'utf8' | 'utf16le' | 'latin1') => void; csv: boolean; forceQuotes: boolean; setForceQuotes: (value: boolean) => void }): React.JSX.Element {

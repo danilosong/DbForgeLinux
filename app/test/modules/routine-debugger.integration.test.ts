@@ -9,6 +9,7 @@ describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
   const driver = new MysqlDriver()
   const testDatabase = `tuxsql_debug_test_${process.pid}_${randomUUID().slice(0, 8)}`
   const procedure = `routine_debug_${process.pid}_${randomUUID().slice(0, 8)}`
+  const triggerChild = `trigger_child_${process.pid}_${randomUUID().slice(0, 8)}`
   const debugId = randomUUID()
   const triggerDebugId = randomUUID()
   const trigger = `trigger_debug_${process.pid}_${randomUUID().slice(0, 8)}`
@@ -16,6 +17,8 @@ describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
   let controller: Awaited<ReturnType<MysqlDriver['openDedicatedSession']>> | undefined
   let executor: Awaited<ReturnType<MysqlDriver['openDedicatedSession']>> | undefined
   let callTask: Promise<void> | undefined
+  let currentTriggerLine = 0
+  let currentTriggerDepth = 0
   const schema = (name: string): string => `${quoteDebugIdentifier(testDatabase)}.${quoteDebugIdentifier(name)}`
 
   afterAll(async () => {
@@ -25,7 +28,7 @@ describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
     try { executor?.cancel() } catch { /* release any in-flight trigger pause after test failure */ }
     try { await callTask } catch { /* expected if cleanup stopped execution */ }
     if (executor) {
-      try { await executor.execute(`USE ${quoteDebugIdentifier(testDatabase)}`); await executor.execute(`DROP TRIGGER IF EXISTS ${quoteDebugIdentifier(trigger)}`); await executor.execute(`DROP PROCEDURE IF EXISTS ${quoteDebugIdentifier(procedure)}`); await executor.execute('DROP TABLE IF EXISTS audit_log, audit_values, debug_values') } catch { /* disposable test server cleanup */ }
+      try { await executor.execute(`USE ${quoteDebugIdentifier(testDatabase)}`); await executor.execute(`DROP TRIGGER IF EXISTS ${quoteDebugIdentifier(trigger)}`); await executor.execute(`DROP PROCEDURE IF EXISTS ${quoteDebugIdentifier(procedure)}`); await executor.execute(`DROP PROCEDURE IF EXISTS ${quoteDebugIdentifier(triggerChild)}`); await executor.execute('DROP TABLE IF EXISTS audit_log, audit_values, debug_values') } catch { /* disposable test server cleanup */ }
       await executor.close()
     }
     if (controller) { await controller.close() }
@@ -95,17 +98,33 @@ END`
 
     await executor.execute('CREATE TABLE audit_values (id INT PRIMARY KEY)')
     await executor.execute('CREATE TABLE audit_log (id INT NOT NULL)')
-    const triggerSource = `CREATE TRIGGER ${quoteDebugIdentifier(trigger)} AFTER INSERT ON audit_values FOR EACH ROW\nBEGIN\n  INSERT INTO audit_log(id) VALUES (NEW.id);\nEND`
+    const childSource = `CREATE PROCEDURE ${quoteDebugIdentifier(triggerChild)}()\nBEGIN\n  DECLARE child_value INT DEFAULT 41;\n  SET @trigger_child_value = child_value;\nEND`
+    await executor.execute(childSource)
+    const localPrefix = triggerDebugId.replaceAll('-', '').slice(0, 20)
+    const instrumentedChild = instrumentProcedure(childSource, testDatabase, triggerChild, 1, localPrefix)
+    const triggerSource = `CREATE TRIGGER ${quoteDebugIdentifier(trigger)} AFTER INSERT ON audit_values FOR EACH ROW\nBEGIN\n  DECLARE trigger_value INT DEFAULT NEW.id;\n  CALL ${quoteDebugIdentifier(triggerChild)}();\n  INSERT INTO audit_log(id) VALUES (trigger_value + @trigger_child_value);\nEND`
     await executor.execute(triggerSource)
-    const instrumentedTrigger = instrumentTrigger(triggerSource, testDatabase)
+    const instrumentedTrigger = instrumentTrigger(triggerSource, testDatabase, trigger, localPrefix)
     await controller.execute(`INSERT INTO ${schema('debug_sessions')}(debug_id,connection_id,database_name,routine_name,status,step_kind) VALUES (?,?,?,?,'running','into')`, [triggerDebugId, connectionId, testDatabase, `TRIGGER:${trigger}`])
     await controller.execute(`INSERT INTO ${schema('breakpoints')}(debug_id,line_number,enabled) VALUES (?,?,TRUE)`, [triggerDebugId, instrumentedTrigger.statementLines[0]])
     await executor.execute(`DROP TRIGGER ${quoteDebugIdentifier(trigger)}`)
+    await executor.execute(`DROP PROCEDURE ${quoteDebugIdentifier(triggerChild)}`)
+    await executor.execute(instrumentedChild.sql)
     await executor.execute(instrumentedTrigger.sql)
     await executor.execute(`SET @tuxsql_linux_debug_id='${triggerDebugId}'`)
     await executor.execute('SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED')
+    const executorId = Number((await executor.query('SELECT CONNECTION_ID() AS connection_id'))[0]?.connection_id)
     callTask = executor.execute('INSERT INTO audit_values VALUES (10)').then(() => undefined)
-    await waitForTriggerPause(triggerDebugId, instrumentedTrigger.statementLines[0]!, callTask)
+    await waitForTriggerPause(triggerDebugId, instrumentedTrigger.statementLines[0]!, callTask, 0)
+    expect(instrumentedTrigger.variables).toContain('trigger_value')
+    expect(await readThreadLocal(executorId, instrumentedTrigger.checkpoints[0]!.locals[0]!)).toBe('10')
+    await command('into', triggerDebugId)
+    await waitForTriggerPause(triggerDebugId, instrumentedChild.statementLines[0]!, callTask, 1)
+    expect(instrumentedChild.variables).toContain('child_value')
+    expect(await readThreadLocal(executorId, instrumentedChild.checkpoints[0]!.locals[0]!)).toBe('41')
+    await command('out', triggerDebugId)
+    await waitForTriggerPause(triggerDebugId, instrumentedTrigger.statementLines[1]!, callTask, 0)
+    expect(await readThreadLocal(executorId, instrumentedTrigger.checkpoints[1]!.locals[0]!)).toBe('10')
     await command('continue', triggerDebugId)
     const triggerOutcome = await Promise.race([callTask.then(() => 'finished', () => 'failed'), new Promise<'timeout'>(resolve => setTimeout(() => resolve('timeout'), 5_000))])
     if (triggerOutcome === 'timeout') {
@@ -113,20 +132,68 @@ END`
       throw new Error(`Trigger did not resume after command ${JSON.stringify(state[0])}.`)
     }
     await callTask
-    expect(Number((await executor.query('SELECT COUNT(*) AS total FROM audit_log'))[0]?.total)).toBe(1)
+    expect(Number((await executor.query('SELECT id FROM audit_log'))[0]?.id)).toBe(51)
+    const remainingLocals = await controller.query('SELECT VARIABLE_NAME,VARIABLE_VALUE FROM performance_schema.user_variables_by_thread WHERE THREAD_ID=(SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_ID=?) AND VARIABLE_NAME LIKE ?', [executorId, `tuxsql_dbg_${localPrefix}_%`])
+    expect(remainingLocals.every((row) => row.VARIABLE_VALUE == null)).toBe(true)
+    await executor.execute(`DROP PROCEDURE ${quoteDebugIdentifier(triggerChild)}`)
+    await executor.execute(childSource)
     await executor.execute(`DROP TRIGGER ${quoteDebugIdentifier(trigger)}`)
     await executor.execute(triggerSource)
     const restoredTrigger = await executor.query(`SHOW CREATE TRIGGER ${quoteDebugIdentifier(trigger)}`)
     expect(Object.values(restoredTrigger[0] ?? {}).map(String).join('\n')).toContain('INSERT INTO audit_log')
+
+    const concurrentExecutor = await driver.openDedicatedSession(connectionId)
+    try {
+      await executor.execute(`CREATE TABLE concurrent_a (id INT PRIMARY KEY)`)
+      await executor.execute(`CREATE TABLE concurrent_b (id INT PRIMARY KEY)`)
+      await executor.execute('CREATE TABLE concurrent_a_log (value VARCHAR(20))')
+      await executor.execute('CREATE TABLE concurrent_b_log (value VARCHAR(20))')
+      const idA = randomUUID(); const idB = randomUUID()
+      const prefixA = idA.replaceAll('-', '').slice(0, 20); const prefixB = idB.replaceAll('-', '').slice(0, 20)
+      const nameA = `trigger_concurrent_a_${process.pid}`; const nameB = `trigger_concurrent_b_${process.pid}`
+      const sourceA = `CREATE TRIGGER ${quoteDebugIdentifier(nameA)} AFTER INSERT ON concurrent_a FOR EACH ROW\nBEGIN\n  DECLARE private_value VARCHAR(20) DEFAULT 'alpha';\n  INSERT INTO concurrent_a_log(value) VALUES (private_value);\nEND`
+      const sourceB = `CREATE TRIGGER ${quoteDebugIdentifier(nameB)} AFTER INSERT ON concurrent_b FOR EACH ROW\nBEGIN\n  DECLARE private_value VARCHAR(20) DEFAULT 'bravo';\n  INSERT INTO concurrent_b_log(value) VALUES (private_value);\nEND`
+      const compiledA = instrumentTrigger(sourceA, testDatabase, nameA, prefixA)
+      const compiledB = instrumentTrigger(sourceB, testDatabase, nameB, prefixB)
+      await executor.execute(sourceA); await executor.execute(sourceB)
+      await executor.execute(`DROP TRIGGER ${quoteDebugIdentifier(nameA)}`); await executor.execute(compiledA.sql)
+      await executor.execute(`DROP TRIGGER ${quoteDebugIdentifier(nameB)}`)
+      await concurrentExecutor.execute(`USE ${quoteDebugIdentifier(testDatabase)}`)
+      await concurrentExecutor.execute(compiledB.sql)
+      await controller.execute(`INSERT INTO ${schema('debug_sessions')}(debug_id,connection_id,database_name,routine_name,status,step_kind) VALUES (?,?,?,?,'running','into'),(?,?,?,?,'running','into')`, [idA, connectionId, testDatabase, `TRIGGER:${nameA}`, idB, connectionId, testDatabase, `TRIGGER:${nameB}`])
+      await executor.execute(`SET @tuxsql_linux_debug_id=NULL,@tuxsql_linux_debug_step_kind=NULL,@tuxsql_linux_debug_run_to=NULL,@tuxsql_linux_debug_target_depth=NULL,@tuxsql_linux_debug_current_depth=NULL,@tuxsql_linux_debug_id='${idA}'`)
+      await concurrentExecutor.execute(`SET @tuxsql_linux_debug_id=NULL,@tuxsql_linux_debug_step_kind=NULL,@tuxsql_linux_debug_run_to=NULL,@tuxsql_linux_debug_target_depth=NULL,@tuxsql_linux_debug_current_depth=NULL,@tuxsql_linux_debug_id='${idB}'`)
+      const processA = Number((await executor.query('SELECT CONNECTION_ID() AS connection_id'))[0]?.connection_id)
+      const processB = Number((await concurrentExecutor.query('SELECT CONNECTION_ID() AS connection_id'))[0]?.connection_id)
+      const taskA = executor.execute('INSERT INTO concurrent_a VALUES (1)')
+      const taskB = concurrentExecutor.execute('INSERT INTO concurrent_b VALUES (1)')
+      const localA = compiledA.checkpoints[0]!.locals[0]!
+      const localB = compiledB.checkpoints[0]!.locals[0]!
+      await waitForPauseLock(idA, compiledA.statementLines[0]!, taskA)
+      await waitForPauseLock(idB, compiledB.statementLines[0]!, taskB)
+      expect(localA.userVariable).not.toBe(localB.userVariable)
+      expect(await readThreadLocal(processA, localA)).toBe('alpha')
+      expect(await readThreadLocal(processB, localB)).toBe('bravo')
+      expect(await readThreadValue(processA, localB.userVariable)).toBeNull()
+      expect(await readThreadValue(processB, localA.userVariable)).toBeNull()
+      await resumeTrigger(idA, compiledA.statementLines[0]!)
+      await resumeTrigger(idB, compiledB.statementLines[0]!)
+      await Promise.all([taskA, taskB])
+      expect(await readThreadValue(processA, localA.userVariable)).toBeNull()
+      expect(await readThreadValue(processB, localB.userVariable)).toBeNull()
+      expect((await executor.query('SELECT value FROM concurrent_a_log'))[0]?.value).toBe('alpha')
+      expect((await executor.query('SELECT value FROM concurrent_b_log'))[0]?.value).toBe('bravo')
+      await executor.execute(`DROP TRIGGER ${quoteDebugIdentifier(nameA)}`); await executor.execute(`DROP TRIGGER ${quoteDebugIdentifier(nameB)}`)
+      await executor.execute('DROP TABLE concurrent_a, concurrent_b, concurrent_a_log, concurrent_b_log')
+    } finally { await concurrentExecutor.close() }
   }, 30000)
 
-  async function command(kind: 'into' | 'continue', sessionId = debugId): Promise<void> {
+  async function command(kind: 'into' | 'continue' | 'out', sessionId = debugId): Promise<void> {
     if (sessionId === triggerDebugId) {
-      const signalName = `dfl-cmd-${sessionId}-${kind === 'continue' ? 'c' : 'i'}`
+      const signalName = `dfl-cmd-${sessionId}-${kind === 'continue' ? 'c' : kind === 'out' ? 'u' : 'i'}`
       await controller!.query('SELECT GET_LOCK(?,0) AS got_lock', [signalName])
       try {
-        const points = await controller!.query(`SELECT line_number FROM ${schema('breakpoints')} WHERE debug_id=? LIMIT 1`, [sessionId])
-        const pauseLock = `dfl-pause-${sessionId}-${Number(points[0]?.line_number)}`
+        const pauseLock = currentTriggerDepth === 0 ? `dfl-pause-${sessionId}-${currentTriggerLine}` : `dfl-pause-${sessionId}-${currentTriggerDepth}-${currentTriggerLine}`
         for (let index = 0; index < 100; index++) {
           const rows = await controller!.query('SELECT IS_USED_LOCK(?) AS owner', [pauseLock])
           if (rows[0]?.owner == null) return
@@ -159,8 +226,10 @@ END`
     }
     throw new Error(`Timed out waiting for debugger line ${line}.`)
   }
-  async function waitForTriggerPause(sessionId: string, line: number, task: Promise<void>): Promise<void> {
-    const lockName = `dfl-pause-${sessionId}-${line}`
+  async function waitForTriggerPause(sessionId: string, line: number, task: Promise<void>, depth = 0): Promise<void> {
+    currentTriggerLine = line
+    currentTriggerDepth = depth
+    const lockName = depth === 0 ? `dfl-pause-${sessionId}-${line}` : `dfl-pause-${sessionId}-${depth}-${line}`
     for (let index = 0; index < 250; index++) {
       const rows = await controller!.query('SELECT IS_USED_LOCK(?) AS owner', [lockName])
       if (rows[0]?.owner != null) return
@@ -171,4 +240,34 @@ END`
     throw new Error('Timed out waiting for trigger pause lock.')
   }
   function parseJson(value: unknown): Record<string, unknown> { return typeof value === 'string' ? JSON.parse(value) as Record<string, unknown> : value as Record<string, unknown> }
+  async function readThreadLocal(processlistId: number, local: { name: string; userVariable: string }): Promise<string | null> {
+    const value = await readThreadValue(processlistId, local.userVariable)
+    return value == null ? null : String(value)
+  }
+  async function readThreadValue(processlistId: number, variableName: string): Promise<unknown> {
+    const rows = await controller!.query('SELECT VARIABLE_VALUE FROM performance_schema.user_variables_by_thread WHERE THREAD_ID=(SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_ID=?) AND VARIABLE_NAME=?', [processlistId, variableName])
+    const value = rows[0]?.VARIABLE_VALUE
+    return value == null ? null : Buffer.isBuffer(value) ? value.toString('utf8') : String(value)
+  }
+  async function waitForPauseLock(sessionId: string, line: number, task: Promise<void>): Promise<void> {
+    const lock = `dfl-pause-${sessionId}-${line}`
+    for (let index = 0; index < 250; index++) {
+      if ((await controller!.query('SELECT IS_USED_LOCK(?) AS owner', [lock]))[0]?.owner != null) return
+      const outcome = await Promise.race([task.then(() => 'finished', () => 'failed'), new Promise<'wait'>(resolve => setTimeout(() => resolve('wait'), 20))])
+      if (outcome !== 'wait') throw new Error(`Concurrent trigger finished before pausing (${outcome}).`)
+      await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+    throw new Error('Timed out waiting for a concurrent trigger pause.')
+  }
+  async function resumeTrigger(sessionId: string, line: number): Promise<void> {
+    const signal = `dfl-cmd-${sessionId}-c`; const pause = `dfl-pause-${sessionId}-${line}`
+    await controller!.query('SELECT GET_LOCK(?,0) AS got_lock', [signal])
+    try {
+      for (let index = 0; index < 100; index++) {
+        if ((await controller!.query('SELECT IS_USED_LOCK(?) AS owner', [pause]))[0]?.owner == null) return
+        await new Promise((resolve) => setTimeout(resolve, 20))
+      }
+      throw new Error('Concurrent trigger did not resume after continue.')
+    } finally { await controller!.query('SELECT RELEASE_LOCK(?) AS released', [signal]) }
+  }
 })
