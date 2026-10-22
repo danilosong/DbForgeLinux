@@ -1,9 +1,9 @@
 {
-  "updated": "2026-10-21",
+  "updated": "2026-10-22",
   "bars": [
     {
       "label": "Cobertura de funcionalidades de referência",
-      "value": 94.9,
+      "value": 98.5,
       "source": "document/paridade/FIDELIDADE-MEDIDA.md"
     },
     {

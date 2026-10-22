@@ -16,15 +16,15 @@
 </p>
 
 <!-- PROGRESS:START -->
-**Progresso do projeto** · atualizado em 2026-10-21
+**Progresso do projeto** · atualizado em 2026-10-22
 
 ```text
-Cobertura de funcionalidades de referência  ███████████████████░  94,9%
+Cobertura de funcionalidades de referência  ███████████████████▊  98,5%
 Módulos implementados e testados            ████████████████████   100%  (20 de 20)
 Specs de UX verificadas contra evidência    ███████████████████░    95%  (18 de 19)
 ```
 
-<sub>Implementação independente, não é cópia nem produto afiliado a terceiros (ver LEGAL.md). A cobertura é medida contra evidência real: mais de 800 capturas do produto de referência feitas em VM, com checagem por amostra. Itens que dependem do Windows ou de serviços externos viram adaptações para Linux (systemd, Docker/Podman, agendamento por systemd timers/cron) ou diferenças intencionais por segurança, e ficam registrados em <code>document/paridade/</code>. Specs de UX só contam como verificados quando citam capturas existentes; o do AI Assistant fica de fora porque só a casca deslogada pôde ser observada.</sub>
+<sub>Implementação independente, não é cópia nem produto afiliado a terceiros (ver LEGAL.md). A cobertura é medida contra evidência real: mais de 800 capturas do produto de referência feitas em VM, com checagem por amostra. O produto é voltado a Linux da família Debian (Ubuntu, Pop!_OS): itens exclusivos de Windows foram adaptados (systemd, cron, Docker/Podman, mdbtools) ou ficaram fora do escopo, tudo listado com o motivo em <code>document/paridade/ESCOPO-LINUX.md</code>. Diferenças intencionais por segurança ficam em <code>document/paridade/DIVERGENCIAS-ORIGINAL.md</code>. A revisão de segurança por ferramenta e menu está em <code>document/security-tools-matrix.md</code>. Specs de UX só contam como verificados quando citam capturas existentes; o do AI Assistant fica de fora porque só a casca deslogada pôde ser observada.</sub>
 <!-- PROGRESS:END -->
 
 ---

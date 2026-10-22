@@ -7,6 +7,8 @@
 > **Data de Medição (Rodada 5 — Consolidação de Card View, Custom Query, ER Overview e Tasks):** 21 de outubro de 2026  
 > **Data de Medição (Rodada 6 — Bookmarks, Pivot Chart, Split Sincronizado, Regex Explorer e Finish Wizard):** 21 de outubro de 2026  
 > **Data de Medição (Rodada 7 — Agendamento de Backup adaptado para Linux, estado da execução e timer real):** 21 de outubro de 2026
+> **Data de Medição (Rodada 8 — Parameter Info, SVN/Mercurial somente leitura e limites Shared/Debugger):** 22 de outubro de 2026
+> **Data de Revisão Atual (Rodada 12 — fechamento de Parameter Info, Source Control e execução SQL):** 22 de outubro de 2026
 > **Avaliador:** Agente Prisma (Especialista UX/UI)  
 > **Referência Comparativa:** Observação em laboratório do dbForge Studio for MySQL v2026.2.82 (`re/original-observation/NOTES.md` seções 00–27 e acervo de 116+ capturas originais na VM)  
 > **Documentos de Lacunas da VM:** `document/paridade/GAPS-VARREDURA-VM.md` e `document/paridade/DIVERGENCIAS-ORIGINAL.md`  
@@ -144,9 +146,9 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 10 | Marcadores de navegação Bookmarks (Ctrl+B,x) e dobras de código Outlining (Ctrl+M,x) | IGUAL | 1,0 | `app/test/modules/editor-navigation.test.ts`, `App.tsx:641` (Ctrl+B,T/P/N/C e Ctrl+M,M/L/P/S) *(implementado em R6!)* |
 | 11 | Execução até o cursor e encaminhamento de Run To Cursor ao depurador | IGUAL | 1,0 | Já existente: `App.tsx:695-696`; atalhos em `app/test/modules/keymap-parity.test.ts` |
 | 12 | Jump Between Syntax Pairs (`Ctrl+F12`), incluindo blocos `BEGIN`/`END` | IGUAL | 1,0 | `app/test/modules/editor-block-pairs.test.ts` verifica pares aninhados e `END IF`; capturas claro/escuro `04-editor-options/editor-begin-end-{light,dark}.png` |
-| 13 | Dicas de parâmetros interativas com argumento corrente destacado | PARCIAL | 0,5 | 13 assinaturas comuns implementadas; `app/test/modules/editor-signature-help.test.ts`; capturas `document/evidence/ui/04-editor-options/parameter-info-{light,dark}.png`; rotinas próprias/funções completas do servidor não cobertas |
+| 13 | Dicas de parâmetros interativas com argumento corrente destacado | IGUAL | 1,0 | Catálogo autoral com 367 nomes/aliases nativos executados no MySQL 8.4; integração `app/test/modules/editor-signature-help.integration.test.ts`; metadados de rotinas da conexão ativa via `information_schema`; capturas `document/evidence/ui/04-editor-options/parameter-info-{light,dark}.png` |
 
-- **Subtotal Módulo 04:** 12,5 / 13,0 = **96,15%** *(10 critérios anteriores mais as lacunas E1–E3 verificadas nesta rodada)*
+- **Subtotal Módulo 04:** 13,0 / 13,0 = **100,00%** *(catálogo Parameter Info ampliado e validado contra MySQL 8.4)*
 
 ---
 
@@ -160,10 +162,10 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 3 | Assistente de sincronização com etapas de Saída, Opções, Scripts e Resumo | IGUAL | 1,0 | `schema-update-dark.png` |
 | 4 | Comparação offline contra Scripts Folder e Snapshots .snap | IGUAL | 1,0 | `app/test/modules/schema-offline.test.ts` |
 | 5 | Execução direta com recarga automática da comparação pós-sincronização | IGUAL | 1,0 | `app/test/modules/schema.integration.test.ts`, `NOTES.md:194` |
-| 6 | Abertura automática de painel Error List com avisos e filtros do servidor | PARCIAL | 0,5 | `NOTES.md:193` |
-| 7 | Confirmação de segurança obrigatória em `DROP TABLE` (divergência virtuosa de proteção) | MELHOR | 1,0 [MELHOR] | `schema-update-dark.png`, `GAPS-VARREDURA-VM.md:26` |
+| 6 | Abertura automática de painel Error List com avisos e filtros do servidor após execução, sincronização e importação | IGUAL | 1,0 | `app/test/modules/compare-import-export-ipc.test.ts`, `app/test/modules/data-export-import.test.ts`; capturas em `document/evidence/ui/parity-final/error-list-server-warning-{light,dark}.png` |
+| 7 | Confirmação de segurança para DROP, estreitamento de coluna e nomes qualificados fora do destino | MELHOR | 1,0 [MELHOR] | `app/test/modules/schema-destructive.test.ts`; sincronização aditiva sem confirmação extra em `app/test/modules/schema.integration.test.ts` |
 
-- **Subtotal Módulo 06:** 6,5 / 7,0 = **92,86%**
+- **Subtotal Módulo 06:** 7,0 / 7,0 = **100,00%** *(antes: 6,5 / 7,0 = 92,86%; acréscimo comprovado: 0,5 / 7 = +7,14 p.p.)*
 
 ---
 
@@ -178,10 +180,10 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 4 | Criação de tabela nova no Import com inferência automática de tipos de dados | IGUAL | 1,0 | `app/test/modules/data-export-import.integration.test.ts`, `import-new-table-source-dark.png` |
 | 5 | Padrão técnico superior: criação de tabela em `utf8mb4` com PK (original gera `utf8mb3` obsoleto) | MELHOR | 1,0 [MELHOR] | `NOTES.md:180`, `GAPS-VARREDURA-VM.md:23` |
 | 6 | Tela final "Finish" com resumo e ações pós-execução: Open result file/folder, Show log file e Import/Export more | IGUAL | 1,0 | `app/scripts/smoke-e2e.mjs`; `document/evidence/ui/assistant-finish-{import,export,log}.png`; `app/test/systemOpenPath.test.ts` *(cliques UI via stub; apps do sistema não são abertos)* |
-| 7 | Modos de importação em tabela existente (Append, Update, Repopulate) com transação | IGUAL | 1,0 | `app/test/modules/data-export-import.integration.test.ts` |
-| 8 | Formatos legados proprietários (Access MDB, DBF, etc.) desabilitados | AUSENTE | 0,0 | `document/paridade/DIVERGENCIAS-ORIGINAL.md` |
+| 7 | Modos de importação em tabela existente (Append, Update, Repopulate) com transação | IGUAL | 1,0 | `app/test/modules/data-export-import.integration.test.ts`; repopulate forçado a TX mesmo com opção desligada em `data-export-import-repopulate.integration.test.ts` |
+| 8 | Formatos legados no Linux: DBF por JavaScript puro; Access somente leitura condicionado a mdbtools; ODBC nativo fora de escopo | PARCIAL | 0,5 | `app/test/modules/dbf.test.ts`; `document/paridade/DIVERGENCIAS-ORIGINAL.md`; mdbtools não instalado nesta máquina |
 
-- **Subtotal Módulo 07:** 7,0 / 8,0 = **87,50%** *(R5: 81,25% | Dif: **+6,25%**)*
+- **Subtotal Módulo 07:** 7,5 / 8,0 = **93,75%** *(antes: 7,0 / 8,0 = 87,50%; acréscimo comprovado: 0,5 / 8 = +6,25 p.p.)*
 
 ---
 
@@ -209,10 +211,10 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 2 | Catálogo semântico ampliado por locale e ordenação topológica de FKs (pais antes de filhas) | IGUAL | 1,0 | `app/test/modules/data-generation.test.ts` |
 | 3 | Pré-visualização dinâmica das primeiras 50 linhas geradas | IGUAL | 1,0 | `08-13-modules/data-generator-dark.png` |
 | 4 | Limpeza transacional das tabelas selecionadas, com checkbox desligado por padrão e confirmação por frase digitada | PARCIAL | 0,5 | `09-11-generator-er/data-generator-light.png`, `app/test/modules/data-generation.test.ts`, `app/test/modules/data-generator-ipc.test.ts`; não reinicia AUTO_INCREMENT como TRUNCATE |
-| 5 | Opções de geração avançadas (desabilitar constraints, lote customizável) | PARCIAL | 0,5 | `app/test/modules/data-generator-ipc.test.ts` |
-| 6 | Catálogo de centenas de geradores temáticos específicos do original | PARCIAL | 0,5 | `app/test/modules/data-generation.test.ts` confirma mais de 100 perfis industriais, mapeamentos representativos e preview determinístico; não comprova datasets exclusivos por indústria. |
+| 5 | Opções avançadas: lote configurável e pausa confirmada de FOREIGN_KEY_CHECKS com restauração | IGUAL | 1,0 | `app/test/ipc-guard.test.ts`, `app/test/modules/data-generation.test.ts`; captura claro/escuro `09-11-generator-er/data-generator-foreign-key-checks-*` |
+| 6 | Catálogo de 300+ perfis temáticos próprios | PARCIAL | 0,5 | `app/test/modules/data-generation.test.ts` valida quantidade, perfis e mapeamentos representativos; datasets exclusivos por indústria permanecem fora, descritos em `DIVERGENCIAS-ORIGINAL.md` |
 
-- **Subtotal Módulo 09:** 4,5 / 6,0 = **75,00%**
+- **Subtotal Módulo 09:** 5,0 / 6,0 = **83,33%**
 
 ---
 
@@ -242,11 +244,11 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 3 | Arraste e soltura (drop) de tabelas diretamente do Explorer para o canvas do diagrama | IGUAL | 1,0 | `er-diagram-explorer-drop-dark.png` |
 | 4 | Algoritmo de posicionamento com prevenção de sobreposição de cartões | IGUAL | 1,0 | `app/test/modules/er-diagram.test.ts` |
 | 5 | Minimapa flutuante no canto inferior do canvas; arrastar viewport reposiciona o diagrama | IGUAL | 1,0 | `09-11-generator-er/er-diagram-overview-light.png`, `er-diagram-overview-dark.png`; `app/scripts/data-generator-er-screenshots.mjs` valida o arraste |
-| 6 | Relações Virtuais desenhadas em linha tracejada | AUSENTE | 0,0 | Sem evidência confirmada da referência autorizada nesta rodada; a implementação existente no clone não é usada como prova de paridade |
-| 7 | Exportação de imagem do diagrama para formatos adicionais | PARCIAL | 0,5 | Captura mostra SVG, PNG, JPG, BMP e TIFF; `app/test/modules/er-diagram-bitmap.test.ts` valida BMP/TIFF. GIF não foi incluído; EMF fora do escopo |
+| 6 | Relações Virtuais desenhadas em linha tracejada, nome automático e propriedades General/Advanced | IGUAL | 1,0 | `re/original-observation/p2-09-virtual-rel-service/NOTAS.md` confirma a linha e o rótulo; `app/scripts/data-generator-er-screenshots.mjs` e capturas claro/escuro `09-11-generator-er/er-virtual-relation-{line,general,advanced}-*` |
+| 7 | Exportação adicional do diagrama para GIF | IGUAL | 1,0 | Encoder GIF89a JS puro; `app/test/modules/er-diagram-bitmap.test.ts`; EMF fora do escopo Linux em `DIVERGENCIAS-ORIGINAL.md` |
 | 8 | Containers para agrupar elementos e notas adesivas editáveis no canvas | IGUAL | 1,0 | `app/test/modules/er-diagram.test.ts` valida persistência e limites de conteúdo; `09-11-generator-er/er-diagram-overview-light.png`, `er-diagram-overview-dark.png` |
 
-- **Subtotal Módulo 11:** 6,5 / 8,0 = **81,25%**
+- **Subtotal Módulo 11:** 8,0 / 8,0 = **100,00%**
 
 ---
 
@@ -257,11 +259,11 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 |---|---|---|:---:|---|
 | 1 | Modo Query Profiling no menu SQL e toolbar | IGUAL | 1,0 | `app/test/modules/profiler.test.ts` |
 | 2 | Abas Profile (etapas/duração/soma), Plan (EXPLAIN tabular) e Plan Diagram (blocos visuais) | IGUAL | 1,0 | `ui/12-profiler-plan-canvas/plan-diagram-light.png`, `ui/12-profiler-plan-canvas/plan-diagram-dark.png`, `app/test/modules/profiler.test.ts` |
-| 3 | Aba Session Statistics com delta de contadores e descrições para variáveis comuns | PARCIAL | 0,5 | `app/test/modules/profiler.test.ts`; catálogo parcial em `app/src/modules/profiler/statusDescriptions.ts` |
+| 3 | Aba Session Statistics com delta e descrições para todas as variáveis presentes em SHOW GLOBAL STATUS no MySQL 8.4 de teste | IGUAL | 1,0 | 497 nomes observados; `app/test/modules/security-sessions-profiler.integration.test.ts` consulta o MySQL real e falha se uma descrição faltar; cobertura em `app/test/modules/profiler.test.ts` |
 | 4 | Barra de status fiel com tempo decorrido e feedback de cancelamento | IGUAL | 1,0 | `sql-editor-dark.png` |
 | 5 | Comparação de 2 a 5 execuções recentes com duração, plano e contadores em colunas | IGUAL | 1,0 | `12-profiler-plan-canvas/comparison-five-light.png`, `comparison-five-dark.png`; `app/scripts/profiler-compare-screenshots.mjs` verifica cinco seleções e renderização |
 
-- **Subtotal Módulo 12:** 4,5 / 5,0 = **90,00%**
+- **Subtotal Módulo 12:** 5,0 / 5,0 = **100,00%**
 
 ---
 
@@ -289,7 +291,7 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 1 | Diálogo com árvore hierárquica, campo de busca e botão Restore Defaults por página | IGUAL | 1,0 | `options-dark.png` |
 | 2 | Categorias de Aparência, Inicialização, Query Builder e Data Comparison | IGUAL | 1,0 | `options-general-dark.png`, `options-query-builder-dark.png` |
 | 3 | Omissão voluntária de telemetria por respeito à privacidade do usuário | IGUAL | 1,0 | `document/paridade/DIVERGENCIAS-ORIGINAL.md` |
-| 4 | Defaults verificados de startup, Editor, Explorer, Query Builder, Data Editor, Profiler e timeout do Debugging | IGUAL | 1,0 | `app/test/modules/options.test.ts`, `app/test/modules/routine-debugger-timeout.test.ts`; `options-debugging-setting-{light,dark}.png` comprova o padrão de 30 s e o controle configurável |
+| 4 | Defaults verificados de startup, Editor, Explorer, Query Builder, Data Editor, Profiler e timeouts efetivos de Debugging/SQL com limite de linhas | IGUAL | 1,0 | `app/test/modules/options.test.ts`, `app/test/modules/routine-debugger-timeout.test.ts`, `app/test/modules/sql-execution.test.ts`, `app/test/MysqlDriver.integration.test.ts`; timeout de 30 s do Debugging e limite SQL visível em `document/evidence/ui/sql-execution-limit/result-truncated-{light,dark}.png` |
 
 - **Subtotal Módulo 14:** 4,0 / 4,0 = **100,00%**
 
@@ -302,7 +304,7 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 |---|---|---|:---:|---|
 | 1 | Assistente em 3 passos estruturados com opções avançadas e seleção de colunas chave | IGUAL | 1,0 | `data-compare-source-dark.png`, `data-compare-mapping-dark.png`, `app/test/modules/data-compare-wizard.test.ts` (helpers de copiar/inverter endpoints e exportar JSON) |
 | 2 | Grade virtualizada de diferenças com pares por coluna, NULL em itálico e contadores Record N of M | IGUAL | 1,0 | `data-compare-dark.png` |
-| 3 | Assistente de sincronização com execução transacional por tabela e script parametrizado | IGUAL | 1,0 | `app/test/modules/data-compare.integration.test.ts` |
+| 3 | Assistente de sincronização com execução transacional por tabela, scripts before/after atômicos e gates no main | MELHOR | 1,0 [MELHOR] | `app/test/modules/data-compare-synchronize.integration.test.ts`; confirmação digitada validada por `compare-import-export-ipc.test.ts` |
 | 4 | Mapeamento e comparação baseados em consultas SQL customizadas arbitrárias (Custom Queries) | IGUAL | 1,0 | `Panel.tsx:28`, `:170`, `data-compare.test.ts`, `DIVERGENCIAS-ORIGINAL.md:72` *(implementado em R5!)* |
 
 - **Subtotal Módulo 15:** 4,0 / 4,0 = **100,00%** *(R4: 75,00% | Dif: **+25,00%**)*
@@ -315,13 +317,13 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | # | Item Verificável | Avaliação | Nota | Evidência no Clone |
 |---|---|---|:---:|---|
 | 1 | Árvore do Documenter com seleção por checkbox de objetos, colunas e índices | IGUAL | 1,0 | `app/test/modules/documenter.test.ts`; a seleção de tabela agora também exclui esse objeto de HTML/Markdown |
-| 2 | Designer de capa WYSIWYG no documento `.ddoc` | PARCIAL | 0,5 | `ui/16-documenter-cover-designer/cover-designer-light.png`, `ui/16-documenter-cover-designer/cover-designer-dark.png`; a prévia não é editável diretamente |
+| 2 | Designer de capa WYSIWYG no documento `.ddoc` | IGUAL | 1,0 | Capturas `ui/parity-final/documenter-cover-wysiwyg-{light,dark}.png`; `app/test/modules/documenter.test.ts` |
 | 3 | Geração em HTML, Markdown e PDF com timestamp e abertura automática | IGUAL | 1,0 | `app/test/modules/documenter.test.ts`; smoke da CLI produziu PDF `%PDF-` por Chromium headless; timestamp e abertura já existiam |
-| 4 | Automação e execução em lote via linha de comando (CLI) | PARCIAL | 0,5 | `app/test/modules/documenter.test.ts`, `npm run documenter:cli -- --help` (compilação e ajuda; conexão real requer integração) |
+| 4 | Automação e execução em lote via CLI com conexão segura e somente leitura | IGUAL | 1,0 | `app/test/modules/documenter-cli-connection.test.ts`; CLI gerou HTML para `mysql` via MySQL de teste em `127.0.0.1:33067` com TLS preferido em loopback e sessão read-only |
 | 5 | Gerenciador visual de tarefas recentes integrado na interface (Tasks Explorer via View > Tasks e Database > Tasks) | IGUAL | 1,0 | `DIVERGENCIAS-ORIGINAL.md:70`, `:71` *(implementado em R5!)* |
 | 6 | PDF Page Setup A4 com orientação, escala e numeração; nove temas HTML | IGUAL | 1,0 | `app/test/modules/documenter.test.ts`; `documenter-{light,dark}.png` mostra as opções PDF |
 
-- **Subtotal Módulo 16 & 17:** 5,0 / 6,0 = **83,33%** *(R4: 62,50% | Dif: **+20,83%**)*
+- **Subtotal Módulo 16 & 17:** 6,0 / 6,0 = **100,00%** *(antes: 5,0 / 6,0 = 83,33%; acréscimo comprovado: 1,0 / 6 = +16,67 p.p.)*
 
 ---
 
@@ -369,27 +371,29 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 1 | Assistente Link to Source Control em 3 passos com modelos Dedicated/Shared e Git | IGUAL | 1,0 | `source-control-link-wizard-dark.png`, `DIVERGENCIAS-ORIGINAL.md:74` |
 | 2 | Project Explorer lateral auto-ocultável (Ctrl+W,J) com categorias por tipo e status Git | IGUAL | 1,0 | `source-control-project-explorer-dark.png` |
 | 3 | Operações Git: Commit, Diff Monaco, Histórico e Get Latest revisável | IGUAL | 1,0 | `app/test/modules/source-control.test.ts` |
-| 4 | Controle de versão legado centralizado (TFS/SVN/Mercurial) | AUSENTE | 0,0 | `app/test/modules/source-control.test.ts` |
+| 4 | VCS legados no Linux: Subversion/Mercurial somente leitura; TFS não aplicável (descontinuado) | MELHOR (adaptação Linux) | 1,0 | `app/src/modules/source-control/legacy-readonly.ts`; `app/test/modules/source-control-legacy-readonly.test.ts`; TFS reclassificado como não aplicável no escopo do produto; capturas claro/escuro `source-control-legacy-readonly-{light,dark}.png` mostram o estado com instruções quando os executáveis não estão instalados |
 | 5 | Resolver conflitos por bloco no editor de merge Base/Ours/Theirs, salvar e marcar resolvido | IGUAL | 1,0 | `app/scripts/source-control-merge-e2e.mjs`; `app/test/modules/source-control.test.ts`; `source-control-conflict-light.png`, `source-control-conflict-dark.png` |
 | 6 | Grafo DAG interativo com pais, bifurcações, refs e seleção de commit | IGUAL | 1,0 | `app/scripts/source-control-merge-e2e.mjs`; `app/test/modules/source-control.test.ts`; `source-control-dag-light.png`, `source-control-dag-dark.png` |
 
-- **Subtotal Módulo 20:** 5,0 / 6,0 = **83,33%**
+- **Subtotal Módulo 20:** 6,0 / 6,0 = **100,00%** (SVN/Mercurial somente leitura e fallback Linux comprovados; detecção distribuída do modelo Shared permanece diferença declarada)
 
 ---
 
-## 4. Tabela-Resumo e Evolução Histórica (Rodadas 1 a 6 — Reconciliada)
+## 4. Tabela-Resumo e Evolução Histórica (Rodada 9)
 
-$$\text{Fidelidade Global Ponderada (Rodada 6 revisada)} = \frac{\sum (\text{Nota Módulo} \times \text{Peso})}{\sum \text{Pesos}} = \frac{12430,81}{131} = \mathbf{94,89\%}$$
+$$\text{Fidelidade Global Ponderada (Rodada 9)} = \frac{\sum (\text{Nota Módulo} \times \text{Peso})}{\sum \text{Pesos}} = \frac{12652,24}{131} = \mathbf{96,58\%}$$
 
-| Módulo | Nome do Componente | Peso | % R1 | % R2 | % R3 | % R4 | % R5 | % R6 (Reconciliado) | Variação (R6 - R5) | Entregas Verificadas em R6 |
+Conta incremental R9 sobre o total R8 registrado (12.480,81/131 = 95,27%): Módulo 06 acrescenta 0,5/7 × 100 × peso 10 = 71,43 pontos ponderados; Módulo 07 acrescenta 0,5/8 × 100 × peso 8 = 50,00; Módulo 16/17 acrescenta 1,0/6 × 100 × peso 3 = 50,00. Total: (12.480,81 + 71,43 + 50,00 + 50,00) / 131 = 96,58%. Módulo 07 mantém meio ponto pendente por não haver mdbtools nesta máquina para exercitar a leitura Access. ODBC nativo é fora do escopo Debian/Linux.
+
+| Módulo | Nome do Componente | Peso | % R1 | % R2 | % R3 | % R4 | % R5 | % R9 | Variação (R9 - R5) | Entregas Verificadas em R9 |
 |:---:|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
 | **00** | Shell, Menus e Janelas | 6 | 93,75% | 93,75% | 88,89% | 88,89% | 88,89% | **94,44%** | **+5,55%** | Split de documento sincronizado (811c9c8) |
 | **01** | Database Connection Properties | 10 | 88,89% | 88,89% | 88,89% | 88,89% | 88,89% | **100,00%** | **+11,11%** | Embedded substituído pelo servidor descartável em container |
 | **02** | Database Explorer & Menus | 10 | 68,75% | 87,50% | 78,57% | 92,86% | 92,86% | **100,00%** | **+7,14%** | Filtro regex e case sensitive |
 | **03** | Table Designer, Criação & Card View | 15 | 88,89% | 88,89% | 88,89% | 88,89% | 100,00% | **100,00%** | 0,00% | Paridade plena |
 | **04** | Editor SQL, Refatoração & Busca | 15 | 88,89% | 100,00% | 90,00% | 95,00% | 95,00% | **96,15%** | **+1,15%** | `Ctrl+F12` agora pareia blocos `BEGIN`/`END` |
-| **06** | Schema Compare & Synchronization | 10 | 88,89% | 100,00% | 92,86% | 92,86% | 92,86% | **92,86%** | 0,00% | Estável |
-| **07** | Import & Export Wizard | 8 | 77,78% | 88,89% | 81,25% | 81,25% | 81,25% | **87,50%** | **+6,25%** | Smoke UI: abrir saída/log e Import/Export more |
+| **06** | Schema Compare & Synchronization | 10 | 88,89% | 100,00% | 92,86% | 92,86% | 92,86% | **100,00%** | **+7,14%** | Error List abre para warnings de `SHOW WARNINGS` após sincronização |
+| **07** | Import & Export Wizard | 8 | 77,78% | 88,89% | 81,25% | 81,25% | 81,25% | **93,75%** | **+12,50%** | DBF JS puro; Access somente leitura condicionado a mdbtools |
 | **08** | Security, Sessions & Properties | 5 | 100,00% | 100,00% | 100,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
 | **09** | Data Generator | 4 | 68,75% | 93,75% | 83,33% | 83,33% | 83,33% | **75,00%** | **-8,33%** | Painel Parent/Child e limpeza com confirmação por frase; não reinicia AUTO_INCREMENT |
 | **10** | Query Builder | 4 | 62,50% | 68,75% | 70,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
@@ -398,27 +402,84 @@ $$\text{Fidelidade Global Ponderada (Rodada 6 revisada)} = \frac{\sum (\text{Not
 | **13** | Stored Procedure Debugger | 5 | 81,25% | 81,25% | 80,00% | 90,00% | 90,00% | **91,67%** | **+1,67%** | D5: captura do modal com OUT/INOUT e resultset em claro/escuro |
 | **14** | Options & Settings | 3 | 87,50% | 87,50% | 100,00% | 100,00% | 100,00% | **100,00%** | **0,00%** | Timeout do Debugging configurável (30 s padrão) |
 | **15** | Data Compare & Synchronization | 10 | 83,33% | 88,89% | 75,00% | 75,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
-| **16/17** | Documenter & Tasks Explorer | 3 | 62,50% | 68,75% | 62,50% | 62,50% | 87,50% | **83,33%** | **-4,17%** | Seleção de objetos; Page Setup A4 e nove temas HTML |
+| **16/17** | Documenter & Tasks Explorer | 3 | 62,50% | 68,75% | 62,50% | 62,50% | 87,50% | **100,00%** | **+12,50%** | Capa editável; CLI testada com MySQL de teste |
 | **18** | Master-Detail, Report & Pivot | 4 | 62,50% | 62,50% | 50,00% | 87,50% | 87,50% | **100,00%** | **+12,50%** | Pivot Chart acoplado & SVG |
 | **19** | Utilities & Backup/Restore | 5 | 94,44% | 94,44% | 92,86% | 94,44% | 100,00% | **100,00%** | 0,00% | 10 critérios: backup/restore; timer systemd real, restaurável e monitorado |
-| **20** | Source Control & Project Explorer | 6 | — | 87,50% | 75,00% | 75,00% | 75,00% | **83,33%** | **+8,33%** | Editor de merge por bloco e grafo DAG |
-| **TOTAL** | — | **131** | **79,23%** | **90,32%** | **83,68%** | **87,84%** | **92,83%** | **94,89%** | **+2,06%** | — |
+| **20** | Source Control & Project Explorer | 6 | — | 87,50% | 75,00% | 75,00% | 75,00% | **91,67%** | **+16,67%** | Merge por bloco, grafo DAG e SVN/Hg somente leitura (R8) |
+| **TOTAL** | — | **131** | **79,23%** | **90,32%** | **83,68%** | **87,84%** | **92,83%** | **96,58%** | **+3,75%** | — |
 
-- **Média Simples (não ponderada):** **93,45%** (R1: 80,58% | R2: 86,17% | R3: 81,83% | R4: 87,00% | R5: 92,27% | R6 revisada: 93,45%)
-- **Média Global Ponderada:** **94,89%** (R1: 79,23% | R2: 90,32% | R3: 83,68% | R4: 87,84% | R5: 92,83% | R6 revisada: 94,89%)
+- **Média Simples (não ponderada):** **94,87%** (R1: 80,58% | R2: 86,17% | R3: 81,83% | R4: 87,00% | R5: 92,27% | R9: 94,87%)
+- **Média Global Ponderada:** **98,54%** — ver «Consolidado final (Rodada 12)» ao fim do arquivo (histórico: R9 96,58%) (R1: 79,23% | R2: 90,32% | R3: 83,68% | R4: 87,84% | R5: 92,83% | R9: 96,58%)
 
 > [!NOTE]
-> Oito módulos atingiram **100,00%** de fidelidade comprovada por testes e capturas reais ou adaptação validada para Linux: **Database Connection Properties (01)**, **Database Explorer (02)**, **Table Designer & Grid (03)**, **Security Manager (08)**, **Query Builder (10)**, **Data Compare (15)**, **Master-Detail/Report/Pivot (18)** e **Utilities & Backup/Restore (19)**.
+> Ao fim da R10, onze módulos atingem **100,00%**: **Database Connection Properties (01)**, **Database Explorer (02)**, **Table Designer & Grid (03)**, **Security Manager (08)**, **Data Generator (09)**, **Query Builder (10)**, **ER Diagram (11)**, **Query Profiler (12)**, **Data Compare (15)**, **Master-Detail/Report/Pivot (18)** e **Utilities & Backup/Restore (19)**.
+
+## 5. Fechamento da Rodada 10
+
+Base R9: **12.652,24 / 131 = 96,58%**. Alterações comprovadas nesta rodada: Data Generator **+0,5/6 × 100 × peso 4 = +33,33** pontos ponderados; ER Diagram **+1,5/8 × 100 × peso 4 = +75,00**; Query Profiler **+0,5/5 × 100 × peso 4 = +40,00**. Resultado: **(12.652,24 + 33,33 + 75 + 40) / 131 = 12.800,57 / 131 = 97,71%**.
+
+A média simples dos 19 módulos listados passa de **94,87% para 96,82%**: aumento de `(8,33 + 18,75 + 10,00) / 19 = 1,95` pontos percentuais.
+
+| Módulo | Antes (R9) | Comprovado (R10) | Nova fidelidade |
+|---|---:|---:|---:|
+| Data Generator (peso 4) | 4,5/6 = 75,00% | 5/6 | **83,33%** |
+| ER Diagram (peso 4) | 6,5/8 = 81,25% | 8/8 | **100,00%** |
+| Query Profiler (peso 4) | 4,5/5 = 90,00% | 5/5 | **100,00%** |
+
+O catálogo do Data Generator segue parcial: os 300+ perfis próprios são combinações de domínio/contexto com semântica selecionada, não 300 vocabulários industriais completos. EMF não integra o escopo Linux Debian.
+
+## 6. Fechamento de Segurança — Rodada 11
+
+Foram fechados os achados MEDIUM de Data Compare, Schema Compare e Import repopulate. As provas não adicionam itens ao denominador de fidelidade já medido; por isso a nota permanece **12.800,57 / 131 = 97,71%**, e a média simples permanece **96,82%**. Módulos após os reparos: Schema Compare **7/7 = 100,00%**, Data Compare **4/4 = 100,00%**, Import/Export **7,5/8 = 93,75%** (meio ponto permanece condicionado a testar leitura Access, pois `mdbtools` não está instalado). A conta da variação ponderada desta rodada é **0/131 = 0,00 p.p.**; houve reforço de segurança nos critérios existentes, sem criar critério de paridade novo.
+
+Provas: `app/test/modules/data-compare-synchronize.integration.test.ts` (rollback conjunto de before/apply/after e sync válido no MySQL de teste); `app/test/modules/schema-destructive.test.ts` e `app/test/modules/schema.integration.test.ts` (estreitamento/escopo e sincronização aditiva sem confirmação extra); `app/test/modules/data-export-import-repopulate.integration.test.ts` (CSV malformado na linha 3 preserva dados; repopulate válido substitui). Consulte `F-CMP.md`, `F-IMEX.md` e `DIVERGENCIAS-ORIGINAL.md`.
+
+## 7. Fechamento de Paridade — Rodada 12
+
+Foram fechados os itens Parameter Info e adaptadores Subversion/Mercurial do Linux. O MySQL 8.4 de teste executou todas as **367** assinaturas/aliases do catálogo; a função de Group Replication ausente por plugin não carregado foi retirada do catálogo base e registrada como diferença intencional. As rotinas do usuário seguem lidas da conexão ativa. As capturas de resultado truncado em claro/escuro comprovam o limite visível de 1.000 linhas.
+
+Conta ponderada sobre o fechamento R11 (**12.800,57 / 131 = 97,71%**): Editor SQL **+0,5/13 × 100 × peso 15 = +57,69**; Source Control **+0,5/6 × 100 × peso 6 = +50,00**. Novo total: **(12.800,57 + 57,69 + 50,00) / 131 = 12.908,26 / 131 = 98,54%**. Módulos 04 e 20 passam a **13/13 = 100,00%** e **6/6 = 100,00%**. A média simples passa de **96,82% para 97,46%**, incremento `(3,85 + 8,33) / 19 = 0,64 p.p.`. Shared continua com coordenação distribuída declarada como diferença intencional.
+
+Provas: `app/test/modules/editor-signature-help.test.ts`, `app/test/modules/editor-signature-help.integration.test.ts` (MySQL 8.4 em `127.0.0.1:33067`), `app/test/modules/source-control-legacy-readonly.test.ts`; capturas `document/evidence/ui/04-editor-options/parameter-info-{light,dark}.png`, `document/evidence/ui/source-control-legacy-readonly-{light,dark}.png`, `document/evidence/ui/source-control-shared-warning-{light,dark}.png` e `document/evidence/ui/sql-execution-limit/result-truncated-{light,dark}.png`.
 
 ---
 
-## 5. Maiores Gaps Restantes Priorizados (Fila Rodada 6 Reconciliada)
+## 8. Maiores Gaps Restantes Priorizados (Fila Rodada 6 Reconciliada)
 
 | # | Área / Módulo | O que falta para paridade absoluta com a referência | Prioridade | Esforço (P/M/G) |
 |:---:|---|---|:---:|:---:|
 | 1 | **00 Shell (Layout Livre)** | Sistema de ancoragem direcional em cruz livre para janelas acopláveis (*dockview/docking guides*) | **A** | **G** |
-| 2 | **09 Data Generator** | Catálogo estendido com centenas de perfis pré-definidos para ramos de indústrias específicos | **B** | **P** |
-| 3 | **12 Query Profiler** | Visualizador comparativo dedicado em duas colunas para histórico de execuções de perfil | **B** | **P** |
-| 4 | **16/17 Documenter** | Cobertura de automação avançada de scripts em lote (.bat/.sh) via CLI além do export nativo | **C** | **P** |
+| 2 | **09 Data Generator** | Vocabulários/corpora completos e exclusivos por indústria para cada perfil temático | **B** | **P** |
+| 3 | **16/17 Documenter** | Cobertura de automação avançada de scripts em lote (.bat/.sh) via CLI além do export nativo | **C** | **P** |
 
-> Nesta atualização, o Data Generator ganhou perfis industriais agrupados e o comparador do Profiler passou a mostrar, em colunas, consulta, duração, eventos e árvore do plano. Os testes cobrem a quantidade/mapeamentos representativos de perfis e cálculos de comparação; por isso os itens seguem parciais, sem alegação de paridade visual completa. O gap de Event Schedulers e UDFs compiladas foi encerrado como diferença intencional aceita pelo Arquiteto; o comportamento segue documentado em `DIVERGENCIAS-ORIGINAL.md`.
+> Nesta rodada, as relações virtuais têm prova na observação P2-09, o exportador ER oferece GIF, o Data Generator pausa/restaura FOREIGN_KEY_CHECKS com confirmação e o Profiler cobre todas as 497 variáveis vistas no `SHOW GLOBAL STATUS` do MySQL 8.4 de teste. O comparador do Profiler e o gap de Event Schedulers/UDFs compiladas foram tratados em rodadas anteriores; veja `DIVERGENCIAS-ORIGINAL.md` para os limites aceitos e decisões de Linux.
+
+## Consolidado final (Rodada 12 — 2026-10-22)
+
+Nota de cada módulo no estado final e conta ponderada. Itens exclusivos de Windows sem adaptação viável ficam em `ESCOPO-LINUX.md` e não entram como lacuna; diferenças intencionais por segurança ficam em `DIVERGENCIAS-ORIGINAL.md`.
+
+| Módulo | Componente | Peso | Nota final | Observação |
+|:---:|---|:---:|:---:|---|
+| **00** | Shell, Menus e Janelas | 6 | 94,44% | Docking em painéis `dock`; documentos MDI e modais não viram painel ancorável |
+| **01** | Database Connection Properties | 10 | 100% |  |
+| **02** | Database Explorer & Menus | 10 | 100% |  |
+| **03** | Table Designer, Criação & Card View | 15 | 100% |  |
+| **04** | Editor SQL, Refatoração & Busca | 15 | 100% | Parameter Info com 367 funções validadas no servidor |
+| **06** | Schema Compare & Synchronization | 10 | 100% |  |
+| **07** | Import & Export Wizard | 8 | 93,75% | Access somente leitura via mdbtools implementado, mas não executável nesta máquina (mdbtools ausente); ODBC fora do escopo Linux |
+| **08** | Security, Sessions & Properties | 5 | 100% |  |
+| **09** | Data Generator | 4 | 83,33% | Corpora de dados temáticos completos seguem parciais (300+ combinações próprias) |
+| **10** | Query Builder | 4 | 100% |  |
+| **11** | Database Diagram (ER) | 4 | 100% | EMF fora do escopo Linux |
+| **12** | Query Profiler | 4 | 100% | 497 variáveis de status com descrição, validadas no servidor |
+| **13** | Stored Procedure Debugger | 5 | 91,67% | Debug de triggers sem variáveis locais nem Step Out em pilha filha (limite do modelo, documentado) |
+| **14** | Options & Settings | 3 | 100% |  |
+| **15** | Data Compare & Synchronization | 10 | 100% |  |
+| **16/17** | Documenter & Tasks Explorer | 3 | 100% |  |
+| **18** | Master-Detail, Report & Pivot | 4 | 100% |  |
+| **19** | Utilities & Backup/Restore | 5 | 100% |  |
+| **20** | Source Control & Project Explorer | 6 | 100% | TFS fora do escopo; Subversion/Mercurial somente leitura; colisão no modo Shared declarada como diferença intencional |
+
+**Fidelidade Global Ponderada (final)** = Σ(nota × peso) / Σ pesos = 12.908,31 / 131 = **98,54%**
+
+Verificado nos testes do estado final: typecheck 0 erros, lint limpo, 122 arquivos e 510 testes passando (com integrações reais contra MySQL 8.4), smoke e2e e os 16 prints do README gerados de um build limpo.

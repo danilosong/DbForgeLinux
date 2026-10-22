@@ -22,3 +22,6 @@ Fontes consultadas: `document/01-rea-inventario.md` (M16), `document/05-rea-debu
 | Edição direta de valores de variáveis locais em tempo de execução no grid de Watches. | INFERIDA (melhoria do clone, sem evidência original) | Não observado na auditoria da VM. | Pendente opcional; Watches permanecem somente leitura. Não validar como paridade. |
 | Diálogo de escolha entre continuar ou interromper após exceção da rotina. | INFERIDA (melhoria do clone, sem evidência original) | Não observado na auditoria da VM. | Pendente opcional; não validar como paridade. |
 | Depuração assíncrona de Event Schedulers e UDFs compiladas em C/C++. | DIFERENÇA INTENCIONAL | Não há instrumentação viável para binários compilados em C sem fonte ou schedulers desvinculados de sessão interativa. | Decisão de arquitetura documentada em `DIVERGENCIAS-ORIGINAL.md`. |
+
+
+**Limites declarados para triggers:** a depuração usa checkpoints instrumentados, não reproduz o quadro local do servidor. Watches não expõem variáveis locais (nem mesmo as declaradas no corpo principal da trigger); a call stack não possui frames de rotinas filhas; portanto Step Out não consegue sair de uma pilha filha. Ver `DIVERGENCIAS-ORIGINAL.md`.

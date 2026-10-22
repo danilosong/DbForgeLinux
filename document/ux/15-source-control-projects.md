@@ -2,7 +2,7 @@
 
 Reusa `01-shell.md`, `07` (DiffTree, SideBySideDiff, SyncConfirmDialog), `03` (TreeView, CodeEditor). **[C]** CONFIRMADO / **[I]** INFERIDO.
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Source Control; Project Explorer / SQL Projects), catálogo interno `re/ui-strings/ui-text.txt` e **observação direta da VM de referência `dbforge-ref`** (dbForge Studio for MySQL v2026.2.82, capturas em `re/original-observation/20-source-control/link-1.png` e `project-explorer.png`). Escopo Linux: **Git apenas** (SVN/TFS/Mercurial/Azure DevOps = fora [C existe no original; adaptação Linux por ADR/inventário]).
+**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Source Control; Project Explorer / SQL Projects), catálogo interno `re/ui-strings/ui-text.txt` e **observação direta da VM de referência `dbforge-ref`** (dbForge Studio for MySQL v2026.2.82, capturas em `re/original-observation/20-source-control/link-1.png` e `project-explorer.png`). Escopo Linux: Git com fluxo completo; SVN (Subversion) e Mercurial somente leitura (`status`, `log`, `diff`) quando os clientes `svn`/`hg` estiverem instalados. TFS/Azure DevOps Server está fora do escopo Linux por decisão do dono do produto.
 
 ## 1. Project Explorer [C: painel; REA ui-text "Project Explorer"]
 Painel docado auto-ocultável (original na borda direita `Ctrl+W, J`, personalizável para qualquer borda; no TuxSQL suporta docking direcional esquerdo, direito, superior e inferior conforme 01).
@@ -139,7 +139,7 @@ Acessível via View > Other Windows > Source Control Manager ou `Ctrl+Alt+G`.
 - Botão `[Abort Merge]` para retornar com segurança ao estado anterior ao merge.
 
 ## 4. O que o TuxSQL ainda NÃO faz (Diferenças Objetivas em relação ao Original)
-1. **Ausência de VCS Centralizados Legados (Divergência Intencional Linux):** O original suporta SVN (Subversion), TFS (Azure DevOps Server) e Mercurial em Windows. O TuxSQL foca exclusivamente no Git nativo via CLI/libgit2.
+1. **SVN/Mercurial somente leitura e TFS fora do escopo Linux:** O painel usa `execFile` para consultar status, histórico e diferenças quando `svn` ou `hg` existem; sem o cliente, a opção fica desabilitada e explica como instalar. Git continua com os fluxos de escrita. TFS/Azure DevOps Server foi excluído do escopo pelo dono do produto por depender do ecossistema Windows.
 2. **Editor Gráfico de 3 Vias Integrado (Pendente):** No original, a aba Conflicts possui um editor de 3 vias completo com colunas Base, Ours, Theirs e o resultado interativo com navegação de diferenças por teclas `F7`/`Shift+F7`. No TuxSQL o resolver gráfico ainda não está implementado na interface (requer resolução manual ou externa).
 3. **Grafo Topológico DAG de Commits (Pendente):** O original renderiza nós gráficos com linhas multicoloridas conectando bifurcações e merges entre branches. O TuxSQL atualmente apresenta o histórico em grade linear tabular.
 4. **Alerta Concorrente em Tempo Real para Modelo Shared (Pendente):** No modelo Shared, o original monitora metadados de sessão para alertar quando outro usuário do estúdio altera a mesma tabela simultaneamente no banco compartilhado. O TuxSQL persiste a opção Shared, mas ainda não dispõe de canal de sincronização de locks distribuídos em tempo real.

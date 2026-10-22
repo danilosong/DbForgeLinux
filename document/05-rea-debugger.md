@@ -25,3 +25,7 @@ Tarefa de implementação: M16 (após UX 14 e módulo `sql-parser`). Risco: ALTO
 - `Step Into`, `Step Over` e `Step Out` atualmente avançam entre checkpoints da procedure selecionada. O primeiro instrumentador mantém blocos de controle como uma unidade; não pausa em cada branch de `IF`, `CASE`, loops ou handlers. SQL dinâmico (`PREPARE`/`EXECUTE`) é rejeitado na compilação para depuração.
 - A infraestrutura própria usa o schema `tuxsql_linux_debug`, guarda o DDL original no servidor antes da troca e serializa checkpoints/comandos com lock nomeado e uma sessão de controle separada da sessão alvo. Atualizar/remover verifica sessões em `preparing`, `running` ou `paused`; após encerramento inesperado do aplicativo, uma linha ativa exige intervenção administrativa antes da remoção.
 - Com autocommit desativado, a sessão alvo executa `ROLLBACK` ao terminar; `COMMIT` e DDL executados pelo corpo da rotina podem ter efeitos que o MySQL não reverte. Depuração executa o código real no servidor.
+
+## Limites verificados da depuração de triggers
+
+O snapshot de uma trigger não expõe variáveis locais; Watches não deve ser tratado como um inspetor do escopo local da trigger. A call stack contém somente o frame instrumentado da rotina selecionada: chamadas filhas não criam frames. Por isso Step Out só avança pelos checkpoints suportados no frame atual e não pode sair de uma pilha filha. Esses limites são diferenças declaradas, não controles equivalentes ao debugger nativo do servidor.
