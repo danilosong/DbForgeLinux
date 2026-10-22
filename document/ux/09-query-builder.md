@@ -1,9 +1,14 @@
 # UX 09 — Query Builder
 
-> Fidelidade REA: rótulos conferidos contra REA ui-text (menus, joins, subqueries, mensagens) e notas de sessão anterior em `re/original-observation/NOTES.md` #10.
-Auditoria de origem de evidência: **(b) Sessão anterior / (c) Inferência/REA**. Nenhuma captura foi feita na sessão corrente; pendente de confirmação por novas capturas da Lupa.
+> Fidelidade REA & Observação VM: rótulos conferidos contra REA ui-text e **observação direta da VM de referência `dbforge-ref`** (dbForge Studio for MySQL v2026.2.82, capturas completas em `re/original-observation/04-query-builder/` e `re/original-observation/10-tools-options/`).
+- **[C] Estrutura e Vistas (`04-query-builder/01-new-query-1745.png`):** Documento `Query3.sql` com vistas inferiores `Query Builder | Text | (+)`, área de desenho com *"You can drag objects from Database Explorer here."*, ícone SELECT, abas inferiores `Selection | Joins | Where | Group By | Having | Order By`, botões Distinct, Move Up/Down, grade Column/Alias/Table/Aggregate/Order By/Where, zoom.
+- **[C] Menus Globais Dinâmicos (`02-menu-layout-1745.png`, `03-menu-query-1745.png`):** Menus `Layout` (Align, Make Same Size, Spacing) e `Query` (Execute F5, Change Type, Create Subquery) inseridos entre Comparison e SQL.
+- **[C] Cartões de Tabela e JOIN Automático (`06-two-tables-dropped-1746.png`):** Tabelas `orders` e `customers` arrastadas com linha ortogonal de join desenhada automaticamente via FK (`orders.customer_id → customers.id`), linha `*(All Columns)` e linha adicionada na Selection.
+- **[C] Aba Joins e Aba Text (`07-joins-tab-1746.png`, `08-text-tab-1746.png`):** Árvore de joins com botões (+) e (x); aba Text com SQL formatado em degraus e palavras-chave maiúsculas.
+- **[C] Subqueries Visuais (`09-create-subquery-1746.png`):** `Query > Create Subquery` cria abas internas `Root Query | SubQuery` com botão de fechar e sub-canvas dedicado.
+- **[C] Configurações Padrão de Options (`10-tools-options/21-query-builder-1804.png`):** Workspace: `[x] Enable shadows`, `[x] Enable grid`, `Grid size: 8`, `[x] Snap to grid`.
 
-Reusa `01-shell.md` (tokens/componentes), `03` (DataGrid, CodeEditor). Legenda: **[I]** INFERIDO (sessão anterior / REA).
+Reusa `01-shell.md` (tokens/componentes), `03` (DataGrid, CodeEditor).
 
 ## 1. Entradas e Documento [I: sessão anterior]
 - **Entradas:**
@@ -101,6 +106,14 @@ Reusa `01-shell.md` (tokens/componentes), `03` (DataGrid, CodeEditor). Legenda: 
 - Enquadrar Diagrama (Fit): `Ctrl+0`
 - Alternar Vistas (Builder / Text / Data): `Ctrl+1` / `Ctrl+2` / `Ctrl+3`
 - Excluir Objeto/Join Selecionado: `Delete`
+
+### 8.1 Opções de Configuração do Canvas (Tools > Options > Query Builder) [C]
+Conforme capturado na VM (`re/original-observation/10-tools-options/21-query-builder-1804.png`), os valores padrão da página **Query Builder > General** são:
+- **Workspace:**
+  - `[x] Enable shadows`: ativado por padrão (sombras sob os cartões de tabela).
+  - `[x] Enable grid`: ativado por padrão (grade de fundo do canvas).
+  - `Grid size: 8`: tamanho da grade de alinhamento em pixels (padrão 8).
+  - `[x] Snap to grid`: ativado por padrão (alinhamento magnético à grade).
 
 ## 9. Temas e Acessibilidade
 - Conformidade total com os tokens de design de `01-shell.md`.

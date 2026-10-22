@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
 import Editor from './MonacoEditor.js'
 import type { ObjectEditorTarget } from '../../../../shared/contracts/object-editors.js'
-import type { ColumnModel, IndexModel, TableModel } from '../../../../modules/schema/model.js'
+import type { ColumnModel, IndexModel, SchemaObject, TableModel } from '../../../../modules/schema/model.js'
 import { quoteIdentifier } from '../../../../modules/schema/index.js'
-import { buildObjectTemplate, buildRoutineTemplate, buildTableDdlPreview, type RoutineOptions } from '../../../../modules/object-editors/index.js'
-import { Button } from './Button'
+import { buildObjectTemplate, buildRoutineTemplate, buildTableDdlPreview, objectDefinitionFingerprint, type RoutineOptions } from '../../../../modules/object-editors/index.js'
+import { Button, Dialog } from './Button'
 import { ResultGrid } from './ResultGrid'
 import type { QueryResult } from '../../../../shared/contracts/sql.js'
 import { useI18n } from '../i18n/useI18n.js'
@@ -26,6 +26,8 @@ export function ObjectEditor({ target, isNew, isProduction, autoCommit = true, t
   const [table, setTable] = useState<TableModel | null>(target.kind === 'table' && isNew ? blankTable(target.name) : null)
   const [routineOptions, setRoutineOptions] = useState<RoutineOptions>(defaultRoutineOptions)
   const [sql, setSql] = useState(isNew && target.kind !== 'table' ? (target.kind === 'procedure' || target.kind === 'function' ? buildRoutineTemplate(target, defaultRoutineOptions) : buildObjectTemplate(target)) : '')
+  const [loadedFingerprint, setLoadedFingerprint] = useState('')
+  const [externalObject, setExternalObject] = useState<SchemaObject | null>(null)
   const [message, setMessage] = useState('')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -45,8 +47,10 @@ export function ObjectEditor({ target, isNew, isProduction, autoCommit = true, t
     setLoading(true)
     void window.tuxsql.loadObjectEditor(persistedTarget(target)).then((object) => {
       if (cancelled) return
-      if (object.kind === 'table') { const tableObject = object as TableModel; setOriginal(tableObject); setTable(structuredClone(tableObject)) }
-      setSql(object.createSql ?? ('definition' in object ? String(object.definition) : ''))
+      if (object.kind === 'table') { const tableObject = object as TableModel; setOriginal(tableObject); setTable(structuredClone(tableObject)); void objectDefinitionFingerprint(tableObject).then(setLoadedFingerprint) }
+      const definition = object.createSql ?? ('definition' in object ? String(object.definition) : '')
+      setSql(definition)
+      if (object.kind !== 'table') void objectDefinitionFingerprint(definition).then(setLoadedFingerprint)
     }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Não foi possível carregar a definição do objeto.')).finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [target, isNew])
@@ -60,7 +64,7 @@ export function ObjectEditor({ target, isNew, isProduction, autoCommit = true, t
   async function refreshObject(): Promise<void> {
     if (isNew) { setTable(blankTable(target.name)); return }
     setBusy(true); setError('')
-    try { const object = await window.tuxsql.loadObjectEditor(persistedTarget(target)); if (object.kind === 'table') { const loaded = object as TableModel; setOriginal(structuredClone(loaded)); setTable(structuredClone(loaded)) } setMessage('Object refreshed.') } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not refresh object.') } finally { setBusy(false) }
+    try { const object = await window.tuxsql.loadObjectEditor(persistedTarget(target)); if (object.kind === 'table') { const loaded = object as TableModel; setOriginal(structuredClone(loaded)); setTable(structuredClone(loaded)); setLoadedFingerprint(await objectDefinitionFingerprint(loaded)) } else { const definition = object.createSql ?? ('definition' in object ? String(object.definition) : ''); setSql(definition); setLoadedFingerprint(await objectDefinitionFingerprint(definition)) } setMessage('Object refreshed.') } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not refresh object.') } finally { setBusy(false) }
   }
 
   async function loadTableData(): Promise<void> {
@@ -84,9 +88,22 @@ export function ObjectEditor({ target, isNew, isProduction, autoCommit = true, t
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Invalid routine options.') }
   }
 
-  async function apply(): Promise<void> {
+  async function apply(skipExternalCheck = false): Promise<void> {
     if (busy) return
     setError(''); setMessage('')
+    if (!isNew && !skipExternalCheck) {
+      setBusy(true)
+      try {
+        const current = await window.tuxsql.loadObjectEditor(persistedTarget(target))
+        const currentValue = current.kind === 'table' ? current as TableModel : current.createSql ?? ('definition' in current ? String(current.definition) : '')
+        const currentFingerprint = await objectDefinitionFingerprint(currentValue)
+        if (loadedFingerprint && currentFingerprint !== loadedFingerprint) {
+          setExternalObject(current)
+          return
+        }
+      } catch (reason) { setError(reason instanceof Error ? reason.message : 'Could not check for external object changes.'); return }
+      finally { setBusy(false) }
+    }
     if (target.kind === 'table' && table) {
       const ddl = String(preview)
       if (!window.confirm(`${existing ? 'Apply Changes' : 'Create Table'}\n\n${ddl}`)) return
@@ -144,5 +161,7 @@ export function ObjectEditor({ target, isNew, isProduction, autoCommit = true, t
     <div className="object-editor-toolbar"><strong>{target.kind === 'table' ? 'Table Designer' : `${target.kind[0]?.toUpperCase()}${target.kind.slice(1)} Editor`} · {target.name}</strong><span className="toolbar-spacer" />{target.kind === 'table' && <Button onClick={() => void queueTableChanges()} disabled={busy}>{t('extras.schema.queue')}</Button>}{target.kind !== 'table' && <Button onClick={() => setShowPreview((value) => !value)}>{showPreview ? 'Edit Definition' : 'Preview DDL'}</Button>}<Button onClick={() => onScript(String(preview), `${target.kind} · ${target.name}`)}>{t('td.script')}</Button><Button onClick={() => { if (target.kind === 'table') setTable(original ? structuredClone(original) : blankTable(target.name)); else { setRoutineOptions(defaultRoutineOptions); setSql(target.kind === 'procedure' || target.kind === 'function' ? buildRoutineTemplate(target, defaultRoutineOptions) : buildObjectTemplate(target)) } setError(''); setMessage('') }}>Discard Changes</Button>{(target.kind === 'procedure' || target.kind === 'function') && <Button onClick={() => void execute()} disabled={busy}>Execute / Test</Button>}<Button variant="primary" onClick={() => void apply()} disabled={busy}>{busy ? 'Applying…' : target.kind === 'table' && !existing ? 'Create Table' : 'Apply Changes'}</Button></div>
     {error && <div className="object-editor-message error" role="alert">{error}</div>}{message && <div className="object-editor-message" aria-live="polite">{message}</div>}
     {target.kind === 'table' ? <><div className="object-editor-layout"><nav className="object-editor-nav" aria-label="Table Designer pages">{(['General', 'Columns', 'Constraints', 'Indexes', 'Options', 'Triggers', 'Partitioning', 'Data', 'SQL'] as TablePage[]).map((name) => <button key={name} className={page === name ? 'selected' : ''} onClick={() => setPage(name)}>{t(`td.page.${name.toLowerCase()}`)}</button>)}</nav><div className="object-editor-content">{editBody()}</div></div><section className="object-editor-preview"><strong>{t('td.ddl.preview')}</strong><pre>{String(preview)}</pre></section><div className="object-editor-footer"><Button onClick={() => void refreshObject()} disabled={busy}>{t('td.refresh')}</Button><span className="toolbar-spacer" /><span>{original ? 'Pending changes are generated with schema diff.' : 'Create mode'}</span></div></> : <>{isNew && (target.kind === 'procedure' || target.kind === 'function') && <nav className="object-editor-nav object-editor-pages" aria-label="Routine pages"><button className={objectPage === 'General' ? 'selected' : ''} onClick={() => setObjectPage('General')}>{t('objectEditor.general')}</button><button className={objectPage === 'SQL' ? 'selected' : ''} onClick={() => setObjectPage('SQL')}>{t('objectEditor.sql')}</button></nav>}{isNew && (target.kind === 'procedure' || target.kind === 'function') && objectPage === 'General' ? <div className="object-form-list routine-general"><label>{t('objectEditor.definer')}<input value={routineOptions.definer} onChange={(event) => updateRoutineOptions({ definer: event.target.value })} /></label><label>{t('objectEditor.sqlAccess')}<select value={routineOptions.sqlAccess} onChange={(event) => updateRoutineOptions({ sqlAccess: event.target.value as RoutineOptions['sqlAccess'] })}>{['CONTAINS SQL', 'NO SQL', 'READS SQL DATA', 'MODIFIES SQL DATA'].map((value) => <option key={value}>{value}</option>)}</select></label>{target.kind === 'function' && <label><input type="checkbox" checked={routineOptions.deterministic} onChange={(event) => updateRoutineOptions({ deterministic: event.target.checked })} />{t('objectEditor.deterministic')}</label>}<fieldset><legend>{t('objectEditor.parameters')}</legend><table><thead><tr><th>{t('objectEditor.mode')}</th><th>{t('objectEditor.name')}</th><th>{t('objectEditor.type')}</th><th /></tr></thead><tbody>{routineOptions.parameters.map((parameter, index) => <tr key={index}><td><select aria-label={`${t('objectEditor.mode')} ${index + 1}`} value={parameter.mode} onChange={(event) => updateRoutineOptions({ parameters: routineOptions.parameters.map((item, row) => row === index ? { ...item, mode: event.target.value as typeof item.mode } : item) })}>{(target.kind === 'function' ? ['IN'] : ['IN', 'OUT', 'INOUT']).map((value) => <option key={value}>{value}</option>)}</select></td><td><input aria-label={`${t('objectEditor.name')} ${index + 1}`} value={parameter.name} onChange={(event) => updateRoutineOptions({ parameters: routineOptions.parameters.map((item, row) => row === index ? { ...item, name: event.target.value } : item) })} /></td><td><input aria-label={`${t('objectEditor.type')} ${index + 1}`} value={parameter.type} onChange={(event) => updateRoutineOptions({ parameters: routineOptions.parameters.map((item, row) => row === index ? { ...item, type: event.target.value } : item) })} /></td><td><Button onClick={() => updateRoutineOptions({ parameters: routineOptions.parameters.filter((_, row) => row !== index) })}>{t('objectEditor.remove')}</Button></td></tr>)}</tbody></table><Button onClick={() => updateRoutineOptions({ parameters: [...routineOptions.parameters, { name: `param_${routineOptions.parameters.length + 1}`, mode: 'IN', type: 'INT' }] })}>{t('objectEditor.addParameter')}</Button></fieldset></div> : <div className="object-editor-code">{showPreview ? <pre className="object-ddl-preview">{sql}</pre> : <Editor height="100%" language="sql" value={sql} onChange={(value) => setSql(value ?? '')} theme={['dark', 'high-contrast'].includes(document.documentElement.dataset.theme ?? '') ? 'vs-dark' : 'vs'} options={{ minimap: { enabled: false }, fontSize: 13, automaticLayout: true, lineNumbers: 'on' }} />}</div>}<section className="object-editor-preview"><strong>{t('td.ddl.preview')}</strong><pre>{sql}</pre></section><div className="object-editor-footer"><Button onClick={() => void navigator.clipboard.writeText(sql)}>Copy DDL</Button><span>{showPreview ? 'Read-only preview' : `Definition editor · ${target.kind}`}</span></div></>}
+
+    {externalObject && <Dialog title="Object changed outside the editor" className="object-external-change-dialog"><p role="alert">This definition changed in the database after it was loaded. Reload the latest version, or continue with this draft after reviewing the difference.</p><footer className="dialog-footer"><Button onClick={() => { const current = externalObject; if (current.kind === 'table') { const loaded = current as TableModel; setOriginal(structuredClone(loaded)); setTable(structuredClone(loaded)) } else setSql(current.createSql ?? ('definition' in current ? String(current.definition) : '')); void objectDefinitionFingerprint(current.kind === 'table' ? current as TableModel : current.createSql ?? ('definition' in current ? String(current.definition) : '')).then(setLoadedFingerprint); setExternalObject(null); setMessage('The newer object definition was loaded. Review it before applying changes.') }}>Reload latest definition</Button><Button variant="primary" onClick={() => { setExternalObject(null); void apply(true) }}>Continue with my draft</Button></footer></Dialog>}
   </section>
 }

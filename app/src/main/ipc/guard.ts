@@ -42,7 +42,7 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'database-tools:format-select': [bool], 'database-tools:format-run': [s('array-text', { maxItems: 1000 }), bool, bool, object], 'database-tools:format-preview': [s('array-text', { maxItems: 1000 }), bool, object], 'database-tools:large-select': [], 'database-tools:large-run': [id, text, path, enumOf('utf8', 'utf16le', 'latin1', 'windows1252'), id], 'database-tools:large-cancel': [id], 'database-tools:large-error-action': [id, enumOf('stop', 'continue', 'ignore-all')],
   'database-tools:maintenance': [id, ident, enumOf('ANALYZE', 'OPTIMIZE', 'CHECK', 'REPAIR', 'CHECKSUM'), strings],
   'database-tools:restore': [id, ident, text, sql, opt(bool)], 'database-tools:copy': [id, ident, id, ident, text, bool, opt(bool)],
-  'database-tools:schedule:list': [], 'database-tools:schedule:save': [object], 'database-tools:schedule:delete': [id],
+  'database-tools:schedule:list': [], 'database-tools:schedule:failed': [], 'database-tools:schedule:save': [object], 'database-tools:schedule:delete': [id],
   'db:test': [object], 'db:connect': [object], 'db:disconnect': [id], 'db:databases': [id], 'db:execute': [id, sql, opt(id), opt(ident)],
   'grid-editing:describe': [id, sql, opt(ident)], 'grid-editing:preview': [object, objects], 'grid-editing:apply': [id, object, objects, bool],
   'grid-data:master-detail': [id, object, object],
@@ -65,11 +65,12 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'profiler:profile': [id, sql], 'profiler:explain': [id, sql], 'profiler:history': [id], 'profiler:clear-history': [id, trueOnly], 'profiler:status': [id],
   'query-builder:schema': [id, ident], 'query-builder:build': [object], 'query-builder:parse': [sql, opt(ident)], 'query-builder:execute': [id, object, opt(bool), opt(id)], 'query-builder:cancel': [id],
   'routine-debugger:engine:inspect': [id], 'routine-debugger:engine:deploy': [id, trueOnly], 'routine-debugger:engine:remove': [id, trueOnly], 'routine-debugger:compile': [object],
-  'routine-debugger:start': [object, s('array-null-text', { maxItems: 64 }), objects, bool, bool, opt(text), opt(objects), opt(bool)], 'routine-debugger:command': [id, enumOf('into', 'over', 'out', 'continue', 'stop', 'run-to-cursor', 'break-all'), opt(integer)],
+  'routine-debugger:start': [object, s('array-null-text', { maxItems: 64 }), objects, bool, bool, opt(text), opt(objects), opt(bool), opt(integer)], 'routine-debugger:command': [id, enumOf('into', 'over', 'out', 'continue', 'stop', 'run-to-cursor', 'break-all'), opt(integer)],
   'routine-debugger:breakpoints': [id, objects], 'routine-debugger:watches': [id, strings], 'routine-debugger:snapshot': [id],
   'schema-compare:inspect': [id, ident], 'schema-compare:compare': [id, ident, id, ident, opt(bool)], 'schema-compare:load-offline': [enumOf('Scripts Folder', 'Snapshot')], 'schema-compare:compare-models': [object, object, opt(bool)], 'schema-compare:save-snapshot': [id, ident], 'schema-compare:synchronize': [id, ident, sql, trueOnly],
   'security:accounts': [id], 'security:privileges': [id], 'security:details': [id, object], 'security:preview': [id, objects], 'security:apply': [id, objects, trueOnly],
-  'service-control:list': [], 'service-control:action': [ident, enumOf('start', 'stop', 'restart')],
+  'service-control:list': [], 'service-control:action': [ident, enumOf('start', 'stop', 'restart', 'enable', 'disable'), ident], 'service-control:logs': [ident],
+  'local-server:inspect': [], 'local-server:list': [], 'local-server:create': [enumOf('mysql', 'mariadb')], 'local-server:remove': [ident, text], 'local-server:create-profile': [ident],
   'sessions:list': [id, opt(object)], 'sessions:details': [id, integer], 'sessions:kill': [id, intArray, enumOf('connection', 'query'), trueOnly],
   'sessions:variables': [id, opt(scope)], 'sessions:status': [id, opt(scope)], 'sessions:set-variable': [id, object, object],
   'source-control:choose-repository': [], 'source-control:choose-project-folder': [], 'source-control:clone-repository': [text, path, ident], 'source-control:link-database': [object], 'source-control:has-remote': [path],
@@ -262,12 +263,13 @@ function assertDomainPayload(channel: string, args: readonly unknown[]): void {
     }
   } else if ((channel === 'import-export:import' || channel === 'import-export:script' || channel === 'import-export:select-source') && args[channel === 'import-export:import' ? 5 : channel === 'import-export:script' ? 4 : 2] !== undefined) {
     const optionsIndex = channel === 'import-export:import' ? 5 : channel === 'import-export:script' ? 4 : 2
-    const options = assertRecord(args[optionsIndex], 'import options', [], ['delimiter', 'quote', 'encoding', 'header', 'skipLines', 'headerPosition', 'autoDelimiter', 'columns', 'columnMapping', 'createTable', 'mode', 'keyColumns', 'batchSize', 'onRowError', 'transactional', 'previewRows', 'rowElement', 'nullValue', 'nullString'])
+    const options = assertRecord(args[optionsIndex], 'import options', [], ['delimiter', 'quote', 'encoding', 'header', 'skipLines', 'headerPosition', 'autoDelimiter', 'columns', 'columnMapping', 'createTable', 'mode', 'keyColumns', 'batchSize', 'onRowError', 'transactional', 'previewRows', 'rowElement', 'nullValue', 'nullString', 'booleanTrueValue', 'booleanFalseValue'])
     if (options.delimiter !== undefined && (typeof options.delimiter !== 'string' || options.delimiter.length > 8)) fail('import delimiter is invalid')
     if (options.encoding !== undefined && !['utf8', 'utf16le', 'latin1'].includes(String(options.encoding))) fail('import encoding is invalid')
     if (options.header !== undefined && typeof options.header !== 'boolean') fail('import header must be boolean')
     if (options.skipLines !== undefined && (!Number.isSafeInteger(options.skipLines) || Number(options.skipLines) < 0 || Number(options.skipLines) > 100_000)) fail('import skipLines is invalid')
     if (options.headerPosition !== undefined && (!Number.isSafeInteger(options.headerPosition) || Number(options.headerPosition) < 1 || Number(options.headerPosition) > 100_000)) fail('import headerPosition is invalid')
+    for (const key of ['nullString', 'booleanTrueValue', 'booleanFalseValue']) if (options[key] !== undefined && (typeof options[key] !== 'string' || String(options[key]).length > 256)) fail(`import ${key} is invalid`)
     if (options.autoDelimiter !== undefined && typeof options.autoDelimiter !== 'boolean') fail('import autoDelimiter must be boolean')
     if (options.columns !== undefined) assertStringArray(options.columns, 'import columns', 1000)
     if (options.keyColumns !== undefined) assertStringArray(options.keyColumns, 'import keyColumns', 256)
@@ -386,7 +388,7 @@ export function isTrustedIpcFrame(event: GuardEvent, config: TrustedRendererConf
 function rateLimit(channel: string, senderId: number, args: readonly unknown[], now = Date.now()): void {
   const mutatingSql = channel === 'db:execute' && typeof args[1] === 'string' && /\b(drop|truncate|alter|create|grant|revoke|insert|update|delete|replace)\b/i.test(args[1])
   const queryBuilderMutation = channel === 'query-builder:execute' && typeof args[1] === 'object' && args[1] !== null && ['INSERT', 'UPDATE', 'DELETE'].includes(String((args[1] as Record<string, unknown>).statement))
-  const destructive = mutatingSql || queryBuilderMutation || /^(grid-editing:apply|security:apply|sessions:kill|database-tools:(restore|copy|maintenance|large-run|format-run)|object-editor:(apply|apply-table|mutate)|schema-compare:synchronize|schema-update:execute|import-export:import|data-generator:generate|routine-debugger:(engine:(deploy|remove)|start)|service-control:action|updater:apply|source-control:(commit|init|checkout-branch|delete-branch|fetch|pull|push|conflict-(save|resolve)))$/.test(channel)
+  const destructive = mutatingSql || queryBuilderMutation || /^(grid-editing:apply|security:apply|sessions:kill|database-tools:(restore|copy|maintenance|large-run|format-run)|object-editor:(apply|apply-table|mutate)|schema-compare:synchronize|schema-update:execute|import-export:import|data-generator:generate|routine-debugger:(engine:(deploy|remove)|start)|service-control:action|local-server:(create|remove|create-profile)|updater:apply|source-control:(commit|init|checkout-branch|delete-branch|fetch|pull|push|conflict-(save|resolve)))$/.test(channel)
   const git = channel.startsWith('source-control:')
   const limit = destructive ? 8 : git ? 30 : channel === 'db:execute' ? 60 : 120
   const key = `${senderId}:${channel}`

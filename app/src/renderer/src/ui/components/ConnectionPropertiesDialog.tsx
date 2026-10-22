@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type ChangeEvent } from 'react'
 import type { ConnectionRecord, ConnectionTestResult } from '../../../../shared/contracts'
+import { normalizeIpcError } from '../../../../shared/normalizeIpcError.js'
 import { Button, Dialog, Field } from './Button'
 import { useI18n } from '../i18n/useI18n.js'
 
@@ -33,6 +34,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
   const [page, setPage] = useState<Page>('General')
   const [busy, setBusy] = useState(false)
   const [status, setStatus] = useState<{ kind: 'loading' | 'success' | 'error'; text: string } | null>(null)
+  const [connectionError, setConnectionError] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [nameEdited, setNameEdited] = useState(!isNew)
   const [transport, setTransport] = useState<'tcp' | 'socket'>(initial.socketPath ? 'socket' : 'tcp')
@@ -45,6 +47,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
   function update<K extends keyof ConnectionRecord>(key: K, value: ConnectionRecord[K]): void {
     setRecord((current) => ({ ...current, [key]: value }))
     setStatus(null)
+    setConnectionError('')
   }
   function updateEndpoint(host: string, port: number): void {
     setRecord((current) => ({ ...current, host, port, ...(!nameEdited ? { name: `${host || 'localhost'}:${port}` } : {}) }))
@@ -62,10 +65,11 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
       const result = await onAction(record, secrets, remember, 'test')
       if (result) {
         setDatabaseChoices(result.databases ?? [])
+        setConnectionError('')
         setStatus({ kind: 'success', text: `${t('conn.test.success')}. ${t('conn.test.serverVersion', [result.serverVersion])}` })
       }
     } catch (error) {
-      window.alert(`${t('conn.test.errorTitle')}\n\n${sanitizeError(error, secrets)}`)
+      setConnectionError(sanitizeError(error, secrets))
     } finally { setLoadingDatabases(false) }
   }
 
@@ -110,6 +114,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
     try {
       const result = await onAction(attempted, secrets, remember, action)
       if (action === 'test' && result) {
+        setConnectionError('')
         setDatabaseChoices(result.databases ?? [])
         setStatus({ kind: 'success', text: `${t('conn.test.success')}. ${t('conn.test.serverVersion', [result.serverVersion])}` })
       }
@@ -127,12 +132,12 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
           return
         } catch (retryError) {
           const retryMessage = sanitizeError(retryError, secrets)
-          if (action === 'test') window.alert(`${t('conn.test.errorTitle')}\n\n${retryMessage}`)
+          if (action === 'test') setConnectionError(retryMessage)
           else setStatus({ kind: 'error', text: retryMessage })
           return
         }
       }
-      if (action === 'test') window.alert(`${t('conn.test.errorTitle')}\n\n${message}`)
+      if (action === 'test') setConnectionError(message)
       else setStatus({ kind: 'error', text: message })
     } finally {
       setBusy(false)
@@ -142,7 +147,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
   return <Dialog title={t('conn.dialog.title')} className="connection-dialog">
     <div className="connection-dialog-body">
       <nav className="connection-pages" aria-label={t('conn.properties')}>
-        {PAGES.map((item) => <button key={item} className={page === item ? 'selected' : ''} onClick={() => setPage(item)} disabled={item === 'Embedded'} title={item === 'Embedded' ? t('conn.embedded.disabled') : undefined}>
+        {PAGES.map((item) => <button key={item} className={page === item ? 'selected' : ''} onClick={() => setPage(item)}>
           {t(`conn.tab.${item.toLowerCase()}`)}{Object.keys(errors).length && ((item === 'General' && (errors.name || errors.host || errors.port || errors.user || errors.socket)) || (item === 'Security' && (errors.caPath || errors.clientKey || errors.sshHost || errors.sshUser || errors.sshPort || errors.sshPassword || errors.privateKeyFile)) || (item === 'HTTP' && errors.httpUrl)) ? <i aria-label={t('conn.hasErrors')} /> : null}
         </button>)}
       </nav>
@@ -231,7 +236,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
           <Field label="Custom parameters" help="Uma chave=valor por linha"><textarea rows={3} value={record.advanced.customParameters.map(({ key, value }) => `${key}=${value}`).join('\n')} onChange={(event) => updateAdvanced({ customParameters: parseParameters(event.target.value) })} /></Field>
           <div><Button onClick={() => { setRecord(initial); setNameEdited(true); setTransport(initial.socketPath ? 'socket' : 'tcp') }}>{t('conn.restoreDefaults')}</Button></div>
         </div>}
-        {page === 'Embedded' && <div className="embedded-disabled"><strong>{t('conn.embedded.unavailable')}</strong><p>{t('conn.embedded.disabled')}</p></div>}
+        {page === 'Embedded' && <div className="embedded-disabled"><strong>{t('conn.embedded.unavailable')}</strong><p>{t('conn.embedded.disabled')}</p><button type="button" onClick={() => window.dispatchEvent(new CustomEvent('tuxsql:open-local-server'))}>{t('conn.embedded.openLocal')}</button></div>}
       </div>
     </div>
     <div className={`connection-status ${status?.kind ?? ''}`} aria-live="polite">
@@ -245,6 +250,7 @@ export function ConnectionPropertiesDialog({ initial, isNew, names, onAction, on
       {!status || status.kind !== 'success' ? <Button variant="primary" onClick={() => void runAction('save')} disabled={busy}>{isNew ? t('common.save') : t('common.ok')}</Button> : null}
       <Button onClick={status?.kind === 'success' ? () => setStatus(null) : onCancel} disabled={busy}>{t('common.cancel')}</Button>
     </footer>
+    {connectionError && <Dialog title={t('conn.test.errorTitle')} className="connection-error-dialog"><p role="alert" className="connection-error-message">{connectionError}</p><footer className="dialog-footer"><Button variant="primary" autoFocus onClick={() => setConnectionError('')}>{t('common.ok')}</Button></footer></Dialog>}
   </Dialog>
 }
 
@@ -265,7 +271,8 @@ function parseParameters(text: string): Array<{ key: string; value: string }> {
 }
 
 function sanitizeError(error: unknown, secrets: ConnectionSecrets): string {
-  let message = error instanceof Error ? error.message : 'Connection failed.'
+  const normalized = normalizeIpcError(error)
+  let message = normalized instanceof Error ? normalized.message : typeof normalized === 'string' ? normalized : 'Connection failed.'
   for (const secret of Object.values(secrets)) if (secret) message = message.split(secret).join('••••••')
   return message
 }

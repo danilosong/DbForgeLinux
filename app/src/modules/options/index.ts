@@ -19,6 +19,7 @@ export function mergeSettings(value: unknown): AppSettings {
     appearance: { ...defaultSettings.appearance, ...safeObject(data.appearance) },
     queryBuilder: { ...defaultSettings.queryBuilder, ...safeObject(data.queryBuilder) },
     profiler: { ...defaultSettings.profiler, ...safeObject(data.profiler) },
+    debugging: { ...defaultSettings.debugging, ...safeObject(data.debugging) },
     dataComparison: { ...defaultSettings.dataComparison, ...safeObject(data.dataComparison) },
     language: { ...defaultSettings.language, ...safeObject(data.language) },
     editor: { ...defaultSettings.editor, ...safeObject(data.editor) },
@@ -84,6 +85,7 @@ export function validateSettings(settings: AppSettings): void {
   if (!['select-data', 'object-editor', 'data-editor'].includes(settings.explorer.openTableAs) || !['execute', 'object-editor'].includes(settings.explorer.openRoutineAs) || !['all', 'first'].includes(settings.explorer.selectionMode)) throw new Error('Invalid Database Explorer settings.')
   bounded(settings.queryBuilder.gridSize, 2, 64, 'Query Builder grid size')
   bounded(settings.profiler.historyLimit, 1, 1000, 'Profiler history limit')
+  bounded(settings.debugging.timeoutSeconds, 1, 3600, 'Debugging timeout')
   bounded(settings.connections.connectionTimeoutSeconds, 1, 600, 'Connection timeout')
   bounded(settings.connections.commandTimeoutSeconds, 0, 86400, 'Connection command timeout')
   if (!['auto', 'dev', 'release'].includes(settings.updater.channel)) throw new Error('Invalid update channel.')

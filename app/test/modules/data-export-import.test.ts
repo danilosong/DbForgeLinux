@@ -1,6 +1,7 @@
 import { PassThrough } from 'node:stream'
 import { describe, expect, it } from 'vitest'
 import { exportData, generateImportSql, importData, previewExport, previewImport } from '../../src/modules/data-export-import/index.js'
+import { convertCsvValue } from '../../src/modules/data-export-import/import.js'
 import type { DbDriver, DbTransaction, SqlValue } from '../../src/main/db/DbDriver.js'
 import type { Row } from '../../src/modules/data-export-import/index.js'
 import { buildCreateTableSql, inferImportColumns, inferSqlType } from '../../src/modules/data-export-import/inference.js'
@@ -43,6 +44,13 @@ describe('data export/import', () => {
     const { driver } = fakeDriver()
     const preview = await previewImport({ driver, connectionId: 'id', source: (async function* () { yield Buffer.from('preamble\nnotes\nfirst,second\n1,Ada\n2,Lin\n') })(), format: 'csv', table: 'items', options: { skipLines: 1, headerPosition: 2 } }, 10)
     expect(preview).toEqual({ columns: ['first', 'second'], rows: [{ first: '1', second: 'Ada' }, { first: '2', second: 'Lin' }] })
+  })
+
+  it('converts configured null and boolean tokens in CSV imports', async () => {
+    const { driver } = fakeDriver()
+    const preview = await previewImport({ driver, connectionId: 'id', source: (async function* () { yield Buffer.from('flag,empty\nYES,\nno,value\n') })(), format: 'csv', table: 'items', options: { nullString: '', booleanTrueValue: 'yes', booleanFalseValue: 'no' } }, 10)
+    expect(preview.rows).toEqual([{ flag: true, empty: null }, { flag: false, empty: 'value' }])
+    expect(convertCsvValue('YES', { booleanTrueValue: 'yes', booleanFalseValue: 'no' })).toBe(true)
   })
 
   it('exporta CSV em streaming com header, aspas e unicode', async () => {

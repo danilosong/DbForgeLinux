@@ -42,6 +42,7 @@ function assertOptions(options?: ImportExportOptions): void {
   if (options?.autoDeleteCount !== undefined && (!Number.isInteger(options.autoDeleteCount) || options.autoDeleteCount < 1 || options.autoDeleteCount > 100_000)) throw new Error('Quantidade de retenção inválida.')
   if (options?.skipLines !== undefined && (!Number.isInteger(options.skipLines) || options.skipLines < 0 || options.skipLines > 100_000)) throw new Error('Número de linhas ignoradas inválido.')
   if (options?.headerPosition !== undefined && (!Number.isInteger(options.headerPosition) || options.headerPosition < 1 || options.headerPosition > 100_000)) throw new Error('Posição do cabeçalho inválida.')
+  for (const value of [options?.nullString, options?.booleanTrueValue, options?.booleanFalseValue]) if (value !== undefined && (typeof value !== 'string' || value.length > 256)) throw new Error('Valor de importação inválido.')
   if (options?.createTable) {
     const schema = options.createTable
     if (typeof schema.database !== 'string' || typeof schema.name !== 'string' || !Array.isArray(schema.columns) || schema.columns.length > 1000) throw new Error('Definição de tabela inválida.')
@@ -93,7 +94,7 @@ function isTemplate(value: unknown): value is ImportExportTemplate {
 function safeTemplate(value: Omit<ImportExportTemplate, 'id'> & { id?: string }): ImportExportTemplate {
   if (!value.name.trim() || value.name.length > 120 || !['import', 'export'].includes(value.direction)) throw new Error('Nome ou direção de template inválido.')
   const options: ImportExportOptions = {}
-  for (const key of ['delimiter', 'quote', 'header', 'forceQuotes', 'encoding', 'onRowError', 'rowElement', 'fileName', 'appendTimestamp', 'autoDeleteDays', 'autoDeleteCount', 'rowStart', 'rowCount', 'columnTypes', 'outputMode', 'compress', 'zipLevel', 'zipComment'] as const) {
+  for (const key of ['delimiter', 'quote', 'header', 'skipLines', 'headerPosition', 'nullString', 'booleanTrueValue', 'booleanFalseValue', 'forceQuotes', 'encoding', 'onRowError', 'rowElement', 'fileName', 'appendTimestamp', 'autoDeleteDays', 'autoDeleteCount', 'rowStart', 'rowCount', 'columnTypes', 'outputMode', 'compress', 'zipLevel', 'zipComment'] as const) {
     const optionValue = value.options?.[key]
     if (optionValue !== undefined) Object.assign(options, { [key]: optionValue })
   }

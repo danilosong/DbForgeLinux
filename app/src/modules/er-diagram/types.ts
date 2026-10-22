@@ -1,6 +1,8 @@
 import type { ColumnModel, DatabaseModel } from '../schema/model.js'
 
 export interface DiagramPoint { x: number; y: number }
+export interface DiagramContainer { id: string; title: string; position: DiagramPoint; width: number; height: number }
+export interface DiagramNote { id: string; text: string; position: DiagramPoint }
 export interface DiagramTable { name: string; columns: ColumnModel[]; position: DiagramPoint; collapsed?: boolean; primaryColumns?: string[]; constraintNames?: string[]; indexNames?: string[]; triggerNames?: string[]; collapsedSections?: Partial<Record<'Constraints' | 'Indexes' | 'Triggers', boolean>> }
 export interface DiagramRelation {
   id: string
@@ -22,6 +24,8 @@ export interface ERDiagram {
   tables: DiagramTable[]
   relations: DiagramRelation[]
   virtualRelations: DiagramRelation[]
+  containers?: DiagramContainer[]
+  notes?: DiagramNote[]
 }
 export interface VirtualRelationInput { name: string; fromTable: string; fromColumns: string[]; toTable: string; toColumns: string[]; comment?: string }
 export interface ERDiagramSource extends Pick<DatabaseModel, 'name' | 'tables'> { kind: 'database' }

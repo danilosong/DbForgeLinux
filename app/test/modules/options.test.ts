@@ -15,6 +15,7 @@ describe('Options settings', () => {
     expect(defaultSettings.explorer.openTableAs).toBe('object-editor')
     expect(defaultSettings.queryBuilder.gridSize).toBe(8)
     expect(defaultSettings.profiler.historyLimit).toBe(10)
+    expect(defaultSettings.debugging.timeoutSeconds).toBe(30)
     expect(mergeSettings({ profiler: { historyLimit: 12 } }).profiler.historyLimit).toBe(12)
     expect(() => mergeSettings({ profiler: { historyLimit: 0 } })).toThrow('Profiler history limit')
   })
@@ -48,6 +49,8 @@ describe('Options settings', () => {
     validateSettings(mergeSettings(defaultSettings))
     expect(() => mergeSettings({ appearance: { uiZoom: 240 } })).toThrow('UI zoom')
     expect(() => mergeSettings({ notifications: { durationSeconds: 0 } })).toThrow('Notification duration')
+    expect(mergeSettings({ debugging: { timeoutSeconds: 45 } }).debugging.timeoutSeconds).toBe(45)
+    expect(() => mergeSettings({ debugging: { timeoutSeconds: 0 } })).toThrow('Debugging timeout')
     expect(() => mergeSettings({ smtp: { port: 70000 } })).toThrow('SMTP port')
   })
   it('migrates and validates Data Comparison and Query Builder pages', () => {

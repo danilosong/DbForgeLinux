@@ -29,6 +29,7 @@ import { SettingsStore } from '../../modules/options/index.js'
 import { registerDatabaseToolsIpc } from './database-tools.js'
 import { registerRoutineDebuggerIpc } from './routine-debugger.js'
 import { registerServiceControlIpc } from './service-control.js'
+import { registerLocalServerIpc } from './local-server.js'
 import { registerCodeAnalysisIpc } from './code-analysis.js'
 import { registerGridEditingIpc } from './grid-editing.js'
 import { registerGridDataIpc } from './grid-data.js'
@@ -84,6 +85,7 @@ export function registerIpcRegistry(deps: IpcDeps): void {
   registerDatabaseToolsIpc(deps)
   registerRoutineDebuggerIpc(deps)
   registerServiceControlIpc()
+  registerLocalServerIpc(deps)
   registerCodeAnalysisIpc()
   registerGridEditingIpc(deps)
   registerGridDataIpc(deps)

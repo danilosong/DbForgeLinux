@@ -374,6 +374,7 @@ export const generatedPtBrMessages: Record<string, string> = {
   "sc.repo.create": "Criar novo repositório",
   "sc.model.dedicated": "Dedicado",
   "sc.model.shared": "Compartilhado",
+  "sc.link.shared.warning": "Outras sessões podem alterar este banco. O TuxSQL ainda não coordena bloqueios distribuídos; confirme com a equipe quem está editando cada tabela antes de aplicar mudanças.",
   "sc.link.staticData": "Dados estáticos do link de controle de origem",
   "sc.header.branch": "Filial: / Repositório: / Nome do repositório:",
   "sc.commit.hint": "Confirmar alterações no controle de versão",

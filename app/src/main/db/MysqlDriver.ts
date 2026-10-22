@@ -30,6 +30,24 @@ function isOptionalTlsUnsupported(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === 'HANDSHAKE_NO_SSL_SUPPORT'
 }
 
+/** Converts common connection failures to stable, secret-free TuxSQL diagnostics. */
+export function mapMysqlConnectionError(error: unknown, host: string, hasPassword: boolean, timeoutSeconds = 15): Error {
+  const value = error && typeof error === 'object' ? error as { code?: unknown; errno?: unknown; message?: unknown } : {}
+  const code = String(value.code ?? '')
+  const errno = Number(value.errno)
+  if (code === 'ER_ACCESS_DENIED_ERROR' || errno === 1045) {
+    return new Error(`1045: MySQL rejected the credentials for ${host} (password supplied: ${hasPassword ? 'yes' : 'no'}).`)
+  }
+  if (['ECONNREFUSED', 'ENOTFOUND', 'EAI_AGAIN', 'EHOSTUNREACH', 'ENETUNREACH'].includes(code) || errno === 2003) {
+    const reason = code === 'ECONNREFUSED' ? 'connection refused' : ['ENOTFOUND', 'EAI_AGAIN'].includes(code) ? 'host name could not be resolved' : code === 'EHOSTUNREACH' || code === 'ENETUNREACH' ? 'host is unreachable' : 'connection unavailable'
+    return new Error(`2003: Could not connect to the MySQL server at ${host}: ${reason}.`)
+  }
+  if (['ETIMEDOUT', 'PROTOCOL_SEQUENCE_TIMEOUT', 'ETIMEDOUT_CONNECT'].includes(code) || /connect timeout|timed out/i.test(String(value.message ?? ''))) {
+    return new Error(`2003: The MySQL server at ${host} did not respond within the configured ${timeoutSeconds} second connection timeout.`)
+  }
+  return error instanceof Error ? error : new Error('Could not connect to the MySQL server.')
+}
+
 function withoutPreferredTls(config: DriverConnectionConfig): DriverConnectionConfig {
   return { ...config, ssl: { ...config.ssl, mode: 'disabled' } }
 }
@@ -81,6 +99,8 @@ export class MysqlDriver implements DbDriver {
         httpTunnel: Boolean(httpTunnel),
         databases: databaseRows.map((row) => row.Database).filter((name) => config.showAllDatabases || !['information_schema', 'mysql', 'performance_schema', 'sys'].includes(name))
       }
+    } catch (error) {
+      throw mapMysqlConnectionError(error, config.host, Boolean(config.password), config.advanced.connectionTimeoutSeconds)
     } finally {
       if (connection) await connection.end()
       if (tunnel) await tunnel.close()
@@ -132,7 +152,7 @@ export class MysqlDriver implements DbDriver {
       if (pool) await pool.end()
       if (tunnel) await tunnel.close()
       if (httpTunnel) await httpTunnel.close()
-      throw error
+      throw mapMysqlConnectionError(error, config.host, Boolean(config.password), config.advanced.connectionTimeoutSeconds)
     }
   }
 

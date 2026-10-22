@@ -11,6 +11,7 @@ import { registerIpcRegistry } from './ipc/registry.js'
 import { requestSshKeyboardInteractive } from './ipc/keyboard-interactive.js'
 import { isTrustedRendererNavigation } from './security/windowPolicy.js'
 import { migrateLegacyUserData } from './legacyData.js'
+import { runScheduledBackup } from './ipc/scheduledBackup.js'
 
 const driver = new MysqlDriver()
 let vault: PasswordVault
@@ -27,16 +28,33 @@ function queueSqlPath(path: string): void {
 const userDataDir = join(app.getPath('appData'), 'tuxsql')
 app.setPath('userData', userDataDir)
 try { mkdirSync(userDataDir, { recursive: true }); migrateLegacyUserData(app.getPath('appData'), userDataDir) } catch { /* best effort: start with a fresh profile */ }
-const hasSingleInstance = app.requestSingleInstanceLock()
-if (!hasSingleInstance) app.quit()
+const scheduledBackupArg = process.argv.indexOf('--run-backup-schedule')
+const scheduledBackupId = scheduledBackupArg >= 0 ? process.argv[scheduledBackupArg + 1] : undefined
 const linuxBackend = process.env.TUXSQL_LINUX_BACKEND
 if (process.platform === 'linux' && (linuxBackend === 'x11' || linuxBackend === 'wayland')) app.commandLine.appendSwitch('ozone-platform', linuxBackend)
 else if (process.platform === 'linux') app.commandLine.appendSwitch('ozone-platform-hint', 'auto')
-app.on('second-instance', (_event, argv) => { const file=argv.find((arg)=>arg.toLowerCase().endsWith('.sql'));if(file)queueSqlPath(file);if(mainWindow){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.focus()} })
-app.on('open-file', (event, path) => { event.preventDefault(); queueSqlPath(path) })
 async function resolveConnectionConfig(record: ConnectionRecord): Promise<DriverConnectionConfig> {
  const [password,sshPassword,sshPassphrase,httpPassword,proxyPassword]=await Promise.all([resolveSecret(record.passwordRef),resolveSecret(record.ssh.passwordRef),resolveSecret(record.ssh.passphraseRef),resolveSecret(record.http.passwordRef),resolveSecret(record.http.proxyPasswordRef)])
  return {...record,password:password??undefined,ssh:{...record.ssh,password:sshPassword??undefined,passphrase:sshPassphrase??undefined,keyboardInteractivePrompt:requestSshKeyboardInteractive},http:{...record.http,password:httpPassword??undefined,proxyPassword:proxyPassword??undefined}}
+}
+if (scheduledBackupId !== undefined) {
+ app.whenReady().then(async () => {
+  try {
+   if (!/^[a-f\d-]{36}$/i.test(scheduledBackupId)) throw new Error('Invalid schedule identifier.')
+   vault = new PasswordVault(join(app.getPath('userData'), 'vault'))
+   connectionsStore = new ConnectionsStore(join(app.getPath('userData'), 'connections.json'))
+   await runScheduledBackup({ connectionStore: connectionsStore, userDataDir: app.getPath('userData'), driver, resolveConnectionConfig }, scheduledBackupId)
+   app.exit(0)
+  } catch {
+   process.stderr.write('Scheduled backup failed. Check the TuxSQL connection, unlocked credential vault, and backup folder.\n')
+   app.exit(1)
+  }
+ })
+} else {
+ const hasSingleInstance = app.requestSingleInstanceLock()
+ if (!hasSingleInstance) app.quit()
+ app.on('second-instance', (_event, argv) => { const file=argv.find((arg)=>arg.toLowerCase().endsWith('.sql'));if(file)queueSqlPath(file);if(mainWindow){if(mainWindow.isMinimized())mainWindow.restore();mainWindow.focus()} })
+ app.on('open-file', (event, path) => { event.preventDefault(); queueSqlPath(path) })
 }
 function resolveSecret(ref:string|undefined):Promise<string|null>{return ref?vault.get(ref):Promise.resolve(null)}
 function createWindow():void {
@@ -50,5 +68,5 @@ function createWindow():void {
  window.on('closed',()=>{if(mainWindow===window)mainWindow=undefined})
  if(rendererUrl)void window.loadURL(rendererUrl);else void window.loadFile(join(__dirname,'../renderer/index.html'))
 }
-if(hasSingleInstance)app.whenReady().then(()=>{vault=new PasswordVault(join(app.getPath('userData'),'vault'));connectionsStore=new ConnectionsStore(join(app.getPath('userData'),'connections.json'));registerIpcRegistry({driver,vault,connectionsStore,resolveConnectionConfig,userDataDir:app.getPath('userData')});for(const arg of process.argv)if(arg.toLowerCase().endsWith('.sql'))queueSqlPath(arg);Menu.setApplicationMenu(null);createWindow();app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()})})
+ if (scheduledBackupId === undefined) app.whenReady().then(()=>{vault=new PasswordVault(join(app.getPath('userData'),'vault'));connectionsStore=new ConnectionsStore(join(app.getPath('userData'),'connections.json'));registerIpcRegistry({driver,vault,connectionsStore,resolveConnectionConfig,userDataDir:app.getPath('userData')});for(const arg of process.argv)if(arg.toLowerCase().endsWith('.sql'))queueSqlPath(arg);Menu.setApplicationMenu(null);createWindow();app.on('activate',()=>{if(BrowserWindow.getAllWindows().length===0)createWindow()})})
 app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit()})

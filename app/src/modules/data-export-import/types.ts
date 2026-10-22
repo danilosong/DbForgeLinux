@@ -51,6 +51,9 @@ export interface ImportJob {
     header?: boolean
     skipLines?: number
     headerPosition?: number
+    nullString?: string
+    booleanTrueValue?: string
+    booleanFalseValue?: string
     columns?: string[]
     columnMapping?: Record<string, string>
     mode?: ImportMode

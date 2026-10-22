@@ -7,6 +7,7 @@ import { DEBUG_SCHEMA, engineDdl, instrumentProcedure, instrumentTrigger, quoteD
 import type { DedicatedMysqlSession } from '../db/MysqlDriver.js'
 import { evaluateWatchExpression } from '../../modules/routine-debugger/expression.js'
 import { buildDebugCallPlan } from '../../modules/routine-debugger/outputParameters.js'
+import { scheduleDebugSessionTimeout } from '../../modules/routine-debugger/sessionTimeout.js'
 
 interface LiveSession { id: string; ownerId: number; sender: WebContents; target: DebugRoutineTarget; controller: DedicatedMysqlSession; executor: DedicatedMysqlSession; originalSql: string; instrumentedSql: string; statementLines: number[]; task?: Promise<void>; snapshot: DebugSnapshot; watches: string[]; stopRequested: boolean; showAfterExecute: boolean }
 const sessions = new Map<string, LiveSession>()
@@ -47,12 +48,13 @@ export function registerRoutineDebuggerIpc({ driver }: IpcDeps): void {
     } finally { await connection.close() }
   })
   ipcMain.handle('routine-debugger:compile', async (_event, target: DebugRoutineTarget) => compilePreview(driver, target))
-  ipcMain.handle('routine-debugger:start', async (event, target: DebugRoutineTarget, args: Array<string | null>, breakpoints: DebugBreakpoint[], autocommit: boolean, confirmedAutocommit: boolean, triggerSql?: string, parameters?: Array<{ name: string; type: string; direction: 'IN' | 'OUT' | 'INOUT'; value: string | null }>, showAfterExecute = true) => {
+  ipcMain.handle('routine-debugger:start', async (event, target: DebugRoutineTarget, args: Array<string | null>, breakpoints: DebugBreakpoint[], autocommit: boolean, confirmedAutocommit: boolean, triggerSql?: string, parameters?: Array<{ name: string; type: string; direction: 'IN' | 'OUT' | 'INOUT'; value: string | null }>, showAfterExecute = true, timeoutSeconds = 30) => {
     validateTarget(target)
     if (!Array.isArray(args) || args.length > 64 || args.some((arg) => arg !== null && (typeof arg !== 'string' || arg.length > 100_000))) throw new Error('Routine argument list is invalid.')
     if (autocommit !== true && autocommit !== false) throw new Error('Choose an autocommit mode.')
     if (!confirmedAutocommit) throw new Error('Confirm the autocommit behavior before starting routine debugging.')
     if (target.kind === 'trigger') validateTriggerSql(triggerSql)
+    if (!Number.isInteger(timeoutSeconds) || timeoutSeconds < 1 || timeoutSeconds > 3600) throw new Error('Debugging timeout must be between 1 and 3600 seconds.')
     const engine = await inspectEngine(driver, target.connectionId)
     if (!engine.installed) throw new Error('Deploy the debug engine before starting a routine debug session.')
     const preview = await compilePreview(driver, target)
@@ -91,7 +93,7 @@ export function registerRoutineDebuggerIpc({ driver }: IpcDeps): void {
     const snapshot: DebugSnapshot = { sessionId: id, status: 'running', routine: `${target.database}.${target.name}`, variables: {}, breakpoints: sanitizeBreakpoints(breakpoints, preview.statementLines), watches: [], callStack: [{ routine: `${target.database}.${target.name}`, line: 0, depth: 0 }], output: [target.kind === 'trigger' ? 'Trigger debugging started.' : 'Debugging started.'] }
     const live: LiveSession = { id, ownerId: event.sender.id, sender: event.sender, target, controller, executor, originalSql: preview.originalSql, instrumentedSql: preview.instrumentedSql, statementLines: preview.statementLines, snapshot, watches: [], stopRequested: false, showAfterExecute }
     sessions.set(id, live)
-    live.task = runTarget(live, args, autocommit, triggerSql, parameters)
+    live.task = runTarget(live, args, autocommit, triggerSql, parameters, timeoutSeconds)
     return { sessionId: id }
   })
   ipcMain.handle('routine-debugger:command', async (event, id: string, command: DebugStepKind | 'stop', line?: number) => {
@@ -207,7 +209,9 @@ function emit(live: LiveSession): void {
 }
 function errorText(error: unknown): string { return error instanceof Error ? error.message : 'unknown error' }
 
-async function runTarget(live: LiveSession, args: Array<string | null>, autocommit: boolean, triggerSql?: string, parameters?: Array<{ name: string; type: string; direction: 'IN' | 'OUT' | 'INOUT'; value: string | null }>): Promise<void> {
+async function runTarget(live: LiveSession, args: Array<string | null>, autocommit: boolean, triggerSql?: string, parameters?: Array<{ name: string; type: string; direction: 'IN' | 'OUT' | 'INOUT'; value: string | null }>, timeoutSeconds = 30): Promise<void> {
+  let timedOut = false
+  const clearSessionTimeout = scheduleDebugSessionTimeout(timeoutSeconds, () => { timedOut = true; live.stopRequested = true; live.snapshot.output.push('Debugging session reached its configured time limit.'); emit(live); live.executor.cancel() })
   const poller = setInterval(() => { void pollSnapshot(live).catch((error: unknown) => { live.snapshot.output.push(`Debugger status could not be refreshed: ${errorText(error)}`); emit(live) }) }, 100)
   try {
     const callArgs = args.map((value) => value === null ? 'NULL' : `'${value.replaceAll('\\', '\\\\').replaceAll("'", "''")}'`).join(',')
@@ -231,10 +235,11 @@ async function runTarget(live: LiveSession, args: Array<string | null>, autocomm
     live.snapshot.output.push('Debugging finished.')
   } catch (error) {
     const message = errorText(error)
-    live.snapshot.status = live.stopRequested || /routine debugging stopped/i.test(message) ? 'stopped' : 'error'
+    live.snapshot.status = timedOut || live.stopRequested || /routine debugging stopped/i.test(message) ? 'stopped' : 'error'
     if (live.snapshot.status === 'error') live.snapshot.output.push(`Routine failed: ${message}`)
   } finally {
     clearInterval(poller)
+    clearSessionTimeout()
     if (!['finished', 'stopped', 'error'].includes(live.snapshot.status)) {
       try { await pollSnapshot(live) } catch { /* keep the terminal event */ }
     }

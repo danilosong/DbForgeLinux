@@ -1,10 +1,11 @@
 # UX 19 — Configurações (Options)
 
-Reusa `01-shell.md` (tokens, Dialog, FormField, SideNavTabs) e `02`. **[I]** INFERIDO (sessão anterior / REA).
-
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Tools > Options: Environment, Text Editor, SQL Formatting, Keyboard, Fonts and Colors, Code Completion) e notas de sessão anterior na VM `dbforge-ref` (`re/original-observation/NOTES.md` #14).
-Auditoria de origem de evidência: **(b) Sessão anterior / (c) Inferência/REA**. Nenhuma captura foi feita na sessão corrente; pendente de confirmação por novas capturas da Lupa.
-Citação e evidência: Diálogo acessível em **Tools > Options...** [I]. O diálogo possui campo de busca no topo com placeholder "Search (Ctrl+E)" [I], árvore de categorias à esquerda [I], cabeçalho com Breadcrumb (ex: `Environment > General`) [I], botão inferior esquerdo `Reset Page Defaults` [I], e botões inferiores direitos `OK` e `Cancel` [I].
+> Fidelidade REA & Observação VM: rótulos conferidos contra REA ui-text e **observação direta da VM de referência `dbforge-ref`** (dbForge Studio for MySQL v2026.2.82, capturas completas em `re/original-observation/10-tools-options/`).
+- **[C] Diálogo e Árvore (`10-tools-options/02-options-dialog-1802.png`):** Campo `Search`, árvore com 17 categorias de 1º nível, breadcrumb e botão `Reset Page Defaults`.
+- **[C] Padrões de Environment (`03` a `09`):** General (`03`), Keyboard (`04`), Output (`05`), Categories (`06`), Font and Colors (`07`), Tabs and Windows (`08`), SMTP (`09`).
+- **[C] Padrões de Text Editor (`10` a `19`):** General (`10`), Tabs (`11`), Advanced (`12`), Code Completion (`13-17`), Formatting (`18-19`).
+- **[C] Padrões Especializados (`20` a `24`):** Data Editor (`20`), Query Builder (`21`), Debugging (`22`), AI Assistant (`23`), Database Explorer (`24`), Query Profiler (`02`).
+- **[C] Utilitários em Tools:** Snippets Manager (`26-snippets-manager-1804.png`), SQL Formatter Wizard (`27-sql-formatter-1805.png`, `28-formatter-cancel-1805.png`).
 
 ## 1. Diálogo Options
 Entrada: Tools > Options… (**Ctrl+,** no Linux / Ctrl+E para busca interna) [C]. Modal 860x600 (min 760x520), redimensionável.
@@ -51,62 +52,111 @@ Configurações no TuxSQL são persistidas em JSON limpo e auditável em `$XDG_C
 
 ## 2. Páginas e Especificações de Campos
 
-### Environment > General [C]
+### Environment > General [C] (`re/original-observation/10-tools-options/03-environment-expanded-1802.png`)
 - **Visual Settings**:
-  - `Skin`: Dropdown com temas visuais [C]. No TuxSQL: adaptado para **Auto (segue sistema)** / Claro / Escuro / Alto Contraste via CSS tokens (na referência original: "Visual Studio Light", skins WinForms).
-  - `Enable forms skin`: Checkbox [C]. No TuxSQL: emulação de bordas e janelas consistentes com o tema.
-  - `Enable menu animation`: Checkbox [C]. No TuxSQL: respeita configuração de sistema (`prefers-reduced-motion`).
+  - `Skin`: Dropdown com temas visuais [C] (padrão original: `Visual Studio Light`). No TuxSQL: adaptado para **Auto (segue sistema)** / Claro / Escuro / Alto Contraste via CSS tokens.
+  - `Enable forms skin`: `[x]` (ON por padrão) [C].
+  - `Enable menu animation`: `[ ]` (OFF por padrão) [C].
 - **Environment Settings**:
-  - `On startup, open`: Dropdown ("Latest session", "Empty environment", "Start Page") [C].
-  - `Allow sending anonymous usage statistics`: Checkbox [C]. **Divergência de privacidade Linux:** na referência vem marcada; no TuxSQL esta opção é **desativada permanentemente e ausente de telemetria** (zero dados enviados externamente).
-  - `Check for updates`: Checkbox [C]. No Linux: gerenciado por padrão via gerenciador de pacotes (`.deb` / repositório APT), verificação manual via menu Help.
-  - `Show Start Page`: Checkbox [C] (default ativo).
-  - `Show splash screen`: Checkbox [C] (default ativo).
-  - `Show status bar`: Checkbox [C] (default ativo).
-  - `Display [10] items in window/recent list`: Input numérico (padrão 10 itens) [C].
+  - `On startup, open`: Dropdown (padrão: `Latest session`; opções: Empty environment, Start Page) [C].
+  - `Allow sending anonymous usage statistics`: Checkbox [C]. **Divergência Virtuosa Linux:** na referência vem marcada; no TuxSQL esta opção é **desativada permanentemente e ausente de telemetria** (zero dados enviados externamente).
+  - `Check for updates on startup once a week`: `[x]` (ON por padrão) [C].
+  - `Show Start Page on startup`: `[x]` (ON por padrão) [C].
+  - `Show splash screen on startup`: `[x]` (ON por padrão) [C].
+  - `Show status bar`: `[x]` (ON por padrão) [C].
+  - `Display items in window menu`: `10` [C].
+  - `Display items in recently used list`: `10` [C].
+- **Objects Discovery**:
+  - `Allow uncommitted objects discovery (experimental)`: `[ ]` (OFF por padrão) [C].
 
-### Environment > Keyboard [C]
-- Tabela de comandos com mapeamento de teclas: Command | Shortcut | Context (Global, Editor, Results Grid, Database Explorer) [C].
-- Botões: `Reset Mapping` / `Restore Defaults` [C].
-- Detecção de conflitos de atalho no mesmo contexto (ex: alerta inline ou modal de substituição) [C].
-- Esquemas de mapeamento adicionais (Default, VS Code-like, DBeaver-like, SSMS-like) [I].
+### Environment > Keyboard [C] (`re/original-observation/10-tools-options/04-env-keyboard-1802.png`)
+- Esquema de mapeamento adicional: `dbForge` (combo) com botão `Reset` [C].
+- Campo de filtro: `Show commands containing:` e botão `Show Table` [C].
+- Atribuição: escopo `Use new shortcut in: Global` + campo `Press shortcut keys:` + botão `Assign` e indicador `Shortcut currently used by:` [C].
 
-### Environment > Font and Colors [C]
-- Configuração de fontes para UI e Editor SQL [C].
-- Campos: `Font Name`, `Font Size`, `Font Scale` [C].
-- Amostra e preview ao vivo de legibilidade com suporte a fontes monoespaçadas do Linux (Fira Code, JetBrains Mono, DejaVu Sans Mono).
+### Environment > Categories [C] (`re/original-observation/10-tools-options/06-env-categories-1803.png`)
+- Grade de mapeamento: `Server | Database | Environment` (linha padrão: `* | * | None`) [C].
+- Configurações semânticas de categorias (Name | Shape | Color):
+  - `Development`: Quadrado, cor `LimeGreen` [C].
+  - `Production`: Círculo, cor `Tomato` [C].
+  - `Sandbox`: Triângulo, cor `DodgerBlue` [C].
+  - `Test`: Losango, cor `Orange` [C].
 
-### Environment > Documents / Tabs and Windows [C]
-- Intervalo de restauração de documentos abertos (`Restore Documents / Restore Last Closed Document`) [C].
-- Layout de abas: posição (topo/baixo), fechamento com botão do meio, limite de abas antes de agrupamento.
+### Environment > Tabs and Windows [C] (`re/original-observation/10-tools-options/08-env-tabs-windows-1803.png`)
+- **Document Tabs**:
+  - `Tab layout`: `Top` [C].
+  - `Tab orientation`: `Horizontal` [C].
+  - `Dirty indicator`: `Default (*)` [C].
+  - `Insert new tabs`: `First in the active group` [C].
+  - `[x] Display rich tooltips for documents`: ON [C].
+  - `[x] Bold text on selected tabs`: ON [C].
+  - `[ ] Show tabs in multiple rows`: OFF [C].
+  - `Maximum tab width`: `200` px [C].
+  - `[x] Close tabs with middle-click`: ON [C].
+  - `Show the 'Close' button`: `On the selected and hot-tracked document tabs` [C].
 
-### Environment > Output [C]
-- Configurações de logging da janela de saída: timestamps, log de consultas SQL executadas, retenção de mensagens.
+### Text Editor > General, Tabs, Advanced e Code Completion [C] (`re/original-observation/10-tools-options/10-text-editor-expanded-1803.png` a `17-cc-suggestions-1803.png`)
+- **General (`10`)**:
+  - `[x] Bracket matching`: ON.
+  - `[ ] Line numbers`: **OFF por padrão** na referência original (no TuxSQL habilitado por padrão para usabilidade dev).
+  - `[x] Indicator margin`: ON.
+  - `[x] Highlight current line`: ON.
+  - `[x] Automatically surround selections when typing quotes or brackets`: ON.
+- **Tabs (`11`)**:
+  - `Indenting`: `Block` [C].
+  - `Tab size`: `2`, `Indent size`: `2` [C].
+  - `(•) Insert spaces`: ON [C].
+- **Advanced (`12`)**:
+  - `[x] Enter outlining mode when files open`: ON [C].
+  - `[x] Collapse #REGION blocks when files open`: ON [C].
+  - `[x] Highlight SELECT statements`: ON [C].
+  - `[x] Underline errors in the editor`: ON [C].
+- **Code Completion (`13-17`)**:
+  - `[x] Enable Code Completion`: ON, trigger delay `200 ms` [C].
+  - `[x] Auto List Members`, `[x] Auto Parameter Info`, `[x] Highlight Occurrences`: ON [C].
+  - `Enclose identifiers in backticks`: `If backticking is required` [C].
+  - `[x] Generate alias on commit` [C].
+  - `Commit Selection`: `Tab` (Enter insere nova linha) [C].
 
-### Environment > SMTP Mail Profiles [C]
-- Configuração de servidores SMTP para envio de relatórios e notificações [C].
-- Host, porta, TLS/SSL, autenticação, credenciais salvas de forma segura no cofre do sistema (Secret Service / libsecret).
+### Text Editor > Formatting [C] (`re/original-observation/10-tools-options/18-te-formatting-1804.png`, `19-te-formatting-profiles-1804.png`)
+- `[x] Automatically format words while typing`: ON [C].
+- `Right Margin`: `80` [C].
+- Tags para desabilitar formatação em bloco de código: `-- noformat ... -- endnoformat` [C].
+- Notificações de erro: `[x] Put syntax errors to Output window`, `[x] Show syntax error notification window` [C].
+- Dicionário: arquivo `Dictionary.txt`, prefixos disponíveis: `tbl; fn; prc` [C].
+- Perfis de Formatação: `Default` (ativo por padrão), `Collapsed`, `Commas before`, `Compact`, `Extended`, `Indented`, `MSDN SQL`, `Right aligned`, `Stack compact` [C].
 
-### Text Editor > General / Code Completion [C]
-- Exibição de números de linha, word wrap, minimapa, guias de indentação, realce de delimitadores.
-- `Code Completion`: ativação automática, atraso em ms, case de palavras-chave inseridas (Upper/Lower/Preserve), snippets.
+### Data Editor > General [C] (`re/original-observation/10-tools-options/20-data-editor-1804.png`)
+- `[x] Automatically adjust column width`: ON [C].
+- `[ ] Use cached updates mode by default`: OFF [C].
+- `[x] Use paginal mode by default`: ON, com `Initial page size: 1000` [C].
+- `[ ] Show row numbers`: OFF [C].
+- `[x] Show datatype in data editor column header`: ON [C].
+- `Show dropdown LOB editor after`: `200` chars [C].
+- `Data Editing`: `(•) Open Data Editor in the read-only mode` (leitura por padrão) [C].
 
-### Data Editor [C]
-- `Activate Data editor after query execution`: Checkbox [C].
-- `Show datatype in data editor column header`: Checkbox [C].
-- Tamanho de página padrão (pageSize), formatação de NULL, datas e números.
+### Query Builder > General [C] (`re/original-observation/10-tools-options/21-query-builder-1804.png`)
+- `[x] Enable shadows`: ON [C].
+- `[x] Enable grid`: ON [C].
+- `Grid size`: `8` px [C].
+- `[x] Snap to grid`: ON [C].
 
-### Data Comparison & Schema Comparison [C]
-- Pastas de cache temporário (caminhos absolutos em `$XDG_CACHE_HOME/tuxsql`), estratégias de chave primária, timeouts e opções de sincronização.
+### Database Explorer > General [C] (`re/original-observation/10-tools-options/24-database-explorer-1804.png`)
+- `[x] Show detailed column name in Database Explorer`: ON [C].
+- `[ ] Show table size in Database Explorer`: OFF [C].
+- `Table and View Default Action`: `Open Object Editor` [C].
+- `Procedure and Function Default Action`: `Open Object Editor` [C].
+- `Preferred Selection Size`: `All Rows` [C].
 
-### Query Builder [C]
-- Opções visuais do canvas: `Show grid`, `Grid size` (8–64px), `Snap to grid`, `Shadows` nos cartões de tabela [C].
+### Query Profiler > General [C] (`re/original-observation/10-tools-options/02-options-dialog-1802.png`)
+- `Maximum history size`: `10` [C].
+- `Do not highlight differences less than`: `0,001000 s.` [C].
+- `[x] Display SQL query while printing profiling results`: ON [C].
+- `[x] Profile a query without caching (use SQL_NO_CACHE option)`: ON [C].
 
-### Source Control [C]
-- Perfil Git (autor, email), modo de vinculação padrão (Dedicated / Shared), pasta padrão de repositórios locais.
-
-### Debugging [C]
-- Confirmações de execução real, timeout de depuração de rotinas, comportamento de rollback transacional pós-sessão de depuração.
+### Debugging > General [C] (`re/original-observation/10-tools-options/22-debugging-1804.png`)
+- `Timeout`: `30 sec` [C].
+- `Edit and Continue`: `(•) Warn me if I make changes` [C].
 
 ## 3. Estados
 | Estado | Comportamento |

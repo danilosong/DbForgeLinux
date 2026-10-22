@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { assertSchemaUpdateScript, compareSchemas, createObject, diffTables, quoteIdentifier, SchemaIntrospector, type DatabaseModel, type TableModel } from '../../src/modules/schema/index.js'
+import { createSyncActionPlan, functionCharacteristicWarnings, groupSyncActionPlan } from '../../src/modules/schema/syncActionPlan.js'
 
 const table = (name: string, columns = ['id']): TableModel => ({
   kind: 'table', name,
@@ -9,6 +10,15 @@ const table = (name: string, columns = ['id']): TableModel => ({
 const database = (name: string, tables: TableModel[]): DatabaseModel => ({ kind: 'database', name, tables, views: [], procedures: [], functions: [], triggers: [], events: [] })
 
 describe('schema DDL and diff', () => {
+  it('groups individual sync actions and warns when a function omits its SQL characteristics', () => {
+    const script = 'START TRANSACTION; DROP TABLE `demo`.`old`; CREATE TABLE `demo`.`fresh` (`id` INT); CREATE FUNCTION `demo`.`f`() RETURNS INT RETURN 1; COMMIT;'
+    const actions = createSyncActionPlan(script)
+    const groups = groupSyncActionPlan(actions)
+    expect(groups.map((group) => group.title)).toEqual(['Start transaction', 'Drop tables', 'Create tables', 'Create functions', 'Commit'])
+    expect(groups.find((group) => group.title === 'Drop tables')?.actions).toHaveLength(1)
+    expect(functionCharacteristicWarnings(script)).toEqual(['Function f has no declared determinism or SQL data-access characteristic.'])
+    expect(functionCharacteristicWarnings('CREATE FUNCTION f() RETURNS INT DETERMINISTIC NO SQL RETURN 1;')).toEqual([])
+  })
   it('allows object DDL scripts while rejecting executable side statements from offline models', () => {
     expect(assertSchemaUpdateScript('CREATE TABLE `app`.`items` (`id` INT);')).toHaveLength(1)
     expect(assertSchemaUpdateScript('DELIMITER $$\nCREATE PROCEDURE p() BEGIN INSERT INTO t VALUES (1); END$$\nDELIMITER ;')).toHaveLength(1)

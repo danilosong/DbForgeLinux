@@ -38,14 +38,20 @@ try {
   await page.getByLabel('Host').fill('127.0.0.1')
   assert.equal(await nameField.inputValue(), 'Manual connection name', 'user edits stop automatic name updates')
   await page.getByRole('textbox', { name: 'Password' }).fill('intentionally-wrong-password')
-  const errorDialogPromise = page.waitForEvent('dialog')
   await dialog.getByRole('button', { name: 'Test Connection' }).click()
-  const errorDialog = await errorDialogPromise
-  const errorMessage = errorDialog.message()
-  await errorDialog.accept()
+  const errorDialog = page.getByRole('dialog', { name: 'Test Connection' })
+  await errorDialog.waitFor()
+  const errorMessage = await errorDialog.locator('.connection-error-message').innerText()
   assert.match(errorMessage, /Access denied|1045/)
+  assert.ok(!errorMessage.includes('Error invoking remote method'), 'IPC method names are not shown to users')
   assert.ok(!errorMessage.includes('intentionally-wrong-password'), 'server error never reveals entered password')
+  for (const theme of ['light', 'dark']) {
+    await page.evaluate((value) => { document.documentElement.dataset.theme = value }, theme)
+    await page.screenshot({ path: join(evidenceRoot, `connection-error-${theme}.png`) })
+  }
+  await errorDialog.getByRole('button', { name: 'OK' }).click()
 
+  if (process.env.TUXSQL_CONNECTION_ERROR_ONLY !== '1') {
   await page.getByRole('textbox', { name: 'Password' }).fill(process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only')
   await dialog.getByRole('button', { name: 'Test Connection' }).click()
   await page.getByText(/Successfully connected\. Server version:/).waitFor()
@@ -86,6 +92,7 @@ try {
       if (tab === 'HTTP') assert.ok(await page.getByLabel('Use Base64 encoding').count())
       await page.screenshot({ path: join(evidenceRoot, `connection-${tab.toLowerCase()}-${theme.toLowerCase()}.png`) })
     }
+  }
   }
   console.log(`Connection dialog screenshots saved in ${evidenceRoot}`)
 } finally {

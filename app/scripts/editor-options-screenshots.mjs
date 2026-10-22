@@ -12,7 +12,7 @@ const evidenceRoot = join(process.cwd(), '..', 'document', 'evidence', 'ui', '04
 let app
 try {
   await mkdir(evidenceRoot, { recursive: true })
-  app = await electron.launch({ executablePath: appPath, args: [], env: { ...process.env, LANGUAGE: 'en', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
+  app = await electron.launch({ executablePath: appPath, args: [], env: { ...process.env, HOME: dataRoot, LANGUAGE: 'en', LANG: 'en_US.UTF-8', LC_ALL: 'en_US.UTF-8', XDG_CONFIG_HOME: join(dataRoot, 'config'), XDG_CACHE_HOME: join(dataRoot, 'cache'), XDG_DATA_HOME: join(dataRoot, 'data'), XDG_STATE_HOME: join(dataRoot, 'state'), ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' } })
   const page = await app.firstWindow()
   await page.locator('.workbench').waitFor()
   const setTheme = async (theme) => {
@@ -62,6 +62,17 @@ try {
   await page.getByText('Maximum profile history entries', { exact: true }).waitFor()
   await page.locator('.options-layout').evaluate((element) => { element.scrollTop = 0 })
   await capture('options-profiler-light.png')
+  await page.locator('.panel-dialog-close').click()
+  for (const theme of ['light', 'dark']) {
+    await setTheme(theme)
+    await openOptions()
+    const debuggingGroup = page.locator('.options-tree-group').filter({ hasText: 'Debugging' })
+    await debuggingGroup.getByRole('button', { name: 'General', exact: true }).click()
+    await page.getByText('Debugging session timeout (seconds)', { exact: true }).waitFor()
+    await capture(`options-debugging-${theme}.png`)
+    await page.locator('label.options-field').filter({ hasText: 'Debugging session timeout (seconds)' }).screenshot({ path: join(evidenceRoot, `options-debugging-setting-${theme}.png`) })
+    await page.locator('.panel-dialog-close').click()
+  }
   console.log(`Editor and Options screenshots saved in ${evidenceRoot}`)
 } finally {
   if (app) {

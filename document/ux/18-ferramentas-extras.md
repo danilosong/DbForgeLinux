@@ -1,9 +1,14 @@
 # UX 18 — Ferramentas extras
 
-Reusa `01-shell.md`, `03`, `06`, `07`. **[I]** INFERIDO (sessão anterior / REA).
+> Fidelidade REA & Observação VM: rótulos conferidos contra REA ui-text e **observação direta da VM de referência `dbforge-ref`** (dbForge Studio for MySQL v2026.2.82, capturas em `re/original-observation/10-tools-options/`, `re/original-observation/12-start-menus-erros/` e `re/original-observation/05-data-generator/`).
+- **[C] Menu Tools e Utilitários (`10-tools-options/01-tools-menu-1802.png`):** SQL Formatter, Snippets Manager, Skin, Import and Export Settings, Options.
+- **[C] Snippets Manager (`10-tools-options/26-snippets-manager-1804.png`):** Janela completa com árvore de snippets categorizados (Alter, Create, Begin, Case...), editor de template, variáveis `$database_name$` e literais CARET, DATE, TIME, USER, DB, SERVER.
+- **[C] SQL Formatter Wizard (`10-tools-options/27-sql-formatter-1805.png`, `28-formatter-cancel-1805.png`):** Assistente modal de formatação em lote nos modos Files e Directories.
+- **[C] Start Page Categorizada (`12-start-menus-erros/01-start-page-1807.png` a `08-start-data-analysis-1808.png`):** Painel Recent Files à esquerda e abas de categorias à direita: SQL Development (`02`), Database Design (`03`), Database Sync (`05`), Administration (`07`), Data Pump (`01`), Data Analysis (`08`).
+- **[C] Document Outline (`12-start-menus-erros/14-menu-view-1809.png`):** Listado no menu View (`Ctrl+W, U`).
+- **[C] Menu Database e Ferramentas (`05-data-generator/02-menu-database-1747.png`):** Atalhos de acorde Find Object (`Ctrl+D, F`), Security Manager (`Ctrl+D, Q`), Session Manager (`Ctrl+D, S`), Server Variables (`Ctrl+D, V`), Service Control (`Ctrl+D, R`).
 
-**Fontes consultadas:** https://docs.devart.com/studio-for-mysql/ (Database > Tasks; Find Invalid Objects; SQL Search; Code Analysis; Copy Databases; Backup/Restore; Service Control; Start Page; Toolbox; Document Outline; Snippets), catálogo interno `re/ui-strings/ui-text.txt` e notas de sessão anterior em `re/original-observation/NOTES.md` #11 e #19.
-Auditoria de origem de evidência: **(b) Sessão anterior / (c) Inferência/REA**. Nenhuma captura foi feita na sessão corrente; pendente de confirmação por novas capturas da Lupa.
+Reusa `01-shell.md`, `03`, `06`, `07`.
 
 ## 1. Find Invalid Objects [I: sessão anterior]
 - Entrada: Database Explorer > database > **Tasks > Find Invalid Objects** ou menu Database > Tasks > Find Invalid Objects (`Ctrl+Alt+F`).
@@ -26,12 +31,20 @@ Auditoria de origem de evidência: **(b) Sessão anterior / (c) Inferência/REA*
 - **Restore Database Wizard:**
   - Seleção de arquivo `.sql` / `.sql.gz`, validação de compatibilidade com o servidor alvo e barra de progresso por linha/bloco executado.
 
-## 4. Service Control [C: observado na VM]
-- Entrada: Atalho de acorde `Ctrl+D, R` ou menu Tools > Service Control.
+## 4. Service Control [C: observado na VM; adaptado ao Linux]
+- Entrada: Atalho de acorde `Ctrl+D, R` ou menu Database > Service Control.
 - Documento de monitoramento de serviços locais:
   - No Linux, adapta-se aos daemons do `systemd` (`mysql.service`, `mysqld.service`, `mariadb.service`).
   - Colunas: Nome do Serviço | Estado (● Ativo / Parado / Falha) | Inicialização no Boot.
-  - Comandos: `[Start]`, `[Stop]`, `[Restart]`, `[Refresh]` com confirmação modal e elevação segura via `polkit`.
+  - Ações: Start, Stop, Restart, Enable e Disable exigem digitar a ação e o nome exato da unidade; a autorização privilegiada é entregue ao `pkexec`/polkit. A aplicação nunca solicita a senha do sistema.
+  - Logs recentes são lidos pelo `journalctl`, limitados e sem ação de escrita.
+  - Em ambiente sem systemd (incluindo containers ou WSL), exibe aviso e mantém a consulta em modo somente leitura.
+
+### 4.1 Servidor local descartável (adaptação de Embedded)
+- A aba Embedded informa que `libmysqld` não está disponível e abre o painel de servidor local descartável.
+- O TuxSQL detecta Docker ou Podman com daemon disponível. Sem engine ativo, criação fica desabilitada e a tela explica o requisito.
+- A instância recebe porta aleatória publicada somente em `127.0.0.1`, volume anônimo e senha aleatória temporária. O perfil de conexão só é persistido após ação explícita e a senha fica no cofre protegido do TuxSQL.
+- Remover exige digitar o nome do container e apaga container e volume associado.
 
 ## 5. Start Page e Document Outline [C: observado na VM]
 - **Start Page:** Documento inicial exibindo ações rápidas (New SQL, New Connection, Open File, Open Project), histórico de conexões recentes com status de reconexão e lista de arquivos `.sql` recentes.

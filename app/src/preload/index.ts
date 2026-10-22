@@ -1,5 +1,6 @@
 import { contextBridge } from 'electron'
 import type { TuxSqlApi } from '../shared/contracts.js'
+import { normalizeApiRejections } from '../shared/normalizeIpcError.js'
 import { connectionsApi } from './api/connections.js'
 import { sqlApi } from './api/sql.js'
 import { securityApi } from './api/security.js'
@@ -22,6 +23,7 @@ import { dataReportPivotApi } from './api/data-report-pivot.js'
 import { aiAssistantApi } from './api/ai-assistant.js'
 import { routineDebuggerApi } from './api/routine-debugger.js'
 import { serviceControlApi } from './api/service-control.js'
+import { localServerApi } from './api/local-server.js'
 import { codeAnalysisApi } from './api/code-analysis.js'
 import { gridEditingApi } from './api/grid-editing.js'
 import { gridDataApi } from './api/grid-data.js'
@@ -30,5 +32,5 @@ import { aboutApi } from './api/about.js'
 import { updaterApi } from './api/updater.js'
 import { startupApi } from './api/startup.js'
 import { tasksApi } from './api/tasks.js'
-const api:TuxSqlApi={...connectionsApi,...sqlApi,...securityApi,...sessionsApi,...profilerApi,...dataGeneratorApi,...documenterApi,...schemaCompareApi,...dataCompareApi,...importExportApi,...erDiagramApi,...queryBuilderApi,...editorApi,...historyApi,...sourceControlApi,...objectEditorsApi,...optionsApi,...databaseToolsApi,...dataReportPivotApi,...aiAssistantApi,...routineDebuggerApi,...tasksApi,...serviceControlApi,...codeAnalysisApi,...gridEditingApi,...gridDataApi,...extraToolsApi,...aboutApi,...updaterApi,...startupApi}
+const api:TuxSqlApi=normalizeApiRejections({...connectionsApi,...sqlApi,...securityApi,...sessionsApi,...profilerApi,...dataGeneratorApi,...documenterApi,...schemaCompareApi,...dataCompareApi,...importExportApi,...erDiagramApi,...queryBuilderApi,...editorApi,...historyApi,...sourceControlApi,...objectEditorsApi,...optionsApi,...databaseToolsApi,...dataReportPivotApi,...aiAssistantApi,...routineDebuggerApi,...tasksApi,...serviceControlApi,...localServerApi,...codeAnalysisApi,...gridEditingApi,...gridDataApi,...extraToolsApi,...aboutApi,...updaterApi,...startupApi})
 contextBridge.exposeInMainWorld('tuxsql',api)

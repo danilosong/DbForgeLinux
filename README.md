@@ -19,12 +19,12 @@
 **Progresso do projeto** · atualizado em 2026-10-21
 
 ```text
-Cobertura de funcionalidades de referência  ██████████████████░░  92,7%
+Cobertura de funcionalidades de referência  ███████████████████░  94,9%
 Módulos implementados e testados            ████████████████████   100%  (20 de 20)
-Specs de UX verificadas contra evidência    ████████████████████   100%  (20 de 20)
+Specs de UX verificadas contra evidência    ████████████████░░░░    79%  (15 de 19)
 ```
 
-<sub>Implementação independente, não é cópia nem produto afiliado a terceiros (ver LEGAL.md). A cobertura é medida contra evidência real: 195 capturas do produto de referência feitas em VM, com checagem por amostra. A nova medição, mais rigorosa, trouxe o número de 95,3% para 92,7%, porque a observação revelou diferenças antes ignoradas; o trabalho atual fecha essas lacunas (docking, Report, Data Generator, ER, Debugger).</sub>
+<sub>Implementação independente, não é cópia nem produto afiliado a terceiros (ver LEGAL.md). A cobertura é medida contra evidência real: mais de 800 capturas do produto de referência feitas em VM, com checagem por amostra. Itens que dependem do Windows ou de serviços externos viram adaptações para Linux (systemd, Docker/Podman, agendamento por systemd timers/cron) ou diferenças intencionais por segurança, e ficam registrados em <code>document/paridade/</code>. Specs de UX só contam como verificados quando citam capturas existentes.</sub>
 <!-- PROGRESS:END -->
 
 ---

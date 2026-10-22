@@ -2,6 +2,12 @@ import type { ObjectEditorTarget } from '../../shared/contracts/object-editors.j
 import { createTable, diffTables, quoteIdentifier } from '../schema/index.js'
 import type { TableModel } from '../schema/model.js'
 
+export async function objectDefinitionFingerprint(value: string | TableModel): Promise<string> {
+  const bytes = new TextEncoder().encode(typeof value === 'string' ? value : JSON.stringify(value))
+  const digest = await crypto.subtle.digest('SHA-256', bytes)
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('')
+}
+
 export function buildObjectTemplate(target: ObjectEditorTarget): string {
   const name = `${quoteIdentifier(target.database)}.${quoteIdentifier(target.name)}`
   if (target.kind === 'view') return `CREATE OR REPLACE VIEW ${name} AS\nSELECT 1 AS id;`

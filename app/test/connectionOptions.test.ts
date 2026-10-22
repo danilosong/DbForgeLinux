@@ -3,6 +3,11 @@ import { createDefaultConnection } from '../src/shared/connectionDefaults.js'
 import { buildMysqlOptions, buildSshOptions, buildSslOptions } from '../src/main/db/connectionOptions.js'
 
 describe('connection option builders', () => {
+  it('keeps the observed connection defaults at 15s, unlimited execution and 240s ping', () => {
+    const defaults = createDefaultConnection('defaults')
+    expect(defaults.advanced).toMatchObject({ connectionTimeoutSeconds: 15, commandTimeoutSeconds: 0, pingTimeoutSeconds: 240, charset: 'utf8mb4' })
+  })
+
   it('builds verified TLS options with certificates and identity checks', async () => {
     const options = await buildSslOptions({
       mode: 'verify-identity',

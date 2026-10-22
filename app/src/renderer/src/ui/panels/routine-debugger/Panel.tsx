@@ -29,6 +29,7 @@ export default function RoutineDebuggerPanel(): React.JSX.Element {
   const [parameters, setParameters] = useState<DebugRoutineParameter[]>([])
   const [parametersOpen, setParametersOpen] = useState(false)
   const [showAfterExecute, setShowAfterExecute] = useState(true)
+  const [timeoutSeconds, setTimeoutSeconds] = useState(30)
   const [outputDialogOpen, setOutputDialogOpen] = useState(false)
   const [autocommit, setAutocommit] = useState(true)
   const [engine, setEngine] = useState<{ installed: boolean; activeSessions: number; version?: string }>({ installed: false, activeSessions: 0 })
@@ -41,6 +42,8 @@ export default function RoutineDebuggerPanel(): React.JSX.Element {
   const snapshotRef = useRef<DebugSnapshot | null>(null)
   const target = useMemo(() => ({ connectionId: connectedId, database, name: routineName, kind: objectKind }), [connectedId, database, routineName, objectKind])
   const activeSessionCount = Math.max(engine.activeSessions, snapshot && ['running', 'paused'].includes(snapshot.status) ? 1 : 0)
+
+  useEffect(() => { void window.tuxsql.loadSettings().then(({ settings }) => setTimeoutSeconds(settings.debugging.timeoutSeconds)).catch(() => undefined) }, [])
 
   const loadRoutines = useCallback(async (id: string, db: string): Promise<void> => {
     if (!id || !db) { setRoutines([]); return }
@@ -162,7 +165,7 @@ export default function RoutineDebuggerPanel(): React.JSX.Element {
     try {
       const values = parameters.length ? parameters.filter((item) => item.direction !== 'OUT').map((item) => item.nullValue ? null : item.value) : args.trim() ? args.split(',').map((item) => item.trim()) : []
       const outputDefinitions = parameters.map(({ name, type, direction, value, nullValue }) => ({ name, type, direction, value: direction === 'OUT' || nullValue ? null : value }))
-      const result = await window.tuxsql.startRoutineDebug(target, values, breakpoints, autocommit, true, objectKind === 'trigger' ? triggerSql : undefined, outputDefinitions, showAfterExecute)
+      const result = await window.tuxsql.startRoutineDebug(target, values, breakpoints, autocommit, true, objectKind === 'trigger' ? triggerSql : undefined, outputDefinitions, showAfterExecute, timeoutSeconds)
       if (watches.length) await window.tuxsql.setRoutineDebugWatches(result.sessionId, watches)
     const started = await window.tuxsql.getRoutineDebugSnapshot(result.sessionId)
     snapshotRef.current = started; setSnapshot(started); setMessage('Routine session started; paused on its first executable statement.')

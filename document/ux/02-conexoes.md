@@ -1,6 +1,6 @@
 # UX 02 — Conexões
 
-**Fidelidade REA & Observação VM:** rótulos conferidos contra REA ui-text e **observação direta da VM de referência `dbforge-ref`** (dbForge Studio for MySQL v2026.2.82, capturas em `/tmp/vm_tab_*.png`, `re/original-observation/01-conexao/` e `re/original-observation/p2-01-erros-conexao/`).
+**Fidelidade REA & Observação VM:** rótulos conferidos contra REA ui-text e **observação direta da VM de referência `dbforge-ref`** (dbForge Studio for MySQL v2026.2.82, capturas em `re/original-observation/01-conexao/` e `re/original-observation/p2-01-erros-conexao/`).
 - **[C]** (Confirmada na VM e REA ui-text): Database Connection Properties, Test Connection, Connection Manager, Allow saving password, Allow saving passphrase, Use security protocol (SSL / SSH), Fingerprint:, Key file:, Private key:, Passphrase:, Authentication type: (Password authentication / Public key authentication), Keyboard Interactive Mode, Keep connection alive, Ping timeout, Connection timeout:, Execute timeout:, Detect MySQL character set, Use compression, Environment Category, Show all databases, HTTP tunnel (Base64, Keep alive, credentials, proxy).
 - **[C] Erros e Mensagens Reais de Conexão (`p2-01`):** Erro 1045 com senha incorreta (`re/original-observation/p2-01-erros-conexao/05-wrong-password-result-1812.png`), Erro 2003 de porta recusada (`re/original-observation/p2-01-erros-conexao/03-erro-2003-porta-3-recusada-1811.png`), Erro 2003 de host desconhecido (`re/original-observation/p2-01-erros-conexao/07-host-result-1812.png`), Erro 2003 de timeout com spinner de espera (`re/original-observation/p2-01-erros-conexao/13-timeout-waiting-1813.png`, `14-timeout-result-1813.png`), Aviso modal sem database padrão (`re/original-observation/p2-01-erros-conexao/15-connect-wrong-password-1814.png`), criação do nó no Explorer após falha de Connect (`re/original-observation/p2-01-erros-conexao/17-after-cancel-1814.png`), menu de contexto (`re/original-observation/p2-01-erros-conexao/18-failed-connection-node-context-1814.png`) e diálogo de confirmação de exclusão (`re/original-observation/p2-01-erros-conexao/19-delete-connection-confirm-1815.png`).
 - Atalho original de New Connection: `Ctrl+D, Ctrl+N` (**REA shortcuts**); `Ctrl+Shift+N` no clone mantido como atalho universal Linux alternativo.
@@ -127,7 +127,7 @@ Tunelamento via script HTTP (`tunnel.php`):
 ### 2.5 Aba Embedded
 
 - No produto original Windows: oferece `☐ Use embedded server`, `☑ Use my.ini file`, `Base folder` e `Data folder` para inicializar instâncias locais `libmysqld`.
-- **Divergência de Plataforma Linux Documentada:** A biblioteca `libmysqld` foi depreciada e removida no MySQL moderno, sendo inaplicável e instável no Linux. O TuxSQL mantém a aba desabilitada com aviso explícito de indisponibilidade no Linux, documentado em `document/paridade/F-CON.md`.
+- **Adaptação para Linux:** `libmysqld` não é carregada. A aba informa essa diferença e oferece abrir o painel **Servidor local descartável**, que cria MySQL/MariaDB via Docker ou Podman com porta de loopback, armazenamento efêmero e perfil opcional salvo pelo TuxSQL; detalhes e limites em `document/paridade/F-CON.md`.
 
 ---
 

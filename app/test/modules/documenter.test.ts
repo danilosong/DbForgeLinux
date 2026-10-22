@@ -122,17 +122,27 @@ describe('documenter', () => {
     expect(output.markdown).not.toContain('PRIMARY (PRIMARY)')
   })
 
+  it('offers the nine documented HTML themes and excludes unchecked tables in HTML and Markdown', () => {
+    for (const palette of ['default', 'bootstrap', 'cerulean', 'cyborg', 'default-dark', 'flatly', 'journal', 'paper', 'yeti'] as const) {
+      expect(generateDocumentation(model, { palette }).html).toContain('Database: <strong>sample&lt;db&gt;</strong>')
+    }
+    const output = generateDocumentation(model, { excludedTables: ['users'] })
+    expect(output.html).not.toContain('id="table-users"')
+    expect(output.markdown).not.toContain('Table: users')
+  })
+
   it('writes HTML, Markdown, SVG and PDF bytes through the isolated printer interface', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'tuxsql-doc-'))
     const printToPDF = vi.fn(async (html: string) => Buffer.from(`PDF:${html.length}`))
     try {
-      const output = await writeDocumentation(model, { outputDirectory: directory, includeDiagram: true, formats: ['html', 'markdown', 'pdf'], pdfPrinter: { printToPDF } })
+      const output = await writeDocumentation(model, { outputDirectory: directory, includeDiagram: true, formats: ['html', 'markdown', 'pdf'], pdfOrientation: 'landscape', pdfFontScale: 125, pdfPageNumbers: true, pdfPrinter: { printToPDF } })
       expect(output.html).toBeDefined(); expect(output.markdown).toBeDefined(); expect(output.pdf).toBeDefined(); expect(output.diagram).toBeDefined()
       expect((await readFile(output.html!, 'utf8')).startsWith('<!doctype html>')).toBe(true)
       expect((await readFile(output.markdown!, 'utf8')).startsWith('---\ntitle: Database documentation:')).toBe(true)
       expect((await readFile(output.pdf!)).subarray(0, 4).toString()).toBe('PDF:')
       expect((await readFile(output.diagram!, 'utf8')).startsWith('<svg')).toBe(true)
       expect(printToPDF).toHaveBeenCalledOnce()
+      expect(printToPDF).toHaveBeenCalledWith(expect.stringContaining('font-size:125%'), expect.objectContaining({ pageSize: 'A4', landscape: true, displayHeaderFooter: true, footerTemplate: expect.stringContaining('pageNumber') }))
     } finally { await rm(directory, { recursive: true, force: true }) }
   })
 

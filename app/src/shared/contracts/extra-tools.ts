@@ -13,6 +13,7 @@ export interface ExtraToolsApi {
   importUserSnippets(locale: 'en' | 'pt-BR'): Promise<{ count: number } | null>
   exportUserSnippets(locale: 'en' | 'pt-BR'): Promise<string | null>
   getBackupSchedules(): Promise<import('../../modules/database-tools/scheduler.js').BackupSchedule[]>
+  getFailedBackupSchedules(): Promise<string[]>
   saveBackupSchedule(schedule: Partial<import('../../modules/database-tools/scheduler.js').BackupSchedule>): Promise<import('../../modules/database-tools/scheduler.js').BackupSchedule>
   deleteBackupSchedule(id: string): Promise<void>
 }

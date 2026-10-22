@@ -76,4 +76,14 @@ describe('ER diagram module', () => {
     expect(JSON.parse(await readFile(join(folder, 'conn--shop.relations.json'), 'utf8'))).toEqual([relation])
     await expect(store.write('conn', 'shop', [{ ...relation, toColumns: [] }])).rejects.toThrow(/invalid/i)
   })
+  it('round trips sticky notes and grouping containers, with bounded imported content', () => {
+    const diagram = buildDiagram(schema, 'connection-a')
+    diagram.containers = [{ id: 'group-1', title: 'Orders', position: { x: 12, y: 24 }, width: 360, height: 240 }]
+    diagram.notes = [{ id: 'note-1', text: 'Review the join path', position: { x: 18, y: 28 } }]
+    const restored = deserializeDiagram(serializeDiagram(diagram))
+    expect(restored.containers).toEqual(diagram.containers)
+    expect(restored.notes).toEqual(diagram.notes)
+    expect(() => deserializeDiagram(JSON.stringify({ ...diagram, notes: [{ ...diagram.notes[0], text: 'x'.repeat(501) }] }))).toThrow('Diagram deserialization failed.')
+  })
+
 })

@@ -13,6 +13,7 @@ export const extraToolsApi: ExtraToolsApi = {
   importUserSnippets: (locale) => ipcRenderer.invoke('snippets:import', locale),
   exportUserSnippets: (locale) => ipcRenderer.invoke('snippets:export', locale),
   getBackupSchedules: () => ipcRenderer.invoke('database-tools:schedule:list'),
+  getFailedBackupSchedules: () => ipcRenderer.invoke('database-tools:schedule:failed'),
   saveBackupSchedule: (schedule) => ipcRenderer.invoke('database-tools:schedule:save', schedule),
   deleteBackupSchedule: (id) => ipcRenderer.invoke('database-tools:schedule:delete', id)
 }

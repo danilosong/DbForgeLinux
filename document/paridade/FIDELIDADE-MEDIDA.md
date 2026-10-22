@@ -6,6 +6,7 @@
 > **Data de Medição (Rodada 4 — Consolidação Gaps 1–30):** 21 de outubro de 2026  
 > **Data de Medição (Rodada 5 — Consolidação de Card View, Custom Query, ER Overview e Tasks):** 21 de outubro de 2026  
 > **Data de Medição (Rodada 6 — Bookmarks, Pivot Chart, Split Sincronizado, Regex Explorer e Finish Wizard):** 21 de outubro de 2026  
+> **Data de Medição (Rodada 7 — Agendamento de Backup adaptado para Linux, estado da execução e timer real):** 21 de outubro de 2026
 > **Avaliador:** Agente Prisma (Especialista UX/UI)  
 > **Referência Comparativa:** Observação em laboratório do dbForge Studio for MySQL v2026.2.82 (`re/original-observation/NOTES.md` seções 00–27 e acervo de 116+ capturas originais na VM)  
 > **Documentos de Lacunas da VM:** `document/paridade/GAPS-VARREDURA-VM.md` e `document/paridade/DIVERGENCIAS-ORIGINAL.md`  
@@ -84,9 +85,9 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 6 | Dropdown de Database com botão de atualização e opção "Show all databases" | IGUAL | 1,0 | `01-connection/connection-general-dark.png` |
 | 7 | Configuração de Keep-Alive (padrão 240s) e detecção de charset | IGUAL | 1,0 | `01-connection/connection-advanced-dark.png` |
 | 8 | Túnel HTTP (Base64, keep-alive, proxy) e SSH Tunnel embutido | IGUAL | 1,0 | `01-connection/connection-http-dark.png`, `app/test/SshTunnel.test.ts` |
-| 9 | Suporte a conexões locais Embedded (libmysqld embutido) | AUSENTE | 0,0 | `01-connection/connection-advanced-dark.png` (indisponível no Linux) |
+| 9 | Acesso a banco local isolado substituindo Embedded/libmysqld | ADAPTADA PARA LINUX | 1,0 | `connection-embedded-{light,dark}.png`; container MySQL real em execução em `local-server-{light,dark}.png`; roteiro confirma remoção do container e volume; `app/test/modules/local-server.test.ts` cobre bind loopback, volume temporário e senha no cofre após ação explícita de criar perfil |
 
-- **Subtotal Módulo 01:** 8,0 / 9,0 = **88,89%**
+- **Subtotal Módulo 01:** 9,0 / 9,0 = **100,00%** *(adaptação Linux comprovada; libmysqld não é executado)*
 
 ---
 
@@ -142,10 +143,10 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 9 | Comandos de refatoração avançada (Expand wildcards por alias, Add Backticks, Qualify names, Rename F2) | IGUAL | 1,0 | `04-sql-editor/editor-context-dark.png`, `app/src/modules/editor/refactoring.test.ts` |
 | 10 | Marcadores de navegação Bookmarks (Ctrl+B,x) e dobras de código Outlining (Ctrl+M,x) | IGUAL | 1,0 | `app/test/modules/editor-navigation.test.ts`, `App.tsx:641` (Ctrl+B,T/P/N/C e Ctrl+M,M/L/P/S) *(implementado em R6!)* |
 | 11 | Execução até o cursor e encaminhamento de Run To Cursor ao depurador | IGUAL | 1,0 | Já existente: `App.tsx:695-696`; atalhos em `app/test/modules/keymap-parity.test.ts` |
-| 12 | Jump Between Syntax Pairs (`Ctrl+F12`) | PARCIAL | 0,5 | Já existente como `editor.action.jumpToBracket`; cobertura de atalho em `app/test/modules/keymap-parity.test.ts`; não salta por blocos `BEGIN`/`END` |
+| 12 | Jump Between Syntax Pairs (`Ctrl+F12`), incluindo blocos `BEGIN`/`END` | IGUAL | 1,0 | `app/test/modules/editor-block-pairs.test.ts` verifica pares aninhados e `END IF`; capturas claro/escuro `04-editor-options/editor-begin-end-{light,dark}.png` |
 | 13 | Dicas de parâmetros interativas com argumento corrente destacado | PARCIAL | 0,5 | 13 assinaturas comuns implementadas; `app/test/modules/editor-signature-help.test.ts`; capturas `document/evidence/ui/04-editor-options/parameter-info-{light,dark}.png`; rotinas próprias/funções completas do servidor não cobertas |
 
-- **Subtotal Módulo 04:** 12,0 / 13,0 = **92,31%** *(10 critérios anteriores mais as lacunas E1–E3 verificadas nesta rodada)*
+- **Subtotal Módulo 04:** 12,5 / 13,0 = **96,15%** *(10 critérios anteriores mais as lacunas E1–E3 verificadas nesta rodada)*
 
 ---
 
@@ -242,9 +243,10 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 4 | Algoritmo de posicionamento com prevenção de sobreposição de cartões | IGUAL | 1,0 | `app/test/modules/er-diagram.test.ts` |
 | 5 | Minimapa flutuante no canto inferior do canvas; arrastar viewport reposiciona o diagrama | IGUAL | 1,0 | `09-11-generator-er/er-diagram-overview-light.png`, `er-diagram-overview-dark.png`; `app/scripts/data-generator-er-screenshots.mjs` valida o arraste |
 | 6 | Relações Virtuais desenhadas em linha tracejada | AUSENTE | 0,0 | Sem evidência confirmada da referência autorizada nesta rodada; a implementação existente no clone não é usada como prova de paridade |
-| 7 | Exportação de imagem do diagrama para formatos adicionais | PARCIAL | 0,5 | Captura mostra SVG, PNG, JPG e BMP; `app/test/modules/er-diagram-bitmap.test.ts` valida o encoder BMP. GIF, TIFF e EMF não estão disponíveis |
+| 7 | Exportação de imagem do diagrama para formatos adicionais | PARCIAL | 0,5 | Captura mostra SVG, PNG, JPG, BMP e TIFF; `app/test/modules/er-diagram-bitmap.test.ts` valida BMP/TIFF. GIF não foi incluído; EMF fora do escopo |
+| 8 | Containers para agrupar elementos e notas adesivas editáveis no canvas | IGUAL | 1,0 | `app/test/modules/er-diagram.test.ts` valida persistência e limites de conteúdo; `09-11-generator-er/er-diagram-overview-light.png`, `er-diagram-overview-dark.png` |
 
-- **Subtotal Módulo 11:** 5,5 / 7,0 = **78,57%**
+- **Subtotal Módulo 11:** 6,5 / 8,0 = **81,25%**
 
 ---
 
@@ -257,9 +259,9 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 2 | Abas Profile (etapas/duração/soma), Plan (EXPLAIN tabular) e Plan Diagram (blocos visuais) | IGUAL | 1,0 | `ui/12-profiler-plan-canvas/plan-diagram-light.png`, `ui/12-profiler-plan-canvas/plan-diagram-dark.png`, `app/test/modules/profiler.test.ts` |
 | 3 | Aba Session Statistics com delta de contadores e descrições para variáveis comuns | PARCIAL | 0,5 | `app/test/modules/profiler.test.ts`; catálogo parcial em `app/src/modules/profiler/statusDescriptions.ts` |
 | 4 | Barra de status fiel com tempo decorrido e feedback de cancelamento | IGUAL | 1,0 | `sql-editor-dark.png` |
-| 5 | Comparador visual dedicado de histórico de perfis em duas colunas | PARCIAL | 0,5 | `app/test/modules/profiler.test.ts` |
+| 5 | Comparação de 2 a 5 execuções recentes com duração, plano e contadores em colunas | IGUAL | 1,0 | `12-profiler-plan-canvas/comparison-five-light.png`, `comparison-five-dark.png`; `app/scripts/profiler-compare-screenshots.mjs` verifica cinco seleções e renderização |
 
-- **Subtotal Módulo 12:** 4,0 / 5,0 = **80,00%**
+- **Subtotal Módulo 12:** 4,5 / 5,0 = **90,00%**
 
 ---
 
@@ -287,9 +289,9 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 1 | Diálogo com árvore hierárquica, campo de busca e botão Restore Defaults por página | IGUAL | 1,0 | `options-dark.png` |
 | 2 | Categorias de Aparência, Inicialização, Query Builder e Data Comparison | IGUAL | 1,0 | `options-general-dark.png`, `options-query-builder-dark.png` |
 | 3 | Omissão voluntária de telemetria por respeito à privacidade do usuário | IGUAL | 1,0 | `document/paridade/DIVERGENCIAS-ORIGINAL.md` |
-| 4 | Defaults de startup, Editor, Explorer, Query Builder, Data Editor e Profiler alinhados aos valores verificados | PARCIAL | 0,5 | `app/test/modules/options.test.ts`; `document/evidence/ui/04-editor-options/options-startup-{light,dark}.png`, `options-profiler-{light,dark}.png`; o timeout de 30 s do Debugging permanece sem opção equivalente |
+| 4 | Defaults verificados de startup, Editor, Explorer, Query Builder, Data Editor, Profiler e timeout do Debugging | IGUAL | 1,0 | `app/test/modules/options.test.ts`, `app/test/modules/routine-debugger-timeout.test.ts`; `options-debugging-setting-{light,dark}.png` comprova o padrão de 30 s e o controle configurável |
 
-- **Subtotal Módulo 14:** 3,5 / 4,0 = **87,50%**
+- **Subtotal Módulo 14:** 4,0 / 4,0 = **100,00%**
 
 ---
 
@@ -312,12 +314,14 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 
 | # | Item Verificável | Avaliação | Nota | Evidência no Clone |
 |---|---|---|:---:|---|
-| 1 | Database Documenter com árvore de objetos, seleção granular de colunas e designer de capa com prévia | PARCIAL | 0,5 | `ui/16-documenter-cover-designer/cover-designer-light.png`, `ui/16-documenter-cover-designer/cover-designer-dark.png`; a prévia não é WYSIWYG editável |
-| 2 | Geração em HTML, Markdown e PDF em diretório timestamp com abertura automática | IGUAL | 1,0 | `app/test/modules/documenter.test.ts`; smoke da CLI produziu PDF `%PDF-` por Chromium headless |
-| 3 | Automação e execução em lote via linha de comando (CLI) | PARCIAL | 0,5 | `app/test/modules/documenter.test.ts`, `npm run documenter:cli -- --help` (compilação e ajuda; conexão real requer integração) |
-| 4 | Gerenciador visual de tarefas recentes integrado na interface (Tasks Explorer via View > Tasks e Database > Tasks) | IGUAL | 1,0 | `DIVERGENCIAS-ORIGINAL.md:70`, `:71` *(implementado em R5!)* |
+| 1 | Árvore do Documenter com seleção por checkbox de objetos, colunas e índices | IGUAL | 1,0 | `app/test/modules/documenter.test.ts`; a seleção de tabela agora também exclui esse objeto de HTML/Markdown |
+| 2 | Designer de capa WYSIWYG no documento `.ddoc` | PARCIAL | 0,5 | `ui/16-documenter-cover-designer/cover-designer-light.png`, `ui/16-documenter-cover-designer/cover-designer-dark.png`; a prévia não é editável diretamente |
+| 3 | Geração em HTML, Markdown e PDF com timestamp e abertura automática | IGUAL | 1,0 | `app/test/modules/documenter.test.ts`; smoke da CLI produziu PDF `%PDF-` por Chromium headless; timestamp e abertura já existiam |
+| 4 | Automação e execução em lote via linha de comando (CLI) | PARCIAL | 0,5 | `app/test/modules/documenter.test.ts`, `npm run documenter:cli -- --help` (compilação e ajuda; conexão real requer integração) |
+| 5 | Gerenciador visual de tarefas recentes integrado na interface (Tasks Explorer via View > Tasks e Database > Tasks) | IGUAL | 1,0 | `DIVERGENCIAS-ORIGINAL.md:70`, `:71` *(implementado em R5!)* |
+| 6 | PDF Page Setup A4 com orientação, escala e numeração; nove temas HTML | IGUAL | 1,0 | `app/test/modules/documenter.test.ts`; `documenter-{light,dark}.png` mostra as opções PDF |
 
-- **Subtotal Módulo 16 & 17:** 3,0 / 4,0 = **75,00%** *(R4: 62,50% | Dif: **+12,50%**)*
+- **Subtotal Módulo 16 & 17:** 5,0 / 6,0 = **83,33%** *(R4: 62,50% | Dif: **+20,83%**)*
 
 ---
 
@@ -351,8 +355,9 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 | 7 | Find Invalid Objects com barra Analyze, Script as ALTER/DROP e seleção múltipla de bancos | IGUAL | 1,0 | `find-invalid-objects-dark.png`, `app/test/modules/code-analysis.test.ts` |
 | 8 | Backup Wizard granular com estrutura/dados separados, árvore por tipo, contagem e abrir script | IGUAL | 1,0 | `app/test/modules/database-backup.test.ts`, `GAPS-VARREDURA-VM.md:27` |
 | 9 | Restore com 3 etapas estruturadas, confirmação de destino e Save Command Line | IGUAL | 1,0 | `DIVERGENCIAS-ORIGINAL.md:71`, `database-backup.test.ts` *(implementado em R5!)* |
+| 10 | Agendamento recorrente com listagem, pausa, retomada, remoção, próxima execução e resultado da última execução | MELHOR (adaptação Linux) | 1,0 | `app/test/modules/database-backup-scheduler.test.ts`, `19-utilities-backup/backup-schedule-systemd-e2e.md`, `19-utilities-backup/backup-schedule-light.png`, `backup-schedule-dark.png` |
 
-- **Subtotal Módulo 19:** 9,0 / 9,0 = **100,00%** *(R4: 94,44% | Dif: **+5,56%**)*
+- **Subtotal Módulo 19:** 10,0 / 10,0 = **100,00%** *(R4: 94,44% | Dif: **+5,56%**; R7 mantém a nota e comprova a adaptação Linux do agendamento)*
 
 ---
 
@@ -374,36 +379,36 @@ Para validar a integridade e precisão das notas contra evidências reais e ates
 
 ## 4. Tabela-Resumo e Evolução Histórica (Rodadas 1 a 6 — Reconciliada)
 
-$$\text{Fidelidade Global Ponderada (Rodada 6 revisada)} = \frac{\sum (\text{Nota Módulo} \times \text{Peso})}{\sum \text{Pesos}} = \frac{12148,88}{131} = \mathbf{92,74\%}$$
+$$\text{Fidelidade Global Ponderada (Rodada 6 revisada)} = \frac{\sum (\text{Nota Módulo} \times \text{Peso})}{\sum \text{Pesos}} = \frac{12430,81}{131} = \mathbf{94,89\%}$$
 
 | Módulo | Nome do Componente | Peso | % R1 | % R2 | % R3 | % R4 | % R5 | % R6 (Reconciliado) | Variação (R6 - R5) | Entregas Verificadas em R6 |
 |:---:|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
 | **00** | Shell, Menus e Janelas | 6 | 93,75% | 93,75% | 88,89% | 88,89% | 88,89% | **94,44%** | **+5,55%** | Split de documento sincronizado (811c9c8) |
-| **01** | Database Connection Properties | 10 | 88,89% | 88,89% | 88,89% | 88,89% | 88,89% | **88,89%** | 0,00% | Estável |
+| **01** | Database Connection Properties | 10 | 88,89% | 88,89% | 88,89% | 88,89% | 88,89% | **100,00%** | **+11,11%** | Embedded substituído pelo servidor descartável em container |
 | **02** | Database Explorer & Menus | 10 | 68,75% | 87,50% | 78,57% | 92,86% | 92,86% | **100,00%** | **+7,14%** | Filtro regex e case sensitive |
 | **03** | Table Designer, Criação & Card View | 15 | 88,89% | 88,89% | 88,89% | 88,89% | 100,00% | **100,00%** | 0,00% | Paridade plena |
-| **04** | Editor SQL, Refatoração & Busca | 15 | 88,89% | 100,00% | 90,00% | 95,00% | 95,00% | **92,31%** | **-2,69%** | Bookmarks & Outlining; E1–E3 medidos |
+| **04** | Editor SQL, Refatoração & Busca | 15 | 88,89% | 100,00% | 90,00% | 95,00% | 95,00% | **96,15%** | **+1,15%** | `Ctrl+F12` agora pareia blocos `BEGIN`/`END` |
 | **06** | Schema Compare & Synchronization | 10 | 88,89% | 100,00% | 92,86% | 92,86% | 92,86% | **92,86%** | 0,00% | Estável |
 | **07** | Import & Export Wizard | 8 | 77,78% | 88,89% | 81,25% | 81,25% | 81,25% | **87,50%** | **+6,25%** | Smoke UI: abrir saída/log e Import/Export more |
 | **08** | Security, Sessions & Properties | 5 | 100,00% | 100,00% | 100,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
 | **09** | Data Generator | 4 | 68,75% | 93,75% | 83,33% | 83,33% | 83,33% | **75,00%** | **-8,33%** | Painel Parent/Child e limpeza com confirmação por frase; não reinicia AUTO_INCREMENT |
 | **10** | Query Builder | 4 | 62,50% | 68,75% | 70,00% | 100,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
-| **11** | Database Diagram (ER) | 4 | 75,00% | 87,50% | 66,67% | 66,67% | 100,00% | **78,57%** | **-21,43%** | Minimapa flutuante testado; exportação BMP parcial; relações virtuais sem evidência validada |
-| **12** | Query Profiler | 4 | 87,50% | 87,50% | 90,00% | 90,00% | 90,00% | **80,00%** | **-10,00%** | Canvas 2D capturado claro/escuro; descrições parciais dos contadores |
+| **11** | Database Diagram (ER) | 4 | 75,00% | 87,50% | 66,67% | 66,67% | 100,00% | **81,25%** | **-18,75%** | Containers/notas persistíveis e TIFF; GIF não incluído; relações virtuais sem evidência validada |
+| **12** | Query Profiler | 4 | 87,50% | 87,50% | 90,00% | 90,00% | 90,00% | **90,00%** | **0,00%** | Comparação de até cinco perfis e aviso de paginação; descrições parciais dos contadores |
 | **13** | Stored Procedure Debugger | 5 | 81,25% | 81,25% | 80,00% | 90,00% | 90,00% | **91,67%** | **+1,67%** | D5: captura do modal com OUT/INOUT e resultset em claro/escuro |
-| **14** | Options & Settings | 3 | 87,50% | 87,50% | 100,00% | 100,00% | 100,00% | **87,50%** | **-12,50%** | Timeout do Debugging não configurável |
+| **14** | Options & Settings | 3 | 87,50% | 87,50% | 100,00% | 100,00% | 100,00% | **100,00%** | **0,00%** | Timeout do Debugging configurável (30 s padrão) |
 | **15** | Data Compare & Synchronization | 10 | 83,33% | 88,89% | 75,00% | 75,00% | 100,00% | **100,00%** | 0,00% | Paridade plena |
-| **16/17** | Documenter & Tasks Explorer | 3 | 62,50% | 68,75% | 62,50% | 62,50% | 87,50% | **75,00%** | **-12,50%** | Prévia da capa e paletas; PDF CLI headless e metadados de privilégios |
+| **16/17** | Documenter & Tasks Explorer | 3 | 62,50% | 68,75% | 62,50% | 62,50% | 87,50% | **83,33%** | **-4,17%** | Seleção de objetos; Page Setup A4 e nove temas HTML |
 | **18** | Master-Detail, Report & Pivot | 4 | 62,50% | 62,50% | 50,00% | 87,50% | 87,50% | **100,00%** | **+12,50%** | Pivot Chart acoplado & SVG |
-| **19** | Utilities & Backup/Restore | 5 | 94,44% | 94,44% | 92,86% | 94,44% | 100,00% | **100,00%** | 0,00% | Paridade plena |
+| **19** | Utilities & Backup/Restore | 5 | 94,44% | 94,44% | 92,86% | 94,44% | 100,00% | **100,00%** | 0,00% | 10 critérios: backup/restore; timer systemd real, restaurável e monitorado |
 | **20** | Source Control & Project Explorer | 6 | — | 87,50% | 75,00% | 75,00% | 75,00% | **83,33%** | **+8,33%** | Editor de merge por bloco e grafo DAG |
-| **TOTAL** | — | **131** | **79,23%** | **90,32%** | **83,68%** | **87,84%** | **92,83%** | **92,74%** | **-0,09%** | — |
+| **TOTAL** | — | **131** | **79,23%** | **90,32%** | **83,68%** | **87,84%** | **92,83%** | **94,89%** | **+2,06%** | — |
 
-- **Média Simples (não ponderada):** **90,90%** (R1: 80,58% | R2: 86,17% | R3: 81,83% | R4: 87,00% | R5: 92,27% | R6 revisada: 90,90%)
-- **Média Global Ponderada:** **92,74%** (R1: 79,23% | R2: 90,32% | R3: 83,68% | R4: 87,84% | R5: 92,83% | R6 revisada: 92,74%)
+- **Média Simples (não ponderada):** **93,45%** (R1: 80,58% | R2: 86,17% | R3: 81,83% | R4: 87,00% | R5: 92,27% | R6 revisada: 93,45%)
+- **Média Global Ponderada:** **94,89%** (R1: 79,23% | R2: 90,32% | R3: 83,68% | R4: 87,84% | R5: 92,83% | R6 revisada: 94,89%)
 
 > [!NOTE]
-> Sete módulos atingiram **100,00%** de fidelidade comprovada por testes e capturas reais: **Database Explorer (02)**, **Table Designer & Grid (03)**, **Security Manager (08)**, **Query Builder (10)**, **Data Compare (15)**, **Master-Detail/Report/Pivot (18)** e **Utilities & Backup/Restore (19)**.
+> Oito módulos atingiram **100,00%** de fidelidade comprovada por testes e capturas reais ou adaptação validada para Linux: **Database Connection Properties (01)**, **Database Explorer (02)**, **Table Designer & Grid (03)**, **Security Manager (08)**, **Query Builder (10)**, **Data Compare (15)**, **Master-Detail/Report/Pivot (18)** e **Utilities & Backup/Restore (19)**.
 
 ---
 

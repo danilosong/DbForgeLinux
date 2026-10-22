@@ -35,6 +35,7 @@
     "screenshots:editor-designer": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/editor-designer-screenshots.mjs",
     "a11y:smoke": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/accessibility-smoke.mjs",
     "screenshots:connection": "xvfb-run -a env -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE node scripts/connection-dialog-e2e.mjs",
+    "screenshots:object-editor-conflict": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 xvfb-run -a node scripts/object-editor-conflict-screenshots.mjs",
     "screenshots:compare-modules": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/compare-modules-screenshots.mjs",
     "screenshots:report-card": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/report-card-screenshots.mjs",
     "screenshots:data-report-wizard": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 xvfb-run -a node scripts/data-report-pivot-wizard-screenshots.mjs",

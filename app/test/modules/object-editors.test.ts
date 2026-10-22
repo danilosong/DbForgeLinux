@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildObjectTemplate, buildRoutineTemplate, buildTableDdlPreview, normalizeObjectDefinition, objectRestoreFailureMessage, validateTableDraft } from '../../src/modules/object-editors/index.js'
+import { buildObjectTemplate, buildRoutineTemplate, buildTableDdlPreview, normalizeObjectDefinition, objectDefinitionFingerprint, objectRestoreFailureMessage, validateTableDraft } from '../../src/modules/object-editors/index.js'
 import type { ObjectEditorTarget } from '../../src/shared/contracts/object-editors.js'
 import type { TableModel } from '../../src/modules/schema/model.js'
 
@@ -7,6 +7,12 @@ const table: TableModel = { kind: 'table', name: 'customers', columns: [{ name: 
 const target = (kind: ObjectEditorTarget['kind'], name = 'item'): ObjectEditorTarget => ({ connectionId: 'conn', database: 'sample', kind, name })
 
 describe('object editor drafts', () => {
+  it('fingerprints loaded definitions for external-change detection', async () => {
+    const initial = await objectDefinitionFingerprint('CREATE VIEW v AS SELECT 1')
+    expect(await objectDefinitionFingerprint('CREATE VIEW v AS SELECT 1')).toBe(initial)
+    expect(await objectDefinitionFingerprint('CREATE VIEW v AS SELECT 2')).not.toBe(initial)
+  })
+
   it('builds first-run templates for all editable object kinds', () => {
     expect(buildObjectTemplate(target('view'))).toContain('CREATE OR REPLACE VIEW `sample`.`item`')
     expect(buildObjectTemplate(target('procedure'))).toContain('CREATE PROCEDURE `sample`.`item`')

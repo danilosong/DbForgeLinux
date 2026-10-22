@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import type { DatabaseModel, ForeignKeyModel } from '../schema/model.js'
 import type { DiagramPoint, DiagramRelation, ERDiagram, VirtualRelationInput } from './types.js'
 
-export type { DiagramPoint, DiagramRelation, DiagramTable, ERDiagram, VirtualRelationInput } from './types.js'
+export type { DiagramContainer, DiagramNote, DiagramPoint, DiagramRelation, DiagramTable, ERDiagram, VirtualRelationInput } from './types.js'
 export { type RelationCardinality } from './types.js'
 const CARD_WIDTH = 260
 const LAYER_GAP = 100
@@ -95,6 +95,8 @@ export function deserializeDiagram(value: string): ERDiagram {
   if (candidate.tables.some((table) => !table || typeof table.name !== 'string' || table.name.length > 256 || !Array.isArray(table.columns) || table.columns.length > 1000 || !table.position || ![table.position.x, table.position.y].every((number) => Number.isFinite(number) && Math.abs(number) <= 1_000_000))) throw new Error('Diagram deserialization failed.')
   const safeRelation = (relation: DiagramRelation): boolean => Boolean(relation && typeof relation === 'object' && typeof relation.id === 'string' && relation.id.length <= 512 && typeof relation.name === 'string' && relation.name.length <= 256 && typeof relation.fromTable === 'string' && typeof relation.toTable === 'string' && Array.isArray(relation.fromColumns) && relation.fromColumns.length <= 1000 && relation.fromColumns.every((name) => typeof name === 'string' && name.length <= 256) && Array.isArray(relation.toColumns) && relation.toColumns.length <= 1000 && relation.toColumns.every((name) => typeof name === 'string' && name.length <= 256) && typeof relation.virtual === 'boolean')
   if (candidate.relations.some((relation) => !safeRelation(relation)) || candidate.virtualRelations.some((relation) => !safeRelation(relation) || !relation.virtual)) throw new Error('Diagram deserialization failed.')
+  if (candidate.containers !== undefined && (!Array.isArray(candidate.containers) || candidate.containers.length > 1000 || candidate.containers.some((item) => !item || typeof item.id !== 'string' || item.id.length > 128 || typeof item.title !== 'string' || item.title.length > 256 || !item.position || ![item.position.x, item.position.y, item.width, item.height].every((number) => Number.isFinite(number) && number >= 0 && number <= 1_000_000)))) throw new Error('Diagram deserialization failed.')
+  if (candidate.notes !== undefined && (!Array.isArray(candidate.notes) || candidate.notes.length > 1000 || candidate.notes.some((item) => !item || typeof item.id !== 'string' || item.id.length > 128 || typeof item.text !== 'string' || item.text.length > 500 || !item.position || ![item.position.x, item.position.y].every((number) => Number.isFinite(number) && number >= 0 && number <= 1_000_000)))) throw new Error('Diagram deserialization failed.')
   return candidate
 }
 

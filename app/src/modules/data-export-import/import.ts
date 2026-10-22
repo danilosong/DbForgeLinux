@@ -71,8 +71,17 @@ async function* csvObjects(job: ImportJob): AsyncIterable<Row> {
     if ((job.options?.header ?? true) && relativeLine < headerPosition) continue
     if ((job.options?.header ?? true) && relativeLine === headerPosition) { columns = values; continue }
     const names = columns ?? values.map((_, index) => `column${index + 1}`)
-    yield Object.fromEntries(names.map((name, index) => [name, values[index] ?? '']))
+    yield Object.fromEntries(names.map((name, index) => [name, convertCsvValue(values[index] ?? '', job.options)]))
   }
+}
+
+export function convertCsvValue(value: string, options: ImportJob['options'] = {}): unknown {
+  if (options.nullString !== undefined && value === options.nullString) return null
+  const trueValue = options.booleanTrueValue ?? 'true'
+  const falseValue = options.booleanFalseValue ?? 'false'
+  if (trueValue && value.toLocaleLowerCase() === trueValue.toLocaleLowerCase()) return true
+  if (falseValue && value.toLocaleLowerCase() === falseValue.toLocaleLowerCase()) return false
+  return value
 }
 
 function sqlUnescape(input: string): unknown {

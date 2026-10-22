@@ -12,6 +12,7 @@ import { getActiveSqlSignature } from '../../../modules/editor/signatureHelp.js'
 import { formatSql } from '../../../modules/editor/formatter.js'
 import { findFormatProfile } from '../../../modules/editor/formatProfiles.js'
 import { decideBatchError } from '../../../modules/editor/batchErrorPolicy.js'
+import { findBeginEndPair } from '../../../modules/editor/blockPairs.js'
 import { normalizeQuery } from '../../../modules/profiler/index.js'
 import { dockDirectionClass, normalizeDockDirection, type DockDirection } from '../../../modules/dock-layout.js'
 import { expandSqlWildcards, qualifyObjectNames, transformIdentifiers } from '../../../modules/editor/refactoring.js'
@@ -191,6 +192,7 @@ export default function App(): React.JSX.Element {
   const [analysisDocumentId, setAnalysisDocumentId] = useState('')
   const [loadError, setLoadError] = useState('')
   const [vaultWarning, setVaultWarning] = useState('')
+  const [backupScheduleWarning, setBackupScheduleWarning] = useState(false)
   const theme = themeMode === 'auto' ? (systemDark ? 'dark' : 'light') : themeMode === 'blue' || themeMode === 'office' ? 'light' : themeMode
   function applyEditorTheme(api: typeof MonacoApi, settings: AppSettings, mode: ThemeMode): void {
     api.editor.defineTheme('tuxsql-user-colors', {
@@ -214,6 +216,11 @@ export default function App(): React.JSX.Element {
     const timer = window.setTimeout(() => { setLongQueryNotice(false); setTransactionNotice(false) }, appSettings.notifications.durationSeconds * 1000)
     return () => window.clearTimeout(timer)
   }, [appSettings.notifications.durationSeconds, longQueryNotice, transactionNotice])
+  useEffect(() => {
+    let cancelled = false
+    void window.tuxsql.getFailedBackupSchedules().then((ids) => { if (!cancelled && ids.length) setBackupScheduleWarning(true) }).catch(() => undefined)
+    return () => { cancelled = true }
+  }, [])
   useEffect(() => {
     if (!currentConnection) { setServerVersion(''); return }
     let cancelled = false
@@ -876,6 +883,7 @@ export default function App(): React.JSX.Element {
     }
     const token = crypto.randomUUID()
     const startedAt = performance.now()
+    log('Execution', 'Execution started')
     setLongQueryNotice(false)
     const notificationSettings = appSettingsRef.current.notifications
     const longQueryTimer = notificationSettings.longQuerySeconds > 0 ? window.setTimeout(() => setLongQueryNotice(true), notificationSettings.longQuerySeconds * 1000) : undefined
@@ -931,6 +939,7 @@ export default function App(): React.JSX.Element {
             continue
           }
           logSql(statement.sql, statementResults, performance.now() - statementStartedAt)
+          log('Execution', `Query opened · statement ${index + 1}`)
           next.push(...statementResults)
           await collectWarnings(statementResults, index + 1, requestId)
           if (index % 50 === 0 || index === statements.length - 1) setResults([...next])
@@ -945,7 +954,9 @@ export default function App(): React.JSX.Element {
       setErrors(serverWarnings)
       setErrorDocumentId(selectedDocument)
       if (serverWarnings.length) { setPanelTab('Error List'); setPanelVisible(true) }
+      if (queryProfilingMode && (Boolean(pageQueries[selectedDocument]) || settingsForWarnings.grid.pagedByDefault)) { const warning = t('profiler.pagedWarning'); setErrors((current) => [...current, warning]); setErrorDocumentId(selectedDocument); setPanelTab('Error List'); setPanelVisible(true) }
       setStatus(t('editor.query.success'))
+      log('Execution', 'Done')
       setQueryElapsed(performance.now() - startedAt)
       if (queryProfilingMode && statements.length === 1 && /^\s*(SELECT|WITH)\b/i.test(statements[0]!.sql)) {
         try {
@@ -1040,6 +1051,11 @@ export default function App(): React.JSX.Element {
     setOpenPanel(panelId)
   }
   reopenPanelRef.current = openRegisteredPanel
+  useEffect(() => {
+    const openLocalServer = (): void => reopenPanelRef.current?.('local-server')
+    window.addEventListener('tuxsql:open-local-server', openLocalServer)
+    return () => window.removeEventListener('tuxsql:open-local-server', openLocalServer)
+  }, [])
 
   function openDataReport(mode: 'report' | 'pivot'): void {
     window.sessionStorage.setItem('tuxsql:data-report-pivot:open-mode', mode)
@@ -1497,6 +1513,7 @@ export default function App(): React.JSX.Element {
       <button className="menubar-ai" onClick={() => setOpenPanel('ai-assistant')}>{t('menu.aiAssistant')} <small>AI</small></button>
     </header>
     {vaultWarning && <div role="alert" className="vault-warning"><span>{vaultWarning}</span><button aria-label="Dismiss vault warning" onClick={() => setVaultWarning('')}>×</button></div>}
+    {backupScheduleWarning && <div role="alert" className="vault-warning"><span>{t('extras.backup.failureNotice')}</span><button aria-label={t('common.close')} onClick={() => setBackupScheduleWarning(false)}>×</button></div>}
     {(longQueryNotice || transactionNotice) && <div className="execution-notification" role="status">{longQueryNotice && <span>{t('execution.notification.longQuery')}</span>}{transactionNotice && <span>{t('execution.notification.openTransaction')}</span>}<button onClick={() => { setLongQueryNotice(false); setTransactionNotice(false) }} aria-label={t('common.close')}>×</button></div>}
     <div className="app-toolbar">
       {!toolbarHidden.includes('newSql') && <Button title="New SQL Document (Ctrl+N)" onClick={newSql}>＋ SQL</Button>}
@@ -1551,7 +1568,21 @@ export default function App(): React.JSX.Element {
             editor.onDidChangeModelContent(() => { const model = editor.getModel(); const position = editor.getPosition(); if (!model || !position) return; const value = model.getValue(); const offset = model.getOffsetAt(position); const adjusted = applyKeywordCaseAtOffset(value, offset, appSettingsRef.current.editor.keywordCase); if (adjusted !== value) { let start = 0; while (start < value.length && value[start] === adjusted[start]) start++; let suffix = 0; while (suffix < value.length - start && value[value.length - suffix - 1] === adjusted[adjusted.length - suffix - 1]) suffix++; const from = model.getPositionAt(start); const to = model.getPositionAt(value.length - suffix); const range = new monaco.Range(from.lineNumber, from.column, to.lineNumber, to.column); editor.executeEdits('keyword-case', [{ range, text: adjusted.slice(start, adjusted.length - suffix) }]) } const current = model.getValue(); const caret = model.getPositionAt(Math.min(offset, current.length)); const e = appSettingsRef.current.editor; const suggestions = buildSqlSuggestions(current, Math.min(offset, current.length), metadataRef.current, userSnippetsRef.current, { filter: e.completionFilter, sortKeywords: e.completionSortKeywords, qualifyColumnWithAlias: e.qualifyColumnWithAlias, autoAlias: e.autoAlias, aliasUppercase: e.aliasUppercase, aliasUseAs: e.aliasUseAs, aliasQualifier: e.aliasQualifier, aliasRules: e.aliasRules, identifierQuoting: e.identifierQuoting }); const match = suggestions.find((item) => item.kind === 'table' && metadataRef.current.objects.some((object) => object.name.toLowerCase() === item.label.toLowerCase())); const detail = match && metadataRef.current.objects.find((object) => object.name.toLowerCase() === match.label.toLowerCase()); setCompletionDetails(detail); setEditorPosition({ line: caret.lineNumber, column: caret.column }) })
             editor.onDidChangeModelContent((event) => { if (formattingRef.current) return; const editorSettings = appSettingsRef.current.editor; const inserted = event.changes.map((change) => change.text).join(''); if ((editorSettings.formatOnStatementEnd && inserted.includes(';')) || (editorSettings.formatOnType && /[;\n]/.test(inserted))) window.requestAnimationFrame(() => formatEditor('statement')) })
             editor.onDidPaste(() => { if (!appSettingsRef.current.editor.formatOnPaste) return; window.requestAnimationFrame(() => formatEditor(editor.getSelection()?.isEmpty() ? 'statement' : 'selection')) })
-            editor.onKeyDown((event) => { if (event.keyCode === monaco.KeyCode.Escape) setCompletionDetails(undefined) })
+            editor.onKeyDown((event) => {
+              if (event.keyCode === monaco.KeyCode.Escape) setCompletionDetails(undefined)
+              if (event.ctrlKey && event.keyCode === monaco.KeyCode.F12) {
+                const model = editor.getModel()
+                const position = editor.getPosition()
+                if (!model || !position) return
+                const word = model.getWordAtPosition(position)
+                if (!word || !/^(BEGIN|END)$/i.test(word.word)) return
+                const currentOffset = model.getOffsetAt({ lineNumber: position.lineNumber, column: word.startColumn })
+                const pairOffset = findBeginEndPair(model.getValue(), currentOffset)
+                if (pairOffset === undefined) return
+                const target = model.getPositionAt(pairOffset)
+                editor.setPosition(target); editor.revealPositionInCenter(target); event.preventDefault(); event.stopPropagation()
+              }
+            })
             editor.onDidBlurEditorText(() => setCompletionDetails(undefined))
             editor.onDidChangeModelContent(() => {
               const model = editor.getModel()

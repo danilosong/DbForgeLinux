@@ -3,7 +3,7 @@
   "bars": [
     {
       "label": "Cobertura de funcionalidades de referência",
-      "value": 92.7,
+      "value": 94.9,
       "source": "document/paridade/FIDELIDADE-MEDIDA.md"
     },
     {
@@ -13,9 +13,9 @@
     },
     {
       "label": "Specs de UX verificadas contra evidência",
-      "value": 100,
-      "detail": "20 de 20"
+      "value": 79,
+      "detail": "15 de 19"
     }
   ],
-  "note": "Implementação independente, não é cópia nem produto afiliado a terceiros (ver LEGAL.md). A cobertura é medida contra 195 capturas reais do produto de referência (VM); a medição mais rigorosa levou o número de 95,3% para 92,7%."
+  "note": "Cobertura medida contra mais de 800 capturas reais do produto de referência (VM). Specs de UX só contam como verificados quando citam capturas existentes (15 de 19)."
 }

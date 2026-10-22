@@ -1,9 +1,10 @@
-import { BrowserWindow, dialog, ipcMain } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain } from 'electron'
 import { randomUUID } from 'node:crypto'
-import { chmod, lstat, mkdir, readFile, readdir, realpath, stat, writeFile } from 'node:fs/promises'
+import { chmod, lstat, mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises'
 import { buildDropObjectStatements, cleanupOwnedBackupFiles, createBackupSql, createBackupSqlWithOptions, decodeBackupFile, encodeBackupFile, restoreBackup, type BackupOptions, type BackupProject } from '../../modules/database-tools/backup.js'
-import { BackupScheduleStore, cronMatches, scheduledBackupPath } from '../../modules/database-tools/scheduler.js'
+import { BackupScheduleBackendManager, BackupScheduleRunStateStore, BackupScheduleStore, type BackupSchedule } from '../../modules/database-tools/scheduler.js'
 import { join, resolve } from 'node:path'
+import { homedir } from 'node:os'
 import { findInvalidObjects, searchObjectText } from '../../modules/database-tools/index.js'
 import { inspectDatabase } from '../../modules/schema/index.js'
 import type { DatabaseObject } from '../../shared/contracts/sql.js'
@@ -91,48 +92,40 @@ export function registerDatabaseToolsIpc(deps: IpcDeps): void {
     return results
   })
   const schedules = new BackupScheduleStore(join(userDataDir, 'backup-schedules.json'))
-  ipcMain.handle('database-tools:schedule:list', () => schedules.list())
-  ipcMain.handle('database-tools:schedule:save', (_event, schedule: import('../../modules/database-tools/scheduler.js').BackupSchedule) => schedules.save(schedule))
-  ipcMain.handle('database-tools:schedule:delete', (_event, id: string) => schedules.delete(id))
-  let scheduleRunning = false
-  const runSchedules = async (): Promise<void> => {
-    if (scheduleRunning) return
-    scheduleRunning = true
+  const scheduleRuns = new BackupScheduleRunStateStore(join(userDataDir, 'backup-schedule-runs.json'))
+  const scheduleBackend = new BackupScheduleBackendManager({ homeDirectory: homedir(), executablePath: process.execPath, ...(app.isPackaged ? {} : { appPath: app.getAppPath() }) })
+  ipcMain.handle('database-tools:schedule:list', async () => {
+    const [items, runs] = await Promise.all([schedules.list(), scheduleRuns.list()]); const lastRuns = new Map(runs.map((run) => [run.scheduleId, run]))
+    return items.map((schedule) => ({ ...schedule, lastRun: lastRuns.get(schedule.id) }))
+  })
+  ipcMain.handle('database-tools:schedule:failed', async () => {
+    const schedulesById = new Set((await schedules.list()).map((schedule) => schedule.id))
+    return (await scheduleRuns.failures()).filter((run) => schedulesById.has(run.scheduleId)).map((run) => run.scheduleId)
+  })
+  ipcMain.handle('database-tools:schedule:save', async (_event, value: Partial<BackupSchedule>) => {
+    const previousItems = await schedules.list(); const previous = value.id ? previousItems.find((item) => item.id === value.id) : undefined
+    if (value.enabled !== false && (!value.directory || (!approvedBackupDirectories.has(resolve(value.directory)) && previous?.directory !== value.directory))) throw new Error('Choose the schedule backup folder with the folder picker first.')
+    const saved = await schedules.save(value)
     try {
-      const now = new Date(); const minute = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-      for (const schedule of await schedules.list()) {
-        let due = false
-        try { due = schedule.enabled && schedule.lastRunMinute !== minute && cronMatches(schedule.cron, now) }
-        catch (error) { console.error('Invalid scheduled backup configuration:', error instanceof Error ? error.message : 'unknown error'); continue }
-        if (!due) continue
-        const updated = { ...schedule, lastRunMinute: minute }
-        await schedules.update(updated)
-        let connectionId: string | undefined
-        try {
-          const record = (await deps.connectionsStore.list()).find((item) => item.id === schedule.connectionId)
-          if (!record) throw new Error('Scheduled backup connection no longer exists.')
-          connectionId = await driver.connect(await deps.resolveConnectionConfig(record))
-          await driver.setDatabase(connectionId, schedule.database)
-          const schema = await inspectDatabase((sql, parameters) => driver.queryRows(connectionId!, sql, parameters), schedule.database)
-          const backup = await createBackupSql(schema, true, async (table, offset, limit) => driver.queryRows(connectionId!, `SELECT * FROM ${quote(schedule.database)}.${quote(table)} LIMIT ${limit} OFFSET ${offset}`))
-          await mkdir(schedule.directory, { recursive: true, mode: 0o700 })
-          const destination = scheduledBackupPath(schedule.directory, schedule.database, now)
-          await writeFile(destination, backup.sql, { encoding: 'utf8', mode: 0o600 }); await chmod(destination, 0o600)
-          const prefix = `${schedule.database.replace(/[^A-Za-z0-9_.-]/g, '_')}-`
-          const files = (await readdir(schedule.directory, { withFileTypes: true })).filter((entry) => entry.isFile() && entry.name.startsWith(prefix) && entry.name.endsWith('.sql'))
-          const ordered = await Promise.all(files.map(async (entry) => ({ path: join(schedule.directory, entry.name), mtime: (await stat(join(schedule.directory, entry.name))).mtimeMs })))
-          ordered.sort((a, b) => b.mtime - a.mtime)
-          const { unlink } = await import('node:fs/promises')
-          await Promise.all(ordered.slice(schedule.retention).map((item) => unlink(item.path)))
-        } catch (error) {
-          console.error('Scheduled backup failed:', error instanceof Error ? error.message : 'unknown error')
-        } finally { if (connectionId) await driver.disconnect(connectionId) }
-      }
-    } finally { scheduleRunning = false }
-  }
-  const scheduleRun = setInterval(() => { void runSchedules() }, 60_000)
-  scheduleRun.unref()
-  void runSchedules()
+      if (saved.enabled) saved.backend = await scheduleBackend.install(saved)
+      else await scheduleBackend.pause(saved)
+      await schedules.update(saved)
+      saved.lastRun = (await scheduleRuns.list()).find((run) => run.scheduleId === saved.id)
+      return saved
+    } catch (error) {
+      if (previous) await schedules.update(previous)
+      else await schedules.delete(saved.id)
+      throw error
+    }
+  })
+  ipcMain.handle('database-tools:schedule:delete', async (_event, id: string) => { const current = (await schedules.list()).find((item) => item.id === id); await scheduleBackend.remove(id, current?.backend); await schedules.delete(id) })
+  void (async () => {
+    for (const schedule of await schedules.list()) {
+      if (!schedule.enabled || schedule.backend) continue
+      try { schedule.backend = await scheduleBackend.install(schedule); await schedules.update(schedule) }
+      catch { console.warn('A saved backup schedule could not be migrated to a user timer. Review it in the Backup Wizard.') }
+    }
+  })()
   ipcMain.handle('database-tools:search', async (_event, connectionId: string, database: string, query: string, options: { names: boolean; definitions: boolean; data?: boolean; objectKinds?: string[]; caseSensitive?: boolean; wholeWord?: boolean; regex?: boolean }) => {
     assertTarget(connectionId, database)
     if (query.length > 256 || !options || typeof options.names !== 'boolean' || typeof options.definitions !== 'boolean' || (options.data !== undefined && typeof options.data !== 'boolean')) throw new Error('Invalid object search options.')

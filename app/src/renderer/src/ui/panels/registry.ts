@@ -32,6 +32,7 @@ export const panelRegistry: PanelRegistration[] = [
   { id: 'master-detail', titleKey: 'panels.master-detail', icon: '⇄', component: lazy(() => import('./master-detail/Panel')), presentation: 'document' },
   { id: 'copy-databases', titleKey: 'panels.copy-databases', icon: '▤', component: lazy(() => import('./copy-databases/Panel')), presentation: 'document' },
   { id: 'service-control', titleKey: 'panels.service-control', icon: '⏻', component: lazy(() => import('./service-control/Panel')) },
+  { id: 'local-server', titleKey: 'panels.local-server', icon: '▣', component: lazy(() => import('./local-server/Panel')) },
   { id: 'code-analysis', titleKey: 'panels.code-analysis', icon: '⌁', component: lazy(() => import('./code-analysis/Panel')) },
   { id: 'import-export', titleKey: 'panels.import-export', icon: '⇧', component: lazy(() => import('./import-export/Panel')) },
   { id: 'query-builder', titleKey: 'panels.query-builder', icon: '◇', component: lazy(() => import('./query-builder/Panel')), presentation: 'document' },
