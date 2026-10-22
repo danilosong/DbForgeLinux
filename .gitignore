@@ -11,3 +11,10 @@ re/ui-strings/
 
 # capturas do produto original (uso interno, não versionar)
 re/original-observation/
+
+# configuracao local de MCP e Context7 (pode conter chaves de API; nao versionar)
+.mcp.json
+.context7/
+context7.json
+.ctx7/
+.ctx7rc
