@@ -57,7 +57,11 @@ export default function App(): React.JSX.Element {
   const floatedDocument = floatParams?.get('doc')
   const floatPanelParams = window.location.hash.startsWith('#float-panel?') ? new URLSearchParams(window.location.hash.slice(window.location.hash.indexOf('?') + 1)) : undefined
   const floatedPanelId = floatPanelParams?.get('panel')
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const openDocumentation = (): void => {
+    const theme = ['dark', 'high-contrast'].includes(document.documentElement.dataset.theme ?? '') ? 'dark' : 'light'
+    void window.tuxsql.openAboutLink('documentation', locale, theme)
+  }
   const [records, setRecords] = useState<ConnectionRecord[]>([])
   const [active, setActive] = useState<ConnectionSummary[]>([])
   const [databases, setDatabases] = useState<Record<string, string[]>>({})
@@ -172,6 +176,7 @@ export default function App(): React.JSX.Element {
   const [metadataLoading, setMetadataLoading] = useState(false)
   const [pageQueries, setPageQueries] = useState<Record<string, PageQuery>>({})
   const editorRef = useRef<MonacoEditor.IStandaloneCodeEditor | null>(null)
+  const startupAppReadySentRef = useRef(false)
   const shortcutChordRef = useRef('')
   const metadataRef = useRef<EditorMetadata>(emptyEditorMetadata)
   const completionProviderRef = useRef<{ dispose(): void } | null>(null)
@@ -263,6 +268,8 @@ export default function App(): React.JSX.Element {
   const activePanelTab = documents.find((tab) => tab.id === selectedDocument)?.panelId
   const primaryGroupTabs = findDocumentGroup(documentLayout.root, selectedDocument)?.tabs ?? documents.map((tab) => tab.id)
   const activeSql = selectedDocument !== 'start' && !activeObjectTab && !activeDatabaseTab && !activePanelTab
+  const activeSqlForStartupRef = useRef(activeSql)
+  activeSqlForStartupRef.current = activeSql
   const activeSqlText = activeSql ? sqlByDocument[selectedDocument] ?? '' : ''
   const navigationSqlDocument = documents.find((tab) => tab.id === selectedDocument && !tab.objectEditor && !tab.databaseEditor && !tab.panelId)
     ?? [...documents].reverse().find((tab) => !tab.objectEditor && !tab.databaseEditor && !tab.panelId && tab.id !== 'start')
@@ -276,7 +283,6 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     log('Startup', `Renderer ready · ${performance.now().toFixed(0)} ms since navigation.`)
     void loadConnections()
-    void window.tuxsql.getVaultStatus().then((vault) => { setVaultWarning(vault.warning ?? ''); if (vault.warning) log('Security', vault.warning, 'warning') }).catch(() => {})
     const applySettings = (settings: AppSettings, initial = false): void => {
       setAppSettings(settings); setThemeMode(settings.appearance.theme); setAutoCommit(settings.execution.autoCommit)
       if (initial) setDocuments((current) => {
@@ -309,7 +315,7 @@ export default function App(): React.JSX.Element {
     window.addEventListener('tuxsql:close-panel', onClosePanel)
     window.addEventListener('tuxsql:task:reopen', onReopenTask)
     window.addEventListener('tuxsql:grid:send-to-panel', onGridSendToPanel)
-    void window.tuxsql.loadSettings().then((result) => applySettings(result.settings, true)).catch((error: unknown) => log('Options', error instanceof Error ? error.message : 'Settings unavailable.', 'warning'))
+    void window.tuxsql.loadSettings().then((result) => { window.tuxsql.traceStartup('renderer-settings-loaded'); applySettings(result.settings, true) }).catch((error: unknown) => log('Options', error instanceof Error ? error.message : 'Settings unavailable.', 'warning'))
     let readyActive = true
     const frame = window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
       void window.tuxsql.initializeNonCriticalIpc().then(() => { if (readyActive) setNonCriticalReady(true) }).catch((error: unknown) => log('Startup', error instanceof Error ? error.message : 'Optional tools are unavailable.', 'warning'))
@@ -332,7 +338,7 @@ export default function App(): React.JSX.Element {
       if (!active) return
       setUpdateState(next)
     })
-    void window.tuxsql.updaterStatus().then((next) => { if (active) setUpdateState(next) }).catch(() => undefined)
+    void window.tuxsql.updaterStatus().then((next) => { window.tuxsql.traceStartup('renderer-updater-status-loaded'); if (active) setUpdateState(next) }).catch(() => undefined)
     return () => { active = false; unsubscribe() }
   }, [nonCriticalReady])
 
@@ -344,12 +350,13 @@ export default function App(): React.JSX.Element {
   useEffect(() => {
     performance.mark('tuxsql:renderer-mounted')
     let secondFrame = 0
-    const firstFrame = requestAnimationFrame(() => { secondFrame = requestAnimationFrame(() => performance.mark('tuxsql:first-paint-settled')) })
+    let firstPaintTimeout = 0
+    const firstFrame = requestAnimationFrame(() => { secondFrame = requestAnimationFrame(() => { performance.mark('tuxsql:first-paint-settled'); window.tuxsql.traceStartup('renderer-first-paint'); if (!activeSqlForStartupRef.current && !startupAppReadySentRef.current) { startupAppReadySentRef.current = true; window.tuxsql.traceStartup('renderer-app-interactive') }; firstPaintTimeout = window.setTimeout(() => { window.tuxsql.traceStartup('renderer-vault-status-start'); void window.tuxsql.getVaultStatus().then((vault) => { window.tuxsql.traceStartup('renderer-vault-status-loaded'); setVaultWarning(vault.warning ?? ''); if (vault.warning) log('Security', vault.warning, 'warning') }).catch(() => {}) }, 1000) }) })
     const observer = typeof PerformanceObserver === 'undefined' ? undefined : new PerformanceObserver((entries) => {
       for (const entry of entries.getEntries()) if (entry.duration >= 200) console.warn(`[startup-trace] long task ${Math.round(entry.duration)} ms at ${Math.round(entry.startTime)} ms`)
     })
     try { observer?.observe({ type: 'longtask', buffered: true }) } catch { /* longtask is unavailable in some Electron builds */ }
-    return () => { cancelAnimationFrame(firstFrame); cancelAnimationFrame(secondFrame); observer?.disconnect() }
+    return () => { cancelAnimationFrame(firstFrame); cancelAnimationFrame(secondFrame); window.clearTimeout(firstPaintTimeout); observer?.disconnect() }
   }, [])
   useEffect(() => { localStorage.setItem('tuxsql.toolbarHidden', JSON.stringify(toolbarHidden)) }, [toolbarHidden])
 
@@ -1474,7 +1481,7 @@ export default function App(): React.JSX.Element {
         else if (customBinding.command === 'Complete') { editorRef.current?.focus(); editorRef.current?.trigger('keyboard', 'editor.action.triggerSuggest', null) }
         else if (customBinding.command === 'Show Find Object') openRegisteredPanel('database-tools')
         else if (customBinding.command === 'Show Command Palette') window.dispatchEvent(new CustomEvent('tuxsql:shortcut-command', { detail: { command: customBinding.command } }))
-        else if (customBinding.command === 'Show Help') void window.tuxsql.openAboutLink('documentation')
+        else if (customBinding.command === 'Show Help') openDocumentation()
         else if (editorCommands.has(customBinding.command)) runEditorCommand(customBinding.command)
         else { runEditorCommand(customBinding.command); window.dispatchEvent(new CustomEvent('tuxsql:shortcut-command', { detail: { command: customBinding.command } })) }
         return
@@ -1580,7 +1587,7 @@ export default function App(): React.JSX.Element {
         {activeSql && <details><summary>{t('menu.sql')}</summary><div className="menu-popup"><MenuAction label={t('menu.beginTransaction')} onClick={() => void toggleAutoCommit(false)} disabled={!currentConnection || !autoCommit} /><MenuAction label={t('menu.rollback')} onClick={() => void finishTransaction('rollback')} disabled={!currentConnection || transactionCommitted} /><MenuAction label={t('menu.commit')} onClick={() => void finishTransaction('commit')} disabled={!currentConnection || transactionCommitted} /><MenuAction label={t('menu.execute')} shortcut="F5" onClick={() => void runSql()} disabled={!currentConnection || queryBusy} /><MenuAction label={t('menu.executeCurrent')} shortcut="F8" onClick={() => void runSql('current')} disabled={!currentConnection || queryBusy} /><MenuAction label={t('menu.stopExecution')} shortcut={shortcutFor('Stop Execution (Alt+Pause)')} onClick={() => void cancelSql()} disabled={!queryBusy} /><MenuAction label={t('menu.editParameters')} shortcut="Ctrl+Shift+P" disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.resultsText')} shortcut="Ctrl+T" disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.resultsGrid')} shortcut="Ctrl+Shift+D" disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.estimatedPlan')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.profiling')} checked={queryProfilingMode} onClick={() => setQueryProfilingMode((value) => !value)} /><MenuAction label={t('menu.sendReport')} disabled title={t('menu.notAvailable')} /></div></details>}
         <details><summary>{t('menu.tools')}</summary><div className="menu-popup"><MenuAction label={t('menu.formatter')} onClick={() => openDatabaseToolTab('SQL Formatter')} /><MenuAction label={t('menu.snippetsManager')} onClick={() => openRegisteredPanel('snippets-manager')} /><MenuAction label={t('sc.project.createScripts')} onClick={() => { setProjectExplorerVisible(true); window.dispatchEvent(new CustomEvent('tuxsql:source-control:create-scripts')) }} /><MenuAction label={t('menu.importExport')} disabled title={t('menu.notAvailable')} /><MenuAction label={t('menu.skinBlue')} checked={themeMode === 'blue'} onClick={() => setThemeMode('blue')} /><MenuAction label={t('menu.skinOffice')} checked={themeMode === 'office'} onClick={() => setThemeMode('office')} /><MenuAction label={t('menu.customize')} onClick={() => setToolbarCustomizeOpen(true)} /><MenuAction label={t('menu.resetToolbar')} onClick={() => setToolbarHidden([])} /><MenuAction label={t('menu.options')} shortcut={shortcutFor('Options')} onClick={() => openRegisteredPanel('options')} /></div></details>
         <details><summary>{t('menu.window')}</summary><div className="menu-popup"><MenuAction label={t('menu.window.floatCurrent')} disabled={!activeSql} onClick={() => { const tab = documents.find((item) => item.id === selectedDocument); if (tab) void handleTabContextAction('floatTab', tab) }} /><MenuAction label={t('menu.window.pinCurrent')} disabled={selectedDocument === 'start'} checked={pinnedTabs.includes(selectedDocument)} onClick={() => { const tab = documents.find((item) => item.id === selectedDocument); if (tab) void handleTabContextAction('pinTab', tab) }} /><MenuAction label={t('menu.window.horizontalGroup')} disabled={!activeSql} onClick={() => { const tab = documents.find((item) => item.id === selectedDocument); if (tab) void handleTabContextAction('newHorizontalTabGroup', tab) }} /><MenuAction label={t('menu.window.verticalGroup')} disabled={!activeSql} onClick={() => { const tab = documents.find((item) => item.id === selectedDocument); if (tab) void handleTabContextAction('newVerticalTabGroup', tab) }} /><MenuAction label={t('menu.closeAll')} onClick={() => closeManyTabs(documents.filter((tab) => tab.id !== 'start').map((tab) => tab.id))} /><MenuAction label={t('menu.window.closeUnmodified')} onClick={() => closeManyTabs(documents.filter((tab) => tab.id !== 'start' && !tab.modified).map((tab) => tab.id))} /><MenuAction label={t('menu.window.closeButPinned')} onClick={() => closeManyTabs(documents.filter((tab) => tab.id !== 'start' && !pinnedTabs.includes(tab.id)).map((tab) => tab.id))} /><MenuAction label={t('menu.resetLayout')} onClick={() => { setExplorerVisible(true); setPanelVisible(true); setExplorerWidth(280); setPanelHeight(200); setSplitDocument(undefined); setTabGroups({}) }} /><div className="menu-divider" />{(appSettings.environment.windowItems ? documents.slice(-appSettings.environment.windowItems) : []).map((tab) => <MenuAction key={tab.id} label={`${tab.id === selectedDocument ? '✓ ' : ''}${tab.label}${tabGroups[tab.id] ? ` · ${tabGroups[tab.id]}` : ''}`} onClick={() => setSelectedDocument(tab.id)} />)}</div></details>
-        <details><summary>{t('menu.help')}</summary><div className="menu-popup"><MenuAction label={t('menu.contents')} shortcut="F1" onClick={() => void window.tuxsql.openAboutLink('documentation')} /><MenuAction label={t('menu.gettingStarted')} onClick={() => setSelectedDocument('start')} /><MenuAction label={t('updates.check')} onClick={() => void checkForUpdates()} /><MenuAction label={t('menu.about')} onClick={() => setAboutOpen(true)} /></div></details>
+        <details><summary>{t('menu.help')}</summary><div className="menu-popup"><MenuAction label={t('menu.contents')} shortcut="F1" onClick={openDocumentation} /><MenuAction label={t('menu.gettingStarted')} onClick={() => setSelectedDocument('start')} /><MenuAction label={t('updates.check')} onClick={() => void checkForUpdates()} /><MenuAction label={t('menu.about')} onClick={() => setAboutOpen(true)} /></div></details>
       </nav>
       <span className="menubar-status">{status}</span>
       <button className="menubar-ai" onClick={() => setOpenPanel('ai-assistant')}>{t('menu.aiAssistant')} <small>AI</small></button>
@@ -1638,6 +1645,7 @@ export default function App(): React.JSX.Element {
           <div className="sql-context-toolbar"><span>{documents.find((tab) => tab.id === selectedDocument)?.label}</span><span>{activeTitle}</span><span className="metadata-state">{metadataLoading ? 'Loading schema…' : editorMetadata.objects.length ? `${editorMetadata.objects.length} schema objects` : ''}</span><Button onClick={() => formatEditor('document')}>Format</Button><Button onClick={() => formatEditor('statement')}>Format statement</Button><Button variant="primary" onClick={() => void runSql()} disabled={!currentConnection || queryBusy}>▶ Execute</Button><Button onClick={() => void runSql('current')} disabled={!currentConnection || queryBusy}>Current statement</Button></div>
           {findOpen && <div className="find-toolbar"><input type="search" aria-label={t('nav.find')} placeholder={t('nav.find')} value={findQuery} onChange={(event) => setFindQuery(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') cycleFind(event.shiftKey ? -1 : 1) }} /><Button onClick={() => cycleFind(-1)} title={t('nav.previous')}>↑</Button><Button onClick={() => cycleFind(1)} title={t('nav.next')}>↓</Button><label><input type="checkbox" checked={findRegex} onChange={(event) => setFindRegex(event.target.checked)} />{t('nav.regex')}</label><label><input type="checkbox" checked={findCase} onChange={(event) => setFindCase(event.target.checked)} />{t('nav.caseSensitive')}</label><select aria-label={t('nav.scope')} value={findScope} onChange={(event) => setFindScope(event.target.value as typeof findScope)}><option value="document">{t('nav.document')}</option><option value="selection">{t('nav.selection')}</option><option value="open">{t('nav.openDocuments')}</option></select>{findReplaceMode && <><input aria-label={t('nav.replace')} placeholder={t('nav.replace')} value={replaceQuery} onChange={(event) => setReplaceQuery(event.target.value)} /><Button onClick={replaceCurrentMatch}>{t('nav.replaceOne')}</Button><Button onClick={replaceAllMatches}>{t('nav.replaceAll')}</Button></>}<span>{findMatches.length}</span><Button onClick={() => { setFindOpen(false); setFindReplaceMode(false) }} title={t('nav.close')}>×</Button></div>}
           <div className="editor-surface"><Suspense fallback={<div className="editor-loading" role="status">Loading SQL editor…</div>}><Editor path={`tuxsql://sql/${encodeURIComponent(selectedDocument)}`} height="100%" language="sql" theme={editorTheme} value={sqlByDocument[selectedDocument] ?? ''} onMount={(editor, monaco) => {
+            window.tuxsql.traceStartup('renderer-editor-interactive')
             editorRef.current = editor
             monacoApiRef.current = monaco
             applyEditorTheme(monaco, appSettingsRef.current, theme === 'dark' || theme === 'high-contrast' ? theme : 'light')

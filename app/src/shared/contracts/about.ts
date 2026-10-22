@@ -15,5 +15,5 @@ export interface AboutInfo {
 
 export interface AboutApi {
   getAboutInfo(): Promise<AboutInfo>
-  openAboutLink(link: AboutLink): Promise<void>
+  openAboutLink(link: AboutLink, locale?: 'en' | 'pt-BR', theme?: 'light' | 'dark'): Promise<void>
 }

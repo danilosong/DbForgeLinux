@@ -1,0 +1,17 @@
+{"stage":"main-process-entry","elapsedMs":0}
+{"stage":"user-data-preparation-start","elapsedMs":1.9}
+{"stage":"ensure-private-directory-complete","elapsedMs":2.2}
+{"stage":"legacy-user-data-migration-complete","elapsedMs":2.5}
+{"stage":"app-ready","elapsedMs":316.8}
+{"stage":"splash-window-created","elapsedMs":351.7}
+{"stage":"password-vault-construction-start","elapsedMs":355.2}
+{"stage":"password-vault-constructed","elapsedMs":355.2}
+{"stage":"connections-store-constructed","elapsedMs":355.3}
+{"stage":"ipc-registry-start","elapsedMs":355.4}
+{"stage":"ipc-registry-complete","elapsedMs":364.2}
+{"stage":"main-window-created","elapsedMs":368.6}
+{"stage":"splash-ready-to-show","elapsedMs":709.9}
+{"stage":"splash-window-shown","elapsedMs":710.9}
+{"stage":"splash-did-finish-load","elapsedMs":711.8}
+{"stage":"splash-safety-timeout","elapsedMs":25367.3}
+{"stage":"splash-closed","elapsedMs":26568.5}

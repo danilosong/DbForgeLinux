@@ -24,12 +24,14 @@ import type { GridDataApi } from './grid-data.js'
 import type { ExtraToolsApi } from './extra-tools.js'
 import type { AboutApi } from './about.js'
 import type { UpdaterApi } from './updater.js'
+export type StartupRendererMilestone = 'renderer-bundle-loaded' | 'renderer-i18n-initialized' | 'renderer-i18n-settings-loaded' | 'renderer-settings-loaded' | 'renderer-vault-status-start' | 'renderer-vault-status-loaded' | 'renderer-updater-status-loaded' | 'renderer-first-paint' | 'renderer-app-interactive' | 'renderer-editor-interactive'
 export interface TuxSqlApi extends SecurityApi, SessionsApi, SchemaCompareApi, DataCompareApi, ImportExportApi, ERDiagramApi, QueryBuilderApi, EditorApi, HistoryApi, SourceControlApi, ObjectEditorApi, OptionsApi, DatabaseToolsApi, ReportPivotApi, AiAssistantApi, RoutineDebugContract, TasksApi, ServiceControlApi, LocalServerApi, CodeAnalysisApi, GridEditingApi, GridDataApi, ExtraToolsApi, AboutApi, UpdaterApi {
   floatSqlDocument(documentId: string, title: string, contents: string): Promise<void>
   floatDocumentPanel(panelId: string, title: string): Promise<void>
   floatSqlChange(documentId: string, contents: string): Promise<void>
   onFloatSqlUpdate(handler: (documentId: string, contents: string) => void): () => void
   initializeNonCriticalIpc(): Promise<{ ready: true }>
+  traceStartup(milestone: StartupRendererMilestone): void
   getConnections(): Promise<ConnectionRecord[]>
   saveConnection(record: ConnectionRecord): Promise<void>
   deleteConnection(id: string): Promise<void>

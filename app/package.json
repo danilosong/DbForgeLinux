@@ -13,7 +13,7 @@
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "electron-vite build && node scripts/generate-build-info.mjs",
+    "build": "electron-vite build && node scripts/build-docs.mjs && node scripts/generate-build-info.mjs",
     "start": "electron-vite preview",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.electron.json",
@@ -24,6 +24,7 @@
     "perf:benchmark": "vitest run test/performance-benchmark.test.ts --reporter=verbose",
     "perf:metadata": "node scripts/metadata-scale-benchmark.mjs",
     "perf:startup": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/startup-benchmark.mjs",
+    "screenshots:splash": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/splash-screenshots.mjs",
     "dist:deb": "TUXSQL_RELEASE_BUILD=1 pnpm build && TUXSQL_RELEASE_BUILD=1 electron-builder --linux deb --config packaging/electron-builder.yml && pnpm build",
     "smoke:e2e": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/smoke-e2e.mjs",
     "smoke:release-fuses": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/release-fuses-smoke.mjs",
@@ -42,6 +43,7 @@
     "screenshots:report-card": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/report-card-screenshots.mjs",
     "screenshots:data-report-wizard": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 xvfb-run -a node scripts/data-report-pivot-wizard-screenshots.mjs",
     "screenshots:readme": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 xvfb-run -a node scripts/readme-screenshots.mjs",
+    "screenshots:docs": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 xvfb-run -a node scripts/docs-screenshots.mjs",
     "screenshots:source-control": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/source-control-screenshots.mjs",
     "screenshots:chart-designer": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/chart-designer-screenshots.mjs",
     "screenshots:document-groups": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/document-group-screenshots.mjs",
@@ -70,6 +72,7 @@
     "@types/ssh2": "^1.15.6",
     "@vitejs/plugin-react": "^5.0.4",
     "axe-core": "^4.14.0",
+    "echarts": "6.1.0",
     "electron": "^38.3.0",
     "electron-builder": "^26.0.12",
     "electron-vite": "^5.0.0",
@@ -77,12 +80,12 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.4.0",
+    "marked": "18.0.14",
     "monaco-editor": "^0.54.0",
     "playwright": "^1.64.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.1",
     "vite": "^7.1.12",
-    "vitest": "^3.2.4",
-    "echarts": "6.1.0"
+    "vitest": "^3.2.4"
   }
 }

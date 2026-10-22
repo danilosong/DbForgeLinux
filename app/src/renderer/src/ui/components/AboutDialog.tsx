@@ -5,7 +5,11 @@ import type { AboutInfo } from '../../../../shared/contracts/about.js'
 import './AboutDialog.css'
 
 export function AboutDialog({ onClose }: { onClose(): void }): React.JSX.Element {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
+  const openPage = (link: 'documentation' | 'license'): void => {
+    const theme = ['dark', 'high-contrast'].includes(document.documentElement.dataset.theme ?? '') ? 'dark' : 'light'
+    void window.tuxsql.openAboutLink(link, locale, theme)
+  }
   const [info, setInfo] = useState<AboutInfo>()
   const [copyState, setCopyState] = useState('')
 
@@ -38,9 +42,9 @@ export function AboutDialog({ onClose }: { onClose(): void }): React.JSX.Element
       </dl>
       <p className="about-legal">{t('about.legal')}</p>
       <div className="about-links">
-        <button type="button" onClick={() => void window.tuxsql.openAboutLink('documentation')}>{t('about.documentation')}</button>
+        <button type="button" onClick={() => openPage('documentation')}>{t('about.documentation')}</button>
         <button type="button" onClick={() => void window.tuxsql.openAboutLink('repository')}>{t('about.repository')}</button>
-        <button type="button" onClick={() => void window.tuxsql.openAboutLink('license')}>{t('about.licenseLink')}</button>
+        <button type="button" onClick={() => openPage('license')}>{t('about.licenseLink')}</button>
       </div>
       <footer><button type="button" onClick={() => void copySystemInfo()} disabled={!info}>{t('about.copy')}</button>{copyState && <span role="status">{copyState}</span>}<span className="toolbar-spacer" /><button type="button" onClick={onClose}>{t('about.close')}</button></footer>
     </div>

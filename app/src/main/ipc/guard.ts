@@ -29,7 +29,7 @@ export const IPC_CHANNEL_SCHEMAS: Readonly<Record<string, readonly Spec[]>> = {
   'app:renderer-ready': [],
   'document:float-sql': [id, text, sql], 'document:float-panel': [text, text], 'document:float-change': [id, sql],
   'tasks:recent:list': [], 'tasks:recent:record': [object], 'tasks:recent:delete': [id],
-  'about:info': [], 'about:open-link': [enumOf('documentation', 'repository', 'license')],
+  'about:info': [], 'about:open-link': [enumOf('documentation', 'repository', 'license'), opt(enumOf('en', 'pt-BR')), opt(enumOf('light', 'dark'))],
   'ai-assistant:settings:load': [], 'ai-assistant:settings:save': [object, opt(s('text'))], 'ai-assistant:settings:test': [object, opt(s('text'))],
   'ai-assistant:complete': [object], 'ai-assistant:cancel': [id], 'code-analysis:run': [sql],
   'connections:list': [], 'connections:save': [object], 'connections:delete': [id], 'vault:save': [ident, s('text')], 'vault:delete': [ident], 'vault:status': [],

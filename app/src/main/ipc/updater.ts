@@ -7,6 +7,7 @@ import type { SettingsStore } from '../../modules/options/index.js'
 import { UpdateService } from '../../modules/updater/UpdateService.js'
 import type { UpdatePreferences, ReleaseUpdate } from '../../modules/updater/types.js'
 import type { MysqlDriver } from '../db/MysqlDriver.js'
+import { markStartup } from '../startupTrace.js'
 
 function releaseNotes(result: UpdateCheckResult): string[] {
   const notes = result.updateInfo.releaseNotes
@@ -68,7 +69,10 @@ export function registerUpdaterIpc(store: SettingsStore, driver: MysqlDriver): U
   })
   ipcMain.handle('updater:cancel', () => service.cancel())
   ipcMain.handle('updater:status', () => service.status())
-  const startupTimer = setTimeout(() => { void service.checkStartup() }, 3000)
+  const startupTimer = setTimeout(() => {
+    markStartup('updater-startup-check-start')
+    void service.checkStartup().then(() => markStartup('updater-startup-check-complete'), () => markStartup('updater-startup-check-complete'))
+  }, 3000)
   startupTimer.unref?.()
   return service
 }

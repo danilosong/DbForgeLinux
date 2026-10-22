@@ -4,4 +4,6 @@ import App from './ui/App'
 import { I18nProvider } from './i18n/I18n'
 import './ui/styles.css'
 
+performance.mark('tuxsql:renderer-bundle-loaded')
+window.tuxsql.traceStartup('renderer-bundle-loaded')
 createRoot(document.getElementById('root')!).render(<React.StrictMode><I18nProvider><App /></I18nProvider></React.StrictMode>)

@@ -14,7 +14,8 @@ const dictionaryFiles = new Set([
   'renderer/src/i18n/importExportMessages.ts',
   'renderer/src/i18n/updaterMessages.ts',
   'renderer/src/i18n/menuMessages.ts',
-  'renderer/src/i18n/navigationMessages.ts'
+  'renderer/src/i18n/navigationMessages.ts',
+  'shared/ptBrSplashMessages.ts'
 ])
 // Generated sample locales contain proper names and place names, not interface copy.
 const portugueseDataExceptions = new Set([

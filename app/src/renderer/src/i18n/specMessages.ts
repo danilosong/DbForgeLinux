@@ -12,6 +12,7 @@ import { ptBrModulesPersonal } from './ptBrModulesPersonal.js'
 import { ptBrModulesHealth } from './ptBrModulesHealth.js'
 import { ptBrModulesPayment } from './ptBrModulesPayment.js'
 import { ptBrModulesChart } from './ptBrModulesChart.js'
+import { ptBrModulesDocs } from './ptBrModulesDocs.js'
 export const enMessages: Record<string, string> = {
   "Data generation is blocked on Production connections. Allow it explicitly for this run to continue.": "Data generation is blocked on Production connections. Allow it explicitly for this run to continue.",
   "This is a Production connection. Type the database name to generate data in it:": "This is a Production connection. Type the database name to generate data in it:",
@@ -676,7 +677,7 @@ import { enSecurityMessages, ptBrModulesSecurity } from './ptBrModulesSecurity.j
 Object.assign(enMessages, enSecurityMessages)
 import { ptBrModulesBusiness } from './ptBrModulesBusiness.js'
 import { ptBrModulesProduct } from './ptBrModulesProduct.js'
-export const ptBrCatalog: Record<string, string> = { ...enMessages, ...generatedPtBrMessages, ...ptBrPanelMessages, ...ptBrMessages, ...ptBrModulesCore, ...ptBrModulesSourceControl, ...ptBrModulesEditor, ...ptBrModulesSignature, ...ptBrModulesImportExportMessages, ...ptBrModulesSecurity, ...ptBrModulesIT, ...ptBrModulesLocation, ...ptBrModulesPersonal, ...ptBrModulesHealth, ...ptBrModulesPayment, ...ptBrModulesBusiness, ...ptBrModulesProduct }
+export const ptBrCatalog: Record<string, string> = { ...enMessages, ...generatedPtBrMessages, ...ptBrPanelMessages, ...ptBrMessages, ...ptBrModulesCore, ...ptBrModulesSourceControl, ...ptBrModulesEditor, ...ptBrModulesSignature, ...ptBrModulesImportExportMessages, ...ptBrModulesSecurity, ...ptBrModulesIT, ...ptBrModulesLocation, ...ptBrModulesPersonal, ...ptBrModulesHealth, ...ptBrModulesPayment, ...ptBrModulesBusiness, ...ptBrModulesProduct, ...ptBrModulesDocs }
 Object.assign(ptBrCatalog, ptBrModulesChart)
 
 Object.assign(enMessages, {

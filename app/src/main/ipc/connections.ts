@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron'
 import type { IpcDeps } from './registry.js'
 import type { ConnectionRecord } from '../../shared/contracts.js'
+import { markStartup } from '../startupTrace.js'
 function secretRefs(record: ConnectionRecord): string[] { return [record.passwordRef,record.ssh.passwordRef,record.ssh.passphraseRef,record.http.passwordRef,record.http.proxyPasswordRef].filter((ref): ref is string => Boolean(ref)) }
 export function registerConnectionsIpc({connectionsStore,vault}: IpcDeps): void {
  ipcMain.handle('connections:list',()=>connectionsStore.list())
@@ -8,5 +9,5 @@ export function registerConnectionsIpc({connectionsStore,vault}: IpcDeps): void 
  ipcMain.handle('connections:delete',async(_e,id:string)=>{const all=await connectionsStore.list();const removed=all.find(x=>x.id===id);await connectionsStore.delete(id);if(removed){const inUse=new Set((await connectionsStore.list()).flatMap(secretRefs));for(const ref of secretRefs(removed))if(!inUse.has(ref))await vault.delete(ref)}})
  ipcMain.handle('vault:save',(_e,key:string,password:string)=>vault.save(key,password))
  ipcMain.handle('vault:delete',(_e,key:string)=>vault.delete(key))
- ipcMain.handle('vault:status',()=>vault.getStatus())
+ ipcMain.handle('vault:status',()=>{markStartup('password-vault-status-call-start');const status=vault.getStatus();markStartup('password-vault-status-call-complete');return status})
 }

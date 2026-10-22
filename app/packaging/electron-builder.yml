@@ -7,6 +7,11 @@ files:
   - out/**/*
   - bootstrap/**/*
   - package.json
+extraResources:
+  - from: build-resources/docs
+    to: docs
+  - from: build-resources/THIRD-PARTY-NOTICES.txt
+    to: THIRD-PARTY-NOTICES.txt
 extraMetadata:
   main: bootstrap/dev-link.cjs
 fileAssociations:

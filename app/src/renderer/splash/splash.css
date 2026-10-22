@@ -1,0 +1,45 @@
+@font-face { font-family: 'Rubik Spray Paint'; src: url('./fonts/rubik-spray-paint.ttf') format('truetype'); font-style: normal; font-weight: 400; font-display: block; }
+@font-face { font-family: 'Sedgwick Ave Display'; src: url('./fonts/sedgwick-ave-display.ttf') format('truetype'); font-style: normal; font-weight: 400; font-display: block; }
+:root { color-scheme: dark; font-family: Inter, 'Segoe UI', sans-serif; background: #13191c; color: #eaf4f3; font-synthesis: none; }
+* { box-sizing: border-box; }
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #13191c; }
+body { user-select: none; }
+.splash { position: relative; isolation: isolate; display: grid; width: 100%; height: 100%; padding: 22px 31px 21px; grid-template-rows: 20px 1fr 55px; overflow: hidden; background: #13191c url('./assets/concrete-wall.svg') center / cover no-repeat; }
+.splash::after { position: absolute; z-index: -1; inset: 0; content: ''; background: linear-gradient(180deg, rgb(8 15 18 / .43), rgb(8 14 17 / .22) 48%, rgb(5 12 15 / .88)); }
+.wall-grain { position: absolute; z-index: -1; inset: 0; background: radial-gradient(ellipse at 52% 41%, rgb(61 205 194 / .12), transparent 49%), radial-gradient(ellipse at 93% 4%, rgb(255 181 74 / .07), transparent 33%); pointer-events: none; }
+.filter-defs { position: absolute; width: 0; height: 0; }
+.top-row { z-index: 1; display: flex; align-items: center; justify-content: space-between; color: #9aa9aa; font-size: 9px; letter-spacing: .17em; text-transform: uppercase; }
+.brand-kicker { font-weight: 700; }
+.version { color: #79898c; font: 10px/1.2 ui-monospace, monospace; letter-spacing: .04em; }
+.brand-lockup { z-index: 1; align-self: center; justify-self: center; margin-top: -2px; text-align: center; }
+.wordmark-wrap { position: relative; filter: drop-shadow(0 9px 0 #071316) drop-shadow(0 15px 0 rgb(5 15 18 / .76)) drop-shadow(0 0 18px rgb(55 211 199 / .34)); }
+.wordmark { position: relative; z-index: 1; margin: 0; color: #4bd2c7; background: linear-gradient(165deg, #f0ffff 1%, #89eee4 15%, #3cd1c5 42%, #12aeb4 73%, #08788d 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; -webkit-text-stroke: 3.6px #071719; paint-order: stroke fill; font: 400 82px/.96 'Rubik Spray Paint', Impact, sans-serif; letter-spacing: -.055em; filter: url(#spray-warp); }
+.paint-drip { position: absolute; z-index: 0; top: 72px; width: 7px; height: var(--drip-height); border-radius: 0 0 6px 6px; background: linear-gradient(180deg, #1bbab9, #0b7781); box-shadow: 0 3px 0 #071719; animation: drip-flow 3.7s ease-in-out infinite alternate; }
+.drip-one { left: 18%; --drip-height: 16px; animation-delay: -.8s; }
+.drip-two { left: 37%; --drip-height: 24px; animation-delay: -2.2s; }
+.drip-three { left: 56%; --drip-height: 13px; animation-delay: -1.4s; }
+.drip-four { left: 72%; --drip-height: 21px; animation-delay: -2.8s; }
+.drip-five { left: 87%; --drip-height: 11px; animation-delay: -.4s; }
+@keyframes drip-flow { from { transform: scaleY(.75); transform-origin: top; } to { transform: scaleY(1.08); transform-origin: top; } }
+.signature-row { position: relative; display: inline-flex; align-items: center; min-width: 112px; height: 36px; margin: 8px 0 0 128px; transform: rotate(-5deg); }
+.signature { position: relative; z-index: 1; color: #ffc064; font: 400 27px/.9 'Sedgwick Ave Display', 'Segoe Print', cursive; text-shadow: 1px 2px 0 #32210e, 2px 4px 0 rgb(0 0 0 / .6), 0 0 12px rgb(255 174 61 / .25); }
+.signature-swoosh { position: absolute; left: -12px; top: 10px; width: 105px; height: 19px; overflow: visible; }
+.signature-swoosh path { fill: none; stroke: #ffb547; stroke-width: 1.7; stroke-linecap: round; }
+.spark { position: absolute; color: #fff1ce; text-shadow: 0 0 7px #ffc25d; }
+.spark-one { top: -1px; right: -17px; font-size: 12px; }
+.spark-two { top: 18px; right: -27px; font-size: 9px; }
+.startup-status { z-index: 1; align-self: end; }
+.stage-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; color: #e1efee; font-size: 12px; letter-spacing: .015em; }
+.stage-label { min-height: 15px; color: #dceceb; }
+.percentage { color: #73dfd4; font: 11px ui-monospace, monospace; }
+.progress-track { position: relative; width: 100%; height: 12px; overflow: visible; background: #0c1316; border: 1px solid #405153; box-shadow: inset 0 2px 4px #0008, 0 1px 0 #70807c55; }
+.progress-spray { position: absolute; inset: 1px; overflow: visible; }
+.progress-fill { position: absolute; top: 0; bottom: 0; left: 0; width: var(--progress, 0%); min-width: 0; background: linear-gradient(90deg, #0b8b95, #19b7b5 50%, #7ce9dc); clip-path: polygon(0 0, 100% 0, 98% 16%, 100% 31%, 97% 48%, 99% 64%, 96% 83%, 100% 100%, 0 100%); transition: width 180ms linear; box-shadow: 0 0 11px rgb(43 214 202 / .65); }
+.spray-speck { position: absolute; z-index: 1; width: 3px; height: 3px; background: #7ce9dc; box-shadow: 0 0 6px #53e2d7; transform: translateX(var(--speck-x)); }
+.speck-a { top: -4px; left: var(--progress, 0%); --speck-x: 4px; }
+.speck-b { bottom: -3px; left: var(--progress, 0%); width: 2px; height: 2px; --speck-x: -2px; }
+.speck-c { top: 1px; left: var(--progress, 0%); width: 2px; height: 2px; --speck-x: 8px; }
+.status-caption { display: flex; align-items: center; gap: 7px; margin-top: 8px; color: #8da0a0; font-size: 9px; letter-spacing: .045em; }
+.status-dot { width: 5px; height: 5px; background: #64d8cb; border-radius: 50%; box-shadow: 0 0 7px #40c8bb; }
+.copyright { margin-left: auto; color: #68797b; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }

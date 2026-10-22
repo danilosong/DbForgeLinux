@@ -37,6 +37,7 @@ import { registerAboutIpc } from './about.js'
 import { registerKeyboardInteractiveIpc } from './keyboard-interactive.js'
 import { join } from 'node:path'
 import { defaultTrustedRendererConfig, installIpcSecurity } from './guard.js'
+import { markStartup } from '../startupTrace.js'
 
 export interface IpcDeps {
   driver: MysqlDriver
@@ -50,6 +51,7 @@ export function registerIpcRegistry(deps: IpcDeps): void {
   registerKeyboardInteractiveIpc()
   let deferredInitialization: Promise<void> | undefined
   ipcMain.handle('app:renderer-ready', async () => {
+    markStartup('noncritical-ipc-registration-start')
     deferredInitialization ??= (async () => {
       const [{ registerHistoryIpc }, { SqlExecutionHistoryStore }, { registerExtraToolsIpc }, { registerUpdaterIpc }] = await Promise.all([
         import('./history.js'), import('../history/SqlExecutionHistoryStore.js'), import('./extra-tools.js'), import('./updater.js')
@@ -59,6 +61,7 @@ export function registerIpcRegistry(deps: IpcDeps): void {
       registerUpdaterIpc(settingsStore, deps.driver)
     })()
     await deferredInitialization
+    markStartup('noncritical-ipc-registration-complete')
     return { ready: true }
   })
   registerEditorIpc(deps)

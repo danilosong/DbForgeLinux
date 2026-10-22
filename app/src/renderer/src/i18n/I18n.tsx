@@ -14,6 +14,7 @@ import { ptBrModulesDocumenterMessages } from './ptBrModulesDocumenter.js'
 import { ptBrModulesProfilerMessages } from './ptBrModulesProfiler.js'
 import { ptBrModulesExecutionMessages } from './ptBrModulesExecution.js'
 import { ptBrModulesShell } from './ptBrModulesShell.js'
+import { ptBrModulesSplash } from './ptBrModulesSplash.js'
 
 function resolveLocale(value: unknown): UiLocale {
   if (value === 'pt-BR') return 'pt-BR'
@@ -25,7 +26,8 @@ export function I18nProvider({ children }: { children: ReactNode }): React.JSX.E
   const [locale, setLocale] = useState<UiLocale>(() => resolveLocale(localStorage.getItem('tuxsql.locale') ?? navigator.language))
   useEffect(() => {
     let active = true
-    void window.tuxsql.loadSettings().then(({ settings }) => { if (active) setLocale(resolveLocale(settings.language.locale)) }).catch(() => undefined)
+    window.tuxsql.traceStartup('renderer-i18n-initialized')
+    void window.tuxsql.loadSettings().then(({ settings }) => { if (active) setLocale(resolveLocale(settings.language.locale)); window.tuxsql.traceStartup('renderer-i18n-settings-loaded') }).catch(() => undefined)
     const onSettings = (event: Event): void => {
       const settings = (event as CustomEvent<{ language?: { locale?: unknown } }>).detail
       setLocale(resolveLocale(settings?.language?.locale))
@@ -35,7 +37,7 @@ export function I18nProvider({ children }: { children: ReactNode }): React.JSX.E
   }, [])
   useEffect(() => { document.documentElement.lang = locale; document.documentElement.dataset.locale = locale; localStorage.setItem('tuxsql.locale', locale) }, [locale])
   const value = useMemo(() => ({ locale, t: (key: string, args: Array<string | number> = []) => {
-    const catalog = locale === 'pt-BR' ? { ...ptBrCatalog, ...navigationPtBrMessages, ...aboutPtBrMessages, ...menuPtBrMessages, ...updaterPtBrMessages, ...importExportPtBrMessages, ...ptBrModulesDataMessages, ...ptBrModulesERMessages, ...ptBrModulesImportExportMessages, ...ptBrModulesDocumenterMessages, ...ptBrModulesProfilerMessages, ...ptBrModulesExecutionMessages, ...ptBrModulesShell } : { ...enMessages, ...navigationEnMessages, ...aboutEnMessages, ...menuEnMessages, ...updaterEnMessages, ...importExportEnMessages }
+    const catalog: Record<string, string> = locale === 'pt-BR' ? { ...ptBrCatalog, ...navigationPtBrMessages, ...aboutPtBrMessages, ...menuPtBrMessages, ...updaterPtBrMessages, ...importExportPtBrMessages, ...ptBrModulesDataMessages, ...ptBrModulesERMessages, ...ptBrModulesImportExportMessages, ...ptBrModulesDocumenterMessages, ...ptBrModulesProfilerMessages, ...ptBrModulesExecutionMessages, ...ptBrModulesShell, ...ptBrModulesSplash } : { ...enMessages, ...navigationEnMessages, ...aboutEnMessages, ...menuEnMessages, ...updaterEnMessages, ...importExportEnMessages }
     return (catalog[key] ?? enMessages[key] ?? key).replace(/\{(\d+)\}/g, (token, index: string) => String(args[Number(index)] ?? token))
   } }), [locale])
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
