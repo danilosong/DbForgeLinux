@@ -8,7 +8,43 @@ export const splashPhases = [
 ] as const
 
 export type SplashPhase = (typeof splashPhases)[number]['id']
-export type SplashCompletionReason = 'ready' | 'timeout' | 'error'
+export type SplashCompletionReason = 'ready' | 'timeout' | 'error' | 'skip'
+
+export const splashTiming = {
+  minimumVisibleMs: 3000,
+  readyHoldMs: 300,
+  fadeOutMs: 250
+} as const
+
+export interface SplashReadyPlan {
+  completeAt: number
+  fadeAt: number
+  closeAt: number
+}
+
+export class SplashTimingModel {
+  private visibleAt: number | undefined
+
+  startVisible(at: number): void {
+    if (this.visibleAt === undefined) this.visibleAt = at
+  }
+
+  readyPlan(now: number): SplashReadyPlan {
+    const visibleAt = this.visibleAt ?? now
+    const latestCompleteAt = visibleAt + splashTiming.minimumVisibleMs - splashTiming.readyHoldMs - splashTiming.fadeOutMs
+    const completeAt = Math.max(now, latestCompleteAt)
+    const fadeAt = completeAt + splashTiming.readyHoldMs
+    return { completeAt, fadeAt, closeAt: fadeAt + splashTiming.fadeOutMs }
+  }
+
+  skipCloseAt(now: number): number {
+    return now + splashTiming.fadeOutMs
+  }
+
+  visibleDuration(now: number): number {
+    return this.visibleAt === undefined ? 0 : Math.max(0, now - this.visibleAt)
+  }
+}
 
 export interface SplashProgressSnapshot {
   phase: SplashPhase

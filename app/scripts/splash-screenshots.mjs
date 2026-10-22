@@ -32,7 +32,7 @@ async function capture(percent) {
 }
 
 try {
-  for (const percent of [0, 45, 100]) await capture(percent)
+  for (const percent of [10, 60, 100]) await capture(percent)
   console.log(`Captured splash previews in ${evidence}`)
 } finally {
   await rm(dataRoot, { recursive: true, force: true })

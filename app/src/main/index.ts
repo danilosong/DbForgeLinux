@@ -1,6 +1,7 @@
 import { initializeStartupTrace, isStartupRendererMilestone, markStartup } from './startupTrace.js'
 import { app, BrowserWindow, ipcMain, Menu, session } from 'electron'
 import { join } from 'node:path'
+import { performance } from 'node:perf_hooks'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { MysqlDriver } from './db/MysqlDriver.js'
 import { ConnectionsStore } from './connections/ConnectionsStore.js'
@@ -15,7 +16,7 @@ import { ensurePrivateDirectory } from './security/privateDirectory.js'
 import { runScheduledBackup } from './ipc/scheduledBackup.js'
 import { createTuxSqlBrowserWindow } from './windowOptions.js'
 import { SettingsStore } from '../modules/options/index.js'
-import { SplashProgressModel, type SplashPhase, type SplashCompletionReason } from '../modules/startup/splashProgress.js'
+import { SplashProgressModel, SplashTimingModel, splashTiming, type SplashPhase, type SplashCompletionReason } from '../modules/startup/splashProgress.js'
 import { splashEnMessages } from '../shared/splashMessages.js'
 import { ptBrModulesSplash } from '../shared/ptBrSplashMessages.js'
 import { isAllowedWindowPermission } from './security/permissionPolicy.js'
@@ -26,16 +27,23 @@ let connectionsStore: ConnectionsStore
 let mainWindow: BrowserWindow | undefined
 let splashWindow: BrowserWindow | undefined
 let splashProgressModel: SplashProgressModel | undefined
+let splashTimingModel: SplashTimingModel | undefined
 let splashTimeout: NodeJS.Timeout | undefined
+let splashCompletionTimer: NodeJS.Timeout | undefined
+let splashHoldTimer: NodeJS.Timeout | undefined
+let splashDismissTimer: NodeJS.Timeout | undefined
 let splashLocale: 'en' | 'pt-BR' = 'en'
 let splashEnabled = false
 let splashHasBeenShown = false
+let splashDismissed = false
+let splashReadyRequested = false
+let splashFinishReason: SplashCompletionReason | 'skip' | undefined
 let splashDidFinishLoad = false
 let splashReadyToShow = false
 let splashPreferenceResolved = false
 let mainReadyToShow = false
 let ownsSingleInstance = false
-let lastSplashPayload: { percent: number; label: string; version: string; kicker: string } | undefined
+let lastSplashPayload: { percent: number; label: string; version: string; kicker: string; visible: boolean; fadeOut: boolean } | undefined
 const pendingSqlPaths: string[] = []
 function queueSqlPath(path: string): void {
  if (path.startsWith('file:')) { try { path=fileURLToPath(path) } catch { return } }
@@ -53,18 +61,18 @@ initializeStartupTrace(userDataDir)
 const scheduledBackupArg = process.argv.indexOf('--run-backup-schedule')
 const scheduledBackupId = scheduledBackupArg >= 0 ? process.argv[scheduledBackupArg + 1] : undefined
 const splashPreviewEnv = process.env.TUXSQL_SPLASH_PREVIEW
-const splashPreviewPercent = splashPreviewEnv === '0' || splashPreviewEnv === '45' || splashPreviewEnv === '100' ? Number(splashPreviewEnv) : undefined
+const splashPreviewPercent = ['0', '10', '45', '60', '100'].includes(splashPreviewEnv ?? '') ? Number(splashPreviewEnv) : undefined
 const startupRequiresEditor = process.argv.some((arg) => arg.toLowerCase().endsWith('.sql'))
 function splashLaunchOptedOut(): boolean {
  return scheduledBackupId !== undefined || process.env.TUXSQL_NO_SPLASH === '1' || process.argv.includes('--no-splash')
   || process.argv.some((arg) => /^--(?:remote-debugging-port|inspect(?:-brk|-port)?)(?:=|$)/.test(arg))
 }
-function splashPayload(phase: SplashPhase, percent: number): { percent: number; label: string; version: string; kicker: string } {
+function splashPayload(phase: SplashPhase, percent: number): { percent: number; label: string; version: string; kicker: string; visible: boolean; fadeOut: boolean } {
  const key = `splash.stage.${phase}` as keyof typeof splashEnMessages
  const labels: Record<keyof typeof splashEnMessages, string> = splashLocale === 'pt-BR' ? ptBrModulesSplash : splashEnMessages
- return { percent, label: labels[key], version: app.getVersion(), kicker: labels['splash.brand.kicker'] }
+ return { percent, label: labels[key], version: app.getVersion(), kicker: labels['splash.brand.kicker'], visible: splashHasBeenShown, fadeOut: false }
 }
-function sendSplashPayload(payload: { percent: number; label: string; version: string; kicker: string }): void {
+function sendSplashPayload(payload: { percent: number; label: string; version: string; kicker: string; visible: boolean; fadeOut: boolean }): void {
  lastSplashPayload = payload
  if (splashDidFinishLoad && splashWindow && !splashWindow.isDestroyed()) splashWindow.webContents.send('splash:progress', payload)
 }
@@ -72,36 +80,97 @@ function advanceSplash(phase: SplashPhase): void {
  const snapshot = splashProgressModel?.advance(phase)
  if (snapshot) sendSplashPayload(splashPayload(snapshot.phase, snapshot.percent))
 }
-function finishSplash(reason: SplashCompletionReason = 'ready'): void {
+function clearSplashFinishTimers(): void {
+ for (const timer of [splashCompletionTimer, splashHoldTimer, splashDismissTimer]) if (timer) clearTimeout(timer)
+ splashCompletionTimer = undefined
+ splashHoldTimer = undefined
+ splashDismissTimer = undefined
+}
+function closeSplashWindow(): void {
+ const window = splashWindow
+ if (!window || window.isDestroyed()) {
+  splashWindow = undefined
+  splashDismissed = true
+  showMainWindowWhenReady()
+  return
+ }
+ window.close()
+}
+function finishSplash(reason: SplashCompletionReason | 'skip' = 'ready'): void {
+ if (reason === 'ready' && splashWindow && !splashPreferenceResolved) { splashReadyRequested = true; return }
+ if (reason === 'ready' && splashFinishReason) return
+ if (reason === 'skip' && splashFinishReason === 'skip') return
+ if ((reason === 'timeout' || reason === 'error') && (splashFinishReason === 'timeout' || splashFinishReason === 'error')) return
+ if (reason === 'skip' || reason === 'timeout' || reason === 'error') clearSplashFinishTimers()
  if (splashTimeout) clearTimeout(splashTimeout)
  splashTimeout = undefined
+
+ if (reason === 'ready') {
+  splashFinishReason = 'ready'
+  if (splashWindow && !splashWindow.isDestroyed() && splashEnabled && !splashHasBeenShown) {
+   splashReadyRequested = true
+   return
+  }
+  if (!splashWindow || splashWindow.isDestroyed() || !splashEnabled) {
+   const snapshot = splashProgressModel?.complete('ready')
+   if (snapshot) sendSplashPayload(splashPayload(snapshot.phase, snapshot.percent))
+   closeSplashWindow()
+   return
+  }
+  const plan = splashTimingModel?.readyPlan(performance.now())
+  const snapshot = splashProgressModel?.complete('ready')
+  if (!plan || !snapshot) { closeSplashWindow(); return }
+  splashCompletionTimer = setTimeout(() => {
+   sendSplashPayload(splashPayload(snapshot.phase, snapshot.percent))
+   splashHoldTimer = setTimeout(() => {
+    if (lastSplashPayload) sendSplashPayload({ ...lastSplashPayload, fadeOut: true })
+    splashDismissTimer = setTimeout(closeSplashWindow, splashTiming.fadeOutMs)
+   }, splashTiming.readyHoldMs)
+  }, Math.max(0, plan.completeAt - performance.now()))
+  splashCompletionTimer.unref?.()
+  return
+ }
+
+ splashFinishReason = reason
  const snapshot = splashProgressModel?.complete(reason)
- const window = splashWindow
  if (snapshot) {
   const payload = splashPayload(snapshot.phase, snapshot.percent)
   if (reason === 'timeout' || reason === 'error') payload.label = (splashLocale === 'pt-BR' ? ptBrModulesSplash : splashEnMessages)['splash.stage.error']
   sendSplashPayload(payload)
  }
- if (!window || window.isDestroyed()) { splashWindow = undefined; return }
- const close = (): void => { if (splashWindow === window) splashWindow = undefined; if (!window.isDestroyed()) window.close(); markStartup('splash-closed') }
- if ((reason === 'timeout' || reason === 'error') && splashDidFinishLoad) setTimeout(close, 1200).unref?.()
- else close()
+ if (reason === 'skip' && splashHasBeenShown && splashWindow && !splashWindow.isDestroyed()) {
+  if (lastSplashPayload) sendSplashPayload({ ...lastSplashPayload, fadeOut: true })
+  splashDismissTimer = setTimeout(closeSplashWindow, splashTiming.fadeOutMs)
+  splashDismissTimer.unref?.()
+  return
+ }
+ if ((reason === 'timeout' || reason === 'error') && splashDidFinishLoad && splashHasBeenShown) {
+  splashDismissTimer = setTimeout(closeSplashWindow, 1200)
+  splashDismissTimer.unref?.()
+ } else closeSplashWindow()
 }
 function revealSplashWhenReady(): void {
  if (!splashEnabled || !splashReadyToShow || !splashWindow || splashWindow.isDestroyed() || splashHasBeenShown) return
  splashWindow.show()
  splashHasBeenShown = true
+ splashTimingModel?.startVisible(performance.now())
  markStartup('splash-window-shown')
- showMainWindowWhenReady()
+ if (lastSplashPayload) sendSplashPayload({ ...lastSplashPayload, visible: true, fadeOut: false })
+ if (splashReadyRequested) {
+  splashReadyRequested = false
+  splashFinishReason = undefined
+  finishSplash('ready')
+ }
 }
 function showMainWindowWhenReady(): void {
- if (!splashPreferenceResolved || !mainReadyToShow || !mainWindow || mainWindow.isDestroyed() || (splashEnabled && !splashHasBeenShown)) return
+ if (!splashPreferenceResolved || !mainReadyToShow || !mainWindow || mainWindow.isDestroyed() || (splashEnabled && !splashDismissed)) return
  mainWindow.show()
  markStartup('main-window-shown')
 }
 function createSplashWindow(): void {
  try {
   splashProgressModel = new SplashProgressModel()
+  splashTimingModel = new SplashTimingModel()
   splashProgressModel.advance('starting')
   const options = {
    width: 560, height: 340, minWidth: 560, maxWidth: 560, minHeight: 340, maxHeight: 340,
@@ -130,7 +199,12 @@ function createSplashWindow(): void {
   })
   window.webContents.on('did-fail-load', () => { markStartup('splash-load-failed'); finishSplash('error') })
   window.webContents.on('render-process-gone', () => { markStartup('splash-renderer-gone'); finishSplash('error') })
-  window.on('closed', () => { if (splashWindow === window) splashWindow = undefined })
+  window.on('closed', () => {
+   if (splashWindow === window) splashWindow = undefined
+   splashDismissed = true
+   markStartup('splash-closed')
+   showMainWindowWhenReady()
+  })
   const query = splashPreviewPercent === undefined ? undefined : { preview: String(splashPreviewPercent) }
   void window.loadFile(splashFile, query ? { query } : undefined).catch(() => finishSplash('error'))
   splashTimeout = setTimeout(() => { markStartup('splash-safety-timeout'); finishSplash('timeout') }, 25_000)
@@ -191,6 +265,10 @@ if (scheduledBackupId === undefined && ownsSingleInstance) {
   if (milestone === 'renderer-first-paint') advanceSplash('editor')
   if (milestone === 'renderer-editor-interactive' || (milestone === 'renderer-app-interactive' && !startupRequiresEditor)) finishSplash('ready')
  })
+ ipcMain.on('splash:skip', (event) => {
+  if (event.sender !== splashWindow?.webContents) return
+  finishSplash('skip')
+ })
  app.whenReady().then(()=>{
   markStartup('app-ready')
   session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
@@ -217,6 +295,7 @@ if (scheduledBackupId === undefined && ownsSingleInstance) {
     splashEnabled = true
     revealSplashWhenReady()
     showMainWindowWhenReady()
+    if (splashReadyRequested) { splashReadyRequested = false; splashFinishReason = undefined; finishSplash('ready') }
     const current = splashProgressModel?.snapshot()
     if (current) sendSplashPayload(splashPayload(current.phase, current.percent))
    }).catch(() => {
@@ -225,6 +304,7 @@ if (scheduledBackupId === undefined && ownsSingleInstance) {
     splashEnabled = true
     revealSplashWhenReady()
     showMainWindowWhenReady()
+    if (splashReadyRequested) { splashReadyRequested = false; splashFinishReason = undefined; finishSplash('ready') }
    })
   } else splashPreferenceResolved = true
   advanceSplash('vault')
