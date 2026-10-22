@@ -17,5 +17,5 @@
       "detail": "20 de 20"
     }
   ],
-  "note": "O 100% vale para o escopo Debian/Linux e para o que a referência mostrou; exclusões e diferenças intencionais estão declaradas em document/paridade/ESCOPO-LINUX.md."
+  "note": "O 100% vale para o escopo Debian/Linux e para o que a referência mostrou; exclusões e diferenças intencionais estão declaradas em document/paridade/ESCOPO-LINUX.md. Visual v2 (shell moderno, banner de abertura, documentação offline) entregue sem alterar funcionalidades."
 }

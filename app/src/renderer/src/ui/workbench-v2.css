@@ -278,6 +278,39 @@ body { background: var(--bg-app); }
 .app-shell button:not(.button-primary):active:not(:disabled) { background-color: color-mix(in srgb, var(--accent) 11%, transparent); }
 .app-shell button:not(.button-primary)[aria-pressed='true'],
 .app-shell button:not(.button-primary).selected { color: var(--accent); background-color: color-mix(in srgb, var(--accent) 10%, var(--bg-surface)); }
+.app-shell :is(.qb-toolbar, .qb-join-tools, .er-toolbar, .routine-debugger .rd-toolbar, .routine-debugger .rd-engine) > button:not(.button-primary) {
+  border: 1px solid color-mix(in srgb, var(--border-control) 22%, transparent);
+  border-radius: 8px;
+  background-color: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, opacity 140ms ease;
+}
+.app-shell .compare-panel button:not(.button-primary) {
+  border: 1px solid color-mix(in srgb, var(--border-control) 22%, transparent);
+  border-radius: 8px;
+  background-color: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  transition: color 140ms ease, background-color 140ms ease, border-color 140ms ease, opacity 140ms ease;
+}
+.app-shell .compare-panel button:not(.button-primary):hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--border-control) 42%, var(--accent));
+  background-color: color-mix(in srgb, var(--text-primary) 9%, transparent);
+}
+.app-shell .compare-panel button:not(.button-primary):active:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-control));
+  background-color: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.app-shell .compare-panel button:disabled { opacity: .48; }
+.app-shell :is(.qb-toolbar, .qb-join-tools, .er-toolbar, .routine-debugger .rd-toolbar, .routine-debugger .rd-engine) > button:not(.button-primary):hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--border-control) 42%, var(--accent));
+  background-color: color-mix(in srgb, var(--text-primary) 9%, transparent);
+}
+.app-shell :is(.qb-toolbar, .qb-join-tools, .er-toolbar, .routine-debugger .rd-toolbar, .routine-debugger .rd-engine) > button:not(.button-primary):active:not(:disabled) {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border-control));
+  background-color: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.app-shell :is(.qb-toolbar, .qb-join-tools, .er-toolbar, .routine-debugger .rd-toolbar, .routine-debugger .rd-engine) > button:disabled {
+  opacity: .48;
+}
+.routine-debugger { box-sizing: border-box; padding-top: 16px; }
 .app-shell button.button-danger:not(.button-primary) { color: var(--error); }
 .app-shell button:focus-visible,
 .app-shell input:focus-visible,
