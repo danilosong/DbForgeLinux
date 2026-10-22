@@ -49,8 +49,9 @@ describe('sessions and server variables backend', () => {
 
   it('marks static variables and validates global SET values', async () => {
     const execute = vi.fn(async () => undefined)
-    const db = client({ execute, query: vi.fn(async () => [{ Variable_name: 'port', Value: '3306' }, { Variable_name: 'max_connections', Value: '151' }, { Variable_name: 'sql_mode', Value: 'STRICT_TRANS_TABLES,ANSI' }]) })
+    const db = client({ execute, query: vi.fn(async (sql: string) => sql.startsWith('SELECT VERSION') ? [{ version: '8.4.0' }] : [{ Variable_name: 'port', Value: '3306' }, { Variable_name: 'max_connections', Value: '151' }, { Variable_name: 'sql_mode', Value: 'STRICT_TRANS_TABLES,ANSI' }]) })
     const snapshot = await getServerVariables(db, 'GLOBAL')
+    expect(snapshot.serverFamily).toBe('mysql')
     expect(await getServerStatus(db, 'GLOBAL')).toEqual({ port: '3306', max_connections: '151', sql_mode: 'STRICT_TRANS_TABLES,ANSI' })
     expect(snapshot.variables.find((item) => item.name === 'port')?.dynamic).toBe(false)
     expect(snapshot.variables.find((item) => item.name === 'max_connections')?.type).toBe('number')
@@ -81,11 +82,21 @@ describe('sessions and server variables backend', () => {
     expect(serverVariableSql('max_connections', 200, 'GLOBAL', { dynamic: true, persist: true, type: 'number' })).toBe('SET PERSIST max_connections = 200')
     expect(() => serverVariableSql('port', 3307, 'GLOBAL', { dynamic: false })).toThrow('is static')
     expect(() => serverVariableSql('max_connections', 1, 'SESSION', { dynamic: true, mode: 'persist' })).toThrow('only accepts global')
+    expect(() => serverVariableSql('max_connections', 200, 'GLOBAL', { dynamic: true, mode: 'persist', serverFamily: 'mariadb' })).toThrow('MariaDB does not support SET PERSIST')
+  })
+
+  it('detects MariaDB and prevents unsupported persistent settings while retaining SET GLOBAL', async () => {
+    const execute = vi.fn(async () => undefined)
+    const db = client({ execute, query: vi.fn(async (sql: string) => sql.startsWith('SELECT VERSION') ? [{ version: '11.8.9-MariaDB-ubu2404' }] : [{ Variable_name: 'max_connections', Value: '151' }]) })
+    expect((await getServerVariables(db, 'GLOBAL')).serverFamily).toBe('mariadb')
+    await expect(setServerVariable(db, 'max_connections', 200, 'GLOBAL', { confirm: true, confirmation: 'max_connections', mode: 'persist', serverFamily: 'mariadb', dynamic: true, type: 'number' })).rejects.toThrow('MariaDB does not support SET PERSIST')
+    await setServerVariable(db, 'max_connections', 200, 'GLOBAL', { confirm: true, confirmation: 'max_connections', mode: 'set', serverFamily: 'mariadb', dynamic: true, type: 'number' })
+    expect(execute).toHaveBeenCalledExactlyOnceWith('SET GLOBAL max_connections = 200')
   })
 
   it('compares variables and status counters', () => {
-    const before = { capturedAt: 'a', scope: 'GLOBAL' as const, variables: [{ name: 'x', value: '1', scope: 'GLOBAL' as const, dynamic: true, type: 'number' as const }] }
-    const after = { capturedAt: 'b', scope: 'GLOBAL' as const, variables: [{ name: 'x', value: '2', scope: 'GLOBAL' as const, dynamic: true, type: 'number' as const }] }
+    const before = { capturedAt: 'a', scope: 'GLOBAL' as const, serverFamily: 'mysql' as const, variables: [{ name: 'x', value: '1', scope: 'GLOBAL' as const, dynamic: true, type: 'number' as const }] }
+    const after = { capturedAt: 'b', scope: 'GLOBAL' as const, serverFamily: 'mysql' as const, variables: [{ name: 'x', value: '2', scope: 'GLOBAL' as const, dynamic: true, type: 'number' as const }] }
     expect(compareVariableSnapshots(before, after)).toEqual([{ name: 'x', oldValue: '1', newValue: '2', scope: 'GLOBAL', dynamic: true }])
     expect(compareStatus({ Questions: '10', Threads: '2' }, { Questions: '16', Threads: '2' })).toEqual({ Questions: 6 })
   })

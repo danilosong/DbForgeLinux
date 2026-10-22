@@ -36,11 +36,11 @@ export function registerSessionsIpc({ driver }: IpcDeps): void {
   ipcMain.handle('sessions:variables', (_event, connectionId: string, scope: 'GLOBAL' | 'SESSION' = 'GLOBAL') => getServerVariables(clientFor(driver, connectionId), scope))
   ipcMain.handle('sessions:status', (_event, connectionId: string, scope: 'GLOBAL' | 'SESSION' = 'GLOBAL') => getServerStatus(clientFor(driver, connectionId), scope))
   type VariableRequest = { name: string; newValue: string; scope: 'GLOBAL' | 'SESSION' }
-  const resolveVariable = async (client: SqlClient, change: VariableRequest): Promise<{ variable: VariableInfo; value: string | number }> => {
+  const resolveVariable = async (client: SqlClient, change: VariableRequest): Promise<{ variable: VariableInfo; value: string | number; serverFamily: 'mysql' | 'mariadb' }> => {
     const snapshot = await getServerVariables(client, change.scope)
     const variable = snapshot.variables.find((item) => item.name === change.name)
     if (!variable) throw new Error(`Variable ${change.name} was not found.`)
-    return { variable, value: variable.type === 'number' ? Number(change.newValue) : change.newValue }
+    return { variable, value: variable.type === 'number' ? Number(change.newValue) : change.newValue, serverFamily: snapshot.serverFamily }
   }
   const modeOf = (options: { persist?: boolean; mode?: VariableApplyMode } | undefined): VariableApplyMode => {
     const mode = options?.mode ?? (options?.persist ? 'persist' : 'set')
@@ -49,15 +49,15 @@ export function registerSessionsIpc({ driver }: IpcDeps): void {
   }
   ipcMain.handle('sessions:preview-variable', async (_event, connectionId: string, change: VariableRequest, options?: { persist?: boolean; mode?: VariableApplyMode }) => {
     const mode = modeOf(options)
-    const { variable, value } = await resolveVariable(clientFor(driver, connectionId), change)
-    return { sql: serverVariableSql(change.name, value, change.scope, { ...variable, mode }), oldValue: variable.value, requiresTypedConfirmation: variableChangeNeedsTypedConfirmation(change.scope, mode) }
+    const { variable, value, serverFamily } = await resolveVariable(clientFor(driver, connectionId), change)
+    return { sql: serverVariableSql(change.name, value, change.scope, { ...variable, mode, serverFamily }), oldValue: variable.value, requiresTypedConfirmation: variableChangeNeedsTypedConfirmation(change.scope, mode) }
   })
   ipcMain.handle('sessions:set-variable', async (_event, connectionId: string, change: VariableRequest, options: { confirm: true; persist?: boolean; mode?: VariableApplyMode; confirmation?: string }) => {
     if (options?.confirm !== true) throw new Error('Applying variables requires explicit confirmation.')
     const mode = modeOf(options)
     const client = clientFor(driver, connectionId)
     await ensureWritable(client)
-    const { variable, value } = await resolveVariable(client, change)
-    return setServerVariable(client, change.name, value, change.scope, { ...variable, confirm: true, mode, confirmation: options.confirmation })
+    const { variable, value, serverFamily } = await resolveVariable(client, change)
+    return setServerVariable(client, change.name, value, change.scope, { ...variable, confirm: true, mode, serverFamily, confirmation: options.confirmation })
   })
 }

@@ -350,7 +350,18 @@ export class MysqlDriver implements DbDriver {
   async cancelQuery(connectionId: string, executionId: string): Promise<void> {
     const active = this.executions.get(executionId)
     if (!active || active.connectionId !== connectionId) return
-    await this.requireConnection(connectionId).pool.query(`KILL QUERY ${active.threadId}`)
+    const managed = this.requireConnection(connectionId)
+    await managed.pool.query(`KILL QUERY ${active.threadId}`)
+    if (managed.serverFlavor === 'mariadb') {
+      // MariaDB can return the KILL response before the target thread leaves its query state.
+      // Do not release this stream session until the server confirms that its query has stopped.
+      for (let attempt = 0; attempt < 100; attempt++) {
+        const [rows] = await managed.pool.query<Array<RowDataPacket & { command: string }>>('SELECT COMMAND AS command FROM information_schema.PROCESSLIST WHERE ID=?', [active.threadId])
+        if (!rows.length || String(rows[0]?.command).toLowerCase() !== 'query') return
+        await new Promise((resolve) => setTimeout(resolve, 20))
+      }
+      throw new Error('MariaDB did not confirm that the query stopped after KILL QUERY.')
+    }
   }
 
   async listDatabaseObjects(connectionId: string, database: string): Promise<DatabaseObject[]> {
@@ -432,22 +443,23 @@ export class MysqlDriver implements DbDriver {
       : await getCoreConnection(managed.corePool)
     const ownsConnection = !transactionConnection
     if (signal?.aborted) {
-      if (ownsConnection) connection.release()
+      if (ownsConnection) connection.destroy()
       throw new DOMException('The operation was cancelled.', 'AbortError')
     }
     const activeExecutionId = executionId ?? crypto.randomUUID()
     let stream: (NodeJS.ReadableStream & AsyncIterable<Record<string, unknown>> & { destroy(error?: Error): void }) | undefined
     let timedOut = false
     let completed = false
+    let cancelTask: Promise<void> | undefined
     let previousSelectLimit: number | undefined
     let previousSqlMode: string | undefined
     this.executions.set(activeExecutionId, { connectionId, threadId: connection.threadId })
     const abort = (): void => {
-      void this.cancelQuery(connectionId, activeExecutionId).catch(() => undefined).finally(() => stream?.destroy(new DOMException('The operation was cancelled.', 'AbortError')))
+      cancelTask = this.cancelQuery(connectionId, activeExecutionId).catch(() => undefined).finally(() => stream?.destroy(new DOMException('The operation was cancelled.', 'AbortError')))
     }
     const timeout = commandTimeout > 0 ? setTimeout(() => {
       timedOut = true
-      void this.cancelQuery(connectionId, activeExecutionId).catch(() => undefined)
+      cancelTask = this.cancelQuery(connectionId, activeExecutionId).catch(() => undefined)
     }, commandTimeout * 1000) : undefined
     signal?.addEventListener('abort', abort, { once: true })
     try {
@@ -481,6 +493,7 @@ export class MysqlDriver implements DbDriver {
     } finally {
       signal?.removeEventListener('abort', abort)
       if (timeout) clearTimeout(timeout)
+      if ((signal?.aborted || timedOut) && cancelTask) await cancelTask
       this.executions.delete(activeExecutionId)
       if (!completed || signal?.aborted) stream?.destroy()
       if (previousSelectLimit !== undefined) await this.setSelectExecutionLimitCore(connection, managed.serverFlavor, previousSelectLimit, true).catch(() => connection.destroy())

@@ -13,7 +13,10 @@ if (!existsSync(electronPath)) throw new Error(`Electron executable not found at
 const electronArgs = ['--disable-gpu', '--use-fake-device-for-media-stream']
 if (electronPath.includes(`${join('node_modules', 'electron', 'dist')}${process.platform === 'win32' ? '\\' : '/'}`)) electronArgs.push(process.cwd())
 const dataRoot = await mkdtemp(join(tmpdir(), 'tuxsql-smoke-'))
-const admin = await mysql.createConnection({ host: '127.0.0.1', port: 33067, user: 'root', password: process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only' })
+const mysqlHost = process.env.MYSQL_HOST ?? '127.0.0.1'
+const mysqlPort = Number(process.env.MYSQL_PORT ?? 33067)
+const smokeConnectionName = `Smoke DB ${mysqlPort}`
+const admin = await mysql.createConnection({ host: mysqlHost, port: mysqlPort, user: 'root', password: process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only' })
 // Keep this long-running E2E schema outside mysql:clean-test's broad tuxsql_test_ sweep.
 const testPrefix = `qa_smoke_${process.pid}_${randomUUID().slice(0, 8)}`
 const database = testPrefix
@@ -116,9 +119,9 @@ END`)
   const startupClose = page.locator('.panel-dialog-backdrop .panel-dialog-close')
   if (await startupClose.count()) await startupClose.click().catch(() => undefined)
   await page.getByRole('button', { name: 'New Connection' }).last().click()
-  await page.getByLabel('Connection name').fill('Smoke MySQL 33067')
-  await page.getByLabel('Host').fill('127.0.0.1')
-  await page.getByLabel('Port').fill('33067')
+  await page.getByLabel('Connection name').fill(smokeConnectionName)
+  await page.getByLabel('Host').fill(mysqlHost)
+  await page.getByLabel('Port').fill(String(mysqlPort))
   await page.getByLabel('User').fill(process.env.MYSQL_USER ?? 'root')
   await page.getByLabel('Password', { exact: true }).fill(process.env.MYSQL_ROOT_PASSWORD ?? 'integration-only')
   await page.getByRole('button', { name: 'Test Connection' }).click()
@@ -127,8 +130,8 @@ END`)
   await databaseSelect.selectOption(database)
   await page.getByRole('button', { name: 'Connect', exact: true }).click()
   await page.getByRole('heading', { name: 'Database Connection Properties' }).waitFor({ state: 'detached', timeout: 30_000 })
-  const scalar = await page.evaluate(async () => {
-    const record = (await window.tuxsql.getConnections()).find((item) => item.name === 'Smoke MySQL 33067')
+  const scalar = await page.evaluate(async (connectionName) => {
+    const record = (await window.tuxsql.getConnections()).find((item) => item.name === connectionName)
     if (!record) throw new Error('Smoke connection was not saved.')
     const connection = await window.tuxsql.connect(record)
     try {
@@ -138,7 +141,7 @@ END`)
       if (result?.resultStoreId) await window.tuxsql.disposeResult(result.resultStoreId)
       return rows[0]?.smoke
     } finally { await window.tuxsql.disconnect(connection.id) }
-  })
+  }, smokeConnectionName)
   if (Number(scalar) !== 1) throw new Error(`SELECT 1 returned ${String(scalar)}.`)
 
   const fileMenu = page.locator('.menu-row > details').filter({ has: page.locator(':scope > summary').filter({ hasText: /^File$/ }) })
@@ -177,27 +180,27 @@ END`)
   const splitDocumentId = (await otherSqlTab.locator('.tab-label').getAttribute('id')).replace('document-tab-control-', '')
   await page.waitForFunction(({ id, expected }) => JSON.parse(localStorage.getItem('tuxsql.sqlDrafts') ?? '{}')[id]?.includes(expected), { id: splitDocumentId, expected: 'SELECT 17 AS split_sync' }, { timeout: 10_000 })
   const explorerFilter = page.getByRole('textbox', { name: /Filter connections/ })
-  await explorerFilter.fill('^Smoke MySQL')
+  await explorerFilter.fill('^Smoke DB')
   await page.getByLabel('Regex').check()
   if (await page.locator('.connection-node').count() !== 1) throw new Error('Explorer regex filter did not match the disposable smoke connection.')
   await page.getByRole('tab', { name: 'Start Page' }).click()
 
   const documentationDirectory = join(dataRoot, 'documentation')
-  const documentation = await page.evaluate(async ({ targetDirectory, database }) => {
-    const record = (await window.tuxsql.getConnections()).find((item) => item.name === 'Smoke MySQL 33067')
+  const documentation = await page.evaluate(async ({ targetDirectory, database, connectionName }) => {
+    const record = (await window.tuxsql.getConnections()).find((item) => item.name === connectionName)
     if (!record) throw new Error('Documenter smoke connection was not saved.')
     const connection = await window.tuxsql.connect(record)
     try {
       return await window.tuxsql.generateDatabaseDocumentation({ connectionId: connection.id, database, title: 'Smoke database', outputDirectory: targetDirectory, formats: ['html', 'markdown', 'pdf'], includeDiagram: true, confirmed: true })
     } finally { await window.tuxsql.disconnect(connection.id) }
-  }, { targetDirectory: documentationDirectory, database })
+  }, { targetDirectory: documentationDirectory, database, connectionName: smokeConnectionName })
   const pdf = await readFile(documentation.pdf)
   if (pdf.subarray(0, 5).toString() !== '%PDF-') throw new Error('Documenter did not write a valid PDF header.')
   if (!(await readFile(documentation.html, 'utf8')).startsWith('<!doctype html>')) throw new Error('Documenter HTML output is invalid.')
   if (!(await readFile(documentation.markdown, 'utf8')).includes('Smoke database')) throw new Error('Documenter Markdown output is invalid.')
 
   await page.getByRole('heading', { name: 'Recent Connections' }).waitFor()
-  await page.locator('.start-page .start-recent-list').first().getByRole('button', { name: /Smoke MySQL 33067/ }).waitFor()
+  await page.locator('.start-page .start-recent-list').first().getByRole('button', { name: smokeConnectionName }).waitFor()
   const recentSqlPath = join(dataRoot, 'recent-e2e.sql')
   const gridQuery = `SELECT * FROM \`${database}\`.\`${docTable}\`;`
   await writeFile(recentSqlPath, `${gridQuery}\n`, 'utf8')
@@ -331,7 +334,7 @@ END`)
   await page.locator('.menu-action').filter({ hasText: /Schema View|Visualização do esquema/ }).click()
   await page.locator('.schema-overview').waitFor()
   await captureBothThemes('schema-view')
-  const connectionNode = page.locator('.node-name').filter({ hasText: 'Smoke MySQL 33067' })
+  const connectionNode = page.locator('.node-name').filter({ hasText: smokeConnectionName })
   if (await connectionNode.count()) await connectionNode.click()
   const testDatabaseNode = page.locator('.database-name').filter({ hasText: database }).first()
   await testDatabaseNode.waitFor({ timeout: 15_000 })
@@ -681,7 +684,7 @@ END`)
   const debuggerPanel = page.locator('.routine-debugger')
   await debuggerPanel.waitFor()
   const debugConnection = debuggerPanel.locator('.rd-target select').nth(0)
-  await debugConnection.selectOption({ label: 'Smoke MySQL 33067' })
+  await debugConnection.selectOption({ label: smokeConnectionName })
   await debuggerPanel.locator('.rd-target select').nth(1).selectOption(database)
   await debuggerPanel.locator('.rd-target select').nth(3).selectOption(debugRoutine)
   const deployButton = debuggerPanel.getByRole('button', { name: /Deploy Debug Engine|Deploy debugger support/i })

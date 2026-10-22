@@ -222,12 +222,12 @@ export async function restoreBackup(database: string, confirmation: string, scri
   const statements = splitBackupSql(script)
   if (!statements.length) throw new Error('Restore script contains no SQL statements.')
   onProgress?.({ phase: 'inspect', completed: 0, total: statements.length, detail: 'Checking restore script' })
-  const allowed = /^(?:CREATE\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER)|DROP\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER)(?:\s+IF\s+EXISTS)?|INSERT\s+INTO|SET\s+NAMES|SET\s+SQL_MODE\s*=\s*['"]NO_AUTO_VALUE_ON_ZERO['"]|USE|LOCK\s+TABLES|UNLOCK\s+TABLES|START\s+TRANSACTION|COMMIT)(?![\w$])/i
+  const allowed = /^(?:CREATE\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER)|DROP\s+(?:TABLE|VIEW|PROCEDURE|FUNCTION|TRIGGER)(?:\s+IF\s+EXISTS)?|INSERT\s+INTO|SET\s+NAMES|SET\s+SQL_MODE\s*=\s*['"]NO_AUTO_VALUE_ON_ZERO['"]|SET\s+@OLD_AUTOCOMMIT\s*=\s*@@AUTOCOMMIT\s*,\s*@@AUTOCOMMIT\s*=\s*0|SET\s+AUTOCOMMIT\s*=\s*@OLD_AUTOCOMMIT|USE|LOCK\s+TABLES|UNLOCK\s+TABLES|START\s+TRANSACTION|COMMIT)(?![\w$])/i
   const errors: Array<{ statement: number; message: string }> = []; let executed = 0
   for (let index = 0; index < statements.length; index += 1) {
     if (signal?.aborted) throw new Error('Restore cancelled.')
     const statement = statements[index]
-    const sanitized = statement.replace(/^(?:\s*--[^\n]*(?:\n|$)|\s*#[^\n]*(?:\n|$))+/, '').replace(/^CREATE\s+(?:ALGORITHM\s*=\s*\w+\s+)?DEFINER\s*=\s*(?:`[^`]*`|'[^']*')@(?:`[^`]*`|'[^']*')\s+/i, 'CREATE ').trim()
+    const sanitized = statement.replace(/^\/\*M!999999\\- enable the sandbox mode \*\/\s*/i, '').replace(/^(?:\s*--[^\n]*(?:\n|$)|\s*#[^\n]*(?:\n|$))+/, '').replace(/^CREATE\s+(?:ALGORITHM\s*=\s*\w+\s+)?DEFINER\s*=\s*(?:`[^`]*`|'[^']*')@(?:`[^`]*`|'[^']*')\s+/i, 'CREATE ').trim()
     if (!allowed.test(sanitized)) throw new Error(`Restore statement ${index + 1} uses a SQL command that is not allowed.`)
     const scopeSql = stripSqlComments(sanitized)
     if (/^USE\b/i.test(scopeSql)) {

@@ -25,7 +25,7 @@
     "perf:metadata": "node scripts/metadata-scale-benchmark.mjs",
     "perf:startup": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/startup-benchmark.mjs",
     "screenshots:splash": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/splash-screenshots.mjs",
-    "dist:deb": "TUXSQL_RELEASE_BUILD=1 pnpm build && TUXSQL_RELEASE_BUILD=1 electron-builder --linux deb --config packaging/electron-builder.yml && pnpm build",
+    "dist:deb": "TUXSQL_RELEASE_BUILD=1 pnpm build && TUXSQL_RELEASE_BUILD=1 electron-builder --linux deb --config packaging/electron-builder.yml --publish never && pnpm build",
     "smoke:e2e": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/smoke-e2e.mjs",
     "splash:failsafe:e2e": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/splash-failsafe-e2e.mjs",
     "smoke:release-fuses": "env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a node scripts/release-fuses-smoke.mjs",

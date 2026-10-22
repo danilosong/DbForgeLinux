@@ -2,7 +2,7 @@ import { useI18n } from '../../i18n/useI18n.js'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import './Panel.css'
 import type { ConnectionRecord, ConnectionSummary } from '../../../../../shared/contracts.js'
-import type { KillMode, SessionDetails, SessionInfo, VariableChange, VariableInfo } from '../../../../../modules/sessions/index.js'
+import type { KillMode, ServerFamily, SessionDetails, SessionInfo, VariableChange, VariableInfo } from '../../../../../modules/sessions/index.js'
 import { usePanelConnection } from '../registry'
 
 type Tab = 'Sessions' | 'Server Variables'
@@ -26,6 +26,7 @@ export default function Panel(): React.JSX.Element {
   const [updated, setUpdated] = useState('')
   const [stale, setStale] = useState(false)
   const [variables, setVariables] = useState<VariableInfo[]>([])
+  const [serverFamily, setServerFamily] = useState<ServerFamily>()
   const [status, setStatus] = useState<Record<string, string>>({})
   const [scope, setScope] = useState<'SESSION' | 'GLOBAL'>('GLOBAL')
   const [pending, setPending] = useState<Record<string, string>>({})
@@ -56,7 +57,7 @@ export default function Panel(): React.JSX.Element {
   const refreshVariables = useCallback(async (): Promise<void> => {
     if (!connection) return
     setLoading(true); setError('')
-    try { const snapshot = await window.tuxsql.getServerVariables(connection.id, scope); setVariables(snapshot.variables); setPending({}) }
+    try { const snapshot = await window.tuxsql.getServerVariables(connection.id, scope); setVariables(snapshot.variables); setServerFamily(snapshot.serverFamily); if (snapshot.serverFamily === 'mariadb') setPersist(false); setPending({}) }
     catch (reason) { showError(reason) }
     finally { setLoading(false) }
   }, [connection, scope])
@@ -149,7 +150,7 @@ export default function Panel(): React.JSX.Element {
     {connection && tab === 'Server Variables' && <>
       <nav className="module-tabs" aria-label="Server variable view">{(['System', 'Status'] as const).map((item) => <button key={item} aria-pressed={variableView === item} onClick={() => setVariableView(item)}>{item}</button>)}</nav>
       {variableView === 'System' ? <>
-        <div className="module-toolbar"><label>{t('panel.sessions.m600f1e013e')} <select value={scope} onChange={(event) => setScope(event.target.value as typeof scope)}><option value="SESSION">{t('panel.sessions.m2d0dbbd775')}</option><option value="GLOBAL">{t('panel.sessions.m4e4edfb0eb')}</option></select></label><input placeholder={t('panel.sessions.m719c0dfcb2')} value={variableFilter} onChange={(event) => setVariableFilter(event.target.value)} /><label><input type="checkbox" checked={persist} disabled={scope !== 'GLOBAL' || readOnly} onChange={(event) => setPersist(event.target.checked)} /> {t('panel.sessions.ma09dd8cde7')}</label></div>
+        <div className="module-toolbar"><label>{t('panel.sessions.m600f1e013e')} <select value={scope} onChange={(event) => setScope(event.target.value as typeof scope)}><option value="SESSION">{t('panel.sessions.m2d0dbbd775')}</option><option value="GLOBAL">{t('panel.sessions.m4e4edfb0eb')}</option></select></label><input placeholder={t('panel.sessions.m719c0dfcb2')} value={variableFilter} onChange={(event) => setVariableFilter(event.target.value)} /><label><input type="checkbox" checked={persist} disabled={scope !== 'GLOBAL' || readOnly || loading || serverFamily !== 'mysql'} onChange={(event) => setPersist(event.target.checked)} /> {t('panel.sessions.ma09dd8cde7')}</label>{serverFamily === 'mariadb' && <span role="note">{t('sessions.variable.persistUnsupported')}</span>}</div>
         <div className="module-table-wrap"><table><thead><tr><th>{t('panel.sessions.m08a44aedc9')}</th><th>{t('panel.sessions.mb62325a849')}</th><th>{t('panel.sessions.mc21ea5862d')}</th><th>{t('panel.sessions.m600f1e013e')}</th><th>{t('panel.sessions.m78577a5476')}</th><th>{t('panel.sessions.description')}</th><th>{t('common.apply')}</th></tr></thead><tbody>{visibleVariables.map((variable) => <tr key={variable.name}><td>{variable.name}{!variable.dynamic && ' 🔒'}</td><td>{variableInput(variable)}</td><td>{variable.dynamic ? '✓' : '✗'}</td><td>{variable.scope}</td><td>{variable.category}</td><td>{variable.description ?? ''}</td><td><button disabled={readOnly || !variable.dynamic || pending[variable.name] === undefined || pending[variable.name] === variable.value || loading} onClick={() => void applyVariable(variable)}>{t('common.apply')}</button><button disabled={readOnly || pending[variable.name] === undefined} onClick={() => setPending((items) => { const next = { ...items }; delete next[variable.name]; return next })}>{t('panel.sessions.mb946003876')}</button></td></tr>)}</tbody></table>{!visibleVariables.length && <p>{t('panel.sessions.m250267ff9f')}</p>}</div>
       </> : <div className="module-table-wrap"><table><thead><tr><th>{t('panel.sessions.m08a44aedc9')}</th><th>{t('panel.sessions.mb62325a849')}</th></tr></thead><tbody>{Object.entries(status).map(([name, value]) => <tr key={name}><td>{name}</td><td>{value}</td></tr>)}</tbody></table></div>}
     </>}

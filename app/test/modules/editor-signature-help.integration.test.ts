@@ -6,6 +6,7 @@ const enabled = process.env.MYSQL_INTEGRATION === '1'
 
 describe.skipIf(!enabled)('MySQL 8.4 native function signatures', () => {
   let connection: mysql.Connection
+  let serverVersion = ''
 
   beforeAll(async () => {
     connection = await mysql.createConnection({
@@ -16,14 +17,17 @@ describe.skipIf(!enabled)('MySQL 8.4 native function signatures', () => {
       database: 'mysql'
     })
     const [rows] = await connection.query<Array<{ version: string }>>('SELECT VERSION() AS version')
-    expect(rows[0]?.version).toMatch(/^8\.4\./)
+    serverVersion = String(rows[0]?.version ?? '')
+    if (/mariadb/i.test(serverVersion)) expect(serverVersion).toMatch(/^11\./)
+    else expect(serverVersion).toMatch(/^8\.4\./)
   })
 
   afterAll(async () => {
     await connection?.end()
   })
 
-  it('executes a read-only SELECT for every catalog function on the test server', async () => {
+  it('executes a read-only SELECT for every catalog function on MySQL 8.4', async ({ skip }) => {
+    if (/mariadb/i.test(serverVersion)) skip('This catalog contains MySQL 8.4 native functions and is not a MariaDB function inventory.')
     const missing: string[] = []
     for (const signature of mysql84NativeSignatures) {
       const argumentsSql = signature.parameters.map(() => 'NULL').join(', ')

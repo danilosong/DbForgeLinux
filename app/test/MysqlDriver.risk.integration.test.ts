@@ -31,11 +31,22 @@ describe.skipIf(!enabled)('MySQL driver risk-flow integration', () => {
     }
     expect(active).toBe(true)
     controller.abort()
-    await expect(result).rejects.toMatchObject({ name: 'AbortError' })
+    await result.then(
+      () => { throw new Error('The aborted stream unexpectedly completed.') },
+      (error: unknown) => {
+        const failure = error as { name?: string; code?: string }
+        expect(failure.name === 'AbortError' || failure.code === 'ER_QUERY_INTERRUPTED').toBe(true)
+      }
+    )
 
-    const remaining = await driver.queryRows(connectionId, "SELECT ID FROM information_schema.PROCESSLIST WHERE INFO = 'SELECT SLEEP(30) AS sleeping'")
-    expect(remaining).toEqual([])
     const alive = await driver.executeSql(connectionId, 'SELECT 1 AS alive LIMIT 1')
     expect(alive[0]?.rows[0]?.alive).toBe(1)
+    let remaining: Array<Record<string, unknown>> = []
+    for (let attempt = 0; attempt < 50; attempt++) {
+      remaining = await driver.queryRows(connectionId, "SELECT ID FROM information_schema.PROCESSLIST WHERE INFO = 'SELECT SLEEP(30) AS sleeping'")
+      if (!remaining.length) break
+      await new Promise((resolve) => setTimeout(resolve, 50))
+    }
+    expect(remaining).toEqual([])
   }, 15_000)
 })

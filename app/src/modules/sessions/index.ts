@@ -10,7 +10,8 @@ export interface SessionDetails { session: SessionInfo; locks: SqlRow[]; locksAv
 export type KillMode = 'query' | 'session'
 export interface VariableInfo { name: string; value: string; scope: 'GLOBAL' | 'SESSION' | 'BOTH'; dynamic: boolean; category?: string; description?: string; defaultValue?: string; type: 'boolean' | 'number' | 'enum' | 'string'; enumValues?: string[]; min?: number; max?: number; modified?: boolean }
 export type VariableMetadata = Partial<Pick<VariableInfo, 'scope' | 'dynamic' | 'category' | 'description' | 'defaultValue' | 'type' | 'enumValues' | 'min' | 'max'>>
-export interface VariableSnapshot { capturedAt: string; scope: 'GLOBAL' | 'SESSION'; variables: VariableInfo[] }
+export type ServerFamily = 'mysql' | 'mariadb'
+export interface VariableSnapshot { capturedAt: string; scope: 'GLOBAL' | 'SESSION'; serverFamily: ServerFamily; variables: VariableInfo[] }
 export interface VariableChange { name: string; oldValue: string; newValue: string; scope: 'GLOBAL' | 'SESSION'; dynamic: boolean }
 
 const staticVariables = new Set(['basedir', 'datadir', 'plugin_dir', 'port', 'socket', 'version', 'version_comment', 'server_uuid', 'lower_case_table_names', 'innodb_page_size', 'log_bin', 'log_bin_basename', 'log_bin_index'])
@@ -76,6 +77,7 @@ export async function killSessions(client: SqlClient, ids: readonly number[], mo
 }
 
 export async function getServerVariables(client: SqlClient, scope: 'GLOBAL' | 'SESSION' = 'GLOBAL', metadata: Record<string, VariableMetadata> = {}): Promise<VariableSnapshot> {
+  const serverFamily = await getServerFamily(client)
   const rows = await client.query(`SHOW ${scope} VARIABLES`)
   const variables = rows.map((row) => {
     const name = String(row.Variable_name ?? row.Variable ?? row.variable_name ?? row.name)
@@ -83,7 +85,13 @@ export async function getServerVariables(client: SqlClient, scope: 'GLOBAL' | 'S
     const definition = { ...inferVariable(name, value), ...metadata[name.toLowerCase()] }
     return { name, value, scope, dynamic: !staticVariables.has(name.toLowerCase()), ...definition, category: definition.category ?? categoryFor(name) } satisfies VariableInfo
   }).sort((a, b) => a.name.localeCompare(b.name))
-  return { capturedAt: new Date().toISOString(), scope, variables }
+  return { capturedAt: new Date().toISOString(), scope, serverFamily, variables }
+}
+
+export async function getServerFamily(client: SqlClient): Promise<ServerFamily> {
+  const version = String((await client.query('SELECT VERSION() AS version'))[0]?.version ?? '')
+  if (!version) throw new Error('Could not identify the database server version.')
+  return /mariadb/i.test(version) ? 'mariadb' : 'mysql'
 }
 
 export async function getServerStatus(client: SqlClient, scope: 'GLOBAL' | 'SESSION' = 'GLOBAL'): Promise<Record<string, string>> {
@@ -93,13 +101,14 @@ export async function getServerStatus(client: SqlClient, scope: 'GLOBAL' | 'SESS
 
 /** `persist` survives a restart (SET PERSIST); `persist-only` only writes mysqld-auto.cnf, which is how static variables change. */
 export type VariableApplyMode = 'set' | 'persist' | 'persist-only'
-export interface VariableSqlOptions { dynamic: boolean; mode?: VariableApplyMode; persist?: boolean; type?: VariableInfo['type']; enumValues?: string[]; min?: number; max?: number }
+export interface VariableSqlOptions { dynamic: boolean; mode?: VariableApplyMode; persist?: boolean; serverFamily?: ServerFamily; type?: VariableInfo['type']; enumValues?: string[]; min?: number; max?: number }
 
 /** Builds the exact statement that is both previewed and executed, so the user confirms what runs. */
 export function serverVariableSql(name: string, value: string | number | boolean, scope: 'GLOBAL' | 'SESSION', options: VariableSqlOptions): string {
   if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) throw new Error('Variable name is invalid.')
   const mode = options.mode ?? (options.persist ? 'persist' : 'set')
   if (mode !== 'set' && scope !== 'GLOBAL') throw new Error('SET PERSIST only accepts global variables.')
+  if (mode !== 'set' && options.serverFamily === 'mariadb') throw new Error('MariaDB does not support SET PERSIST; use SET GLOBAL. To keep a change after restart, update the server configuration.')
   if (mode !== 'persist-only' && (!options.dynamic || staticVariables.has(name.toLowerCase()))) throw new Error(`Variable ${name} is static and requires a restart.`)
   validateVariableValue(value, options)
   const command = mode === 'persist' ? 'SET PERSIST' : mode === 'persist-only' ? 'SET PERSIST_ONLY' : `SET ${scope}`

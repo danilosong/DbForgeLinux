@@ -36,7 +36,8 @@ describe.skipIf(!enabled)('database backup MySQL integration', () => {
 
   it.skipIf(!dumpContainer && !localDumpBinary)('restores a real mysqldump and keeps splitter and session SQL modes aligned against an escaped-quote payload', async () => {
     const defaults = createDefaultConnection(`${prefix}_mode_connection`, 'Backup SQL mode integration')
-    connectionId = await driver.connect({ ...defaults, advanced: { ...defaults.advanced, sqlMode: 'STRICT_TRANS_TABLES,NO_BACKSLASH_ESCAPES' }, host: '127.0.0.1', port: 33067, user: 'root', password: process.env.MYSQL_PASSWORD ?? 'integration-only' })
+    connectionId = await driver.connect({ ...defaults, advanced: { ...defaults.advanced, sqlMode: 'STRICT_TRANS_TABLES,NO_BACKSLASH_ESCAPES' }, host: process.env.MYSQL_HOST ?? '127.0.0.1', port: Number(process.env.MYSQL_PORT ?? 33067), user: process.env.MYSQL_USER ?? 'root', password: process.env.MYSQL_PASSWORD ?? 'integration-only' })
+    const isMariaDb = /mariadb/i.test(String((await driver.queryRows(connectionId, 'SELECT VERSION() AS version'))[0]?.version ?? ''))
     await driver.executeSql(connectionId, `DROP DATABASE IF EXISTS \`${sourceDb}\`; DROP DATABASE IF EXISTS \`${targetDb}\`; DROP DATABASE IF EXISTS \`${victimDb}\``)
     await driver.executeSql(connectionId, `CREATE DATABASE \`${sourceDb}\`; CREATE DATABASE \`${targetDb}\`; CREATE DATABASE \`${victimDb}\``)
     await driver.executeSql(connectionId, `CREATE TABLE \`${sourceDb}\`.items (id INT PRIMARY KEY, label TEXT NOT NULL, raw_data BLOB NOT NULL); CREATE TABLE \`${targetDb}\`.items (id INT PRIMARY KEY, label TEXT NOT NULL, raw_data BLOB NOT NULL); CREATE TABLE \`${victimDb}\`.secrets (id INT PRIMARY KEY)`)
@@ -45,8 +46,8 @@ describe.skipIf(!enabled)('database backup MySQL integration', () => {
     await driver.executeParameterized(connectionId, `INSERT INTO \`${sourceDb}\`.items VALUES (1, ?, ?)`, [label, rawData])
     const password = process.env.MYSQL_PASSWORD ?? 'integration-only'
     const dump = dumpContainer
-      ? execFileSync('docker', ['exec', '-e', `MYSQL_PWD=${password}`, dumpContainer, 'mysqldump', '--host=127.0.0.1', '--port=3306', '--user=root', '--compact', '--no-create-info', '--skip-add-locks', '--skip-triggers', '--hex-blob', sourceDb, 'items'], { encoding: 'buffer', maxBuffer: 8 * 1024 * 1024 })
-      : execFileSync(localDumpBinary!, ['--host=127.0.0.1', '--port=33067', '--user=root', '--compact', '--no-create-info', '--skip-add-locks', '--skip-triggers', '--hex-blob', sourceDb, 'items'], { encoding: 'buffer', maxBuffer: 8 * 1024 * 1024, env: { ...process.env, MYSQL_PWD: password } })
+      ? execFileSync('docker', ['exec', '-e', `MYSQL_PWD=${password}`, dumpContainer, isMariaDb ? 'mariadb-dump' : 'mysqldump', '--host=127.0.0.1', '--port=3306', '--user=root', '--compact', '--no-create-info', '--skip-add-locks', '--skip-triggers', '--hex-blob', sourceDb, 'items'], { encoding: 'buffer', maxBuffer: 8 * 1024 * 1024 })
+      : execFileSync(localDumpBinary!, [...(localDumpBinary === 'mysqldump' ? ['--column-statistics=0'] : []), '--host=127.0.0.1', '--port', String(process.env.MYSQL_PORT ?? 33067), '--user=root', '--compact', '--no-create-info', '--skip-add-locks', '--skip-triggers', '--hex-blob', sourceDb, 'items'], { encoding: 'buffer', maxBuffer: 8 * 1024 * 1024, env: { ...process.env, MYSQL_PWD: password } })
     const script = dump.toString('utf8').replaceAll(`\`${sourceDb}\`.`, '')
     expect(script).toContain("O\\'Brien")
     expect(script).toContain('double quote')

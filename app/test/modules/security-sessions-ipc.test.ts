@@ -60,7 +60,7 @@ describe('Security and Sessions IPC', () => {
 
   it('uses server metadata for variable changes and rejects static variables', async () => {
     const executeSql = vi.fn(async () => [])
-    const queryRows = vi.fn(async (_id: string, sql: string) => sql.startsWith('SHOW GLOBAL VARIABLES') ? [{ Variable: 'max_connections', Value: '151' }, { Variable: 'port', Value: '3306' }] : [])
+    const queryRows = vi.fn(async (_id: string, sql: string) => sql.startsWith('SELECT VERSION()') ? [{ version: '8.4.0' }] : sql.startsWith('SHOW GLOBAL VARIABLES') ? [{ Variable: 'max_connections', Value: '151' }, { Variable: 'port', Value: '3306' }] : [])
     registerSessionsIpc({ driver: { queryRows, executeSql } as unknown as IpcDeps['driver'] } as IpcDeps)
     await expect(handler('sessions:set-variable')({}, 'connection', { name: 'max_connections', oldValue: '151', newValue: '200', scope: 'GLOBAL', dynamic: true }, { confirm: true })).rejects.toThrow('Type the variable name')
     expect(executeSql).not.toHaveBeenCalled()

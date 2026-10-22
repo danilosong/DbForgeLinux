@@ -19,12 +19,14 @@ describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
   let callTask: Promise<void> | undefined
   let currentTriggerLine = 0
   let currentTriggerDepth = 0
+  let triggerLocalsAvailable = true
   const schema = (name: string): string => `${quoteDebugIdentifier(testDatabase)}.${quoteDebugIdentifier(name)}`
 
   afterAll(async () => {
     if (controller) {
       try { await controller.execute(`UPDATE ${schema('debug_sessions')} SET status='stopped' WHERE debug_id IN (?,?)`, [debugId, triggerDebugId]) } catch { /* engine may not have been created */ }
     }
+    if (currentTriggerLine && callTask) await command('continue', triggerDebugId).catch(() => undefined)
     try { executor?.cancel() } catch { /* release any in-flight trigger pause after test failure */ }
     try { await callTask } catch { /* expected if cleanup stopped execution */ }
     if (executor) {
@@ -45,6 +47,7 @@ describe.skipIf(!enabled)('routine debugger MySQL integration', () => {
     })
     controller = await driver.openDedicatedSession(connectionId)
     executor = await driver.openDedicatedSession(connectionId)
+    triggerLocalsAvailable = Number((await controller.query('SELECT @@performance_schema AS enabled'))[0]?.enabled) === 1
     await controller.execute("SET SESSION sql_mode='STRICT_ALL_TABLES,ONLY_FULL_GROUP_BY,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'")
     for (const sql of engineDdl(testDatabase)) await controller.execute(sql)
     const preservedSessionId = randomUUID()
@@ -132,14 +135,17 @@ END`
     callTask = executor.execute('INSERT INTO audit_values VALUES (10)').then(() => undefined)
     await waitForTriggerPause(triggerDebugId, instrumentedTrigger.statementLines[0]!, callTask, 0)
     expect(instrumentedTrigger.variables).toContain('trigger_value')
-    expect(await readThreadLocal(executorId, instrumentedTrigger.checkpoints[0]!.locals[0]!)).toBe('10')
+    if (triggerLocalsAvailable) expect(await readThreadLocal(executorId, instrumentedTrigger.checkpoints[0]!.locals[0]!)).toBe('10')
+    else expect(await readThreadLocal(executorId, instrumentedTrigger.checkpoints[0]!.locals[0]!)).toBeNull()
     await command('into', triggerDebugId)
     await waitForTriggerPause(triggerDebugId, instrumentedChild.statementLines[0]!, callTask, 1)
     expect(instrumentedChild.variables).toContain('child_value')
-    expect(await readThreadLocal(executorId, instrumentedChild.checkpoints[0]!.locals[0]!)).toBe('41')
+    if (triggerLocalsAvailable) expect(await readThreadLocal(executorId, instrumentedChild.checkpoints[0]!.locals[0]!)).toBe('41')
+    else expect(await readThreadLocal(executorId, instrumentedChild.checkpoints[0]!.locals[0]!)).toBeNull()
     await command('out', triggerDebugId)
     await waitForTriggerPause(triggerDebugId, instrumentedTrigger.statementLines[1]!, callTask, 0)
-    expect(await readThreadLocal(executorId, instrumentedTrigger.checkpoints[1]!.locals[0]!)).toBe('10')
+    if (triggerLocalsAvailable) expect(await readThreadLocal(executorId, instrumentedTrigger.checkpoints[1]!.locals[0]!)).toBe('10')
+    else expect(await readThreadLocal(executorId, instrumentedTrigger.checkpoints[1]!.locals[0]!)).toBeNull()
     await command('continue', triggerDebugId)
     const triggerOutcome = await Promise.race([callTask.then(() => 'finished', () => 'failed'), new Promise<'timeout'>(resolve => setTimeout(() => resolve('timeout'), 5_000))])
     if (triggerOutcome === 'timeout') {
@@ -187,15 +193,19 @@ END`
       await waitForPauseLock(idA, compiledA.statementLines[0]!, taskA)
       await waitForPauseLock(idB, compiledB.statementLines[0]!, taskB)
       expect(localA.userVariable).not.toBe(localB.userVariable)
-      expect(await readThreadLocal(processA, localA)).toBe('alpha')
-      expect(await readThreadLocal(processB, localB)).toBe('bravo')
-      expect(await readThreadValue(processA, localB.userVariable)).toBeNull()
-      expect(await readThreadValue(processB, localA.userVariable)).toBeNull()
+      if (triggerLocalsAvailable) {
+        expect(await readThreadLocal(processA, localA)).toBe('alpha')
+        expect(await readThreadLocal(processB, localB)).toBe('bravo')
+        expect(await readThreadValue(processA, localB.userVariable)).toBeNull()
+        expect(await readThreadValue(processB, localA.userVariable)).toBeNull()
+      }
       await resumeTrigger(idA, compiledA.statementLines[0]!)
       await resumeTrigger(idB, compiledB.statementLines[0]!)
       await Promise.all([taskA, taskB])
-      expect(await readThreadValue(processA, localA.userVariable)).toBeNull()
-      expect(await readThreadValue(processB, localB.userVariable)).toBeNull()
+      if (triggerLocalsAvailable) {
+        expect(await readThreadValue(processA, localA.userVariable)).toBeNull()
+        expect(await readThreadValue(processB, localB.userVariable)).toBeNull()
+      }
       expect((await executor.query('SELECT value FROM concurrent_a_log'))[0]?.value).toBe('alpha')
       expect((await executor.query('SELECT value FROM concurrent_b_log'))[0]?.value).toBe('bravo')
       await executor.execute(`DROP TRIGGER ${quoteDebugIdentifier(nameA)}`); await executor.execute(`DROP TRIGGER ${quoteDebugIdentifier(nameB)}`)

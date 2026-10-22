@@ -18,6 +18,7 @@ describe.skipIf(!enabled || !container)('Execute Large Script restores a real my
   const target = mysqlTestPrefix('ls_dump_target')
   let connectionId = ''
   let dir = ''
+  let isMariaDb = false
   const tables = ['customers', 'orders', 'notes']
   const checksums = async (database: string): Promise<string[]> => {
     const rows = await driver.queryRows(connectionId, `CHECKSUM TABLE ${tables.map((name) => `\`${database}\`.\`${name}\``).join(', ')}`)
@@ -26,13 +27,15 @@ describe.skipIf(!enabled || !container)('Execute Large Script restores a real my
 
   beforeAll(async () => {
     connectionId = await driver.connect({ ...createDefaultConnection('ls-dump', 'dump'), host: process.env.MYSQL_HOST ?? '127.0.0.1', port: Number(process.env.MYSQL_PORT ?? 33067), user: 'root', password })
+    isMariaDb = /mariadb/i.test(String((await driver.queryRows(connectionId, 'SELECT VERSION() AS version'))[0]?.version ?? ''))
     for (const database of [source, target]) await driver.executeSql(connectionId, `CREATE DATABASE \`${database}\``)
     await driver.executeSql(connectionId, `CREATE TABLE \`${source}\`.customers (id INT PRIMARY KEY, name VARCHAR(80), city VARCHAR(40))`)
     await driver.executeSql(connectionId, `CREATE TABLE \`${source}\`.orders (id INT PRIMARY KEY, customer_id INT, total DECIMAL(10,2), placed DATETIME, FOREIGN KEY (customer_id) REFERENCES customers(id))`)
     await driver.executeSql(connectionId, `CREATE TABLE \`${source}\`.notes (id INT PRIMARY KEY, body TEXT)`)
     // Enough rows that mysqldump splits each table into several ~1 MB extended INSERTs.
-    await driver.executeSql(connectionId, `SET SESSION cte_max_recursion_depth = 100000; INSERT INTO \`${source}\`.customers WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 30000) SELECT i, CONCAT('Customer ', i, ' O''Brien'), ELT(1 + i % 3, 'São Paulo', 'Curitiba', 'Recife') FROM n`)
-    await driver.executeSql(connectionId, `SET SESSION cte_max_recursion_depth = 100000; INSERT INTO \`${source}\`.orders WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 60000) SELECT i, 1 + i % 30000, i * 1.25, '2026-10-22 10:00:00' FROM n`)
+    const recursionVariable = isMariaDb ? 'max_recursive_iterations' : 'cte_max_recursion_depth'
+    await driver.executeSql(connectionId, `SET SESSION ${recursionVariable} = 100000; INSERT INTO \`${source}\`.customers WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 30000) SELECT i, CONCAT('Customer ', i, ' O''Brien'), ELT(1 + i % 3, 'São Paulo', 'Curitiba', 'Recife') FROM n`)
+    await driver.executeSql(connectionId, `SET SESSION ${recursionVariable} = 100000; INSERT INTO \`${source}\`.orders WITH RECURSIVE n(i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM n WHERE i < 60000) SELECT i, 1 + i % 30000, i * 1.25, '2026-10-22 10:00:00' FROM n`)
     await driver.queryRows(connectionId, `INSERT INTO \`${source}\`.notes VALUES (?, ?), (?, ?), (?, ?)`, [1, 'semicolon; inside -- not a comment', 2, "quote ' and backslash \\ and DELIMITER $$", 3, '/* not a block */ DROP TABLE x; DELETE FROM y'])
     await driver.executeSql(connectionId, `CREATE TRIGGER \`${source}\`.notes_bi BEFORE INSERT ON \`${source}\`.notes FOR EACH ROW BEGIN IF NEW.body IS NULL THEN SET NEW.body = ''; END IF; END`)
     dir = await mkdtemp(join(tmpdir(), 'tuxsql-ls-dump-'))
@@ -47,9 +50,12 @@ describe.skipIf(!enabled || !container)('Execute Large Script restores a real my
   })
 
   it('restores every table byte-for-byte, including the trigger, through the streaming parser', async () => {
-    const dump = execFileSync('docker', ['exec', '-e', `MYSQL_PWD=${password}`, container!, 'mysqldump', '--host=127.0.0.1', '--port=3306', '--user=root', '--triggers', '--routines', '--single-transaction', '--set-gtid-purged=OFF', source], { maxBuffer: 256 * 1024 * 1024 })
+    const dumpClient = isMariaDb ? 'mariadb-dump' : 'mysqldump'
+    const dumpOptions = ['--host=127.0.0.1', '--port=3306', '--user=root', '--triggers', '--routines', '--single-transaction', ...(isMariaDb ? [] : ['--set-gtid-purged=OFF']), source]
+    const dump = execFileSync('docker', ['exec', '-e', `MYSQL_PWD=${password}`, container!, dumpClient, ...dumpOptions], { maxBuffer: 256 * 1024 * 1024 })
+    const normalizedDump = isMariaDb ? dump.toString('utf8').replaceAll(source, target) : dump.toString('utf8')
     const path = join(dir, 'dump.sql')
-    await writeFile(path, dump)
+    await writeFile(path, normalizedDump)
     const inserts = dump.toString('utf8').split('\n').filter((line) => line.startsWith('INSERT INTO')).length
     expect(inserts).toBeGreaterThan(tables.length)
     expect((await stat(path)).size).toBeGreaterThan(2 * 1024 * 1024)
