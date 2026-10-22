@@ -1,0 +1,175 @@
+{
+  "baseline": "90e9f15",
+  "build": "Electron packaged app, TUXSQL_RELEASE_BUILD unset",
+  "viewport": "1440x900",
+  "spacingTokens": [
+    "4px",
+    "8px",
+    "12px",
+    "16px",
+    "24px"
+  ],
+  "heights": {
+    "menubar": "32px",
+    "toolbar": "40px",
+    "documentTabs": "36px",
+    "status": "24px",
+    "button": "28px/32px",
+    "field": "32px"
+  },
+  "audited": {
+    "surface": "Top-level Window/Janela menu in real Electron app",
+    "states": [
+      "hover",
+      "active (mouse held)",
+      "open"
+    ],
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "menuRectMeasurements": [
+      {
+        "theme": "light",
+        "bar": {
+          "top": 0,
+          "bottom": 32,
+          "height": 32
+        },
+        "summary": {
+          "top": 0,
+          "bottom": 26,
+          "height": 26
+        },
+        "contained": true,
+        "open": true,
+        "menu": "Float current document\n　Pin current document\nGroup current document horizontally\nGroup current document vertically\nClose All Documents\nClose unmodified documents\nClose all except pinned\nReset Window Layout\n✓ Start Page"
+      },
+      {
+        "theme": "dark",
+        "bar": {
+          "top": 0,
+          "bottom": 32,
+          "height": 32
+        },
+        "summary": {
+          "top": 0,
+          "bottom": 26,
+          "height": 26
+        },
+        "contained": true,
+        "open": true,
+        "menu": "Float current document\n　Pin current document\nGroup current document horizontally\nGroup current document vertically\nClose All Documents\nClose unmodified documents\nClose all except pinned\nReset Window Layout\n✓ Start Page"
+      }
+    ],
+    "screenshots": [
+      "ai-assistant-dark.png",
+      "ai-assistant-light.png",
+      "connection-properties-dark.png",
+      "connection-properties-light.png",
+      "er-diagram-dark.png",
+      "er-diagram-light.png",
+      "janela-dark-active.png",
+      "janela-dark-hover.png",
+      "janela-dark-open.png",
+      "janela-light-active.png",
+      "janela-light-hover.png",
+      "janela-light-open.png",
+      "routine-debugger-dark.png",
+      "routine-debugger-light.png",
+      "schema-compare-dark.png",
+      "schema-compare-light.png",
+      "sql-editor-dark.png",
+      "sql-editor-light.png",
+      "table-data-grid-edit-dark.png",
+      "table-data-grid-edit-light.png",
+      "table-designer-dark.png",
+      "table-designer-light.png",
+      "ui-corrections-dark.png",
+      "ui-corrections-light.png"
+    ],
+    "beforeStateScreenshots": [
+      "janela-before-light-open.png",
+      "janela-before-dark-open.png"
+    ]
+  },
+  "findings": {
+    "before": {
+      "instances": 2,
+      "kind": "Janela summary crosses menubar lower divider by 3px under baseline workbench-v2.css in each theme",
+      "geometrySource": "Baseline menu-open evidence at HEAD 90e9f15; baseline CSS summary height 100% plus 3px vertical margins implies 35px border box in a 32px bar."
+    },
+    "after": {
+      "borderOverlaps": 0,
+      "summaryContainedInMenubar": true,
+      "measuredSummaryHeight": 26,
+      "menubarHeight": 32
+    }
+  },
+  "notCompleted": [
+    "Automated state traversal of every visible interactive control across all panels, menus, dialogs, popovers and scrollbars",
+    "Automated truncation, min-target, sibling alignment and spacing-gap checks across all screens",
+    "Runtime capture/audit at 1024x700 and 1920x1080"
+  ],
+  "screenCaptures": {
+    "viewport": "1440x900",
+    "themes": [
+      "light",
+      "dark"
+    ],
+    "files": [
+      "ai-assistant-dark.png",
+      "ai-assistant-light.png",
+      "connection-properties-dark.png",
+      "connection-properties-light.png",
+      "er-diagram-dark.png",
+      "er-diagram-light.png",
+      "janela-dark-active.png",
+      "janela-dark-hover.png",
+      "janela-dark-open.png",
+      "janela-light-active.png",
+      "janela-light-hover.png",
+      "janela-light-open.png",
+      "routine-debugger-dark.png",
+      "routine-debugger-light.png",
+      "schema-compare-dark.png",
+      "schema-compare-light.png",
+      "sql-editor-dark.png",
+      "sql-editor-light.png",
+      "table-data-grid-edit-dark.png",
+      "table-data-grid-edit-light.png",
+      "table-designer-dark.png",
+      "table-designer-light.png",
+      "ui-corrections-dark.png",
+      "ui-corrections-light.png"
+    ]
+  },
+  "validation": {
+    "typecheck": "pass",
+    "lint": "pass",
+    "vitest": {
+      "passed": 906,
+      "skipped": 71,
+      "failed": 0,
+      "maxWorkers": 2
+    },
+    "smokeE2E": "pass",
+    "contrast": "58/58 pass",
+    "build": "pass; TUXSQL_RELEASE_BUILD unset"
+  },
+  "visualReview": {
+    "fullSizeViewport": "1440x900",
+    "reviewed": [
+      "SQL Editor",
+      "editable result grid",
+      "ER Diagram",
+      "Schema Compare",
+      "Routine Debugger",
+      "Table Designer",
+      "AI Assistant",
+      "Query Builder",
+      "Connection Properties"
+    ],
+    "note": "Query Builder join label remains close to the card edge; moved 8px upward to separate it from the connector. No functional contracts changed."
+  }
+}

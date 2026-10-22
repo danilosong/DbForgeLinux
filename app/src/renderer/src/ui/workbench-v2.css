@@ -1,7 +1,19 @@
 :root {
   --workbench-rail: 48px;
+  --workbench-menu-height: 32px;
   --workbench-toolbar-height: 40px;
+  --workbench-tab-height: 36px;
   --workbench-status-height: 24px;
+  --workbench-space-1: 4px;
+  --workbench-space-2: 8px;
+  --workbench-space-3: 12px;
+  --workbench-space-4: 16px;
+  --workbench-space-6: 24px;
+  --workbench-control-height: 32px;
+  --workbench-button-height: 28px;
+  --workbench-button-height-large: 32px;
+  --workbench-radius-control: 6px;
+  --workbench-radius-surface: 8px;
   --workbench-glass: color-mix(in srgb, var(--bg-surface) 88%, transparent);
   --workbench-line: color-mix(in srgb, var(--border) 76%, transparent);
 }
@@ -11,8 +23,9 @@ body { background: var(--bg-app); }
 .app-menubar {
   position: relative;
   z-index: 25;
-  height: 32px;
-  min-height: 32px;
+  box-sizing: border-box;
+  height: var(--workbench-menu-height);
+  min-height: var(--workbench-menu-height);
   gap: 12px;
   padding: 0 10px;
   border-bottom-color: var(--workbench-line);
@@ -30,18 +43,20 @@ body { background: var(--bg-app); }
   letter-spacing: -.015em;
 }
 
-.menu-row { gap: 3px; }
+.menu-row { align-items: center; gap: 3px; }
 .menu-row summary {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
-  margin: 3px 0;
+  height: 26px;
+  margin: 0 2px;
   padding: 2px 8px;
   border-radius: 6px;
   color: var(--text-secondary);
-  transition: color 140ms ease, background-color 140ms ease;
+  transition: color 140ms ease, background-color 140ms ease, box-shadow 140ms ease;
 }
 .menu-row details[open] > summary,
-.menu-row summary:hover { color: var(--text-primary); background: var(--bg-hover); }
+.menu-row summary:hover { color: var(--text-primary); background: var(--bg-hover); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--border-control) 28%, transparent); }
 .menu-popup,
 .menu-submenu,
 .grid-column-menu,
@@ -96,7 +111,7 @@ body { background: var(--bg-app); }
 }
 .toolbar-group button:hover:not(:disabled),
 .app-toolbar > .icon-button:hover:not(:disabled) { color: var(--text-primary); background: var(--bg-hover); }
-.toolbar-group button:active:not(:disabled) { transform: translateY(1px); }
+.toolbar-group button:active:not(:disabled) { box-shadow: inset 0 1px 2px color-mix(in srgb, var(--text-primary) 12%, transparent); }
 .toolbar-group .button-primary { color: var(--text-on-accent); background: var(--accent); box-shadow: var(--shadow-xs); }
 .toolbar-group .button-primary:hover:not(:disabled) { color: var(--text-on-accent); background: var(--accent); filter: brightness(.94); }
 .toolbar-group .button-danger { color: var(--error); }
@@ -159,12 +174,12 @@ body { background: var(--bg-app); }
 }
 .activity-bar button svg { width: 19px; height: 19px; }
 .activity-bar button:hover { color: var(--text-primary); background: var(--bg-hover); }
-.activity-bar button:active { transform: scale(.96); }
+.activity-bar button:active { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 30%, transparent); }
 .activity-bar button.active { color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, var(--bg-surface)); }
 .activity-bar button.active { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 26%, transparent); }
 .activity-bar button.active::before {
   position: absolute;
-  left: -7px;
+  left: -5px;
   width: 3px;
   height: 22px;
   border-radius: 0 3px 3px 0;
@@ -213,8 +228,8 @@ body { background: var(--bg-app); }
 .document-workspace { background: var(--bg-surface); }
 .document-tab-strip {
   position: relative;
-  height: 36px;
-  min-height: 36px;
+  height: var(--workbench-tab-height);
+  min-height: var(--workbench-tab-height);
   gap: 4px;
   align-items: flex-end;
   padding: 4px 8px 0;
@@ -244,7 +259,7 @@ body { background: var(--bg-app); }
 .document-tab.selected::after {
   position: absolute;
   right: 12px;
-  bottom: -1px;
+  bottom: 0;
   left: 12px;
   height: 2px;
   border-radius: 2px 2px 0 0;
@@ -318,7 +333,8 @@ body { background: var(--bg-app); }
 .app-shell select:focus-visible,
 .app-shell textarea:focus-visible,
 .app-shell [role='button']:focus-visible,
-.app-shell [role='tab']:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 2px; }
+.app-shell [role='tab']:focus-visible { outline: 2px solid var(--border-focus); outline-offset: -2px; }
+.app-shell :where(button, input, select, textarea, [role='button'], [role='tab']):focus-visible { border-radius: var(--workbench-radius-control); }
 .app-shell input:not([type='checkbox']):not([type='radio']):not([type='color']),
 .app-shell select,
 .app-shell textarea { border-color: var(--workbench-line); border-radius: 8px; background-color: var(--bg-surface); }
@@ -328,7 +344,7 @@ body { background: var(--bg-app); }
 .app-shell textarea:hover:not(:disabled) { border-color: color-mix(in srgb, var(--border-control) 76%, var(--accent)); }
 .app-shell input:focus-visible,
 .app-shell select:focus-visible,
-.app-shell textarea:focus-visible { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 13%, transparent); }
+.app-shell textarea:focus-visible { border-color: var(--accent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 68%, transparent); }
 .app-shell input[type='checkbox'] { accent-color: var(--accent); }
 .app-shell ::placeholder { color: var(--text-tertiary); opacity: 1; }
 

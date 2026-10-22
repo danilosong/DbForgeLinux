@@ -1,0 +1,34 @@
+[
+  {
+    "theme": "light",
+    "bar": {
+      "top": 0,
+      "bottom": 32,
+      "height": 32
+    },
+    "summary": {
+      "top": 0,
+      "bottom": 26,
+      "height": 26
+    },
+    "contained": true,
+    "open": true,
+    "menu": "Float current document\n　Pin current document\nGroup current document horizontally\nGroup current document vertically\nClose All Documents\nClose unmodified documents\nClose all except pinned\nReset Window Layout\n✓ Start Page"
+  },
+  {
+    "theme": "dark",
+    "bar": {
+      "top": 0,
+      "bottom": 32,
+      "height": 32
+    },
+    "summary": {
+      "top": 0,
+      "bottom": 26,
+      "height": 26
+    },
+    "contained": true,
+    "open": true,
+    "menu": "Float current document\n　Pin current document\nGroup current document horizontally\nGroup current document vertically\nClose All Documents\nClose unmodified documents\nClose all except pinned\nReset Window Layout\n✓ Start Page"
+  }
+]
