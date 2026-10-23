@@ -11,7 +11,6 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/danilosong/TuxSQL/actions/workflows/ci.yml"><img src="https://github.com/danilosong/TuxSQL/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="Licença MIT"></a>
   <img src="https://img.shields.io/badge/platform-Linux%20x86__64-orange?style=flat-square&logo=linux" alt="Plataforma Linux">
   <img src="https://img.shields.io/badge/status-alpha-d69e2e?style=flat-square" alt="Status: alpha">
