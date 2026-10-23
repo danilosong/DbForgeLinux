@@ -1,13 +1,21 @@
-# TuxSQL
+<p align="center">
+  <img src="app/packaging/icon.png" width="128" height="128" alt="Ícone do TuxSQL">
+</p>
+
+<h1 align="center">TuxSQL</h1>
 
 <p align="center">
-  <img src="document/evidence/ui/ui-corrections-light.png" alt="TuxSQL Preview" width="850">
+  <b>IDE de banco de dados para MySQL e MariaDB, feita para o Linux.</b><br>
+  Editor SQL, grade de dados, designer de tabelas, diagrama ER, comparação de schemas e dados,<br>
+  depurador de procedures e assistente de IA num app desktop nativo. Código aberto, local e seu.
 </p>
 
 <p align="center">
   <a href="https://github.com/danilosong/TuxSQL/actions/workflows/ci.yml"><img src="https://github.com/danilosong/TuxSQL/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="Licença MIT"></a>
   <img src="https://img.shields.io/badge/platform-Linux%20x86__64-orange?style=flat-square&logo=linux" alt="Plataforma Linux">
+  <img src="https://img.shields.io/badge/status-alpha-d69e2e?style=flat-square" alt="Status: alpha">
+  <br>
   <img src="https://img.shields.io/badge/MySQL-5.7%20%7C%208.0%20%7C%208.4-00758F?style=flat-square&logo=mysql&logoColor=white" alt="MySQL">
   <img src="https://img.shields.io/badge/MariaDB-10.11%20%7C%2011.x-003545?style=flat-square&logo=mariadb&logoColor=white" alt="MariaDB">
   <img src="https://img.shields.io/badge/Electron-38.x-47848F?style=flat-square&logo=electron&logoColor=white" alt="Electron">
@@ -15,8 +23,33 @@
   <img src="https://img.shields.io/badge/TypeScript-5.9-3178C6?style=flat-square&logo=typescript&logoColor=white" alt="TypeScript">
 </p>
 
+<p align="center">
+  <a href="https://github.com/danilosong/TuxSQL/releases/latest"><img alt="Baixar a última versão" src="https://img.shields.io/badge/Baixar%20.deb%20%2F%20AppImage-2f7bf5?style=for-the-badge&logo=linux&logoColor=white" height="40"></a>
+</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="document/evidence/ui/ui-corrections-dark.png">
+    <img src="document/evidence/ui/ui-corrections-light.png" alt="TuxSQL com o Database Explorer à esquerda, o construtor visual de consultas em uma aba MDI e a grade de resultados embaixo" width="100%">
+  </picture>
+  <br>
+  <sub>Shell MDI com Database Explorer, Query Builder e grade de resultados. As imagens seguem o tema claro ou escuro do seu GitHub.</sub>
+</p>
+
+<p align="center">
+  <a href="#funcionalidades">Funcionalidades</a> ·
+  <a href="#tudo-o-que-vem-incluído">Tudo incluído</a> ·
+  <a href="#segurança-em-primeiro-lugar">Segurança</a> ·
+  <a href="#por-dentro">Por dentro</a> ·
+  <a href="#download">Download</a> ·
+  <a href="#primeiros-passos">Primeiros passos</a> ·
+  <a href="#testes">Testes</a> ·
+  <a href="#documentação">Documentação</a> ·
+  <a href="#aviso-legal-disclaimer">Aviso legal</a>
+</p>
+
 <!-- PROGRESS:START -->
-**Progresso do projeto** · atualizado em 2026-10-22
+**Progresso do projeto** · atualizado em 2026-10-23
 
 ```text
 Cobertura de funcionalidades de referência  ████████████████████  100%
@@ -24,196 +57,244 @@ Módulos implementados e testados            ███████████�
 Specs de UX verificadas contra evidência    ████████████████████   100%  (20 de 20)
 ```
 
-<sub>Implementação independente, não é cópia nem produto afiliado a terceiros (ver LEGAL.md). Visual v2 (shell moderno, banner de abertura de 3 s e documentação offline) entregue sem alterar nenhuma funcionalidade. O 100% vale para o escopo do produto, Linux da família Debian (Ubuntu, Pop!_OS), e para o que a referência mostrou: foi medido contra mais de 800 capturas do produto de referência feitas em VM. O que fica fora é declarado e justificado, não escondido: itens exclusivos de Windows sem adaptação viável, serviços em nuvem do fornecedor, diferenças intencionais por segurança e comportamentos que a referência não chegou a mostrar (<code>document/paridade/ESCOPO-LINUX.md</code>, <code>DIVERGENCIAS-ORIGINAL.md</code>). A revisão de segurança por ferramenta e menu está em <code>document/security-tools-matrix.md</code>. Specs de UX só contam como verificados quando citam capturas existentes.</sub>
+<sub>Implementação independente, não é cópia nem produto afiliado a terceiros (ver LEGAL.md). Visual v2 (shell moderno, banner de abertura de 3 s e documentação offline) entregue sem alterar nenhuma funcionalidade; README reorganizado em 2026-10-23, sem mudança de código. O 100% vale para o escopo do produto, Linux da família Debian (Ubuntu, Pop!_OS), e para o que a referência mostrou: foi medido contra mais de 800 capturas do produto de referência feitas em VM. O que fica fora é declarado e justificado, não escondido: itens exclusivos de Windows sem adaptação viável, serviços em nuvem do fornecedor, diferenças intencionais por segurança e comportamentos que a referência não chegou a mostrar (<code>document/paridade/ESCOPO-LINUX.md</code>, <code>DIVERGENCIAS-ORIGINAL.md</code>). A revisão de segurança por ferramenta e menu está em <code>document/security-tools-matrix.md</code>. Specs de UX só contam como verificados quando citam capturas existentes.</sub>
 <!-- PROGRESS:END -->
+
+> [!NOTE]
+> **O TuxSQL é independente.** Não é clone, cópia, fork ou porte do dbForge Studio, não é afiliado à Devart e não contém código, binários, ícones ou imagens dela. Veja o [Aviso Legal](#aviso-legal-disclaimer) e o [LEGAL.md](LEGAL.md).
+> *TuxSQL is an independent open-source project, not affiliated with or endorsed by Devart.*
+
+<br>
+
+<table>
+  <tr>
+    <td width="25%" valign="top">
+      <h3>🐧 Feito para Linux</h3>
+      Pacote <code>.deb</code> e AppImage, X11 e Wayland, senhas no chaveiro do sistema (<code>libsecret</code>) e serviços locais controlados pelo <code>systemd</code>.
+    </td>
+    <td width="25%" valign="top">
+      <h3>🧰 IDE completa</h3>
+      20 módulos num só lugar: do editor SQL ao depurador de procedures, passando por comparação, geração de dados, relatórios e Git.
+    </td>
+    <td width="25%" valign="top">
+      <h3>🔐 Seguro por padrão</h3>
+      Guard de IPC com schemas, confirmação em toda operação destrutiva, cofre cifrado (AES-256-GCM) e nenhuma telemetria.
+    </td>
+    <td width="25%" valign="top">
+      <h3>🤖 IA com sua chave</h3>
+      Assistente com streaming para OpenAI, Anthropic ou Ollama local. Só metadados do schema saem da máquina sem seu consentimento.
+    </td>
+  </tr>
+</table>
+
+<br>
+
+## Funcionalidades
+
+Todas as capturas abaixo são do TuxSQL rodando em Linux x86_64. Elas mudam de tema junto com o seu GitHub (claro ou escuro).
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="document/evidence/ui/sql-editor-dark.png">
+        <img src="document/evidence/ui/sql-editor-light.png" alt="Editor SQL com realce de sintaxe e a grade de resultados embaixo" width="100%">
+      </picture>
+      <h3>Escreva SQL sem atrito</h3>
+      Editor baseado no Monaco com autocomplete de tabelas e colunas, snippets, formatador, auto-maiúsculas, execução por seleção ou por statement e histórico persistente.
+      <br><br>
+      Resultados grandes vão para um spool em disco, então milhões de linhas paginam sem travar a janela.
+    </td>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="document/evidence/ui/table-data-grid-edit-dark.png">
+        <img src="document/evidence/ui/table-data-grid-edit-light.png" alt="Grade de dados com células alteradas, inseridas e excluídas destacadas por cor" width="100%">
+      </picture>
+      <h3>Edite dados direto na grade</h3>
+      Inserções, alterações e exclusões ficam destacadas por cor até você aplicar. O DML é gerado a partir da chave primária ou única, com detecção de conflito otimista.
+      <br><br>
+      Master-Detail, Card View, Data Viewer para JSON e textos longos, e cópia em vários formatos.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="document/evidence/ui/table-designer-dark.png">
+        <img src="document/evidence/ui/table-designer-light.png" alt="Table Designer com colunas, tipos, flags e a prévia do DDL" width="100%">
+      </picture>
+      <h3>Desenhe tabelas visualmente</h3>
+      Colunas, tipos, índices, chaves estrangeiras, engine e particionamento, com prévia do DDL gerada por diff. Editores dedicados para views, procedures, functions, triggers e events.
+    </td>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="document/evidence/ui/er-diagram-dark.png">
+        <img src="document/evidence/ui/er-diagram-light.png" alt="Diagrama ER com tabelas e relacionamentos por chave estrangeira" width="100%">
+      </picture>
+      <h3>Veja o modelo inteiro</h3>
+      Diagramas ER a partir das chaves estrangeiras reais e de relações virtuais, com zoom, busca, arraste a partir do Explorer e exportação em SVG e PNG.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="document/evidence/ui/schema-compare-dark.png">
+        <img src="document/evidence/ui/schema-compare-light.png" alt="Schema Compare com a lista de objetos diferentes e o DDL lado a lado" width="100%">
+      </picture>
+      <h3>Compare e sincronize</h3>
+      Schema Compare e Data Compare entre bancos, pastas de scripts e snapshots, com diff lado a lado e script de sincronização aplicado em transação, sempre com confirmação.
+    </td>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="document/evidence/ui/routine-debugger-dark.png">
+        <img src="document/evidence/ui/routine-debugger-light.png" alt="Depurador de stored procedures parado em um breakpoint, com watches e call stack" width="100%">
+      </picture>
+      <h3>Depure procedures passo a passo</h3>
+      Step Into, Step Over e Step Out, breakpoints, watches de variáveis locais e pilha de chamadas para stored procedures de MySQL e MariaDB.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="document/evidence/ui/query-builder-joins-dark.png">
+        <img src="document/evidence/ui/query-builder-joins-light.png" alt="Query Builder com tabelas ligadas por joins arrastados" width="100%">
+      </picture>
+      <h3>Monte consultas sem digitar</h3>
+      Query Builder em aba de documento: joins por arraste, colunas, agrupamentos, filtros WHERE e HAVING e subconsultas, para SELECT, INSERT, UPDATE e DELETE.
+    </td>
+    <td width="50%" valign="top">
+      <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="document/evidence/ui/ai-assistant-dark.png">
+        <img src="document/evidence/ui/ai-assistant-light.png" alt="Assistente de IA acoplado à lateral, respondendo com uma consulta SQL" width="100%">
+      </picture>
+      <h3>Pergunte em linguagem natural</h3>
+      O assistente de IA transforma perguntas em SQL, explica e otimiza consultas e sugere índices. Funciona com OpenAI, Anthropic ou modelos locais via Ollama, sempre com a sua chave.
+    </td>
+  </tr>
+</table>
+
+<details>
+<summary><b>Mais capturas</b> (Data Generator, Pivot, Profiler, Source Control, Import/Export, Sessões)</summary>
+<br>
+
+| | |
+|---|---|
+| ![Data Generator](document/evidence/ui/data-generator-light.png) | ![Report e Pivot](document/evidence/ui/data-report-pivot-light.png) |
+| ![Query Profiler](document/evidence/ui/profiler-light.png) | ![Source Control](document/evidence/ui/source-control-dag-light.png) |
+| ![Import/Export](document/evidence/ui/import-export-light.png) | ![Session Manager](document/evidence/ui/sessions-light.png) |
+
+Mais de 200 capturas, em claro e escuro, estão em [`document/evidence/ui/`](document/evidence/ui/).
+
+</details>
+
+<br>
+
+## Tudo o que vem incluído
+
+<table>
+  <tr>
+    <td width="33%" valign="top">
+      <h4>✍️ Editor e dados</h4>
+      Editor SQL (Monaco) · autocomplete contextual · snippets · formatador · histórico · Database Explorer com filtro · grade virtualizada com spool em disco · edição inline · Master-Detail · Card View · Data Viewer · Table Designer · editores de View, Procedure, Function, Trigger e Event · Code Analysis
+    </td>
+    <td width="33%" valign="top">
+      <h4>🔄 Comparar e mover</h4>
+      Schema Compare · Data Compare · Import/Export em CSV, Excel (.xlsx), XML, JSON, HTML e SQL · ZIP protegido por senha (AES-256) · templates de exportação · Backup e Restore · Copy Databases · Execute Large Script · Source Control (Git) e Projects
+    </td>
+    <td width="33%" valign="top">
+      <h4>🧪 Modelar e analisar</h4>
+      Query Builder · Diagrama ER (.dbd) · Data Generator (.dgen) · Documenter (.ddoc) em HTML, Markdown e PDF · Data Report e Pivot com gráficos · Chart Designer · Query Profiler com EXPLAIN · Routine Debugger
+    </td>
+  </tr>
+  <tr>
+    <td width="33%" valign="top">
+      <h4>🛠️ Administração</h4>
+      Security Manager (usuários, hosts, privilégios, limites) · Session Manager (<code>KILL QUERY</code>/<code>KILL CONNECTION</code>) · Server Variables · Service Control via <code>systemd</code> · Table Maintenance · Find Object · Find Invalid Objects
+    </td>
+    <td width="33%" valign="top">
+      <h4>🌐 Conectividade</h4>
+      MySQL 5.7, 8.0 e 8.4 · MariaDB 10.11 e 11.x · TLS · túnel SSH com chave e passphrase · túnel HTTP (<code>tunnel.php</code>) · senhas no chaveiro do sistema
+    </td>
+    <td width="33%" valign="top">
+      <h4>🎨 Ambiente</h4>
+      Shell MDI com painéis acopláveis · temas Auto, Claro, Escuro e Alto Contraste · atalhos remapeáveis · interface em inglês e português do Brasil · documentação offline · atualização automática pelas Releases
+    </td>
+  </tr>
+</table>
+
+<br>
+
+## Segurança em primeiro lugar
+
+O TuxSQL lida com bancos reais, então a segurança é parte do projeto, não um extra:
+
+- **IPC Guard central** (`app/src/main/ipc/guard.ts`): toda chamada entre a interface e o processo principal é validada contra schemas estritos; payloads malformados ou frames de origem desconhecida são rejeitados.
+- **Nada destrutivo em silêncio:** `DROP`, `KILL`, restore, sincronizações e resets pedem confirmação explícita.
+- **Credenciais protegidas:** senhas ficam no `libsecret`; sem ele, num cofre local cifrado com AES-256-GCM e aviso visível. Nunca em texto puro, nunca em logs.
+- **IA com limites:** provedores remotos só por HTTPS, e linhas de tabela nunca saem sem o seu consentimento.
+
+Relatórios: [revisão de segurança](document/security-review.md), [modelo de ameaças](document/security-threat-model.md), [hardening no Linux](document/security-linux-hardening.md) e [matriz por ferramenta](document/security-tools-matrix.md).
+
+## Por dentro
+
+- **Electron do jeito recomendado:** context isolation, preload com API tipada (`window.tuxsql`) e renderer sem acesso direto ao Node.
+- **Domínio separado da interface:** a lógica (schema, editor, query builder, debugger, import/export, edição de grade e outros) fica em `app/src/modules/`, pura e testável sem Electron.
+- **Feito para volume:** resultados em spool de disco, grade virtualizada e streaming do driver `mysql2`.
+- **Implementação própria:** escrita a partir de especificações do projeto e de comportamento observado. Nenhum código, binário ou recurso do produto de referência.
+- **Testado:** mais de 900 testes (unitários, contrato de IPC, estresse de streaming e integração), além de smoke E2E com Playwright contra o pacote instalado.
+
+<details>
+<summary><b>Estrutura do código</b></summary>
+
+```
+├── app/src/main/               # Processo principal (Node.js)
+│   ├── db/                     # Drivers de conexão (pool mysql2, streaming, túneis SSH/HTTP)
+│   ├── connections/            # Armazenamento e ciclo de vida de conexões
+│   ├── security/               # PasswordVault (libsecret + AES-256-GCM) e WindowPolicy
+│   ├── ipc/                    # Handlers IPC com validação de schemas e IPC Guard
+│   └── index.ts                # Janela principal e ciclo de vida do Electron
+│
+├── app/src/preload/            # Pré-carregamento (context isolation)
+│   ├── api/                    # APIs tipadas expostas ao renderer
+│   └── index.ts                # contextBridge.exposeInMainWorld('tuxsql', ...)
+│
+├── app/src/renderer/           # Interface (React 19 + Monaco)
+│   ├── src/ui/                 # Shell, painéis MDI, diálogos e componentes
+│   ├── src/i18n/               # Internacionalização (en / pt-BR)
+│   └── src/main.tsx            # Ponto de entrada React
+│
+└── app/src/modules/            # Módulos de domínio puros e testáveis
+    ├── schema/                 # Introspecção, DDL e comparação de schemas
+    ├── editor/                 # Autocomplete, snippets e formatação SQL
+    ├── query-builder/          # Modelo visual e compilação para SQL
+    ├── routine-debugger/       # Instrumentação para depuração passo a passo
+    ├── ai-assistant/           # Cliente de IA, sanitização de contexto e streaming
+    ├── data-export-import/     # Encoders e decoders (CSV, Excel, XML, JSON)
+    ├── grid-editing/           # Deltas e geração de DML da grade
+    └── ...                     # data-compare, er-diagram, profiler, security e outros
+```
+
+</details>
 
 ---
 
-## Download (versão já compilada)
+## Download
 
-Baixe o instalador pronto na página de **[Releases](https://github.com/danilosong/TuxSQL/releases/latest)**, sem precisar compilar:
+**Novo no TuxSQL?** Baixe o instalador pronto na página de **[Releases](https://github.com/danilosong/TuxSQL/releases/latest)**, sem precisar compilar. As [releases anteriores](https://github.com/danilosong/TuxSQL/releases) têm as versões antigas e suas notas.
 
 | Formato | Para quem | Como usar |
 | --- | --- | --- |
 | `tuxsql_<versão>_amd64.deb` | Ubuntu, Debian, Linux Mint, Pop!_OS | `sudo apt install ./tuxsql_<versão>_amd64.deb` |
 | `tuxsql_<versão>_x86_64.AppImage` | Qualquer distribuição Linux x86_64, sem instalar | `chmod +x tuxsql_*.AppImage && ./tuxsql_*.AppImage` |
 
-Confira a integridade com o arquivo `SHA256SUMS.txt` da release (`sha256sum -c SHA256SUMS.txt --ignore-missing`). Os binários são gerados automaticamente pelo GitHub Actions a partir de uma tag `v*`; eles ficam nas Releases e não dentro do repositório.
-
----
-
-### What is TuxSQL?
-
-> **TuxSQL** is an independent, native Linux desktop IDE and database management client for **MySQL and MariaDB**, created by **Danilo Song**. Built on **Electron, React 19, TypeScript, and the Monaco Editor**, it delivers a comprehensive development workspace tailored specifically for the Linux ecosystem. It provides professional SQL editing with autocompletion, query formatting and execution history, an interactive MDI workspace for visual query building, ER diagrams, schema & data synchronization, stored procedure stepping debugging, native SSH and HTTP tunneling, and an integrated AI Assistant with streaming and Bring-Your-Own-Key (BYOK) privacy.
-
-> **Aviso importante / Important notice:** o TuxSQL é um projeto **independente e de código aberto**. **Não é um clone, cópia, fork ou porte do dbForge Studio**, **não é afiliado, patrocinado nem endossado pela Devart**, e não contém código, binários, ícones ou imagens dela. "dbForge" e "Devart" são marcas de seus titulares, citadas aqui apenas de forma descritiva. Veja o [Aviso Legal completo](LEGAL.md) e a seção [Aviso Legal (Disclaimer)](#aviso-legal-disclaimer).
-> *TuxSQL is an independent open-source project. It is not a clone, copy, fork or port of dbForge Studio, and is not affiliated with or endorsed by Devart. See [LEGAL.md](LEGAL.md).*
-
----
-
-## Visão Geral
-
-O **TuxSQL** nasceu para preencher a carência de um ambiente integrado de desenvolvimento e administração de banco de dados no ecossistema Linux que ofereça a ergonomia, a riqueza de ferramentas e os recursos visuais tradicionalmente encontrados apenas em ferramentas comerciais para Windows.
-
-Totalmente empacotado para distribuições baseadas em Debian/Ubuntu (`.deb`) e projetado com suporte nativo a **X11 e Wayland**, o TuxSQL combina performance de ponta com respeito absoluto à privacidade e à segurança dos dados:
-- **Tudo local ou privado:** Suas credenciais são guardadas no keyring do sistema operacional (`libsecret`) com fallback em cofre cifrado em disco (AES-256-GCM).
-- **Sem telemetria oculta:** Chaves de API de IA e credenciais de túnel permanecem sob total controle do desenvolvedor.
-- **Arquitetura MDI genuína:** Trabalhe com múltiplos editores SQL, designers de tabelas, construtores visuais de consulta, comparadores de schema e depuradores abertos simultaneamente em abas independentes.
-
----
-
-## Galeria de Recursos
-
-Abaixo estão capturas reais da interface gráfica do TuxSQL executando em ambiente Linux x86_64 nos temas Claro e Escuro:
-
-### 1. Ambiente Integrado e Construtor Visual (MDI Shell & Query Builder)
-
-| Tema Claro | Tema Escuro |
-|---|---|
-| ![Shell e Query Builder - Claro](document/evidence/ui/ui-corrections-light.png) | ![Shell e Query Builder - Escuro](document/evidence/ui/ui-corrections-dark.png) |
-
-### 2. Editor SQL com Monaco e Grade de Resultados (SQL Editor & Result Grid)
-
-| Tema Claro | Tema Escuro |
-|---|---|
-| ![SQL Editor - Claro](document/evidence/ui/sql-editor-light.png) | ![SQL Editor - Escuro](document/evidence/ui/sql-editor-dark.png) |
-
-### 3. Edição Direta de Células na Grade (Inline Data Grid Editing)
-
-| Tema Claro | Tema Escuro |
-|---|---|
-| ![Edição de Grade - Claro](document/evidence/ui/table-data-grid-edit-light.png) | ![Edição de Grade - Escuro](document/evidence/ui/table-data-grid-edit-dark.png) |
-
-### 4. Modelagem e Diagrama de Entidade-Relacionamento (ER Diagram)
-
-| Tema Claro | Tema Escuro |
-|---|---|
-| ![Diagrama ER - Claro](document/evidence/ui/er-diagram-light.png) | ![Diagrama ER - Escuro](document/evidence/ui/er-diagram-dark.png) |
-
-### 5. Comparação e Sincronização de Schemas (Schema Compare)
-
-| Tema Claro | Tema Escuro |
-|---|---|
-| ![Schema Compare - Claro](document/evidence/ui/schema-compare-light.png) | ![Schema Compare - Escuro](document/evidence/ui/schema-compare-dark.png) |
-
-### 6. Depurador de Stored Procedures Passo a Passo (Routine Debugger)
-
-| Tema Claro | Tema Escuro |
-|---|---|
-| ![Routine Debugger - Claro](document/evidence/ui/routine-debugger-light.png) | ![Routine Debugger - Escuro](document/evidence/ui/routine-debugger-dark.png) |
-
-### 7. Designer Visual de Tabelas e DDL (Table Designer)
-
-| Tema Claro | Tema Escuro |
-|---|---|
-| ![Table Designer - Claro](document/evidence/ui/table-designer-light.png) | ![Table Designer - Escuro](document/evidence/ui/table-designer-dark.png) |
-
-### 8. Assistente de IA Acoplado com Chave Própria (AI Assistant Dock)
-
-| Tema Claro | Tema Escuro |
-|---|---|
-| ![AI Assistant - Claro](document/evidence/ui/ai-assistant-light.png) | ![AI Assistant - Escuro](document/evidence/ui/ai-assistant-dark.png) |
-
----
-
-## Funcionalidades por Módulo
-
-| Módulo / Recurso | Descrição | Destaques e Capacidades |
-|---|---|---|
-| **SQL Editor** | Editor SQL completo baseado no motor Monaco | Autocompletion contextual de tabelas/colunas, snippets SQL expansíveis, formatador com regras estritas, histórico persistente de execução e paginação em spool de disco para grandes volumes. |
-| **Database Explorer** | Árvore navegável de objetos de metadados | Inspeção hierárquica de conexões, bancos, tabelas, colunas, chaves, índices, views, procedures, functions, triggers e eventos. Filtro dinâmico de objetos e alternância de bases do sistema. |
-| **Data Grid & Viewer** | Grade de dados virtualizada com paginação | Suporte a milhões de linhas via spool local, visualizador em modal para campos JSON/texto longo, exportação rápida e edição de células com suporte a buffer de modificações pendentes. |
-| **Inline Grid Editing** | Edição in-place direta na grade de dados | Destaque visual por cores para inserções, alterações e deleções pendentes. Geração segura de DML com conferência de chave primária/única antes de aplicar no servidor. |
-| **Table Designer** | Designer gráfico para criação e alteração de tabelas | Gestão visual de colunas, tipos de dados, flags (Null, Auto-increment), índices, chaves estrangeiras, opções de engine, particionamento e prévia dinâmica do DDL gerado via diff. |
-| **Editores de Objetos** | IDE especializada para rotinas e componentes lógicos | Editores dedicados com syntax highlighting para Stored Procedures, Stored Functions, Views, Triggers e Events, com comandos rápidos de execução de teste e alteração estrutural. |
-| **Import / Export Wizard** | Assistente multifórmato de migração de dados | Importação e exportação de dados com mapeamento flexível de colunas para formatos: CSV, Excel (.xlsx), XML, JSON, HTML e scripts SQL INSERT. Suporte a templates de exportação reutilizáveis. |
-| **Schema Compare** | Comparador estrutural e sincronizador de bancos | Análise comparativa completa de objetos entre bancos de dados ou conexões diferentes. Geração de scripts DDL de sincronização com preview side-by-side de diferenças. |
-| **Data Compare** | Comparador de conteúdo de dados | Confronto linha a linha de tabelas homônimas com base em chaves de comparação. Resumo de registros idênticos, divergentes, exclusivos da origem e exclusivos do destino. |
-| **Query Builder** | Construtor visual de consultas em aba MDI | Interface visual em aba de documento para elaboração de consultas SELECT, INSERT, UPDATE e DELETE. Seleção interativa de colunas, agrupamentos, filtros WHERE/HAVING e subconsultas. |
-| **Diagrama ER** | Visualizador de Entidade-Relacionamento (.dbd) | Geração de diagramas esquemáticos a partir de chaves estrangeiras reais e relações virtuais. Navegação panorâmica, controle de zoom, busca de objetos e exportação vetorial em SVG e PNG. |
-| **Security Manager** | Gestão de contas de usuários e privilégios | Criação, duplicação e remoção de usuários de banco de dados, definição de hosts permitidos, regras de expiração de senhas, limites de recursos e concessão granular de privilégios. |
-| **Session Manager** | Monitoramento e controle de sessões do servidor | Listagem de conexões ativas com estados de bloqueio, tempo decorrido e consulta em execução. Filtro de sessões próprias/em sleep, cancelamento seguro (`KILL QUERY` / `KILL CONNECTION`) e inspeção de variáveis globais. |
-| **Query Profiler** | Análise e diagnóstico de desempenho de queries | Captura de tempos de execução (duração, CPU, I/O), visualização de árvores de plano de execução (EXPLAIN JSON), variação de variáveis de status da sessão e histórico de perfis para comparação. |
-| **Data Generator** | Gerador de dados de teste sintéticos (.dgen) | População automatizada de tabelas com dados de teste. Geradores pré-configurados para nomes, emails, endereços, datas, sequências, listas customizadas e expressões regulares (regex). |
-| **Database Documenter** | Gerador automatizado de documentação (.ddoc) | Compilação de documentação detalhada de esquemas e dicionários de dados para formatos HTML estruturado, Markdown e relatórios PDF, com inclusão opcional do diagrama de relacionamentos. |
-| **Routine Debugger** | Depurador passo a passo de Stored Procedures | Motor de depuração instrumentada para procedimentos armazenados MySQL/MariaDB: execução passo a passo (Step Into, Step Over, Step Out), breakpoints, inspeção dinâmica de variáveis locais (Watches) e pilha de chamadas (Call Stack). |
-| **Source Control (Git)** | Versionamento de schema integrado com Git | Integração com repositórios Git locais: commit de alterações de schema com seleção granular de scripts DDL, visualização de diffs de código, troca e criação de branches e checkout limpo. |
-| **Data Report & Pivot** | Relatórios tabulares e tabelas dinâmicas | Construção de agregações multidimensionais de resultados de consultas (Pivot Tables) com gráficos em barra e exportação de sumários gerenciais. |
-| **AI Assistant** | Assistente de IA integrado em dock lateral | Chat inteligente para conversão de linguagem natural em SQL, explicação de queries complexas, otimização e sugestão de índices. Suporte a OpenAI, Anthropic e modelos locais via Ollama com streaming e chave própria (BYOK). |
-| **Code Analysis** | Análise estática de código SQL | Verificação estática de boas práticas, riscos de performance (ex: predicados que impedem uso de índice) e regras de estilo conforme diretrizes de código SQL. |
-| **Conectividade Segura** | Túneis de rede SSH e HTTP nativos | Conexão com servidores remotos e bancos protegidos por firewall via túnel SSH criptografado (chave pública/privada com passphrase) ou script de túnel web HTTP (`tunnel.php`). |
-| **Service Control** | Controle de serviços MySQL/MariaDB locais | Painel administrativo para checar status, iniciar, parar e reiniciar serviços de banco locais gerenciados pelo `systemd` do Linux, sem exigência de sudo direto pelo app. |
-| **Backup & Restore** | Ferramentas auxiliares de banco | Geração de dumps de schema e dados em arquivos `.sql`, restauração orientada com prévia de script e cópia direta de esquemas entre conexões ativas. |
-| **Opções e Atalhos** | Central de preferências e keymap configurável | Configuração de comportamento de inicialização, salvamento automático de rascunhos, esquemas de atalhos de teclado (padrão VS Code ou esquema alternativo de atalhos familiar a usuários de IDEs de banco de dados), fontes e temas visuais (Auto, Claro, Escuro e Alto Contraste). |
-| **Internacionalização** | Suporte multilíngue completo | Chaveamento nativo em tempo de execução entre **Inglês (en)** e **Português do Brasil (pt-BR)** para todas as telas, botões, mensagens e diálogos. |
-
----
-
-## Instalação e Execução
-
-### Pacote Debian (.deb)
-
-Para instalar o pacote oficial no Ubuntu, Debian, Linux Mint ou Pop!_OS:
+Confira a integridade com o `SHA256SUMS.txt` da release:
 
 ```bash
-# Instalação do pacote .deb (substitua pelo caminho do arquivo baixado ou gerado)
-sudo apt install /caminho/para/tuxsql_0.1.2_amd64.deb
+sha256sum -c SHA256SUMS.txt --ignore-missing
 ```
 
-Após a instalação, o aplicativo estará disponível no menu do sistema como **TuxSQL** ou pode ser iniciado via terminal:
+Os binários são gerados pelo GitHub Actions a partir de uma tag `v*`; ficam nas Releases, não dentro do repositório.
 
-```bash
-tuxsql
-```
-
-Para abrir diretamente um arquivo SQL do terminal:
-
-```bash
-tuxsql ~/queries/analise.sql
-```
-
-### Execução a partir do Código-Fonte (Modo Desenvolvedor)
-
-Requisitos: **Node.js 22+**, **pnpm 10+**, **Git**.
-
-```bash
-# 1. Clonar o repositório
-git clone https://github.com/danilosong/TuxSQL.git
-cd TuxSQL/app
-
-# 2. Habilitar o pnpm e instalar dependências
-corepack enable
-pnpm install --frozen-lockfile
-
-# 3. Iniciar em modo de desenvolvimento (hot-reload)
-pnpm dev
-```
-
-#### Execução em Servidores Sem Monitor (Headless / Xvfb)
-
-Para executar o app em ambientes CI ou servidores Linux remotos sem display físico:
-
-```bash
-cd app
-env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a pnpm dev
-```
-
----
-
-## Requisitos de Sistema
-
-- **Sistema Operacional:** Linux x86_64 (amd64). Veja a [compatibilidade de distribuições](#compatibilidade-de-distribuições-linux) abaixo para o que foi testado.
-- **Servidor Gráfico:** X11 nativo ou Wayland (via XWayland ou flags do Chromium).
-- **Dependências Nativas do Sistema:**
-  - `libsecret-1-0` (para integração com o chaveiro GNOME Keyring / KWallet).
-  - Bibliotecas gráficas básicas do Electron: `libnss3`, `libatk1.0-0`, `libgtk-3-0`, `libasound2`.
-- **Servidores de Banco Suportados:**
-  - **MySQL:** 5.7.x, 8.0.x, 8.4.x LTS.
-  - **MariaDB:** 10.11.x LTS, 11.x.
-
----
-
-## Compatibilidade de Distribuições Linux
+### Compatibilidade de distribuições
 
 A coluna **Situação** separa o que foi **verificado de verdade** do que é apenas **esperado**. Não declaramos suporte sem teste.
 
@@ -225,153 +306,97 @@ A coluna **Situação** separa o que foi **verificado de verdade** do que é ape
 | Fedora, openSUSE, Arch Linux, Manjaro e outras | AppImage ou código-fonte | 🟡 **Esperada:** sem `.deb`; use o AppImage da release ou `pnpm dev`; ainda sem teste dedicado |
 | Ubuntu 20.04 e anteriores, Debian 11 e anteriores | — | ❌ **Não verificada:** o Electron 38 exige uma glibc mais recente; provavelmente não funciona |
 
-**Detalhes que valem saber:**
-
 - **Arquitetura:** somente `amd64` por enquanto (sem pacotes ARM).
 - **Servidor gráfico:** X11 e Wayland.
-- **Chaveiro:** com `libsecret` as senhas usam o chaveiro do sistema; sem ele, ficam num cofre local cifrado (AES-256-GCM) com aviso visível, nunca em texto puro.
 - **Dependências do `.deb`:** `libgtk-3-0`, `libnotify4`, `libnss3`, `libxss1`, `libxtst6`, `xdg-utils`, `libatspi2.0-0`, `libuuid1`, `libsecret-1-0`, `libasound2t64` ou `libasound2`, `libgbm1`.
 - **Snap e Flatpak:** não são fornecidos.
 - Testou em outra distribuição? Abra uma issue com a distro, a versão e o resultado; ela passa para a tabela acima.
 
----
+### Compatibilidade de banco de dados
 
-## Como Testar e Validar
+Verificada com testes de integração contra servidores reais em contêineres descartáveis:
 
-A suíte de testes do TuxSQL abrange testes unitários, validações de contrato IPC, testes de estresse de streaming e testes de integração com instâncias reais de MySQL e MariaDB.
+| Servidor | Versão validada | Suíte de integração |
+|---|---|---|
+| **MySQL** | `5.7.44` | ✓ aprovada |
+| **MySQL** | `8.0.46` | ✓ aprovada |
+| **MySQL LTS** | `8.4.11` | ✓ aprovada |
+| **MariaDB LTS** | `10.11.19` | ✓ aprovada |
+| **MariaDB** | `11.8.9` | ✓ aprovada |
 
-Executando a partir da pasta `app/`:
+Handshakes TLS, fallbacks e diferenças por versão estão em [document/compat.md](document/compat.md).
+
+## Primeiros passos
+
+Depois de instalar o `.deb`, o TuxSQL aparece no menu do sistema. Pelo terminal:
 
 ```bash
-cd app
-
-# 1. Verificação estática de tipos (TypeScript)
-pnpm typecheck
-
-# 2. Verificação de estilo e conformidade de código (ESLint)
-pnpm lint
-
-# 3. Testes unitários (Vitest - mais de 140 testes cobrindo módulos isolados)
-pnpm test
-
-# 4. Benchmark de performance (spool de memória e tempo de parsing)
-pnpm perf:benchmark
-
-# 5. Build dos binários de produção
-pnpm build
-
-# 6. Empacotamento do instalador Debian (.deb)
-pnpm dist:deb
+tuxsql                          # abre o app
+tuxsql ~/queries/analise.sql    # abre um arquivo SQL direto no editor
 ```
 
-### Testes de Integração com Banco Descartável (Docker)
+### A partir do código-fonte
 
-Para rodar a suíte completa contra servidores reais:
+Requisitos: **Node.js 22+**, **pnpm 10+** e **Git**.
 
 ```bash
-cd app
+git clone https://github.com/danilosong/TuxSQL.git
+cd TuxSQL/app
+corepack enable
+pnpm install --frozen-lockfile
+pnpm dev                        # modo desenvolvimento com hot-reload
+```
 
-# Sobe os contêineres MySQL 8.4 e MariaDB 11 isolados
+Sem monitor (CI ou servidor remoto):
+
+```bash
+env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE xvfb-run -a pnpm dev
+```
+
+**Novos contribuidores:** comecem pelo [CONTRIBUTING.md](CONTRIBUTING.md) e pelo [Guia do Usuário](document/user-guide/README.md).
+
+## Testes
+
+Tudo roda a partir de `app/`:
+
+```bash
+pnpm typecheck        # tipos (TypeScript)
+pnpm lint             # estilo (ESLint)
+pnpm test             # testes unitários (Vitest)
+pnpm perf:benchmark   # benchmark de spool e parsing
+pnpm build            # build de produção
+pnpm dist:deb         # pacote Debian (.deb)
+```
+
+Integração contra MySQL 8.4 e MariaDB 11 descartáveis:
+
+```bash
 docker compose -f test/docker-compose.yml up -d --wait
-
-# Executa os testes de integração contra a porta de teste
 MYSQL_INTEGRATION=1 pnpm test
-
-# Executa o teste de fumaça E2E com Playwright + Electron em Xvfb
-pnpm smoke:e2e
-
-# Finaliza e destrói o ambiente de teste
+pnpm smoke:e2e        # Playwright + Electron sob Xvfb
 docker compose -f test/docker-compose.yml down -v
 ```
 
----
+## Estado do projeto
 
-## Arquitetura do Software
+> [!IMPORTANT]
+> **O TuxSQL está em alpha, e queremos ser diretos sobre isso.** Os 20 módulos do inventário estão implementados, com testes e evidências visuais, mas o projeto ainda é jovem: espere arestas. **Não afirmamos paridade certificada com nenhum produto comercial**, em especial o dbForge Studio for MySQL, que serviu apenas como referência da *categoria* de funcionalidades. Os desvios conhecidos estão na [Matriz de Paridade](document/03-matriz-paridade.md) e o que ficou fora do escopo está em [`document/paridade/ESCOPO-LINUX.md`](document/paridade/ESCOPO-LINUX.md). Encontrou um problema? [Abra uma issue](https://github.com/danilosong/TuxSQL/issues) com a distro, a versão do servidor e, se possível, uma captura.
 
-O TuxSQL segue o padrão de segurança e isolamento de processos recomendado pelo Electron:
+### Limitações conhecidas
 
-```
-├── app/src/main/               # Processo Principal (Node.js)
-│   ├── db/                     # Drivers de conexão (mysql2 core pool, streaming, túneis SSH/HTTP)
-│   ├── connections/            # Armazenamento e ciclo de vida de conexões
-│   ├── security/               # PasswordVault (libsecret + AES-256-GCM) e WindowPolicy
-│   ├── ipc/                    # Handlers IPC com validação de schemas e IPC Guard
-│   └── index.ts                # Inicialização da janela principal e ciclo de vida do Electron
-│
-├── app/src/preload/            # Camada de Pré-carregamento (Context Isolation)
-│   ├── api/                    # APIs tipadas expostas de forma segura ao renderer
-│   └── index.ts                # contextBridge.exposeInMainWorld('tuxsql', ...)
-│
-├── app/src/renderer/           # Processo de Renderização (React 19 + Monaco)
-│   ├── src/ui/                 # Shell da aplicação, painéis MDI, diálogos e componentes
-│   ├── src/i18n/               # Motor de internacionalização reativo (en / pt-BR)
-│   └── src/main.tsx            # Ponto de entrada React montado na janela
-│
-└── app/src/modules/            # Módulos de Domínio Puros (Isolados e Testáveis)
-    ├── schema/                 # Introspecção, DDL e motor de comparação de schemas
-    ├── editor/                 # Motor de autocompletar, snippets e formatação SQL
-    ├── query-builder/          # Parser e compilador de modelo para SQL
-    ├── routine-debugger/       # Instrumentação de código SQL para depuração passo a passo
-    ├── ai-assistant/           # Cliente de IA, sanitização de contexto e streaming
-    ├── data-export-import/     # Encoders e decoders de arquivos (CSV, Excel, XML, JSON)
-    └── grid-editing/           # Detecção de deltas e geração de DML para edição de grade
-```
+1. **Depurador de rotinas:** funciona só com **stored procedures**, por instrumentação temporária e variáveis de sessão. Não depura stored functions, triggers nem `PREPARE/EXECUTE` dinâmico.
+2. **Edição na grade:** só em consultas sobre uma única tabela com **chave primária ou índice UNIQUE**. Consultas com `JOIN`, subconsultas, `GROUP BY` ou colunas calculadas ficam somente leitura.
+3. **Fora de escopo:** recursos legados de Windows (Microsoft Access direto, ODBC de 32 bits, conectores Google Sheets antigos, TFS e Mercurial) não fazem parte do projeto.
 
-### Blindagem de Segurança e IPC Guard
+## Documentação
 
-- **IPC Guard Central (`app/src/main/ipc/guard.ts`):** Todas as chamadas entre a UI e o processo principal são validadas contra esquemas estritos. Mensagens com payloads malformados ou origens de frame desconhecidas são rejeitadas sumariamente.
-- **Operações Críticas com Confirmação Mandatória:** Operações destrutivas (`DROP`, `KILL QUERY`, restore de banco e resets) requerem confirmação explícita do usuário, impedindo acionamentos silenciosos.
-- **Cofre Seguro de Credenciais:** As senhas nunca trafegam em texto puro nos logs e são cifradas via `libsecret` do Linux, com fallback criptografado isolado nas pastas de dados do usuário (`$XDG_DATA_HOME`).
-- **Segurança da IA:** A comunicação com provedores de IA remotos exige estritamente HTTPS e limita o tráfego a metadados do schema. Dados de linhas de tabelas nunca são enviados sem consentimento prévio do usuário.
-
-Para detalhes completos da auditoria, consulte o relatório independente em [document/security-review.md](document/security-review.md).
-
----
-
-## Compatibilidade de Banco de Dados
-
-A compatibilidade foi verificada com testes de integração contínua contra servidores reais em contêineres descartáveis:
-
-| Servidor | Versão Validada | Status da Suíte de Testes |
-|---|---|---|
-| **MySQL** | `5.7.44` | ✓ 48 arquivos de teste, 147 testes aprovados |
-| **MySQL** | `8.0.46` | ✓ 48 arquivos de teste, 147 testes aprovados |
-| **MySQL LTS** | `8.4.11` | ✓ 48 arquivos de teste, 148 testes aprovados |
-| **MariaDB LTS** | `10.11.19` | ✓ 48 arquivos de teste, 148 testes aprovados |
-| **MariaDB** | `11.8.9` | ✓ 48 arquivos de teste, 148 testes aprovados |
-
-Para o registro detalhado de comportamento de handshakes TLS e fallbacks, veja [document/compat.md](document/compat.md).
-
----
-
-## Estado do Projeto e Paridade (Declaração Honesta)
-
-O TuxSQL é um projeto de código aberto em desenvolvimento ativo.
-
-- **O que está feito:** Todos os 18 módulos listados no inventário inicial de engenharia reversa estão implementados no código e contam com cobertura de testes unitários, testes de integração e evidências visuais registradas.
-- **O que NÃO afirmamos:** **Não afirmamos paridade formal ou funcional certificada com nenhum produto comercial**, em especial com o dbForge Studio for MySQL da Devart, que serviu apenas como referência de *categoria de funcionalidades* (o que uma boa IDE de banco de dados oferece). As implementações são **código original**, escritas a partir de especificações próprias do projeto e de observação de comportamento, **sem uso de código, binários ou recursos do produto de referência**. Os desvios conhecidos estão documentados na [Matriz de Paridade](document/03-matriz-paridade.md).
-
----
-
-## Limitações Conhecidas
-
-Para total transparência com os usuários e a comunidade de desenvolvimento:
-
-1. **Depurador de Rotinas:** O mecanismo de debugging funciona exclusivamente com **Stored Procedures** por meio de injeção temporária de código de instrumentação e variáveis de sessão. Não há suporte a depuração passo a passo de Stored Functions, Triggers ou comandos dinâmicos `PREPARE/EXECUTE`.
-2. **Edição Direta na Grade:** A edição inline de células no Result Grid é suportada apenas em consultas simples do tipo `SELECT * FROM tabela` sobre uma única tabela que possua **chave primária (PK) ou índice com constraint UNIQUE**. Consultas complexas com `JOIN`, subqueries, agregações (`GROUP BY`) ou colunas calculadas operam em modo somente-leitura.
-3. **Formatos e Serviços Fora de Escopo:** O TuxSQL foi desenvolvido exclusivamente para ecossistemas modernos e abertos em Linux. Funcionalidades legadas de ecossistemas Windows (como importação/exportação direta para Microsoft Access, drivers genéricos ODBC de 32 bits, conectores Google Sheets legados, e integração com servidores de versão descontinuados como Team Foundation Server/TFS e Mercurial/Hg) estão expressamente fora do escopo do projeto.
-
----
-
-## Documentação Adicional
-
-- [Guia do Usuário por Módulo](document/user-guide/README.md)
-- [Matriz de Paridade de Recursos](document/03-matriz-paridade.md)
-- [Relatório de Revisão de Segurança](document/security-review.md)
-- [Matriz de Compatibilidade MySQL/MariaDB](document/compat.md)
-- [Aviso Legal e Propriedade Intelectual](LEGAL.md)
-- [Como Contribuir](CONTRIBUTING.md)
-- [Histórico de Versões (Changelog)](CHANGELOG.md)
+| | |
+|---|---|
+| 📘 [Guia do Usuário por módulo](document/user-guide/README.md) | 🗺️ [Matriz de Paridade](document/03-matriz-paridade.md) |
+| 🔐 [Revisão de Segurança](document/security-review.md) | 🐬 [Compatibilidade MySQL/MariaDB](document/compat.md) |
+| 🐧 [Notas de Linux](document/linux.md) | ⚡ [Desempenho](document/perf.md) |
+| 🤝 [Como Contribuir](CONTRIBUTING.md) | 📝 [Changelog](CHANGELOG.md) |
+| ⚖️ [Aviso Legal](LEGAL.md) | 📦 [Licenças de terceiros](THIRD-PARTY.md) |
 
 ---
 
@@ -389,8 +414,16 @@ Para total transparência com os usuários e a comunidade de desenvolvimento:
 
 *English:* TuxSQL is an independent MIT-licensed project. It is not a clone or derivative of dbForge Studio, contains none of its code or assets, and is not affiliated with, sponsored or endorsed by Devart. Trademarks belong to their owners and are mentioned only descriptively. Rights holders may contact the maintainer to request review or removal (see [LEGAL.md](LEGAL.md)).
 
+<sub>MySQL é marca registrada da Oracle Corporation; MariaDB é marca registrada da MariaDB plc; Linux é marca registrada de Linus Torvalds. O TuxSQL não é afiliado a nenhuma delas; os nomes aparecem apenas para descrever compatibilidade.</sub>
+
 ---
 
 <p align="center">
-  Desenvolvido com dedicação para a comunidade de desenvolvedores e administradores de banco de dados Linux.
+  <img src="app/packaging/icon.png" width="32" height="32" alt=""><br>
+  <sub>Desenvolvido com dedicação para a comunidade de desenvolvedores e administradores de banco de dados Linux.</sub><br>
+  <sub><a href="https://github.com/danilosong/TuxSQL/issues">Issues</a> · <a href="https://github.com/danilosong/TuxSQL/releases">Releases</a> · <a href="CONTRIBUTING.md">Contribuir</a></sub>
 </p>
+
+## Histórico de estrelas
+
+[![Star History Chart](https://api.star-history.com/svg?repos=danilosong/TuxSQL&type=Date)](https://www.star-history.com/#danilosong/TuxSQL&Date)
