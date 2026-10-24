@@ -357,7 +357,9 @@ END`)
   await page.locator('.object-group-name').filter({ hasText: 'Tables' }).click()
   const smokeObject = page.locator('.object-name').filter({ hasText: docTable }).first()
   await smokeObject.waitFor({ timeout: 15_000 })
-  await smokeObject.click()
+  // The explorer tree may re-render while metadata loads, so the stability check can spin forever.
+  await smokeObject.scrollIntoViewIfNeeded()
+  await smokeObject.click({ force: true })
   await page.keyboard.press('F4')
   await page.locator('.object-viewer').waitFor()
   await page.locator('.object-viewer pre').waitFor()
@@ -575,7 +577,12 @@ END`)
     runExport.waitFor({ state: 'visible', timeout: 15_000 }).then(() => 'run', () => null)
   ])
   if (!exportNextState) throw new Error(`Export wizard stalled after the error-log step: ${await exportPanel.innerText()}`)
-  if (exportNextState === 'run' && !(await exportFinish.isVisible())) await runExport.click({ noWaitAfter: true })
+  // The run may already be in progress (primary button disabled), so only click while it is enabled and Finish is not shown.
+  for (const deadline = Date.now() + 20_000; exportNextState === 'run' && Date.now() < deadline;) {
+    if (await exportFinish.isVisible()) break
+    if (await runExport.isVisible() && await runExport.isEnabled()) await runExport.click({ noWaitAfter: true, timeout: 2_000 }).catch(() => {})
+    await page.waitForTimeout(250)
+  }
   await exportFinish.waitFor({ state: 'visible', timeout: 20_000 })
   const showLog = exportPanel.getByRole('button', { name: 'Show log file', exact: true })
   if (!(await showLog.count())) throw new Error(`Finish did not expose Show log file: ${await exportPanel.innerText()} (saved log: ${await readFile(exportErrorLog, 'utf8').catch(() => 'missing')})`)
