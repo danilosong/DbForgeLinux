@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="app/packaging/icon.png" width="128" height="128" alt="Ícone do TuxSQL">
+  <img src="app/packaging/icon.png" width="200" height="200" alt="Ícone do TuxSQL: um cilindro de banco de dados em neon ciano com o nome TuxSQL em grafite">
 </p>
 
 <h1 align="center">TuxSQL</h1>
