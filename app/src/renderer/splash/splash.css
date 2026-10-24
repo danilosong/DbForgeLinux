@@ -4,34 +4,17 @@
 * { box-sizing: border-box; }
 html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #13191c; }
 body { user-select: none; }
-.splash { position: relative; isolation: isolate; display: grid; width: 100%; height: 100%; padding: 22px 31px 21px; grid-template-rows: 20px 1fr 55px; overflow: hidden; background: #13191c url('./assets/concrete-wall.svg') center / cover no-repeat; }
+.splash { position: relative; isolation: isolate; display: grid; width: 100%; height: 100%; padding: 22px 31px 21px; grid-template-rows: 20px 1fr 55px; overflow: hidden; background: #0b1215 url('./assets/tuxsql-graffiti.jpg') 50% -46px / 604px auto no-repeat; }
 .splash { opacity: 1; }
 html.fade-out .splash { animation: splash-fade-out 250ms ease-out forwards; }
 @keyframes splash-fade-out { to { opacity: 0; } }
-.splash::after { position: absolute; z-index: -1; inset: 0; content: ''; background: linear-gradient(180deg, rgb(8 15 18 / .43), rgb(8 14 17 / .22) 48%, rgb(5 12 15 / .88)); }
-.wall-grain { position: absolute; z-index: -1; inset: 0; background: radial-gradient(ellipse at 52% 41%, rgb(61 205 194 / .12), transparent 49%), radial-gradient(ellipse at 93% 4%, rgb(255 181 74 / .07), transparent 33%); pointer-events: none; }
-.filter-defs { position: absolute; width: 0; height: 0; }
-.top-row { z-index: 1; display: flex; align-items: center; justify-content: space-between; color: #9aa9aa; font-size: 9px; letter-spacing: .17em; text-transform: uppercase; }
+.splash::after { position: absolute; z-index: -1; inset: 0; content: ''; background: linear-gradient(180deg, rgb(8 15 18 / .35), transparent 16%, transparent 66%, rgb(5 12 15 / .82) 80%, #0b1215 94%); }
+.top-row { z-index: 1; display: flex; align-items: center; justify-content: space-between; color: #9aa9aa; text-shadow: 0 1px 3px #000c; font-size: 9px; letter-spacing: .17em; text-transform: uppercase; }
 .brand-kicker { font-weight: 700; }
 .version { color: #79898c; font: 10px/1.2 ui-monospace, monospace; letter-spacing: .04em; }
-.brand-lockup { z-index: 1; align-self: center; justify-self: center; margin-top: -2px; text-align: center; }
-.wordmark-wrap { position: relative; filter: drop-shadow(0 9px 0 #071316) drop-shadow(0 15px 0 rgb(5 15 18 / .76)) drop-shadow(0 0 18px rgb(55 211 199 / .34)); }
-.wordmark { position: relative; z-index: 1; margin: 0; color: #4bd2c7; background: linear-gradient(165deg, #f0ffff 1%, #89eee4 15%, #3cd1c5 42%, #12aeb4 73%, #08788d 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; -webkit-text-stroke: 3.6px #071719; paint-order: stroke fill; font: 400 82px/.96 'Rubik Spray Paint', Impact, sans-serif; letter-spacing: -.055em; filter: url(#spray-warp); }
-.paint-drip { position: absolute; z-index: 0; top: 72px; width: 7px; height: var(--drip-height); border-radius: 0 0 6px 6px; background: linear-gradient(180deg, #1bbab9, #0b7781); box-shadow: 0 3px 0 #071719; animation: drip-flow 3.7s ease-in-out infinite alternate; }
-.drip-one { left: 18%; --drip-height: 16px; animation-delay: -.8s; }
-.drip-two { left: 37%; --drip-height: 24px; animation-delay: -2.2s; }
-.drip-three { left: 56%; --drip-height: 13px; animation-delay: -1.4s; }
-.drip-four { left: 72%; --drip-height: 21px; animation-delay: -2.8s; }
-.drip-five { left: 87%; --drip-height: 11px; animation-delay: -.4s; }
-@keyframes drip-flow { from { transform: scaleY(.75); transform-origin: top; } to { transform: scaleY(1.08); transform-origin: top; } }
-.signature-row { position: relative; display: inline-flex; align-items: center; min-width: 112px; height: 36px; margin: 8px 0 0 128px; transform: rotate(-5deg); }
-.signature { position: relative; z-index: 1; color: #ffc064; font: 400 27px/.9 'Sedgwick Ave Display', 'Segoe Print', cursive; text-shadow: 1px 2px 0 #32210e, 2px 4px 0 rgb(0 0 0 / .6), 0 0 12px rgb(255 174 61 / .25); }
-.signature-swoosh { position: absolute; left: -12px; top: 10px; width: 105px; height: 19px; overflow: visible; }
-.signature-swoosh path { fill: none; stroke: #ffb547; stroke-width: 1.7; stroke-linecap: round; }
-.spark { position: absolute; color: #fff1ce; text-shadow: 0 0 7px #ffc25d; }
-.spark-one { top: -1px; right: -17px; font-size: 12px; }
-.spark-two { top: 18px; right: -27px; font-size: 9px; }
-.startup-status { z-index: 1; align-self: end; }
+.brand-lockup { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.wordmark { margin: 0; font-size: 1px; }
+.startup-status { z-index: 1; grid-row: 3; align-self: end; }
 .stage-row { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; color: #e1efee; font-size: 12px; letter-spacing: .015em; }
 .stage-label { min-height: 15px; color: #dceceb; }
 .percentage { color: #73dfd4; font: 11px ui-monospace, monospace; }
