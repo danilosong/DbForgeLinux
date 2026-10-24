@@ -17,5 +17,5 @@
       "detail": "20 de 20"
     }
   ],
-  "note": "O 100% vale para o escopo Debian/Linux e para o que a referência mostrou; exclusões e diferenças intencionais estão declaradas em document/paridade/ESCOPO-LINUX.md. Visual v2 (shell moderno, banner de abertura, documentação offline) entregue sem alterar funcionalidades. README reorganizado em 2026-10-23 e nova identidade visual em 2026-10-24 (ícone e arte da splash em grafite neon), sem mudança de funcionalidade."
+  "note": "O 100% vale para o escopo Debian/Linux e para o que a referência mostrou; exclusões e diferenças intencionais estão declaradas em document/paridade/ESCOPO-LINUX.md. Visual v2 (shell moderno, banner de abertura, documentação offline) entregue sem alterar funcionalidades. README reorganizado em 2026-10-23 e nova identidade visual em 2026-10-24 (ícone e arte da splash em grafite neon, publicada na versão 0.1.3), sem mudança de funcionalidade."
 }

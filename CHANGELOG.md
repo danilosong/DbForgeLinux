@@ -2,6 +2,13 @@
 
 Mudanças notáveis do TuxSQL. O projeto ainda está em desenvolvimento; esta lista registra o estado inicial documentado.
 
+## 0.1.3 — Nova identidade visual
+
+- Novo ícone do app em grafite neon (pacote `.deb`, AppImage e menu do sistema).
+- Nova tela de abertura com a arte "TuxSQL Song" em grafite neon; a barra de progresso e as mensagens de inicialização continuam iguais.
+- README reorganizado: galeria de funcionalidades que segue o tema claro/escuro, inventário completo, seção de segurança e estado do projeto.
+- Teste de fumaça do desktop mais estável no CI (duas etapas que falhavam de forma intermitente).
+
 ## Renomeação para TuxSQL
 
 O projeto deixou o nome anterior (que continha uma marca de terceiros) e passou a se chamar **TuxSQL**: pacote e executável `tuxsql`, repositório `danilosong/TuxSQL`. Os dados em `~/.config/dbforge-linux` (conexões, configurações, histórico, tarefas, diagramas) são copiados automaticamente para `~/.config/tuxsql` na primeira execução. **Senhas salvas não migram** (o chaveiro do sistema está ligado ao nome antigo do app): digite-as novamente. Variáveis `DBFORGE_*` viraram `TUXSQL_*`, a API do preload é `window.tuxsql` e o comando de desenvolvimento é `tools/tuxsql-dev`.
