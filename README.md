@@ -171,6 +171,12 @@ Todas as capturas abaixo são do TuxSQL rodando em Linux x86_64. Elas mudam de t
   </tr>
 </table>
 
+<p align="center">
+  <img src="document/evidence/ui/00-splash/splash-graffiti-preview.jpg" alt="Tela de abertura do TuxSQL: arte em grafite neon com um cilindro de banco de dados, o nome TuxSQL e a assinatura Song, com a barra de progresso embaixo" width="560">
+  <br>
+  <sub>A tela de abertura, com a arte em grafite neon e o progresso da inicialização.</sub>
+</p>
+
 <details>
 <summary><b>Mais capturas</b> (Data Generator, Pivot, Profiler, Source Control, Import/Export, Sessões)</summary>
 <br>
@@ -215,7 +221,7 @@ Mais de 200 capturas, em claro e escuro, estão em [`document/evidence/ui/`](doc
     </td>
     <td width="33%" valign="top">
       <h4>🎨 Ambiente</h4>
-      Shell MDI com painéis acopláveis · temas Auto, Claro, Escuro e Alto Contraste · atalhos remapeáveis · interface em inglês e português do Brasil · documentação offline · atualização automática pelas Releases
+      Tela de abertura em grafite neon · shell MDI com painéis acopláveis · temas Auto, Claro, Escuro e Alto Contraste · atalhos remapeáveis · interface em inglês e português do Brasil · documentação offline · atualização automática pelas Releases
     </td>
   </tr>
 </table>
